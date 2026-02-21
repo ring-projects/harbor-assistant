@@ -1,0 +1,5 @@
+fileBrowser:
+  rootDirectory: "~"
+
+workspace:
+  dataFile: "~/.otter-assistant/data/workspaces.json"
