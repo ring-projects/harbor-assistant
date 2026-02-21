@@ -63,7 +63,17 @@ export function AppSidebarHeader() {
       return;
     }
 
-    router.push(`/${workspaceId}/docs`);
+    if (pathname.includes("/tasks")) {
+      router.push(`/${workspaceId}/tasks`);
+      return;
+    }
+
+    if (pathname.includes("/review")) {
+      router.push(`/${workspaceId}/review`);
+      return;
+    }
+
+    router.push(`/${workspaceId}/review`);
   };
 
   return (

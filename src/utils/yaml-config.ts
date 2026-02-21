@@ -18,6 +18,11 @@ const AppConfigSchema = z
         dataFile: z.string().min(1).optional(),
       })
       .optional(),
+    task: z
+      .object({
+        dataFile: z.string().min(1).optional(),
+      })
+      .optional(),
   })
   .optional()
 
@@ -26,6 +31,9 @@ export type AppConfig = {
     rootDirectory: string
   }
   workspace: {
+    dataFile: string
+  }
+  task: {
     dataFile: string
   }
 }
@@ -57,6 +65,9 @@ function createDefaultConfig(): AppConfig {
     workspace: {
       dataFile: path.join(homedir(), ".otter-assistant", "data", "workspaces.json"),
     },
+    task: {
+      dataFile: path.join(homedir(), ".otter-assistant", "data", "tasks.json"),
+    },
   }
 }
 
@@ -87,6 +98,11 @@ export function getAppConfig(): AppConfig {
       dataFile: validated?.workspace?.dataFile
         ? toAbsolutePath(validated.workspace.dataFile)
         : defaults.workspace.dataFile,
+    },
+    task: {
+      dataFile: validated?.task?.dataFile
+        ? toAbsolutePath(validated.task.dataFile)
+        : defaults.task.dataFile,
     },
   }
 

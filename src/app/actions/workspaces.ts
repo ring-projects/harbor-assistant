@@ -54,6 +54,22 @@ export async function addWorkspaceAction(input: {
   }
 }
 
+export async function listWorkspacesAction(): Promise<WorkspaceActionResult> {
+  try {
+    const workspaces = await listWorkspaces()
+    return {
+      ok: true,
+      workspaces,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      workspaces: [],
+      error: mapError(error),
+    }
+  }
+}
+
 export async function deleteWorkspaceAction(input: {
   id: string
 }): Promise<WorkspaceActionResult> {

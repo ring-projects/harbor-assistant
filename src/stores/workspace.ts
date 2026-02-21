@@ -2,6 +2,7 @@
 
 import { create } from "zustand"
 
+import { listWorkspacesAction } from "@/app/actions/workspaces"
 import type { Workspace } from "@/services/workspace/types"
 
 const STORAGE_ACTIVE_WORKSPACE_ID = "otter_active_workspace_id"
@@ -67,21 +68,6 @@ function resolveActiveWorkspaceId(args: {
   return workspaces[0]?.id ?? null
 }
 
-function parseWorkspaceListResponse(payload: unknown): Workspace[] {
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "ok" in payload &&
-    payload.ok &&
-    "data" in payload &&
-    Array.isArray(payload.data)
-  ) {
-    return payload.data as Workspace[]
-  }
-
-  return []
-}
-
 export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   workspaces: [],
   activeWorkspaceId: null,
@@ -126,12 +112,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     })
 
     try {
-      const response = await fetch("/api/workspaces", {
-        method: "GET",
-        cache: "no-store",
-      })
-      const payload: unknown = await response.json()
-      const workspaces = parseWorkspaceListResponse(payload)
+      const result = await listWorkspacesAction()
+      const workspaces = result.workspaces
 
       set((state) => {
         const activeWorkspaceId = resolveActiveWorkspaceId({
@@ -149,6 +131,12 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
           error: null,
         }
       })
+
+      if (!result.ok) {
+        set({
+          error: result.error?.message ?? "Failed to load workspaces.",
+        })
+      }
     } catch {
       set({
         isLoading: false,

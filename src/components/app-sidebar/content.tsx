@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenIcon, CableIcon, SparklesIcon } from "lucide-react";
+import {
+  BotIcon,
+  CableIcon,
+  SparklesIcon,
+  SquareCheckBigIcon,
+} from "lucide-react";
 
 import {
   SidebarGroup,
@@ -23,14 +28,17 @@ export function AppSidebarContent(props: AppSidebarContentProps) {
     (store) => store.activeWorkspaceId,
   );
 
-  const docsUrl = activeWorkspaceId ? `/${activeWorkspaceId}/docs` : "/settings";
+  const reviewUrl = activeWorkspaceId ? `/${activeWorkspaceId}/review` : "/settings";
   const skillsUrl = activeWorkspaceId
     ? `/${activeWorkspaceId}/skills`
     : "/settings";
   const mcpUrl = activeWorkspaceId ? `/${activeWorkspaceId}/mcp` : "/settings";
+  const tasksUrl = activeWorkspaceId
+    ? `/${activeWorkspaceId}/tasks`
+    : "/settings";
 
-  const docsActive = activeWorkspaceId
-    ? pathname === docsUrl || pathname.startsWith(`${docsUrl}/`)
+  const reviewActive = activeWorkspaceId
+    ? pathname === reviewUrl || pathname.startsWith(`${reviewUrl}/`)
     : pathname === "/settings";
   const skillsActive = activeWorkspaceId
     ? pathname === skillsUrl || pathname.startsWith(`${skillsUrl}/`)
@@ -38,18 +46,21 @@ export function AppSidebarContent(props: AppSidebarContentProps) {
   const mcpActive = activeWorkspaceId
     ? pathname === mcpUrl || pathname.startsWith(`${mcpUrl}/`)
     : pathname === "/settings";
+  const tasksActive = activeWorkspaceId
+    ? pathname === tasksUrl || pathname.startsWith(`${tasksUrl}/`)
+    : pathname === "/settings";
 
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Documents</SidebarGroupLabel>
+        <SidebarGroupLabel>Review</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={docsActive} tooltip="Documents">
-                <Link href={docsUrl}>
-                  <BookOpenIcon />
-                  <span>Docs</span>
+              <SidebarMenuButton asChild isActive={reviewActive} tooltip="Code Review">
+                <Link href={reviewUrl}>
+                  <SquareCheckBigIcon />
+                  <span>Code Review</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -58,9 +69,17 @@ export function AppSidebarContent(props: AppSidebarContentProps) {
       </SidebarGroup>
 
       <SidebarGroup>
-        <SidebarGroupLabel>Skills</SidebarGroupLabel>
+        <SidebarGroupLabel>Automation</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={tasksActive} tooltip="Tasks">
+                <Link href={tasksUrl}>
+                  <BotIcon />
+                  <span>Tasks</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={skillsActive} tooltip="Skills">
                 <Link href={skillsUrl}>
