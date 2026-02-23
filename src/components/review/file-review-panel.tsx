@@ -1,5 +1,6 @@
 import { FileCode2Icon, FilesIcon } from "lucide-react"
 
+import { InteractiveCodeBlock, inferLanguageFromFilePath } from "@/components/code"
 import { MarkdownPreview } from "@/components/documents/preview"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -61,11 +62,18 @@ export function ReviewFilePanel(props: ReviewFilePanelProps) {
                 Select a file to start review.
               </p>
             ) : filePreview.isMarkdown && filePreview.content ? (
-              <MarkdownPreview content={filePreview.content} />
+              <MarkdownPreview
+                key={`review-markdown:${filePreview.relativePath}`}
+                content={filePreview.content}
+                sourceId={`review-markdown:${filePreview.relativePath}`}
+              />
             ) : filePreview.isText && filePreview.content ? (
-              <pre className="bg-muted overflow-auto rounded-md border p-3 text-xs whitespace-pre">
-                {filePreview.content}
-              </pre>
+              <InteractiveCodeBlock
+                key={`review-file:${filePreview.relativePath}`}
+                code={filePreview.content}
+                language={inferLanguageFromFilePath(filePreview.relativePath)}
+                sourceId={`review-file:${filePreview.relativePath}`}
+              />
             ) : (
               <p className="text-muted-foreground text-sm">
                 Binary file preview is not supported.

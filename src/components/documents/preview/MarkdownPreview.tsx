@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown"
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize"
 import remarkGfm from "remark-gfm"
 
+import { InteractiveCodeBlock } from "@/components/code"
 import { cn } from "@/lib/utils"
 import { MermaidBlock } from "./MermaidBlock"
 import { getCodeLanguage, trimTrailingNewLine } from "./utils"
@@ -19,10 +20,11 @@ const markdownSanitizeSchema = {
 type MarkdownPreviewProps = {
   content: string
   className?: string
+  sourceId?: string
 }
 
 export function MarkdownPreview(props: MarkdownPreviewProps) {
-  const { content, className } = props
+  const { content, className, sourceId } = props
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -75,25 +77,29 @@ export function MarkdownPreview(props: MarkdownPreviewProps) {
           ),
           td: ({ children }) => <td className="border px-3 py-2 align-top">{children}</td>,
           pre: ({ children }) => <>{children}</>,
-          code: ({ className: codeClassName, children }) => {
+          code: ({ className: codeClassName, children, node }) => {
             const language = getCodeLanguage(codeClassName)
             const codeValue = trimTrailingNewLine(String(children ?? ""))
 
-            if (language === "mermaid") {
-              return <MermaidBlock chart={codeValue} />
-            }
-
             const isMultiline = codeValue.includes("\n")
             if (isMultiline || language) {
+              const blockOffset =
+                typeof node?.position?.start?.offset === "number"
+                  ? node.position.start.offset
+                  : null
+              const blockId = `${sourceId ?? "markdown-preview"}:code-block:${blockOffset ?? "unknown"}`
+
+              if (language === "mermaid") {
+                return <MermaidBlock chart={codeValue} />
+              }
+
               return (
-                <code
-                  className={cn(
-                    "bg-muted block overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre",
-                    codeClassName
-                  )}
-                >
-                  {codeValue}
-                </code>
+                <InteractiveCodeBlock
+                  key={blockId}
+                  code={codeValue}
+                  language={language}
+                  sourceId={blockId}
+                />
               )
             }
 

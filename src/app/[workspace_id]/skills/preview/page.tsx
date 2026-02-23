@@ -243,7 +243,10 @@ export default async function WorkspaceSkillPreviewPage(
                           {skillPreview.selectedFile.relativePath}
                         </p>
                         {skillPreview.selectedFile.isMarkdown ? (
-                          <MarkdownPreview content={skillPreview.selectedFile.content} />
+                          <MarkdownPreview
+                            content={skillPreview.selectedFile.content}
+                            sourceId={`skill:${selectedSkill.source}:${selectedSkill.name}:${skillPreview.selectedFile.relativePath}`}
+                          />
                         ) : (
                           <pre className="bg-muted overflow-auto rounded-md border p-3 text-xs whitespace-pre">
                             {skillPreview.selectedFile.content}
