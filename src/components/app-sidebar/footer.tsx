@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CommandIcon, SettingsIcon } from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 
 import {
   SidebarMenu,

@@ -1,15 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AppSidebar } from "@/components/app-sidebar";
-import { FileExplorerSheet } from "@/components/file-explorer";
+import { AppTopNav } from "@/components/top-nav";
 import { GlobalHotkeys } from "@/components/global-hotkeys";
-import { LogoMark } from "@/components/logo";
-import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,17 +37,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SidebarProvider>
+        <div className="bg-background flex min-h-screen flex-col">
           <GlobalHotkeys />
-          <AppSidebar />
-          <SidebarInset>
-            <header className="bg-background flex h-14 shrink-0 items-center gap-2 border-b px-4">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-            </header>
-            <div className="flex flex-1 flex-col">{children}</div>
-          </SidebarInset>
-        </SidebarProvider>
+          <AppTopNav />
+          <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+        </div>
       </body>
     </html>
   );

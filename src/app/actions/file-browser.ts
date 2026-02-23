@@ -1,5 +1,7 @@
 "use server"
 
+import { z } from "zod"
+
 import {
   browseDirectory,
   FileBrowserServiceError,
@@ -11,11 +13,21 @@ import {
   type FileExplorerState,
   type FileExplorerValues,
 } from "@/services/file-browser/file-explorer-state"
-import { parseFormBoolean } from "@/utils/boolean"
+
+const FormBooleanSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.toLowerCase() : value),
+  z.stringbool({
+    truthy: ["1", "true", "on"],
+    falsy: ["0", "false", "off"],
+  })
+)
 
 function normalizeValues(formData: FormData): FileExplorerValues {
+  const includeHiddenValue = formData.get("includeHidden")
+  const parsedIncludeHidden = FormBooleanSchema.safeParse(includeHiddenValue)
+
   return {
-    includeHidden: parseFormBoolean(formData.get("includeHidden")),
+    includeHidden: parsedIncludeHidden.success ? parsedIncludeHidden.data : false,
   }
 }
 

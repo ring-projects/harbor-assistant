@@ -2,7 +2,6 @@
 
 import { useEffect } from "react"
 
-import { useSidebar } from "@/components/ui/sidebar"
 import { useUiStore } from "@/stores"
 
 function isEditableTarget(target: EventTarget | null) {
@@ -28,7 +27,6 @@ function isPrimaryHotkey(event: KeyboardEvent, key: string) {
 }
 
 export function GlobalHotkeys() {
-  const toggleSidebar = useSidebar().toggleSidebar
   const openFileExplorerSheet = useUiStore((store) => store.openFileExplorerSheet)
 
   useEffect(() => {
@@ -40,18 +38,12 @@ export function GlobalHotkeys() {
       if (isPrimaryHotkey(event, "k")) {
         event.preventDefault()
         openFileExplorerSheet()
-        return
-      }
-
-      if (isPrimaryHotkey(event, "b")) {
-        event.preventDefault()
-        toggleSidebar()
       }
     }
 
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [openFileExplorerSheet, toggleSidebar])
+  }, [openFileExplorerSheet])
 
   return null
 }

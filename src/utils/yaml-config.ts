@@ -4,7 +4,13 @@ import path from "node:path"
 import YAML from "yaml"
 import { z } from "zod"
 
-const APP_CONFIG_PATH = path.resolve(process.cwd(), "config", "app.yaml")
+import {
+  OTTER_APP_CONFIG_PATH,
+  OTTER_TASK_DATA_FILE,
+  OTTER_WORKSPACE_DATA_FILE,
+} from "@/utils/otter-paths"
+
+const APP_CONFIG_PATH = OTTER_APP_CONFIG_PATH
 
 const AppConfigSchema = z
   .object({
@@ -60,13 +66,13 @@ function toAbsolutePath(value: string) {
 function createDefaultConfig(): AppConfig {
   return {
     fileBrowser: {
-      rootDirectory: process.cwd(),
+      rootDirectory: homedir(),
     },
     workspace: {
-      dataFile: path.join(homedir(), ".otter-assistant", "data", "workspaces.json"),
+      dataFile: OTTER_WORKSPACE_DATA_FILE,
     },
     task: {
-      dataFile: path.join(homedir(), ".otter-assistant", "data", "tasks.json"),
+      dataFile: OTTER_TASK_DATA_FILE,
     },
   }
 }

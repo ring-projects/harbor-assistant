@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "init:otter": "node scripts/init.mjs",
+    "dev": "node scripts/init.mjs && next dev",
+    "build": "node scripts/init.mjs && next build",
+    "start": "node scripts/init.mjs && next start",
     "lint": "eslint"
   },
   "dependencies": {

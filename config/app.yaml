@@ -1,8 +1,0 @@
-fileBrowser:
-  rootDirectory: "~"
-
-workspace:
-  dataFile: "~/.otter-assistant/data/workspaces.json"
-
-task:
-  dataFile: "~/.otter-assistant/data/tasks.json"
