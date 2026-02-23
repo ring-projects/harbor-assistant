@@ -40,21 +40,21 @@ async function resolveCanonicalRoot(rootPath: string) {
   const canonicalRoot = await realpath(rootPath).catch((error) => {
     throw new DocumentServiceError(
       "ROOT_NOT_FOUND",
-      `Document root does not exist: ${rootPath}. ${String(error)}`
+      `Document root does not exist: ${rootPath}. ${String(error)}`,
     )
   })
 
   const rootStats = await stat(canonicalRoot).catch((error) => {
     throw new DocumentServiceError(
       "ROOT_NOT_FOUND",
-      `Failed to stat document root: ${canonicalRoot}. ${String(error)}`
+      `Failed to stat document root: ${canonicalRoot}. ${String(error)}`,
     )
   })
 
   if (!rootStats.isDirectory()) {
     throw new DocumentServiceError(
       "ROOT_NOT_DIRECTORY",
-      "Document root must be a directory."
+      "Document root must be a directory.",
     )
   }
 
@@ -87,12 +87,12 @@ export async function listMarkdownDocuments(args: {
     }).catch((error) => {
       throw new DocumentServiceError(
         "READ_ERROR",
-        `Failed to read directory: ${currentDirectory}. ${String(error)}`
+        `Failed to read directory: ${currentDirectory}. ${String(error)}`,
       )
     })
 
     const sortedEntries = entries.sort((first, second) =>
-      first.name.localeCompare(second.name, "en")
+      first.name.localeCompare(second.name, "en"),
     )
 
     for (const entry of sortedEntries) {
@@ -129,7 +129,7 @@ export async function listMarkdownDocuments(args: {
   }
 
   documents.sort((first, second) =>
-    first.relativePath.localeCompare(second.relativePath, "en")
+    first.relativePath.localeCompare(second.relativePath, "en"),
   )
 
   return {
@@ -145,18 +145,20 @@ export async function readMarkdownDocument(args: {
   maxBytes?: number
 }): Promise<ReadMarkdownDocumentResult> {
   const canonicalRoot = await resolveCanonicalRoot(args.rootPath)
-  const normalizedRelativePath = normalizeRelativeDocumentPath(args.relativePath)
+  const normalizedRelativePath = normalizeRelativeDocumentPath(
+    args.relativePath,
+  )
   if (!normalizedRelativePath) {
     throw new DocumentServiceError(
       "INVALID_DOCUMENT_PATH",
-      "Document path cannot be empty."
+      "Document path cannot be empty.",
     )
   }
 
   if (!isMarkdownFileName(normalizedRelativePath)) {
     throw new DocumentServiceError(
       "NOT_MARKDOWN_FILE",
-      "Only markdown files are supported for preview."
+      "Only markdown files are supported for preview.",
     )
   }
 
@@ -164,21 +166,21 @@ export async function readMarkdownDocument(args: {
   if (!isPathInsideRoot(canonicalRoot, absolutePath)) {
     throw new DocumentServiceError(
       "INVALID_DOCUMENT_PATH",
-      "Requested markdown path is outside workspace root."
+      "Requested markdown path is outside workspace root.",
     )
   }
 
   const fileStats = await stat(absolutePath).catch((error) => {
     throw new DocumentServiceError(
       "DOCUMENT_NOT_FOUND",
-      `Markdown file not found: ${absolutePath}. ${String(error)}`
+      `Markdown file not found: ${absolutePath}. ${String(error)}`,
     )
   })
 
   if (!fileStats.isFile()) {
     throw new DocumentServiceError(
       "DOCUMENT_NOT_FILE",
-      "Requested path is not a file."
+      "Requested path is not a file.",
     )
   }
 
@@ -189,14 +191,14 @@ export async function readMarkdownDocument(args: {
   if (fileStats.size > maxBytes) {
     throw new DocumentServiceError(
       "READ_ERROR",
-      `Markdown file is too large to preview (> ${maxBytes} bytes).`
+      `Markdown file is too large to preview (> ${maxBytes} bytes).`,
     )
   }
 
   const content = await readFile(absolutePath, "utf8").catch((error) => {
     throw new DocumentServiceError(
       "READ_ERROR",
-      `Failed to read markdown file: ${absolutePath}. ${String(error)}`
+      `Failed to read markdown file: ${absolutePath}. ${String(error)}`,
     )
   })
 

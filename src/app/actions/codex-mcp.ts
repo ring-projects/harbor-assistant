@@ -11,8 +11,12 @@ import { getWorkspaceById } from "@/services/workspace/workspace.repository"
 export async function setMcpServerEnabledAction(formData: FormData) {
   const workspaceId = String(formData.get("workspaceId") ?? "").trim()
   const serverName = String(formData.get("serverName") ?? "").trim()
-  const scope = String(formData.get("scope") ?? "").trim().toLowerCase()
-  const enabledRaw = String(formData.get("enabled") ?? "").trim().toLowerCase()
+  const scope = String(formData.get("scope") ?? "")
+    .trim()
+    .toLowerCase()
+  const enabledRaw = String(formData.get("enabled") ?? "")
+    .trim()
+    .toLowerCase()
 
   if (
     !workspaceId ||

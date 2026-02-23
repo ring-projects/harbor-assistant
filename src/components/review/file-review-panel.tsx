@@ -1,6 +1,9 @@
 import { FileCode2Icon, FilesIcon } from "lucide-react"
 
-import { InteractiveCodeBlock, inferLanguageFromFilePath } from "@/components/code"
+import {
+  InteractiveCodeBlock,
+  inferLanguageFromFilePath,
+} from "@/components/code"
 import { MarkdownPreview } from "@/components/documents/preview"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -30,7 +33,7 @@ export function ReviewFilePanel(props: ReviewFilePanelProps) {
               <span
                 className={cn(
                   "rounded border px-1.5 py-0.5 text-[10px] font-medium",
-                  getReviewStatusBadgeClass(selectedFile.status)
+                  getReviewStatusBadgeClass(selectedFile.status),
                 )}
               >
                 {getReviewStatusLabel(selectedFile.status)}

@@ -1,13 +1,13 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { SettingsIcon } from "lucide-react";
+import Link from "next/link"
+import { SettingsIcon } from "lucide-react"
 
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"
 
 export function AppSidebarFooter() {
   return (
@@ -21,5 +21,5 @@ export function AppSidebarFooter() {
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
-  );
+  )
 }

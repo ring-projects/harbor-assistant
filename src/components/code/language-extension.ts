@@ -11,7 +11,7 @@ import { rust } from "@codemirror/lang-rust"
 import { yaml } from "@codemirror/lang-yaml"
 
 export function getCodeMirrorLanguageExtension(
-  language: string | null
+  language: string | null,
 ): Extension | null {
   if (!language) {
     return null

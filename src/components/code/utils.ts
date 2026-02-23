@@ -50,7 +50,11 @@ export function inferLanguageFromFilePath(filePath: string) {
   if (normalized.endsWith(".jsx")) {
     return "jsx"
   }
-  if (normalized.endsWith(".js") || normalized.endsWith(".mjs") || normalized.endsWith(".cjs")) {
+  if (
+    normalized.endsWith(".js") ||
+    normalized.endsWith(".mjs") ||
+    normalized.endsWith(".cjs")
+  ) {
     return "js"
   }
   if (normalized.endsWith(".json")) {

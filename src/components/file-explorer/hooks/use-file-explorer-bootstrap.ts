@@ -7,7 +7,7 @@ import { useFileExplorerTreeStore } from "@/components/file-explorer/stores"
 
 export function useFileExplorerBootstrap(open: boolean) {
   const hydrateFromActionState = useFileExplorerTreeStore(
-    (store) => store.hydrateFromActionState
+    (store) => store.hydrateFromActionState,
   )
   const setError = useFileExplorerTreeStore((store) => store.setError)
   const rootPath = useFileExplorerTreeStore((store) => store.rootPath)

@@ -20,12 +20,14 @@ type WorkspaceManagerProps = {
 export function WorkspaceManager(props: WorkspaceManagerProps) {
   const { initialWorkspaces, initialError } = props
 
-  const hydrateWorkspaces = useWorkspaceStore((store) => store.hydrateWorkspaces)
+  const hydrateWorkspaces = useWorkspaceStore(
+    (store) => store.hydrateWorkspaces,
+  )
   const [workspaces, setWorkspaces] = useState(initialWorkspaces)
   const [pathValue, setPathValue] = useState("")
   const [nameValue, setNameValue] = useState("")
   const [errorMessage, setErrorMessage] = useState<string | null>(
-    initialError ?? null
+    initialError ?? null,
   )
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -99,7 +101,9 @@ export function WorkspaceManager(props: WorkspaceManagerProps) {
         </label>
 
         <label className="md:col-span-2">
-          <span className="mb-1 block text-sm font-medium">Name (optional)</span>
+          <span className="mb-1 block text-sm font-medium">
+            Name (optional)
+          </span>
           <Input
             value={nameValue}
             onChange={(event) => setNameValue(event.target.value)}

@@ -26,7 +26,7 @@ type ReviewStatusToken =
   | "UNKNOWN"
 
 export function normalizeReviewListMode(
-  value: string | undefined
+  value: string | undefined,
 ): ReviewListMode {
   return value === "all" ? "all" : "changed"
 }
@@ -182,18 +182,18 @@ export function buildReviewDirectoryTree(args: {
 
   function sortFiles(files: ReviewFile[]) {
     return [...files].sort((first, second) =>
-      first.relativePath.localeCompare(second.relativePath, "en")
+      first.relativePath.localeCompare(second.relativePath, "en"),
     )
   }
 
   function finalizeDirectoryNode(
     node: MutableDirectoryNode,
-    selectedRelativePath: string | null
+    selectedRelativePath: string | null,
   ): ReviewDirectoryNode {
     const files = sortFiles(node.files)
     const directories = Array.from(node.directories.values())
       .map((directoryNode) =>
-        finalizeDirectoryNode(directoryNode, selectedRelativePath)
+        finalizeDirectoryNode(directoryNode, selectedRelativePath),
       )
       .sort((first, second) => first.path.localeCompare(second.path, "en"))
 
@@ -260,6 +260,6 @@ export function getReviewStatusStats(files: ReviewFile[]) {
       added: 0,
       modified: 0,
       deleted: 0,
-    }
+    },
   )
 }

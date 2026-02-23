@@ -14,5 +14,8 @@ export function normalizeRelativeDocumentPath(value: string) {
 
 export function isPathInsideRoot(rootPath: string, absolutePath: string) {
   const relative = path.relative(rootPath, absolutePath)
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  )
 }

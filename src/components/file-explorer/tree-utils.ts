@@ -10,7 +10,7 @@ type ChildrenByPath = Record<string, string[]>
 function flattenTree(
   node: FileTreeNode,
   nodesByPath: NodesByPath,
-  childrenByPath: ChildrenByPath
+  childrenByPath: ChildrenByPath,
 ) {
   nodesByPath[node.path] = node
 

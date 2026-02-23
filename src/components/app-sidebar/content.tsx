@@ -1,12 +1,12 @@
-"use client";
+"use client"
 
-import Link from "next/link";
+import Link from "next/link"
 import {
   BotIcon,
   CableIcon,
   SparklesIcon,
   SquareCheckBigIcon,
-} from "lucide-react";
+} from "lucide-react"
 
 import {
   SidebarGroup,
@@ -15,40 +15,42 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { useWorkspaceStore } from "@/stores";
+} from "@/components/ui/sidebar"
+import { useWorkspaceStore } from "@/stores"
 
 type AppSidebarContentProps = {
-  pathname: string;
-};
+  pathname: string
+}
 
 export function AppSidebarContent(props: AppSidebarContentProps) {
-  const { pathname } = props;
+  const { pathname } = props
   const activeWorkspaceId = useWorkspaceStore(
     (store) => store.activeWorkspaceId,
-  );
+  )
 
-  const reviewUrl = activeWorkspaceId ? `/${activeWorkspaceId}/review` : "/settings";
+  const reviewUrl = activeWorkspaceId
+    ? `/${activeWorkspaceId}/review`
+    : "/settings"
   const skillsUrl = activeWorkspaceId
     ? `/${activeWorkspaceId}/skills`
-    : "/settings";
-  const mcpUrl = activeWorkspaceId ? `/${activeWorkspaceId}/mcp` : "/settings";
+    : "/settings"
+  const mcpUrl = activeWorkspaceId ? `/${activeWorkspaceId}/mcp` : "/settings"
   const tasksUrl = activeWorkspaceId
     ? `/${activeWorkspaceId}/tasks`
-    : "/settings";
+    : "/settings"
 
   const reviewActive = activeWorkspaceId
     ? pathname === reviewUrl || pathname.startsWith(`${reviewUrl}/`)
-    : pathname === "/settings";
+    : pathname === "/settings"
   const skillsActive = activeWorkspaceId
     ? pathname === skillsUrl || pathname.startsWith(`${skillsUrl}/`)
-    : pathname === "/settings";
+    : pathname === "/settings"
   const mcpActive = activeWorkspaceId
     ? pathname === mcpUrl || pathname.startsWith(`${mcpUrl}/`)
-    : pathname === "/settings";
+    : pathname === "/settings"
   const tasksActive = activeWorkspaceId
     ? pathname === tasksUrl || pathname.startsWith(`${tasksUrl}/`)
-    : pathname === "/settings";
+    : pathname === "/settings"
 
   return (
     <>
@@ -57,7 +59,11 @@ export function AppSidebarContent(props: AppSidebarContentProps) {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={reviewActive} tooltip="Code Review">
+              <SidebarMenuButton
+                asChild
+                isActive={reviewActive}
+                tooltip="Code Review"
+              >
                 <Link href={reviewUrl}>
                   <SquareCheckBigIcon />
                   <span>Code Review</span>
@@ -81,7 +87,11 @@ export function AppSidebarContent(props: AppSidebarContentProps) {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={skillsActive} tooltip="Skills">
+              <SidebarMenuButton
+                asChild
+                isActive={skillsActive}
+                tooltip="Skills"
+              >
                 <Link href={skillsUrl}>
                   <SparklesIcon />
                   <span>Skills</span>
@@ -100,5 +110,5 @@ export function AppSidebarContent(props: AppSidebarContentProps) {
         </SidebarGroupContent>
       </SidebarGroup>
     </>
-  );
+  )
 }

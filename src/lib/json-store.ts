@@ -41,7 +41,7 @@ export async function writeJsonFileAtomic<T>(args: {
 
   const temporaryPath = path.join(
     directory,
-    `.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`
+    `.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`,
   )
 
   const content = `${JSON.stringify(data, null, 2)}\n`
@@ -51,13 +51,13 @@ export async function writeJsonFileAtomic<T>(args: {
 
 export async function withFileLock<T>(
   filePath: string,
-  operation: () => Promise<T>
+  operation: () => Promise<T>,
 ): Promise<T> {
   const tail = fileLocks.get(filePath) ?? Promise.resolve()
   const current = tail.then(operation)
   const continuation = current.then(
     () => undefined,
-    () => undefined
+    () => undefined,
   )
 
   fileLocks.set(filePath, continuation)

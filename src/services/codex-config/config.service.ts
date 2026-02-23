@@ -37,7 +37,10 @@ function getProjectSkillsRoot(workspacePath: string) {
 
 function isInsideRoot(rootPath: string, targetPath: string) {
   const relative = path.relative(rootPath, targetPath)
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  )
 }
 
 async function pathExists(filePath: string) {
@@ -49,7 +52,10 @@ async function pathExists(filePath: string) {
   }
 }
 
-function toConfigFileInfo(filePath: string, exists: boolean): CodexConfigFileInfo {
+function toConfigFileInfo(
+  filePath: string,
+  exists: boolean,
+): CodexConfigFileInfo {
   return {
     path: filePath,
     exists,
@@ -91,7 +97,7 @@ function sanitizeEnvMap(input?: Record<string, string>) {
 
 function sanitizeServer(server: ParsedMcpServer): ParsedMcpServer {
   const args = (server.args ?? []).map((arg, index, all) =>
-    sanitizeArgValue(arg, index > 0 ? all[index - 1] : undefined)
+    sanitizeArgValue(arg, index > 0 ? all[index - 1] : undefined),
   )
 
   return {
@@ -103,7 +109,7 @@ function sanitizeServer(server: ParsedMcpServer): ParsedMcpServer {
 }
 
 async function readMcpServersFromConfig(
-  filePath: string
+  filePath: string,
 ): Promise<Map<string, ParsedMcpServer>> {
   const exists = await pathExists(filePath)
   if (!exists) {
@@ -115,14 +121,17 @@ async function readMcpServersFromConfig(
   const output = new Map<string, ParsedMcpServer>()
 
   for (const [name, server] of parsed.entries()) {
-    output.set(name, sanitizeServer({
-      command: server.command,
-      url: server.url,
-      args: server.args ?? [],
-      env: server.env ?? {},
-      headers: server.headers ?? {},
-      enabled: server.enabled,
-    }))
+    output.set(
+      name,
+      sanitizeServer({
+        command: server.command,
+        url: server.url,
+        args: server.args ?? [],
+        env: server.env ?? {},
+        headers: server.headers ?? {},
+        enabled: server.enabled,
+      }),
+    )
   }
 
   return output
@@ -130,7 +139,7 @@ async function readMcpServersFromConfig(
 
 function mergeServers(
   existing: ParsedMcpServer | undefined,
-  incoming: ParsedMcpServer
+  incoming: ParsedMcpServer,
 ): ParsedMcpServer {
   if (!existing) {
     return incoming
@@ -153,7 +162,7 @@ function mergeServers(
 }
 
 export async function resolveCodexMcpConfigForWorkspace(
-  workspacePath: string
+  workspacePath: string,
 ): Promise<CodexMcpConfigResult> {
   const globalConfigPath = getGlobalCodexConfigPath()
   const projectConfigPath = getProjectCodexConfigPath(workspacePath)
@@ -176,11 +185,11 @@ export async function resolveCodexMcpConfigForWorkspace(
       const projectServer = projectServers.get(name)
       const merged = projectServer
         ? mergeServers(globalServer, projectServer)
-        : globalServer ?? {
+        : (globalServer ?? {
             args: [],
             env: {},
             headers: {},
-          }
+          })
 
       return {
         name,
@@ -230,7 +239,7 @@ async function scanSkillDirectories(args: {
     }
 
     const skillFileEntry = entries.find(
-      (entry) => entry.isFile() && entry.name.toLowerCase() === "skill.md"
+      (entry) => entry.isFile() && entry.name.toLowerCase() === "skill.md",
     )
     const hasSkillFile = Boolean(skillFileEntry)
     if (hasSkillFile && current !== args.rootPath) {
@@ -254,12 +263,12 @@ async function scanSkillDirectories(args: {
   }
 
   return Array.from(found.values()).sort((first, second) =>
-    first.name.localeCompare(second.name, "en")
+    first.name.localeCompare(second.name, "en"),
   )
 }
 
 export async function resolveCodexSkillsForWorkspace(
-  workspacePath: string
+  workspacePath: string,
 ): Promise<CodexSkillsResult> {
   const globalSkillsRoot = getGlobalSkillsRoot()
   const projectSkillsRoot = getProjectSkillsRoot(workspacePath)
@@ -296,11 +305,7 @@ function resolveSkillsRootBySource(args: {
 }
 
 function normalizeSkillName(rawName: string) {
-  return rawName
-    .trim()
-    .split("/")
-    .filter(Boolean)
-    .join("/")
+  return rawName.trim().split("/").filter(Boolean).join("/")
 }
 
 function toUnixPath(value: string) {
@@ -346,7 +351,7 @@ async function listFilesUnderDirectory(args: {
     }
 
     const sorted = entries.sort((first, second) =>
-      first.name.localeCompare(second.name, "en")
+      first.name.localeCompare(second.name, "en"),
     )
     for (const entry of sorted) {
       const nextPath = path.join(current, entry.name)
@@ -371,7 +376,7 @@ async function listFilesUnderDirectory(args: {
   }
 
   return output.sort((first, second) =>
-    first.relativePath.localeCompare(second.relativePath, "en")
+    first.relativePath.localeCompare(second.relativePath, "en"),
   )
 }
 
@@ -394,7 +399,7 @@ async function resolveSkillFilePath(skillDirectoryPath: string) {
   }
 
   const match = entries.find(
-    (entry) => entry.isFile() && entry.name.toLowerCase() === "skill.md"
+    (entry) => entry.isFile() && entry.name.toLowerCase() === "skill.md",
   )
   if (!match) {
     return null
@@ -439,13 +444,13 @@ export async function getCodexSkillPreviewForWorkspace(args: {
   })
 
   const normalizedSelectedFilePath = normalizeRelativePath(
-    args.selectedFilePath ?? ""
+    args.selectedFilePath ?? "",
   )
   const skillFileRelativePath = toUnixPath(
-    path.relative(skillDirectoryPath, skillFilePath)
+    path.relative(skillDirectoryPath, skillFilePath),
   )
   const fallbackRelativePath = files.some(
-    (file) => file.relativePath === skillFileRelativePath
+    (file) => file.relativePath === skillFileRelativePath,
   )
     ? skillFileRelativePath
     : files[0]?.relativePath
@@ -457,16 +462,18 @@ export async function getCodexSkillPreviewForWorkspace(args: {
       : fallbackRelativePath
 
   const selectedFileMeta = targetRelativePath
-    ? files.find((file) => file.relativePath === targetRelativePath) ?? null
+    ? (files.find((file) => file.relativePath === targetRelativePath) ?? null)
     : null
 
   let selectedFile: CodexSkillPreview["selectedFile"] = null
   if (selectedFileMeta) {
-    const selectedStats = await stat(selectedFileMeta.absolutePath).catch(() => null)
+    const selectedStats = await stat(selectedFileMeta.absolutePath).catch(
+      () => null,
+    )
     if (selectedStats?.isFile() && selectedStats.size <= 2 * 1024 * 1024) {
-      const selectedBuffer = await readFile(selectedFileMeta.absolutePath).catch(
-        () => null
-      )
+      const selectedBuffer = await readFile(
+        selectedFileMeta.absolutePath,
+      ).catch(() => null)
       if (selectedBuffer && !selectedBuffer.includes(0)) {
         selectedFile = {
           relativePath: selectedFileMeta.relativePath,
@@ -627,10 +634,9 @@ async function setMcpServerEnabled(args: {
   const configDir = path.dirname(configPath)
   await mkdir(configDir, { recursive: true })
 
-  const existingContent = (await readFile(configPath, "utf8").catch(() => "")).replace(
-    /\r\n/g,
-    "\n"
-  )
+  const existingContent = (
+    await readFile(configPath, "utf8").catch(() => "")
+  ).replace(/\r\n/g, "\n")
   const nextContent = setMcpServerEnabledInToml({
     content: existingContent,
     serverName,

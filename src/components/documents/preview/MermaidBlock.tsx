@@ -45,7 +45,9 @@ export function MermaidBlock(props: MermaidBlockProps) {
         }
         setSvg(null)
         setError(
-          cause instanceof Error ? cause.message : "Failed to render mermaid chart."
+          cause instanceof Error
+            ? cause.message
+            : "Failed to render mermaid chart.",
         )
       }
     }
@@ -59,7 +61,9 @@ export function MermaidBlock(props: MermaidBlockProps) {
   if (error) {
     return (
       <div className="space-y-2">
-        <p className="text-destructive text-xs font-medium">Mermaid render error</p>
+        <p className="text-destructive text-xs font-medium">
+          Mermaid render error
+        </p>
         <pre className="bg-muted overflow-auto rounded-md border p-3 text-xs whitespace-pre-wrap">
           {chart}
         </pre>

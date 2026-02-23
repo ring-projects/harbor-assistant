@@ -62,10 +62,7 @@ function unquote(value: string) {
   }
 
   const inner = trimmed.slice(1, -1)
-  return inner
-    .replace(/\\"/g, '"')
-    .replace(/\\'/g, "'")
-    .replace(/\\\\/g, "\\")
+  return inner.replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, "\\")
 }
 
 function splitTopLevelByComma(value: string) {
@@ -149,7 +146,7 @@ function parseTomlValue(rawValue: string): TomlValue | undefined {
       .filter((value) => value !== undefined)
 
     const flattened = parsed.filter(
-      (value): value is TomlPrimitive => !Array.isArray(value)
+      (value): value is TomlPrimitive => !Array.isArray(value),
     )
     return flattened
   }
@@ -161,7 +158,7 @@ function parseSection(sectionRaw: string): SectionState {
   const section = sectionRaw.trim()
 
   const serverMapMatch = section.match(
-    /^mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))\.(env|headers)$/
+    /^mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))\.(env|headers)$/,
   )
   if (serverMapMatch) {
     const [, quotedName, bareName, mapKey] = serverMapMatch
@@ -176,7 +173,9 @@ function parseSection(sectionRaw: string): SectionState {
     }
   }
 
-  const serverMatch = section.match(/^mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))$/)
+  const serverMatch = section.match(
+    /^mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))$/,
+  )
   if (serverMatch) {
     const [, quotedName, bareName] = serverMatch
     const serverName = quotedName || bareName
@@ -194,7 +193,7 @@ function parseSection(sectionRaw: string): SectionState {
 
 function ensureServer(
   serversByName: Map<string, ParsedTomlMcpServer>,
-  serverName: string
+  serverName: string,
 ) {
   const existing = serversByName.get(serverName)
   if (existing) {
@@ -279,7 +278,7 @@ export function parseTomlMcpServers(content: string) {
 
     if (key === "args" && Array.isArray(value)) {
       const stringValues = value.filter(
-        (item): item is string => typeof item === "string"
+        (item): item is string => typeof item === "string",
       )
       targetServer.args = stringValues
     }

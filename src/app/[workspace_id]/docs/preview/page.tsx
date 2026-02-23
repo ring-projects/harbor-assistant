@@ -10,7 +10,7 @@ type WorkspaceDocsPreviewRedirectPageProps = {
 }
 
 export default async function WorkspaceDocsPreviewRedirectPage(
-  props: WorkspaceDocsPreviewRedirectPageProps
+  props: WorkspaceDocsPreviewRedirectPageProps,
 ) {
   const [{ workspace_id: workspaceId }, searchParams] = await Promise.all([
     props.params,

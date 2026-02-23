@@ -33,13 +33,19 @@ export function MarkdownPreview(props: MarkdownPreviewProps) {
         rehypePlugins={[[rehypeSanitize, markdownSanitizeSchema]]}
         components={{
           h1: ({ children }) => (
-            <h1 className="mt-6 mb-3 text-3xl font-semibold first:mt-0">{children}</h1>
+            <h1 className="mt-6 mb-3 text-3xl font-semibold first:mt-0">
+              {children}
+            </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mt-6 mb-2 text-2xl font-semibold first:mt-0">{children}</h2>
+            <h2 className="mt-6 mb-2 text-2xl font-semibold first:mt-0">
+              {children}
+            </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mt-5 mb-2 text-xl font-semibold first:mt-0">{children}</h3>
+            <h3 className="mt-5 mb-2 text-xl font-semibold first:mt-0">
+              {children}
+            </h3>
           ),
           p: ({ children }) => (
             <p className="text-foreground/90 leading-7">{children}</p>
@@ -52,7 +58,9 @@ export function MarkdownPreview(props: MarkdownPreviewProps) {
           ),
           li: ({ children }) => <li className="leading-7">{children}</li>,
           blockquote: ({ children }) => (
-            <blockquote className="border-l-2 pl-4 italic">{children}</blockquote>
+            <blockquote className="border-l-2 pl-4 italic">
+              {children}
+            </blockquote>
           ),
           a: ({ children, href }) => (
             <a
@@ -66,16 +74,22 @@ export function MarkdownPreview(props: MarkdownPreviewProps) {
           ),
           table: ({ children }) => (
             <div className="overflow-auto">
-              <table className="w-full border-collapse text-sm">{children}</table>
+              <table className="w-full border-collapse text-sm">
+                {children}
+              </table>
             </div>
           ),
           thead: ({ children }) => (
             <thead className="bg-muted/60 border-b">{children}</thead>
           ),
           th: ({ children }) => (
-            <th className="border px-3 py-2 text-left font-medium">{children}</th>
+            <th className="border px-3 py-2 text-left font-medium">
+              {children}
+            </th>
           ),
-          td: ({ children }) => <td className="border px-3 py-2 align-top">{children}</td>,
+          td: ({ children }) => (
+            <td className="border px-3 py-2 align-top">{children}</td>
+          ),
           pre: ({ children }) => <>{children}</>,
           code: ({ className: codeClassName, children, node }) => {
             const language = getCodeLanguage(codeClassName)
@@ -107,7 +121,7 @@ export function MarkdownPreview(props: MarkdownPreviewProps) {
               <code
                 className={cn(
                   "bg-muted rounded px-1.5 py-0.5 font-mono text-xs",
-                  codeClassName
+                  codeClassName,
                 )}
               >
                 {children}

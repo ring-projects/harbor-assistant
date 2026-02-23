@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto"
 import path from "node:path"
 
-import { readJsonFile, withFileLock, writeJsonFileAtomic } from "@/lib/json-store"
+import {
+  readJsonFile,
+  withFileLock,
+  writeJsonFileAtomic,
+} from "@/lib/json-store"
 import type {
   CodexTask,
   TaskErrorCode,
@@ -28,7 +32,9 @@ function resolveTaskDataFile() {
   return path.resolve(getAppConfig().task.dataFile)
 }
 
-function ensureValidTaskDocument(candidate: TaskStoreDocument): TaskStoreDocument {
+function ensureValidTaskDocument(
+  candidate: TaskStoreDocument,
+): TaskStoreDocument {
   if (
     typeof candidate !== "object" ||
     candidate === null ||
@@ -36,7 +42,7 @@ function ensureValidTaskDocument(candidate: TaskStoreDocument): TaskStoreDocumen
   ) {
     throw new TaskRepositoryError(
       "STORE_READ_ERROR",
-      "Task store file has invalid JSON schema."
+      "Task store file has invalid JSON schema.",
     )
   }
 
@@ -44,7 +50,9 @@ function ensureValidTaskDocument(candidate: TaskStoreDocument): TaskStoreDocumen
     version:
       typeof candidate.version === "number" ? candidate.version : STORE_VERSION,
     updatedAt:
-      typeof candidate.updatedAt === "string" ? candidate.updatedAt : nowIsoString(),
+      typeof candidate.updatedAt === "string"
+        ? candidate.updatedAt
+        : nowIsoString(),
     tasks: candidate.tasks
       .filter((item) => typeof item === "object" && item !== null)
       .filter(
@@ -54,7 +62,7 @@ function ensureValidTaskDocument(candidate: TaskStoreDocument): TaskStoreDocumen
           typeof item.workspacePath === "string" &&
           typeof item.prompt === "string" &&
           typeof item.status === "string" &&
-          typeof item.createdAt === "string"
+          typeof item.createdAt === "string",
       ) as CodexTask[],
   }
 }
@@ -71,7 +79,7 @@ async function loadTaskDocument(): Promise<TaskStoreDocument> {
   } catch (error) {
     throw new TaskRepositoryError(
       "STORE_READ_ERROR",
-      `Failed to read task store: ${String(error)}`
+      `Failed to read task store: ${String(error)}`,
     )
   }
 
@@ -89,7 +97,7 @@ async function saveTaskDocument(document: TaskStoreDocument) {
   } catch (error) {
     throw new TaskRepositoryError(
       "STORE_WRITE_ERROR",
-      `Failed to write task store: ${String(error)}`
+      `Failed to write task store: ${String(error)}`,
     )
   }
 }
@@ -150,7 +158,7 @@ export async function createTask(input: {
   if (!workspaceId || !prompt) {
     throw new TaskRepositoryError(
       "STORE_WRITE_ERROR",
-      "workspaceId and prompt are required."
+      "workspaceId and prompt are required.",
     )
   }
 
@@ -220,7 +228,8 @@ export async function updateTaskRunState(input: {
         input.startedAt !== undefined ? input.startedAt : previous.startedAt,
       finishedAt:
         input.finishedAt !== undefined ? input.finishedAt : previous.finishedAt,
-      exitCode: input.exitCode !== undefined ? input.exitCode : previous.exitCode,
+      exitCode:
+        input.exitCode !== undefined ? input.exitCode : previous.exitCode,
       command: input.command !== undefined ? input.command : previous.command,
       stdout: input.stdout !== undefined ? input.stdout : previous.stdout,
       stderr: input.stderr !== undefined ? input.stderr : previous.stderr,

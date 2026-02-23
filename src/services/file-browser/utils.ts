@@ -6,7 +6,10 @@ export function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
-export function toIntegerOrFallback(value: number | undefined, fallback: number) {
+export function toIntegerOrFallback(
+  value: number | undefined,
+  fallback: number,
+) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback
   }
@@ -25,7 +28,10 @@ export function toRelativePath(root: string, absolutePath: string) {
 
 export function isInsideRoot(root: string, target: string) {
   const relative = path.relative(root, target)
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  )
 }
 
 export function normalizeBrowseDirectoryInput(
@@ -37,26 +43,26 @@ export function normalizeBrowseDirectoryInput(
     maxEntriesPerDirectory: number
     defaultMaxNodes: number
     maxNodes: number
-  }
+  },
 ) {
   const targetPath = (input.path ?? ".").trim() || "."
   const depth = clampNumber(
     toIntegerOrFallback(input.depth, limits.defaultDepth),
     1,
-    limits.maxDepth
+    limits.maxDepth,
   )
   const maxEntriesPerDirectory = clampNumber(
     toIntegerOrFallback(
       input.maxEntriesPerDirectory,
-      limits.defaultMaxEntriesPerDirectory
+      limits.defaultMaxEntriesPerDirectory,
     ),
     1,
-    limits.maxEntriesPerDirectory
+    limits.maxEntriesPerDirectory,
   )
   const maxNodes = clampNumber(
     toIntegerOrFallback(input.maxNodes, limits.defaultMaxNodes),
     1,
-    limits.maxNodes
+    limits.maxNodes,
   )
 
   return {

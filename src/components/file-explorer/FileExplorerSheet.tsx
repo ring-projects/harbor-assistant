@@ -17,9 +17,11 @@ import { FileExplorer } from "./FileExplorer"
 
 export function FileExplorerSheet() {
   const open = useUiStore((store) => store.fileExplorerSheetOpen)
-  const openFileExplorerSheet = useUiStore((store) => store.openFileExplorerSheet)
+  const openFileExplorerSheet = useUiStore(
+    (store) => store.openFileExplorerSheet,
+  )
   const setFileExplorerSheetOpen = useUiStore(
-    (store) => store.setFileExplorerSheetOpen
+    (store) => store.setFileExplorerSheetOpen,
   )
   useFileExplorerBootstrap(open)
 
@@ -40,7 +42,7 @@ export function FileExplorerSheet() {
       <Sheet open={open} onOpenChange={setFileExplorerSheetOpen}>
         <SheetContent
           side="right"
-          className="!w-[min(100vw,1200px)] sm:!max-w-[1200px] gap-0 p-0"
+          className="!w-[min(100vw,1200px)] gap-0 p-0 sm:!max-w-[1200px]"
         >
           <SheetHeader className="border-b">
             <SheetTitle>File Explorer</SheetTitle>

@@ -89,7 +89,7 @@ async function buildTreeNode(args: {
   } catch (error) {
     throw new FileBrowserServiceError(
       "READ_ERROR",
-      `Failed to read directory: ${absolutePath}. ${String(error)}`
+      `Failed to read directory: ${absolutePath}. ${String(error)}`,
     )
   }
 
@@ -133,7 +133,7 @@ async function buildTreeNode(args: {
         includeHidden,
         maxEntriesPerDirectory,
         context,
-      })
+      }),
     )
   }
 
@@ -145,7 +145,7 @@ async function buildTreeNode(args: {
 }
 
 export async function browseDirectory(
-  input: BrowseDirectoryInput = {}
+  input: BrowseDirectoryInput = {},
 ): Promise<BrowseDirectoryResult> {
   const rootPath = resolveRootDirectory()
   const normalized = normalizeBrowseDirectoryInput(input, {
@@ -161,7 +161,7 @@ export async function browseDirectory(
   if (!isInsideRoot(rootPath, absoluteTargetPath)) {
     throw new FileBrowserServiceError(
       "PATH_OUT_OF_ROOT",
-      "Requested path is outside the allowed root directory."
+      "Requested path is outside the allowed root directory.",
     )
   }
 
@@ -171,14 +171,14 @@ export async function browseDirectory(
   } catch (error) {
     throw new FileBrowserServiceError(
       "PATH_NOT_FOUND",
-      `Requested path does not exist: ${absoluteTargetPath}. ${String(error)}`
+      `Requested path does not exist: ${absoluteTargetPath}. ${String(error)}`,
     )
   }
 
   if (!stats.isDirectory()) {
     throw new FileBrowserServiceError(
       "NOT_A_DIRECTORY",
-      "Requested path is not a directory."
+      "Requested path is not a directory.",
     )
   }
 

@@ -23,7 +23,9 @@ export default async function SettingsPage() {
     <div className="bg-muted/30 flex flex-1 p-6">
       <div className="bg-card text-card-foreground mx-auto w-full max-w-4xl rounded-xl border p-6">
         <h1 className="text-xl font-semibold">Settings</h1>
-        <p className="text-muted-foreground mt-2 text-sm">Workspace management</p>
+        <p className="text-muted-foreground mt-2 text-sm">
+          Workspace management
+        </p>
         <div className="mt-6">
           <WorkspaceManager
             initialWorkspaces={workspaces}

@@ -36,7 +36,10 @@ function normalizeRelativePath(rawPath: string) {
 
 function isPathInsideRoot(rootPath: string, absolutePath: string) {
   const relative = path.relative(rootPath, absolutePath)
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  )
 }
 
 function isMarkdownPath(filePath: string) {
@@ -69,7 +72,7 @@ function parseGitStatusLine(line: string) {
   }
 
   const pathPart = payload.includes(" -> ")
-    ? payload.split(" -> ").at(-1) ?? payload
+    ? (payload.split(" -> ").at(-1) ?? payload)
     : payload
   const relativePath = normalizeRelativePath(unquoteGitPath(pathPart))
   if (!relativePath) {
@@ -84,7 +87,12 @@ function parseGitStatusLine(line: string) {
 
 async function isGitRepository(workspacePath: string) {
   try {
-    await execFileAsync("git", ["-C", workspacePath, "rev-parse", "--is-inside-work-tree"])
+    await execFileAsync("git", [
+      "-C",
+      workspacePath,
+      "rev-parse",
+      "--is-inside-work-tree",
+    ])
     return true
   } catch {
     return false
@@ -131,7 +139,7 @@ async function listChangedFilesFromGit(args: {
   }
 
   const files = Array.from(map.values()).sort((first, second) =>
-    first.relativePath.localeCompare(second.relativePath, "en")
+    first.relativePath.localeCompare(second.relativePath, "en"),
   )
   return {
     files,
@@ -153,13 +161,15 @@ async function listAllFilesRecursively(args: {
       continue
     }
 
-    const entries = await readdir(current, { withFileTypes: true }).catch(() => null)
+    const entries = await readdir(current, { withFileTypes: true }).catch(
+      () => null,
+    )
     if (!entries) {
       continue
     }
 
     const sortedEntries = entries.sort((first, second) =>
-      first.name.localeCompare(second.name, "en")
+      first.name.localeCompare(second.name, "en"),
     )
 
     for (const entry of sortedEntries) {
@@ -181,7 +191,9 @@ async function listAllFilesRecursively(args: {
       }
 
       files.push({
-        relativePath: toUnixPath(path.relative(args.workspacePath, absolutePath)),
+        relativePath: toUnixPath(
+          path.relative(args.workspacePath, absolutePath),
+        ),
         absolutePath,
       })
       if (files.length >= args.maxFiles) {
@@ -196,7 +208,7 @@ async function listAllFilesRecursively(args: {
   }
 
   files.sort((first, second) =>
-    first.relativePath.localeCompare(second.relativePath, "en")
+    first.relativePath.localeCompare(second.relativePath, "en"),
   )
   return {
     files,
@@ -277,7 +289,7 @@ export async function readReviewFile(args: {
   if (!isPathInsideRoot(args.workspacePath, absolutePath)) {
     throw new ReviewServiceError(
       "PATH_OUTSIDE_WORKSPACE",
-      "Requested file is outside workspace root."
+      "Requested file is outside workspace root.",
     )
   }
 
@@ -296,14 +308,14 @@ export async function readReviewFile(args: {
   if (fileStats.size > maxBytes) {
     throw new ReviewServiceError(
       "READ_ERROR",
-      `File is too large to preview (> ${maxBytes} bytes).`
+      `File is too large to preview (> ${maxBytes} bytes).`,
     )
   }
 
   const buffer = await readFile(absolutePath).catch((error) => {
     throw new ReviewServiceError(
       "READ_ERROR",
-      `Failed to read file: ${absolutePath}. ${String(error)}`
+      `Failed to read file: ${absolutePath}. ${String(error)}`,
     )
   })
 
@@ -323,13 +335,16 @@ export function buildReviewSuggestions(args: {
   maxSuggestions?: number
 }): ReviewSuggestionsResult {
   const maxSuggestions =
-    typeof args.maxSuggestions === "number" && Number.isFinite(args.maxSuggestions)
+    typeof args.maxSuggestions === "number" &&
+    Number.isFinite(args.maxSuggestions)
       ? Math.max(1, Math.trunc(args.maxSuggestions))
       : DEFAULT_MAX_SUGGESTIONS
   const suggestions: ReviewSuggestionsResult["suggestions"] = []
   const file = args.file
 
-  function pushSuggestion(suggestion: ReviewSuggestionsResult["suggestions"][number]) {
+  function pushSuggestion(
+    suggestion: ReviewSuggestionsResult["suggestions"][number],
+  ) {
     if (suggestions.length >= maxSuggestions) {
       return
     }
@@ -415,7 +430,8 @@ export function buildReviewSuggestions(args: {
         id: `console-log-${lineNumber}`,
         ruleId: "runtime.console-log",
         title: "Console log statement",
-        message: "Avoid committing console.log unless it is intentional diagnostics.",
+        message:
+          "Avoid committing console.log unless it is intentional diagnostics.",
         severity: "info",
         line: lineNumber,
       })
@@ -433,7 +449,11 @@ export function buildReviewSuggestions(args: {
     }
   }
 
-  if (file.isMarkdown && !hasMarkdownHeading && suggestions.length < maxSuggestions) {
+  if (
+    file.isMarkdown &&
+    !hasMarkdownHeading &&
+    suggestions.length < maxSuggestions
+  ) {
     pushSuggestion({
       id: "markdown-heading-missing",
       ruleId: "markdown.heading",

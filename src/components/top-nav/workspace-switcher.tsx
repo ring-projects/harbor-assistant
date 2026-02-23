@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
 import { ChevronsUpDownIcon, FolderKanbanIcon, PlusIcon } from "lucide-react"
 
 import { LogoMark } from "@/components/logo"
@@ -15,17 +16,47 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import type { Workspace } from "@/services/workspace/types"
+import { useWorkspaceStore } from "@/stores"
+import { extractWorkspaceIdFromPath, resolveCurrentSection } from "./utils"
 
-type WorkspaceSwitcherProps = {
-  workspaces: Workspace[]
-  activeWorkspace: Workspace | null
-  onSelectWorkspace: (workspaceId: string) => void
-}
-
-export function WorkspaceSwitcher(props: WorkspaceSwitcherProps) {
-  const { workspaces, activeWorkspace, onSelectWorkspace } = props
+export function WorkspaceSwitcher() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const workspaces = useWorkspaceStore((store) => store.workspaces)
+  const activeWorkspaceId = useWorkspaceStore(
+    (store) => store.activeWorkspaceId,
+  )
+  const setActiveWorkspace = useWorkspaceStore(
+    (store) => store.setActiveWorkspace,
+  )
+  const ensureWorkspacesLoaded = useWorkspaceStore(
+    (store) => store.ensureWorkspacesLoaded,
+  )
   const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    void ensureWorkspacesLoaded()
+  }, [ensureWorkspacesLoaded])
+
+  const pathnameWorkspaceId = useMemo(
+    () => extractWorkspaceIdFromPath(pathname),
+    [pathname],
+  )
+  const effectiveWorkspaceId = activeWorkspaceId ?? pathnameWorkspaceId
+
+  const activeWorkspace = useMemo(
+    () =>
+      workspaces.find((workspace) => workspace.id === effectiveWorkspaceId) ??
+      workspaces[0] ??
+      null,
+    [effectiveWorkspaceId, workspaces],
+  )
+
+  const onSelectWorkspace = (workspaceId: string) => {
+    setActiveWorkspace(workspaceId)
+    const section = resolveCurrentSection(pathname)
+    router.push(`/${workspaceId}/${section}`)
+  }
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -38,7 +69,9 @@ export function WorkspaceSwitcher(props: WorkspaceSwitcherProps) {
             <LogoMark className="size-5" />
           </div>
           <div className="grid min-w-0 flex-1 leading-tight">
-            <span className="truncate text-sm font-medium">Otter Assistant</span>
+            <span className="truncate text-sm font-medium">
+              Otter Assistant
+            </span>
             <span className="text-muted-foreground truncate text-xs">
               {activeWorkspace?.name ?? "No workspace"}
             </span>
@@ -60,7 +93,7 @@ export function WorkspaceSwitcher(props: WorkspaceSwitcherProps) {
               onSelect={() => onSelectWorkspace(workspace.id)}
               className={cn(
                 "gap-3 rounded-md py-2",
-                workspace.id === activeWorkspace?.id && "bg-accent"
+                workspace.id === activeWorkspace?.id && "bg-accent",
               )}
             >
               <div className="bg-muted border-border flex size-8 shrink-0 items-center justify-center rounded-md border">

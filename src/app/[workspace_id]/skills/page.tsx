@@ -11,7 +11,7 @@ type WorkspaceSkillsPageProps = {
 }
 
 export default async function WorkspaceSkillsPage(
-  props: WorkspaceSkillsPageProps
+  props: WorkspaceSkillsPageProps,
 ) {
   const { workspace_id: workspaceId } = await props.params
   const workspace = await getWorkspaceById(workspaceId)
@@ -63,7 +63,9 @@ export default async function WorkspaceSkillsPage(
               {skillsResult.projectSkillsRoot.path}
             </p>
             <p className="text-muted-foreground mt-1 text-xs">
-              {skillsResult.projectSkillsRoot.exists ? "Available" : "Not found"}
+              {skillsResult.projectSkillsRoot.exists
+                ? "Available"
+                : "Not found"}
             </p>
           </div>
         </div>
@@ -81,7 +83,7 @@ export default async function WorkspaceSkillsPage(
                   <SparklesIcon className="text-muted-foreground size-4 shrink-0" />
                   <Link
                     href={`/${workspaceId}/skills/preview?source=${skill.source}&name=${encodeURIComponent(skill.name)}`}
-                    className="hover:underline text-sm font-medium"
+                    className="text-sm font-medium hover:underline"
                   >
                     {skill.name}
                   </Link>

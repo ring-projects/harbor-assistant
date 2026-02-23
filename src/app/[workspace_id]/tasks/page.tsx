@@ -1,4 +1,9 @@
-import { BotIcon, CircleCheckIcon, CircleDashedIcon, CircleXIcon } from "lucide-react"
+import {
+  BotIcon,
+  CircleCheckIcon,
+  CircleDashedIcon,
+  CircleXIcon,
+} from "lucide-react"
 
 import { TaskAutoRefresh } from "@/components/tasks/task-auto-refresh"
 import { TaskRunnerForm } from "@/components/tasks/task-runner-form"
@@ -39,7 +44,9 @@ function getStatusIcon(status: TaskStatus) {
   return <CircleDashedIcon className="size-4" />
 }
 
-export default async function WorkspaceTasksPage(props: WorkspaceTasksPageProps) {
+export default async function WorkspaceTasksPage(
+  props: WorkspaceTasksPageProps,
+) {
   const { workspace_id: workspaceId } = await props.params
   const workspace = await getWorkspaceById(workspaceId)
 
@@ -78,7 +85,8 @@ export default async function WorkspaceTasksPage(props: WorkspaceTasksPageProps)
           <aside className="rounded-lg border p-3">
             <TaskRunnerForm workspaceId={workspaceId} />
             <div className="text-muted-foreground mt-3 rounded-md border border-dashed p-2 text-xs">
-              Executed command pattern: <code>codex exec --cd &lt;workspace&gt; &lt;prompt&gt;</code>
+              Executed command pattern:{" "}
+              <code>codex exec --cd &lt;workspace&gt; &lt;prompt&gt;</code>
             </div>
           </aside>
 
@@ -100,7 +108,7 @@ export default async function WorkspaceTasksPage(props: WorkspaceTasksPageProps)
                       <span
                         className={cn(
                           "inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs uppercase",
-                          getStatusBadgeClass(task.status)
+                          getStatusBadgeClass(task.status),
                         )}
                       >
                         {getStatusIcon(task.status)}
@@ -117,7 +125,9 @@ export default async function WorkspaceTasksPage(props: WorkspaceTasksPageProps)
                     <div className="space-y-2 px-3 py-2">
                       <p className="text-sm">{task.prompt}</p>
                       {task.model ? (
-                        <p className="text-muted-foreground text-xs">model: {task.model}</p>
+                        <p className="text-muted-foreground text-xs">
+                          model: {task.model}
+                        </p>
                       ) : null}
                       {task.command.length > 0 ? (
                         <p className="text-muted-foreground truncate font-mono text-xs">

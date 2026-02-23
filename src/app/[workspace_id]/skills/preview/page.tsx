@@ -30,7 +30,7 @@ function normalizeSource(value: string | undefined): CodexConfigSource | null {
 }
 
 export default async function WorkspaceSkillPreviewPage(
-  props: WorkspaceSkillPreviewPageProps
+  props: WorkspaceSkillPreviewPageProps,
 ) {
   const [{ workspace_id: workspaceId }, searchParams] = await Promise.all([
     props.params,
@@ -65,7 +65,7 @@ export default async function WorkspaceSkillPreviewPage(
       ? skillsResult.skills.find(
           (skill) =>
             skill.source === normalizeSource(sourceParamRaw) &&
-            skill.name === nameParamRaw
+            skill.name === nameParamRaw,
         )
       : null
   const selectedSkill = selectedSkillFromQuery ?? skillsResult.skills[0] ?? null
@@ -132,10 +132,14 @@ export default async function WorkspaceSkillPreviewPage(
 
           <article className="border-border min-h-[60vh] space-y-4 rounded-lg border p-4">
             {!selectedSkill ? (
-              <p className="text-muted-foreground text-sm">No skills available.</p>
+              <p className="text-muted-foreground text-sm">
+                No skills available.
+              </p>
             ) : !skillPreview ? (
               <div className="space-y-2">
-                <p className="text-sm font-medium">Failed to load skill preview.</p>
+                <p className="text-sm font-medium">
+                  Failed to load skill preview.
+                </p>
                 <p className="text-muted-foreground text-xs">
                   Ensure `SKILL.md` exists under this skill directory.
                 </p>
@@ -144,7 +148,9 @@ export default async function WorkspaceSkillPreviewPage(
               <>
                 <div className="space-y-1 border-b pb-3">
                   <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-semibold">{skillPreview.skill.name}</h1>
+                    <h1 className="text-xl font-semibold">
+                      {skillPreview.skill.name}
+                    </h1>
                     <span className="bg-muted rounded px-2 py-0.5 text-xs uppercase">
                       {skillPreview.skill.source}
                     </span>
@@ -159,28 +165,42 @@ export default async function WorkspaceSkillPreviewPage(
 
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="rounded-md border p-2">
-                    <p className="text-muted-foreground mb-1 text-xs">references</p>
+                    <p className="text-muted-foreground mb-1 text-xs">
+                      references
+                    </p>
                     {skillPreview.supportFiles.references.length > 0 ? (
                       <ul className="space-y-1">
-                        {skillPreview.supportFiles.references.slice(0, 20).map((item) => (
-                          <li key={item} className="truncate font-mono text-xs">
-                            {item}
-                          </li>
-                        ))}
+                        {skillPreview.supportFiles.references
+                          .slice(0, 20)
+                          .map((item) => (
+                            <li
+                              key={item}
+                              className="truncate font-mono text-xs"
+                            >
+                              {item}
+                            </li>
+                          ))}
                       </ul>
                     ) : (
                       <p className="text-muted-foreground text-xs">none</p>
                     )}
                   </div>
                   <div className="rounded-md border p-2">
-                    <p className="text-muted-foreground mb-1 text-xs">scripts</p>
+                    <p className="text-muted-foreground mb-1 text-xs">
+                      scripts
+                    </p>
                     {skillPreview.supportFiles.scripts.length > 0 ? (
                       <ul className="space-y-1">
-                        {skillPreview.supportFiles.scripts.slice(0, 20).map((item) => (
-                          <li key={item} className="truncate font-mono text-xs">
-                            {item}
-                          </li>
-                        ))}
+                        {skillPreview.supportFiles.scripts
+                          .slice(0, 20)
+                          .map((item) => (
+                            <li
+                              key={item}
+                              className="truncate font-mono text-xs"
+                            >
+                              {item}
+                            </li>
+                          ))}
                       </ul>
                     ) : (
                       <p className="text-muted-foreground text-xs">none</p>
@@ -190,11 +210,16 @@ export default async function WorkspaceSkillPreviewPage(
                     <p className="text-muted-foreground mb-1 text-xs">assets</p>
                     {skillPreview.supportFiles.assets.length > 0 ? (
                       <ul className="space-y-1">
-                        {skillPreview.supportFiles.assets.slice(0, 20).map((item) => (
-                          <li key={item} className="truncate font-mono text-xs">
-                            {item}
-                          </li>
-                        ))}
+                        {skillPreview.supportFiles.assets
+                          .slice(0, 20)
+                          .map((item) => (
+                            <li
+                              key={item}
+                              className="truncate font-mono text-xs"
+                            >
+                              {item}
+                            </li>
+                          ))}
                       </ul>
                     ) : (
                       <p className="text-muted-foreground text-xs">none</p>

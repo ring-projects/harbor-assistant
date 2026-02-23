@@ -19,7 +19,7 @@ const FormBooleanSchema = z.preprocess(
   z.stringbool({
     truthy: ["1", "true", "on"],
     falsy: ["0", "false", "off"],
-  })
+  }),
 )
 
 function normalizeValues(formData: FormData): FileExplorerValues {
@@ -27,7 +27,9 @@ function normalizeValues(formData: FormData): FileExplorerValues {
   const parsedIncludeHidden = FormBooleanSchema.safeParse(includeHiddenValue)
 
   return {
-    includeHidden: parsedIncludeHidden.success ? parsedIncludeHidden.data : false,
+    includeHidden: parsedIncludeHidden.success
+      ? parsedIncludeHidden.data
+      : false,
   }
 }
 
@@ -48,7 +50,7 @@ type LoadDirectorySubtreeResponse =
     }
 
 export async function loadDirectorySubtreeAction(
-  input: LoadDirectorySubtreeInput
+  input: LoadDirectorySubtreeInput,
 ): Promise<LoadDirectorySubtreeResponse> {
   try {
     const result = await browseDirectory({
@@ -78,7 +80,7 @@ export async function loadDirectorySubtreeAction(
 
 export async function browseDirectoryAction(
   previousState: FileExplorerState,
-  formData: FormData
+  formData: FormData,
 ): Promise<FileExplorerState> {
   const values = normalizeValues(formData)
 

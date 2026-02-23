@@ -21,7 +21,11 @@ function appendWithLimit(base: string, nextChunk: string) {
   return combined.slice(combined.length - MAX_CAPTURED_OUTPUT_LENGTH)
 }
 
-function buildCodexExecArgs(args: { workspacePath: string; prompt: string; model: string | null }) {
+function buildCodexExecArgs(args: {
+  workspacePath: string
+  prompt: string
+  model: string | null
+}) {
   const commandArgs = [
     "exec",
     "--skip-git-repo-check",

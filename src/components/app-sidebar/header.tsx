@@ -1,11 +1,11 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { ChevronsUpDownIcon, FolderKanbanIcon, PlusIcon } from "lucide-react";
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
+import { ChevronsUpDownIcon, FolderKanbanIcon, PlusIcon } from "lucide-react"
 
-import { LogoMark } from "@/components/logo";
+import { LogoMark } from "@/components/logo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,33 +14,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu"
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
-import { useWorkspaceStore } from "@/stores";
+} from "@/components/ui/sidebar"
+import { cn } from "@/lib/utils"
+import { useWorkspaceStore } from "@/stores"
 
 export function AppSidebarHeader() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const workspaces = useWorkspaceStore((store) => store.workspaces);
+  const pathname = usePathname()
+  const router = useRouter()
+  const workspaces = useWorkspaceStore((store) => store.workspaces)
   const activeWorkspaceId = useWorkspaceStore(
     (store) => store.activeWorkspaceId,
-  );
+  )
   const setActiveWorkspace = useWorkspaceStore(
     (store) => store.setActiveWorkspace,
-  );
+  )
   const ensureWorkspacesLoaded = useWorkspaceStore(
     (store) => store.ensureWorkspacesLoaded,
-  );
-  const [switcherOpen, setSwitcherOpen] = useState(false);
+  )
+  const [switcherOpen, setSwitcherOpen] = useState(false)
 
   useEffect(() => {
-    void ensureWorkspacesLoaded();
-  }, [ensureWorkspacesLoaded]);
+    void ensureWorkspacesLoaded()
+  }, [ensureWorkspacesLoaded])
 
   const activeWorkspace = useMemo(
     () =>
@@ -48,33 +48,33 @@ export function AppSidebarHeader() {
       workspaces[0] ??
       null,
     [activeWorkspaceId, workspaces],
-  );
+  )
 
   const handleSelectWorkspace = (workspaceId: string) => {
-    setActiveWorkspace(workspaceId);
+    setActiveWorkspace(workspaceId)
 
     if (pathname.includes("/mcp")) {
-      router.push(`/${workspaceId}/mcp`);
-      return;
+      router.push(`/${workspaceId}/mcp`)
+      return
     }
 
     if (pathname.includes("/skills")) {
-      router.push(`/${workspaceId}/skills`);
-      return;
+      router.push(`/${workspaceId}/skills`)
+      return
     }
 
     if (pathname.includes("/tasks")) {
-      router.push(`/${workspaceId}/tasks`);
-      return;
+      router.push(`/${workspaceId}/tasks`)
+      return
     }
 
     if (pathname.includes("/review")) {
-      router.push(`/${workspaceId}/review`);
-      return;
+      router.push(`/${workspaceId}/review`)
+      return
     }
 
-    router.push(`/${workspaceId}/review`);
-  };
+    router.push(`/${workspaceId}/review`)
+  }
 
   return (
     <SidebarMenu>
@@ -140,5 +140,5 @@ export function AppSidebarHeader() {
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  );
+  )
 }

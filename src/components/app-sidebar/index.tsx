@@ -1,20 +1,20 @@
-"use client";
+"use client"
 
-import { usePathname } from "next/navigation";
+import { usePathname } from "next/navigation"
 
-import { AppSidebarContent } from "@/components/app-sidebar/content";
-import { AppSidebarFooter } from "@/components/app-sidebar/footer";
-import { AppSidebarHeader } from "@/components/app-sidebar/header";
+import { AppSidebarContent } from "@/components/app-sidebar/content"
+import { AppSidebarFooter } from "@/components/app-sidebar/footer"
+import { AppSidebarHeader } from "@/components/app-sidebar/header"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"
 
 export function AppSidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname()
 
   return (
     <Sidebar variant="inset" collapsible="icon">
@@ -31,5 +31,5 @@ export function AppSidebar() {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  );
+  )
 }

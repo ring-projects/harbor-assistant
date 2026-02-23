@@ -41,126 +41,128 @@ const DEFAULT_VALUES: FileExplorerValues = {
   includeHidden: false,
 }
 
-export const useFileExplorerTreeStore = create<FileExplorerTreeStore>((set) => ({
-  values: DEFAULT_VALUES,
-  meta: null,
-  error: null,
-  rootPath: null,
-  nodesByPath: {},
-  childrenByPath: {},
-  expandedPaths: {},
-  hydrateFromActionState: (actionState) => {
-    set((state) => {
-      if (!actionState.result) {
+export const useFileExplorerTreeStore = create<FileExplorerTreeStore>(
+  (set) => ({
+    values: DEFAULT_VALUES,
+    meta: null,
+    error: null,
+    rootPath: null,
+    nodesByPath: {},
+    childrenByPath: {},
+    expandedPaths: {},
+    hydrateFromActionState: (actionState) => {
+      set((state) => {
+        if (!actionState.result) {
+          return {
+            values: actionState.values,
+            meta: state.meta,
+            error: actionState.error,
+          }
+        }
+
+        const treeMaps = toTreeMaps(actionState.result)
+        const expandedPaths = computeExpandedPaths({
+          previousRootPath: state.rootPath,
+          previousExpandedPaths: state.expandedPaths,
+          nextRootPath: treeMaps.rootPath,
+          nextNodesByPath: treeMaps.nodesByPath,
+        })
+
         return {
           values: actionState.values,
-          meta: state.meta,
+          meta: actionState.result.meta,
           error: actionState.error,
+          rootPath: treeMaps.rootPath,
+          nodesByPath: treeMaps.nodesByPath,
+          childrenByPath: treeMaps.childrenByPath,
+          expandedPaths,
         }
-      }
-
-      const treeMaps = toTreeMaps(actionState.result)
-      const expandedPaths = computeExpandedPaths({
-        previousRootPath: state.rootPath,
-        previousExpandedPaths: state.expandedPaths,
-        nextRootPath: treeMaps.rootPath,
-        nextNodesByPath: treeMaps.nodesByPath,
       })
-
-      return {
-        values: actionState.values,
-        meta: actionState.result.meta,
-        error: actionState.error,
-        rootPath: treeMaps.rootPath,
-        nodesByPath: treeMaps.nodesByPath,
-        childrenByPath: treeMaps.childrenByPath,
-        expandedPaths,
-      }
-    })
-  },
-  mergeSubtree: (result) => {
-    set((state) => {
-      const subtreeMaps = toTreeMaps(result)
-      return {
-        nodesByPath: {
-          ...state.nodesByPath,
-          ...subtreeMaps.nodesByPath,
+    },
+    mergeSubtree: (result) => {
+      set((state) => {
+        const subtreeMaps = toTreeMaps(result)
+        return {
+          nodesByPath: {
+            ...state.nodesByPath,
+            ...subtreeMaps.nodesByPath,
+          },
+          childrenByPath: {
+            ...state.childrenByPath,
+            ...subtreeMaps.childrenByPath,
+          },
+        }
+      })
+    },
+    updateValues: (patch) => {
+      set((state) => ({
+        values: {
+          ...state.values,
+          ...patch,
         },
-        childrenByPath: {
-          ...state.childrenByPath,
-          ...subtreeMaps.childrenByPath,
-        },
-      }
-    })
-  },
-  updateValues: (patch) => {
-    set((state) => ({
-      values: {
-        ...state.values,
-        ...patch,
-      },
-    }))
-  },
-  setError: (error) => {
-    set({ error })
-  },
-  toggleFolder: (path) => {
-    set((state) => {
-      if (state.nodesByPath[path]?.type !== "directory") {
-        return state
-      }
+      }))
+    },
+    setError: (error) => {
+      set({ error })
+    },
+    toggleFolder: (path) => {
+      set((state) => {
+        if (state.nodesByPath[path]?.type !== "directory") {
+          return state
+        }
 
-      const isExpanded = Boolean(state.expandedPaths[path])
-      const nextExpandedPaths = { ...state.expandedPaths }
+        const isExpanded = Boolean(state.expandedPaths[path])
+        const nextExpandedPaths = { ...state.expandedPaths }
 
-      if (isExpanded) {
-        delete nextExpandedPaths[path]
-      } else {
-        nextExpandedPaths[path] = true
-      }
+        if (isExpanded) {
+          delete nextExpandedPaths[path]
+        } else {
+          nextExpandedPaths[path] = true
+        }
 
-      if (state.rootPath) {
-        nextExpandedPaths[state.rootPath] = true
-      }
+        if (state.rootPath) {
+          nextExpandedPaths[state.rootPath] = true
+        }
 
-      return {
-        expandedPaths: nextExpandedPaths,
-      }
-    })
-  },
-  setFolderExpanded: (path, expanded) => {
-    set((state) => {
-      if (state.nodesByPath[path]?.type !== "directory") {
-        return state
-      }
+        return {
+          expandedPaths: nextExpandedPaths,
+        }
+      })
+    },
+    setFolderExpanded: (path, expanded) => {
+      set((state) => {
+        if (state.nodesByPath[path]?.type !== "directory") {
+          return state
+        }
 
-      const nextExpandedPaths = { ...state.expandedPaths }
-      if (expanded) {
-        nextExpandedPaths[path] = true
-      } else {
-        delete nextExpandedPaths[path]
-      }
+        const nextExpandedPaths = { ...state.expandedPaths }
+        if (expanded) {
+          nextExpandedPaths[path] = true
+        } else {
+          delete nextExpandedPaths[path]
+        }
 
-      if (state.rootPath) {
-        nextExpandedPaths[state.rootPath] = true
-      }
+        if (state.rootPath) {
+          nextExpandedPaths[state.rootPath] = true
+        }
 
-      return {
-        expandedPaths: nextExpandedPaths,
-      }
-    })
-  },
-  collapseAllChildren: () => {
-    set((state) => {
-      if (!state.rootPath) {
-        return state
-      }
+        return {
+          expandedPaths: nextExpandedPaths,
+        }
+      })
+    },
+    collapseAllChildren: () => {
+      set((state) => {
+        if (!state.rootPath) {
+          return state
+        }
 
-      return {
-        expandedPaths: {
-          [state.rootPath]: true,
-        },
-      }
-    })
-  },
-}))
+        return {
+          expandedPaths: {
+            [state.rootPath]: true,
+          },
+        }
+      })
+    },
+  }),
+)

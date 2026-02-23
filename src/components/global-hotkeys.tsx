@@ -27,7 +27,9 @@ function isPrimaryHotkey(event: KeyboardEvent, key: string) {
 }
 
 export function GlobalHotkeys() {
-  const openFileExplorerSheet = useUiStore((store) => store.openFileExplorerSheet)
+  const openFileExplorerSheet = useUiStore(
+    (store) => store.openFileExplorerSheet,
+  )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

@@ -5,7 +5,11 @@ import { RangeSetBuilder } from "@codemirror/state"
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language"
 import { Decoration, EditorView } from "@codemirror/view"
 import CodeMirror from "@uiw/react-codemirror"
-import { HighlighterIcon, MessageSquarePlusIcon, Trash2Icon } from "lucide-react"
+import {
+  HighlighterIcon,
+  MessageSquarePlusIcon,
+  Trash2Icon,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -74,14 +78,17 @@ function loadAnnotationsBySourceId(sourceId: string) {
         "selectedText" in item &&
         typeof item.selectedText === "string" &&
         "createdAt" in item &&
-        typeof item.createdAt === "string"
+        typeof item.createdAt === "string",
     )
   } catch {
     return []
   }
 }
 
-function saveAnnotationsBySourceId(sourceId: string, annotations: CodeAnnotation[]) {
+function saveAnnotationsBySourceId(
+  sourceId: string,
+  annotations: CodeAnnotation[],
+) {
   if (typeof window === "undefined") {
     return
   }
@@ -156,7 +163,7 @@ function createLineDecorationExtension(args: {
           attributes: {
             class: Array.from(classNames.values()).join(" "),
           },
-        })
+        }),
       )
     }
 
@@ -169,7 +176,8 @@ const editorTheme = EditorView.theme({
     backgroundColor: "transparent",
   },
   ".cm-scroller": {
-    fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontFamily:
+      "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
     lineHeight: "1.4",
   },
   ".cm-content": {
@@ -199,19 +207,13 @@ const editorTheme = EditorView.theme({
 })
 
 export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
-  const {
-    code,
-    sourceId,
-    language,
-    className,
-    showLineNumbers = true,
-  } = props
+  const { code, sourceId, language, className, showLineNumbers = true } = props
 
   const normalizedLanguage = normalizeCodeLanguage(language)
   const lineCount = useMemo(() => code.split(/\r?\n/).length, [code])
 
   const [annotations, setAnnotations] = useState<CodeAnnotation[]>(() =>
-    loadAnnotationsBySourceId(sourceId)
+    loadAnnotationsBySourceId(sourceId),
   )
   const [selectedRange, setSelectedRange] = useState<SelectedRange | null>(null)
   const [draftComment, setDraftComment] = useState("")
@@ -219,7 +221,7 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
 
   const languageExtension = useMemo(
     () => getCodeMirrorLanguageExtension(normalizedLanguage),
-    [normalizedLanguage]
+    [normalizedLanguage],
   )
 
   const lineDecorationExtension = useMemo(
@@ -228,7 +230,7 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
         selectedRange,
         annotations,
       }),
-    [annotations, selectedRange]
+    [annotations, selectedRange],
   )
 
   const editorExtensions = useMemo(
@@ -238,7 +240,7 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
       lineDecorationExtension,
       ...(languageExtension ? [languageExtension] : []),
     ],
-    [languageExtension, lineDecorationExtension]
+    [languageExtension, lineDecorationExtension],
   )
 
   useEffect(() => {
@@ -268,7 +270,9 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
     }
 
     setAnnotations((previous) =>
-      [...previous, annotation].sort((first, second) => first.startLine - second.startLine)
+      [...previous, annotation].sort(
+        (first, second) => first.startLine - second.startLine,
+      ),
     )
     setSelectedRange(null)
     setDraftComment("")
@@ -277,7 +281,7 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
 
   function removeAnnotation(annotationId: string) {
     setAnnotations((previous) =>
-      previous.filter((annotation) => annotation.id !== annotationId)
+      previous.filter((annotation) => annotation.id !== annotationId),
     )
   }
 
@@ -333,7 +337,9 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
             const from = Math.min(selection.from, selection.to)
             const to = Math.max(selection.from, selection.to)
             const startLine = update.state.doc.lineAt(from).number
-            const endLine = update.state.doc.lineAt(Math.max(from, to - 1)).number
+            const endLine = update.state.doc.lineAt(
+              Math.max(from, to - 1),
+            ).number
 
             const nextRange = {
               startLine,
@@ -361,10 +367,13 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
       {selectedRange ? (
         <div className="space-y-2 rounded-md border border-sky-500/30 bg-sky-500/10 p-2">
           <div className="text-xs">
-            Selected lines: <span className="font-medium">{selectedRange.startLine}</span> -{" "}
+            Selected lines:{" "}
+            <span className="font-medium">{selectedRange.startLine}</span> -{" "}
             <span className="font-medium">{selectedRange.endLine}</span>
           </div>
-          <p className="text-muted-foreground font-mono text-xs">{selectedRange.selectedText}</p>
+          <p className="text-muted-foreground font-mono text-xs">
+            {selectedRange.selectedText}
+          </p>
           {!isComposerOpen ? (
             <Button
               type="button"
@@ -412,10 +421,15 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
 
       {annotations.length > 0 ? (
         <div className="space-y-2 rounded-md border p-2">
-          <p className="text-muted-foreground text-xs font-medium">Annotations</p>
+          <p className="text-muted-foreground text-xs font-medium">
+            Annotations
+          </p>
           <ul className="space-y-2">
             {annotations.map((annotation) => (
-              <li key={annotation.id} className="bg-muted/40 rounded-md border p-2">
+              <li
+                key={annotation.id}
+                className="bg-muted/40 rounded-md border p-2"
+              >
                 <div className="mb-1 flex items-center gap-2">
                   <span className="text-xs font-medium">
                     L{annotation.startLine}

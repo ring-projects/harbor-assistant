@@ -7,7 +7,7 @@ type WorkspaceDocsRedirectPageProps = {
 }
 
 export default async function WorkspaceDocsRedirectPage(
-  props: WorkspaceDocsRedirectPageProps
+  props: WorkspaceDocsRedirectPageProps,
 ) {
   const { workspace_id: workspaceId } = await props.params
   redirect(`/${workspaceId}/review`)

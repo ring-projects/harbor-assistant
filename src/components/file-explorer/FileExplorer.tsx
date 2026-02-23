@@ -1,6 +1,6 @@
-"use client";
+"use client"
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react"
 import {
   AlertTriangleIcon,
   ChevronDownIcon,
@@ -11,39 +11,39 @@ import {
   FolderOpenIcon,
   PlusIcon,
   Link2Icon,
-} from "lucide-react";
+} from "lucide-react"
 
-import { loadDirectorySubtreeAction } from "@/app/actions/file-browser";
-import { addWorkspaceAction } from "@/app/actions/workspaces";
+import { loadDirectorySubtreeAction } from "@/app/actions/file-browser"
+import { addWorkspaceAction } from "@/app/actions/workspaces"
 import {
   useFileExplorerTreeStore,
   type ChildrenByPath,
   type ExpandedPaths,
   type NodesByPath,
-} from "@/components/file-explorer/stores";
+} from "@/components/file-explorer/stores"
 import {
   getTreeNodePadding,
   isImageFileName,
-} from "@/components/file-explorer/utils";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
-import type { FileExplorerState } from "@/services/file-browser/file-explorer-state";
-import { useWorkspaceStore } from "@/stores";
+} from "@/components/file-explorer/utils"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { cn } from "@/lib/utils"
+import type { FileExplorerState } from "@/services/file-browser/file-explorer-state"
+import { useWorkspaceStore } from "@/stores"
 
 type FileExplorerProps = {
-  initialState?: FileExplorerState;
-};
+  initialState?: FileExplorerState
+}
 
 function TreeNode(props: {
-  nodePath: string;
-  level: number;
-  nodesByPath: NodesByPath;
-  childrenByPath: ChildrenByPath;
-  expandedPaths: ExpandedPaths;
-  onToggleFolder: (path: string) => void;
-  onAddWorkspace: (path: string) => void;
-  addingWorkspacePath: string | null;
+  nodePath: string
+  level: number
+  nodesByPath: NodesByPath
+  childrenByPath: ChildrenByPath
+  expandedPaths: ExpandedPaths
+  onToggleFolder: (path: string) => void
+  onAddWorkspace: (path: string) => void
+  addingWorkspacePath: string | null
 }) {
   const {
     nodePath,
@@ -54,16 +54,16 @@ function TreeNode(props: {
     onToggleFolder,
     onAddWorkspace,
     addingWorkspacePath,
-  } = props;
+  } = props
 
-  const node = nodesByPath[nodePath];
+  const node = nodesByPath[nodePath]
   if (!node) {
-    return null;
+    return null
   }
 
-  const isDirectory = node.type === "directory";
-  const isExpanded = isDirectory ? Boolean(expandedPaths[node.path]) : false;
-  const childPaths = childrenByPath[node.path] ?? [];
+  const isDirectory = node.type === "directory"
+  const isExpanded = isDirectory ? Boolean(expandedPaths[node.path]) : false
+  const childPaths = childrenByPath[node.path] ?? []
 
   return (
     <li className="space-y-1">
@@ -156,90 +156,90 @@ function TreeNode(props: {
         </div>
       ) : null}
     </li>
-  );
+  )
 }
 
 export function FileExplorer({ initialState }: FileExplorerProps) {
-  const values = useFileExplorerTreeStore((store) => store.values);
-  const meta = useFileExplorerTreeStore((store) => store.meta);
-  const error = useFileExplorerTreeStore((store) => store.error);
-  const rootPath = useFileExplorerTreeStore((store) => store.rootPath);
-  const nodesByPath = useFileExplorerTreeStore((store) => store.nodesByPath);
+  const values = useFileExplorerTreeStore((store) => store.values)
+  const meta = useFileExplorerTreeStore((store) => store.meta)
+  const error = useFileExplorerTreeStore((store) => store.error)
+  const rootPath = useFileExplorerTreeStore((store) => store.rootPath)
+  const nodesByPath = useFileExplorerTreeStore((store) => store.nodesByPath)
   const childrenByPath = useFileExplorerTreeStore(
     (store) => store.childrenByPath,
-  );
-  const expandedPaths = useFileExplorerTreeStore(
-    (store) => store.expandedPaths,
-  );
+  )
+  const expandedPaths = useFileExplorerTreeStore((store) => store.expandedPaths)
   const hydrateFromActionState = useFileExplorerTreeStore(
     (store) => store.hydrateFromActionState,
-  );
-  const mergeSubtree = useFileExplorerTreeStore((store) => store.mergeSubtree);
-  const setError = useFileExplorerTreeStore((store) => store.setError);
-  const toggleFolder = useFileExplorerTreeStore((store) => store.toggleFolder);
-  const hydrateWorkspaces = useWorkspaceStore((store) => store.hydrateWorkspaces);
+  )
+  const mergeSubtree = useFileExplorerTreeStore((store) => store.mergeSubtree)
+  const setError = useFileExplorerTreeStore((store) => store.setError)
+  const toggleFolder = useFileExplorerTreeStore((store) => store.toggleFolder)
+  const hydrateWorkspaces = useWorkspaceStore(
+    (store) => store.hydrateWorkspaces,
+  )
   const setActiveWorkspace = useWorkspaceStore(
     (store) => store.setActiveWorkspace,
-  );
+  )
   const [workspaceActionMessage, setWorkspaceActionMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+    type: "success" | "error"
+    text: string
+  } | null>(null)
   const [addingWorkspacePath, setAddingWorkspacePath] = useState<string | null>(
     null,
-  );
-  const [isPending, startTransition] = useTransition();
+  )
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     if (!initialState) {
       return
     }
 
-    hydrateFromActionState(initialState);
-  }, [hydrateFromActionState, initialState]);
+    hydrateFromActionState(initialState)
+  }, [hydrateFromActionState, initialState])
 
-  const rootNode = rootPath ? nodesByPath[rootPath] : null;
+  const rootNode = rootPath ? nodesByPath[rootPath] : null
 
   const onToggleFolder = async (path: string) => {
-    const node = nodesByPath[path];
+    const node = nodesByPath[path]
     if (!node || node.type !== "directory") {
-      return;
+      return
     }
 
-    const isExpanded = Boolean(expandedPaths[path]);
+    const isExpanded = Boolean(expandedPaths[path])
     if (isExpanded) {
-      toggleFolder(path);
-      return;
+      toggleFolder(path)
+      return
     }
 
-    toggleFolder(path);
+    toggleFolder(path)
 
     const hasLoadedChildren = Object.prototype.hasOwnProperty.call(
       childrenByPath,
       path,
-    );
+    )
     if (hasLoadedChildren) {
-      return;
+      return
     }
 
     const response = await loadDirectorySubtreeAction({
       path,
       depth: 2,
       includeHidden: values.includeHidden,
-    });
+    })
 
     if (response.ok) {
-      mergeSubtree(response.result);
-      setError(null);
-      return;
+      mergeSubtree(response.result)
+      setError(null)
+      return
     }
 
-    setError(response.error);
-  };
+    setError(response.error)
+  }
 
   const onAddWorkspace = (nodePath: string) => {
-    const normalizedNodePath = nodePath.trim();
-    const root = meta?.root?.trim() ?? "";
+    const normalizedNodePath = nodePath.trim()
+    const root = meta?.root?.trim() ?? ""
     const resolvedPath =
       normalizedNodePath === "."
         ? root
@@ -247,43 +247,40 @@ export function FileExplorer({ initialState }: FileExplorerProps) {
           ? normalizedNodePath
           : root
             ? `${root.replace(/\/+$/, "")}/${normalizedNodePath.replace(/^\/+/, "")}`
-            : normalizedNodePath;
+            : normalizedNodePath
 
-    setAddingWorkspacePath(nodePath);
+    setAddingWorkspacePath(nodePath)
     startTransition(async () => {
-      const response = await addWorkspaceAction({ path: resolvedPath });
-      hydrateWorkspaces(response.workspaces);
+      const response = await addWorkspaceAction({ path: resolvedPath })
+      hydrateWorkspaces(response.workspaces)
 
       if (!response.ok) {
         setWorkspaceActionMessage({
           type: "error",
           text: response.error?.message ?? "Failed to add workspace.",
-        });
-        setAddingWorkspacePath(null);
-        return;
+        })
+        setAddingWorkspacePath(null)
+        return
       }
 
       const addedWorkspace = response.workspaces.find(
         (workspace) => workspace.path === resolvedPath,
-      );
+      )
       if (addedWorkspace) {
-        setActiveWorkspace(addedWorkspace.id);
+        setActiveWorkspace(addedWorkspace.id)
       }
 
       setWorkspaceActionMessage({
         type: "success",
         text: `Workspace added from ${resolvedPath}`,
-      });
-      setAddingWorkspacePath(null);
-    });
-  };
+      })
+      setAddingWorkspacePath(null)
+    })
+  }
 
   return (
     <div className="bg-card text-card-foreground w-full rounded-xl">
-      <ScrollArea
-        className="max-h-[70vh]"
-        viewportClassName="space-y-4 p-4"
-      >
+      <ScrollArea className="max-h-[70vh]" viewportClassName="space-y-4 p-4">
         {workspaceActionMessage ? (
           <div
             className={cn(
@@ -312,7 +309,7 @@ export function FileExplorer({ initialState }: FileExplorerProps) {
               childrenByPath={childrenByPath}
               expandedPaths={expandedPaths}
               onToggleFolder={(path) => {
-                void onToggleFolder(path);
+                void onToggleFolder(path)
               }}
               onAddWorkspace={onAddWorkspace}
               addingWorkspacePath={isPending ? addingWorkspacePath : null}
@@ -325,5 +322,5 @@ export function FileExplorer({ initialState }: FileExplorerProps) {
         )}
       </ScrollArea>
     </div>
-  );
+  )
 }

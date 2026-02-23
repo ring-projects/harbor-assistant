@@ -99,9 +99,17 @@ export default async function WorkspaceMcpPage(props: WorkspaceMcpPageProps) {
                       : "unset"}
                   </span>
                   <form action={setMcpServerEnabledAction}>
-                    <input type="hidden" name="workspaceId" value={workspaceId} />
+                    <input
+                      type="hidden"
+                      name="workspaceId"
+                      value={workspaceId}
+                    />
                     <input type="hidden" name="scope" value="global" />
-                    <input type="hidden" name="serverName" value={server.name} />
+                    <input
+                      type="hidden"
+                      name="serverName"
+                      value={server.name}
+                    />
                     <input
                       type="hidden"
                       name="enabled"
@@ -111,7 +119,9 @@ export default async function WorkspaceMcpPage(props: WorkspaceMcpPageProps) {
                       type="submit"
                       className="hover:bg-muted rounded-md border px-2 py-1 text-xs"
                     >
-                      {server.globalEnabled === false ? "Enable Global" : "Disable Global"}
+                      {server.globalEnabled === false
+                        ? "Enable Global"
+                        : "Disable Global"}
                     </button>
                   </form>
 
@@ -124,9 +134,17 @@ export default async function WorkspaceMcpPage(props: WorkspaceMcpPageProps) {
                       : "unset"}
                   </span>
                   <form action={setMcpServerEnabledAction}>
-                    <input type="hidden" name="workspaceId" value={workspaceId} />
+                    <input
+                      type="hidden"
+                      name="workspaceId"
+                      value={workspaceId}
+                    />
                     <input type="hidden" name="scope" value="project" />
-                    <input type="hidden" name="serverName" value={server.name} />
+                    <input
+                      type="hidden"
+                      name="serverName"
+                      value={server.name}
+                    />
                     <input
                       type="hidden"
                       name="enabled"

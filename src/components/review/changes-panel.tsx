@@ -58,14 +58,14 @@ function ReviewFileItem(props: {
         className={cn(
           "hover:bg-muted/70 flex min-h-8 items-start gap-2 rounded-md border border-transparent py-1.5 pr-2 transition-colors",
           isSelected &&
-            "border-primary/30 bg-primary/5 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.2)]"
+            "border-primary/30 bg-primary/5 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.2)]",
         )}
         style={{ paddingLeft: getTreeNodePadding(level) }}
       >
         <span
           className={cn(
             "mt-1.5 size-2 shrink-0 rounded-full",
-            getReviewStatusDotClass(file.status)
+            getReviewStatusDotClass(file.status),
           )}
         />
         <FileTextIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
@@ -78,8 +78,8 @@ function ReviewFileItem(props: {
         {file.status ? (
           <span
             className={cn(
-              "ml-auto mt-0.5 rounded border px-1.5 py-0.5 text-[10px] font-medium",
-              getReviewStatusBadgeClass(file.status)
+              "mt-0.5 ml-auto rounded border px-1.5 py-0.5 text-[10px] font-medium",
+              getReviewStatusBadgeClass(file.status),
             )}
           >
             {getReviewStatusLabel(file.status)}
@@ -159,7 +159,9 @@ export function ReviewChangesPanel(props: ReviewChangesPanelProps) {
           </span>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
-          {mode === "changed" ? "Git working tree changes" : "Workspace file index"}
+          {mode === "changed"
+            ? "Git working tree changes"
+            : "Workspace file index"}
         </p>
       </div>
 

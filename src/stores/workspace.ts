@@ -79,7 +79,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       const nextActiveWorkspaceId =
         id && state.workspaces.some((workspace) => workspace.id === id)
           ? id
-          : state.workspaces[0]?.id ?? null
+          : (state.workspaces[0]?.id ?? null)
 
       persistActiveWorkspaceId(nextActiveWorkspaceId)
 
