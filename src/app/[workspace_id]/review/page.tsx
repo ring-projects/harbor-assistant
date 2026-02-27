@@ -1,13 +1,5 @@
-import Link from "next/link"
-import { GitBranchIcon } from "lucide-react"
-
-import { ReviewChangesPanel } from "@/components/review/changes-panel"
-import { ReviewFilePanel } from "@/components/review/file-review-panel"
-import {
-  getReviewStatusStats,
-  normalizeReviewListMode,
-} from "@/components/review/utils"
-import { cn } from "@/lib/utils"
+import { normalizeReviewListMode } from "@/components/review/utils"
+import { ReviewWorkbench } from "@/components/review/workbench"
 import {
   listReviewFiles,
   readReviewFile,
@@ -83,91 +75,17 @@ export default async function WorkspaceReviewPage(
     }
   }
 
-  const statusStats = getReviewStatusStats(reviewFiles.files)
-
   return (
     <div className="bg-muted/30 flex flex-1 flex-col p-4 md:p-6">
-      <section className="bg-card text-card-foreground flex min-h-0 flex-1 flex-col rounded-xl border">
-        <div className="border-b px-4 py-3 md:px-5 md:py-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 pr-2">
-              <GitBranchIcon className="text-muted-foreground size-4" />
-              <span className="text-sm font-semibold tracking-wide">
-                Code Review
-              </span>
-            </div>
-            <div className="bg-muted/50 flex items-center gap-2 rounded-md border px-2 py-1">
-              <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
-                Files
-              </span>
-              <span className="text-xs font-semibold">
-                {reviewFiles.files.length}
-              </span>
-            </div>
-            <div className="bg-muted/50 flex items-center gap-2 rounded-md border px-2 py-1">
-              <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
-                Modified
-              </span>
-              <span className="text-xs font-semibold">
-                {statusStats.modified}
-              </span>
-            </div>
-            <div className="bg-muted/50 flex items-center gap-2 rounded-md border px-2 py-1">
-              <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
-                Added
-              </span>
-              <span className="text-xs font-semibold">{statusStats.added}</span>
-            </div>
-            <div className="bg-muted/50 flex items-center gap-2 rounded-md border px-2 py-1">
-              <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
-                Deleted
-              </span>
-              <span className="text-xs font-semibold">
-                {statusStats.deleted}
-              </span>
-            </div>
-            {reviewFiles.truncated ? (
-              <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700">
-                truncated
-              </span>
-            ) : null}
-            <div className="ml-auto inline-flex items-center rounded-md border p-1">
-              <Link
-                href={`/${workspaceId}/review?mode=changed`}
-                className={cn(
-                  "hover:bg-muted rounded-sm px-2 py-1 text-xs",
-                  mode === "changed" && "bg-muted font-medium",
-                )}
-              >
-                Changed
-              </Link>
-              <Link
-                href={`/${workspaceId}/review?mode=all`}
-                className={cn(
-                  "hover:bg-muted rounded-sm px-2 py-1 text-xs",
-                  mode === "all" && "bg-muted font-medium",
-                )}
-              >
-                All Files
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(260px,360px)_minmax(0,1fr)] gap-4 p-4 md:p-5">
-          <ReviewChangesPanel
-            workspaceId={workspaceId}
-            mode={mode}
-            reviewFiles={reviewFiles}
-            selectedRelativePath={selectedRelativePath}
-          />
-          <ReviewFilePanel
-            filePreview={filePreview}
-            selectedFile={selectedFile}
-            previewError={previewError}
-          />
-        </div>
-      </section>
+      <ReviewWorkbench
+        workspaceId={workspaceId}
+        mode={mode}
+        reviewFiles={reviewFiles}
+        selectedRelativePath={selectedRelativePath}
+        selectedFile={selectedFile}
+        filePreview={filePreview}
+        previewError={previewError}
+      />
     </div>
   )
 }
