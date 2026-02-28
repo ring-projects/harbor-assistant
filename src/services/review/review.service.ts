@@ -85,11 +85,11 @@ function parseGitStatusLine(line: string) {
   }
 }
 
-async function isGitRepository(workspacePath: string) {
+async function isGitRepository(projectPath: string) {
   try {
     await execFileAsync("git", [
       "-C",
-      workspacePath,
+      projectPath,
       "rev-parse",
       "--is-inside-work-tree",
     ])
@@ -100,12 +100,12 @@ async function isGitRepository(workspacePath: string) {
 }
 
 async function listChangedFilesFromGit(args: {
-  workspacePath: string
+  projectPath: string
   maxFiles: number
 }) {
   const { stdout } = await execFileAsync("git", [
     "-C",
-    args.workspacePath,
+    args.projectPath,
     "status",
     "--porcelain",
   ])
@@ -117,8 +117,8 @@ async function listChangedFilesFromGit(args: {
     if (!parsed) {
       continue
     }
-    const absolutePath = path.resolve(args.workspacePath, parsed.relativePath)
-    if (!isPathInsideRoot(args.workspacePath, absolutePath)) {
+    const absolutePath = path.resolve(args.projectPath, parsed.relativePath)
+    if (!isPathInsideRoot(args.projectPath, absolutePath)) {
       continue
     }
 
@@ -148,10 +148,10 @@ async function listChangedFilesFromGit(args: {
 }
 
 async function listAllFilesRecursively(args: {
-  workspacePath: string
+  projectPath: string
   maxFiles: number
 }) {
-  const queue: string[] = [args.workspacePath]
+  const queue: string[] = [args.projectPath]
   const files: ReviewFile[] = []
   let truncated = false
 
@@ -174,7 +174,7 @@ async function listAllFilesRecursively(args: {
 
     for (const entry of sortedEntries) {
       const absolutePath = path.join(current, entry.name)
-      if (!isPathInsideRoot(args.workspacePath, absolutePath)) {
+      if (!isPathInsideRoot(args.projectPath, absolutePath)) {
         continue
       }
 
@@ -192,7 +192,7 @@ async function listAllFilesRecursively(args: {
 
       files.push({
         relativePath: toUnixPath(
-          path.relative(args.workspacePath, absolutePath),
+          path.relative(args.projectPath, absolutePath),
         ),
         absolutePath,
       })
@@ -227,7 +227,7 @@ export class ReviewServiceError extends Error {
 }
 
 export async function listReviewFiles(args: {
-  workspacePath: string
+  projectPath: string
   mode: ReviewListMode
   maxFiles?: number
 }): Promise<ListReviewFilesResult> {
@@ -236,13 +236,13 @@ export async function listReviewFiles(args: {
       ? Math.max(1, Math.trunc(args.maxFiles))
       : DEFAULT_MAX_FILES
   const mode = args.mode
-  const gitRepo = await isGitRepository(args.workspacePath)
+  const gitRepo = await isGitRepository(args.projectPath)
 
   if (mode === "changed") {
     if (!gitRepo) {
       return {
         mode,
-        workspacePath: args.workspacePath,
+        projectPath: args.projectPath,
         isGitRepository: false,
         truncated: false,
         files: [],
@@ -250,12 +250,12 @@ export async function listReviewFiles(args: {
     }
 
     const changed = await listChangedFilesFromGit({
-      workspacePath: args.workspacePath,
+      projectPath: args.projectPath,
       maxFiles,
     })
     return {
       mode,
-      workspacePath: args.workspacePath,
+      projectPath: args.projectPath,
       isGitRepository: true,
       truncated: changed.truncated,
       files: changed.files,
@@ -263,12 +263,12 @@ export async function listReviewFiles(args: {
   }
 
   const allFiles = await listAllFilesRecursively({
-    workspacePath: args.workspacePath,
+    projectPath: args.projectPath,
     maxFiles,
   })
   return {
     mode,
-    workspacePath: args.workspacePath,
+    projectPath: args.projectPath,
     isGitRepository: gitRepo,
     truncated: allFiles.truncated,
     files: allFiles.files,
@@ -276,7 +276,7 @@ export async function listReviewFiles(args: {
 }
 
 export async function readReviewFile(args: {
-  workspacePath: string
+  projectPath: string
   relativePath: string
   maxBytes?: number
 }): Promise<ReadReviewFileResult> {
@@ -285,11 +285,11 @@ export async function readReviewFile(args: {
     throw new ReviewServiceError("INVALID_PATH", "File path cannot be empty.")
   }
 
-  const absolutePath = path.resolve(args.workspacePath, normalizedRelativePath)
-  if (!isPathInsideRoot(args.workspacePath, absolutePath)) {
+  const absolutePath = path.resolve(args.projectPath, normalizedRelativePath)
+  if (!isPathInsideRoot(args.projectPath, absolutePath)) {
     throw new ReviewServiceError(
-      "PATH_OUTSIDE_WORKSPACE",
-      "Requested file is outside workspace root.",
+      "PATH_OUTSIDE_PROJECT",
+      "Requested file is outside project root.",
     )
   }
 

@@ -19,7 +19,7 @@ const jetBrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Otter Assistant",
-  description: "Otter Assistant workspace",
+  description: "Otter Assistant projects",
   icons: {
     icon: [
       { url: "/favicon.ico", type: "image/x-icon" },

@@ -2,8 +2,8 @@ export type TaskStatus = "queued" | "running" | "completed" | "failed"
 
 export type CodexTask = {
   id: string
-  workspaceId: string
-  workspacePath: string
+  projectId: string
+  projectPath: string
   prompt: string
   model: string | null
   status: TaskStatus

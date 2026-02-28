@@ -6,10 +6,10 @@ import {
   setGlobalMcpServerEnabled,
   setProjectMcpServerEnabled,
 } from "@/services/codex-config/config.service"
-import { getWorkspaceById } from "@/services/workspace/workspace.repository"
+import { getProjectById } from "@/services/project/project.repository"
 
 export async function setMcpServerEnabledAction(formData: FormData) {
-  const workspaceId = String(formData.get("workspaceId") ?? "").trim()
+  const projectId = String(formData.get("projectId") ?? "").trim()
   const serverName = String(formData.get("serverName") ?? "").trim()
   const scope = String(formData.get("scope") ?? "")
     .trim()
@@ -19,7 +19,7 @@ export async function setMcpServerEnabledAction(formData: FormData) {
     .toLowerCase()
 
   if (
-    !workspaceId ||
+    !projectId ||
     !serverName ||
     (scope !== "global" && scope !== "project") ||
     (enabledRaw !== "true" && enabledRaw !== "false")
@@ -33,17 +33,17 @@ export async function setMcpServerEnabledAction(formData: FormData) {
       enabled: enabledRaw === "true",
     })
   } else {
-    const workspace = await getWorkspaceById(workspaceId)
-    if (!workspace) {
+    const project = await getProjectById(projectId)
+    if (!project) {
       return
     }
 
     await setProjectMcpServerEnabled({
-      workspacePath: workspace.path,
+      projectPath: project.path,
       serverName,
       enabled: enabledRaw === "true",
     })
   }
 
-  revalidatePath(`/${workspaceId}/mcp`)
+  revalidatePath(`/${projectId}/mcp`)
 }

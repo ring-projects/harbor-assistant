@@ -23,16 +23,16 @@ function getGlobalCodexConfigPath() {
   return path.join(homedir(), ".codex", "config.toml")
 }
 
-function getProjectCodexConfigPath(workspacePath: string) {
-  return path.join(workspacePath, ".codex", "config.toml")
+function getProjectCodexConfigPath(projectPath: string) {
+  return path.join(projectPath, ".codex", "config.toml")
 }
 
 function getGlobalSkillsRoot() {
   return path.join(homedir(), ".codex", "skills")
 }
 
-function getProjectSkillsRoot(workspacePath: string) {
-  return path.join(workspacePath, ".codex", "skills")
+function getProjectSkillsRoot(projectPath: string) {
+  return path.join(projectPath, ".codex", "skills")
 }
 
 function isInsideRoot(rootPath: string, targetPath: string) {
@@ -161,11 +161,11 @@ function mergeServers(
   }
 }
 
-export async function resolveCodexMcpConfigForWorkspace(
-  workspacePath: string,
+export async function resolveCodexMcpConfigForProject(
+  projectPath: string,
 ): Promise<CodexMcpConfigResult> {
   const globalConfigPath = getGlobalCodexConfigPath()
-  const projectConfigPath = getProjectCodexConfigPath(workspacePath)
+  const projectConfigPath = getProjectCodexConfigPath(projectPath)
   const [globalExists, projectExists] = await Promise.all([
     pathExists(globalConfigPath),
     pathExists(projectConfigPath),
@@ -267,11 +267,11 @@ async function scanSkillDirectories(args: {
   )
 }
 
-export async function resolveCodexSkillsForWorkspace(
-  workspacePath: string,
+export async function resolveCodexSkillsForProject(
+  projectPath: string,
 ): Promise<CodexSkillsResult> {
   const globalSkillsRoot = getGlobalSkillsRoot()
-  const projectSkillsRoot = getProjectSkillsRoot(workspacePath)
+  const projectSkillsRoot = getProjectSkillsRoot(projectPath)
   const [globalExists, projectExists] = await Promise.all([
     pathExists(globalSkillsRoot),
     pathExists(projectSkillsRoot),
@@ -297,11 +297,11 @@ export async function resolveCodexSkillsForWorkspace(
 
 function resolveSkillsRootBySource(args: {
   source: CodexConfigSource
-  workspacePath: string
+  projectPath: string
 }) {
   return args.source === "global"
     ? getGlobalSkillsRoot()
-    : getProjectSkillsRoot(args.workspacePath)
+    : getProjectSkillsRoot(args.projectPath)
 }
 
 function normalizeSkillName(rawName: string) {
@@ -408,15 +408,15 @@ async function resolveSkillFilePath(skillDirectoryPath: string) {
   return path.join(skillDirectoryPath, match.name)
 }
 
-export async function getCodexSkillPreviewForWorkspace(args: {
-  workspacePath: string
+export async function getCodexSkillPreviewForProject(args: {
+  projectPath: string
   source: CodexConfigSource
   skillName: string
   selectedFilePath?: string | null
 }): Promise<CodexSkillPreview | null> {
   const rootPath = resolveSkillsRootBySource({
     source: args.source,
-    workspacePath: args.workspacePath,
+    projectPath: args.projectPath,
   })
   const rootExists = await pathExists(rootPath)
   if (!rootExists) {
@@ -592,13 +592,13 @@ function setMcpServerEnabledInToml(args: {
 }
 
 export async function setProjectMcpServerEnabled(args: {
-  workspacePath: string
+  projectPath: string
   serverName: string
   enabled: boolean
 }) {
   await setMcpServerEnabled({
     scope: "project",
-    workspacePath: args.workspacePath,
+    projectPath: args.projectPath,
     serverName: args.serverName,
     enabled: args.enabled,
   })
@@ -610,7 +610,7 @@ export async function setGlobalMcpServerEnabled(args: {
 }) {
   await setMcpServerEnabled({
     scope: "global",
-    workspacePath: null,
+    projectPath: null,
     serverName: args.serverName,
     enabled: args.enabled,
   })
@@ -618,7 +618,7 @@ export async function setGlobalMcpServerEnabled(args: {
 
 async function setMcpServerEnabled(args: {
   scope: CodexConfigSource
-  workspacePath: string | null
+  projectPath: string | null
   serverName: string
   enabled: boolean
 }) {
@@ -630,7 +630,7 @@ async function setMcpServerEnabled(args: {
   const configPath =
     args.scope === "global"
       ? getGlobalCodexConfigPath()
-      : getProjectCodexConfigPath(args.workspacePath ?? "")
+      : getProjectCodexConfigPath(args.projectPath ?? "")
   const configDir = path.dirname(configPath)
   await mkdir(configDir, { recursive: true })
 

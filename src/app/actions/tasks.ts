@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { createAndRunCodexTask } from "@/services/tasks/task-runner.service"
-import { getWorkspaceById } from "@/services/workspace/workspace.repository"
+import { getProjectById } from "@/services/project/project.repository"
 
 type CreateTaskActionError = {
   code: string
@@ -17,20 +17,20 @@ export type CreateTaskActionResult = {
 }
 
 export async function createCodexTaskAction(input: {
-  workspaceId: string
+  projectId: string
   prompt: string
   model?: string
 }): Promise<CreateTaskActionResult> {
-  const workspaceId = input.workspaceId.trim()
+  const projectId = input.projectId.trim()
   const prompt = input.prompt.trim()
   const model = input.model?.trim() || null
 
-  if (!workspaceId) {
+  if (!projectId) {
     return {
       ok: false,
       error: {
-        code: "INVALID_WORKSPACE_ID",
-        message: "Workspace id is required.",
+        code: "INVALID_PROJECT_ID",
+        message: "Project id is required.",
       },
     }
   }
@@ -45,26 +45,26 @@ export async function createCodexTaskAction(input: {
     }
   }
 
-  const workspace = await getWorkspaceById(workspaceId)
-  if (!workspace) {
+  const project = await getProjectById(projectId)
+  if (!project) {
     return {
       ok: false,
       error: {
-        code: "WORKSPACE_NOT_FOUND",
-        message: `Workspace not found: ${workspaceId}`,
+        code: "PROJECT_NOT_FOUND",
+        message: `Project not found: ${projectId}`,
       },
     }
   }
 
   try {
     const task = await createAndRunCodexTask({
-      workspaceId: workspace.id,
-      workspacePath: workspace.path,
+      projectId: project.id,
+      projectPath: project.path,
       prompt,
       model,
     })
 
-    revalidatePath(`/${workspaceId}/tasks`)
+    revalidatePath(`/${projectId}/tasks`)
     return {
       ok: true,
       taskId: task.id,

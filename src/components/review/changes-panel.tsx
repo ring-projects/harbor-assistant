@@ -27,7 +27,7 @@ import {
 } from "./utils"
 
 type ReviewChangesPanelProps = {
-  workspaceId: string
+  projectId: string
   mode: ReviewListMode
   reviewFiles: ListReviewFilesResult
   selectedRelativePath: string | null
@@ -43,18 +43,18 @@ function getTreeNodePadding(level: number) {
 function ReviewFileItem(props: {
   file: ReviewFile
   level: number
-  workspaceId: string
+  projectId: string
   mode: ReviewListMode
   selectedRelativePath: string | null
 }) {
-  const { file, level, workspaceId, mode, selectedRelativePath } = props
+  const { file, level, projectId, mode, selectedRelativePath } = props
   const isSelected = file.relativePath === selectedRelativePath
   const fileName = getFileNameParts(file.relativePath)
 
   return (
     <li>
       <Link
-        href={`/${workspaceId}/review?mode=${mode}&file=${encodeURIComponent(file.relativePath)}`}
+        href={`/${projectId}/review?mode=${mode}&file=${encodeURIComponent(file.relativePath)}`}
         className={cn(
           "hover:bg-muted/70 flex min-h-8 items-start gap-2 rounded-md border border-transparent py-1.5 pr-2 transition-colors",
           isSelected &&
@@ -93,11 +93,11 @@ function ReviewFileItem(props: {
 function ReviewDirectoryItem(props: {
   node: ReviewDirectoryNode
   level: number
-  workspaceId: string
+  projectId: string
   mode: ReviewListMode
   selectedRelativePath: string | null
 }) {
-  const { node, level, workspaceId, mode, selectedRelativePath } = props
+  const { node, level, projectId, mode, selectedRelativePath } = props
 
   return (
     <li>
@@ -120,7 +120,7 @@ function ReviewDirectoryItem(props: {
               key={directoryNode.path}
               node={directoryNode}
               level={level + 1}
-              workspaceId={workspaceId}
+              projectId={projectId}
               mode={mode}
               selectedRelativePath={selectedRelativePath}
             />
@@ -130,7 +130,7 @@ function ReviewDirectoryItem(props: {
               key={file.absolutePath}
               file={file}
               level={level + 1}
-              workspaceId={workspaceId}
+              projectId={projectId}
               mode={mode}
               selectedRelativePath={selectedRelativePath}
             />
@@ -142,7 +142,7 @@ function ReviewDirectoryItem(props: {
 }
 
 export function ReviewChangesPanel(props: ReviewChangesPanelProps) {
-  const { workspaceId, mode, reviewFiles, selectedRelativePath } = props
+  const { projectId, mode, reviewFiles, selectedRelativePath } = props
   const directoryTree = buildReviewDirectoryTree({
     files: reviewFiles.files,
     selectedRelativePath,
@@ -161,7 +161,7 @@ export function ReviewChangesPanel(props: ReviewChangesPanelProps) {
         <p className="text-muted-foreground mt-1 text-xs">
           {mode === "changed"
             ? "Git working tree changes"
-            : "Workspace file index"}
+            : "Project file index"}
         </p>
       </div>
 
@@ -182,7 +182,7 @@ export function ReviewChangesPanel(props: ReviewChangesPanelProps) {
                 key={directoryNode.path}
                 node={directoryNode}
                 level={0}
-                workspaceId={workspaceId}
+                projectId={projectId}
                 mode={mode}
                 selectedRelativePath={selectedRelativePath}
               />
@@ -192,7 +192,7 @@ export function ReviewChangesPanel(props: ReviewChangesPanelProps) {
                 key={file.absolutePath}
                 file={file}
                 level={0}
-                workspaceId={workspaceId}
+                projectId={projectId}
                 mode={mode}
                 selectedRelativePath={selectedRelativePath}
               />

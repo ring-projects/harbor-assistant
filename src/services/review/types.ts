@@ -8,7 +8,7 @@ export type ReviewFile = {
 
 export type ListReviewFilesResult = {
   mode: ReviewListMode
-  workspacePath: string
+  projectPath: string
   isGitRepository: boolean
   truncated: boolean
   files: ReviewFile[]
@@ -40,7 +40,7 @@ export type ReviewSuggestionsResult = {
 
 export type ReviewServiceErrorCode =
   | "INVALID_PATH"
-  | "PATH_OUTSIDE_WORKSPACE"
+  | "PATH_OUTSIDE_PROJECT"
   | "NOT_FOUND"
   | "NOT_A_FILE"
   | "READ_ERROR"

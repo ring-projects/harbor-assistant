@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 type TaskRunnerFormProps = {
-  workspaceId: string
+  projectId: string
 }
 
 export function TaskRunnerForm(props: TaskRunnerFormProps) {
-  const { workspaceId } = props
+  const { projectId } = props
   const router = useRouter()
   const [prompt, setPrompt] = useState("")
   const [model, setModel] = useState("")
@@ -37,7 +37,7 @@ export function TaskRunnerForm(props: TaskRunnerFormProps) {
 
     startTransition(async () => {
       const result = await createCodexTaskAction({
-        workspaceId,
+        projectId,
         prompt: trimmedPrompt,
         model: model.trim() || undefined,
       })

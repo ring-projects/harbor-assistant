@@ -212,7 +212,7 @@ export function buildReviewDirectoryTree(args: {
     }
   }
 
-  const rootNode = createNode("workspace root", "")
+  const rootNode = createNode("project root", "")
 
   for (const file of args.files) {
     const parts = file.relativePath.split("/").filter(Boolean)

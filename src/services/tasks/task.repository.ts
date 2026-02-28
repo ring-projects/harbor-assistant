@@ -46,6 +46,56 @@ function ensureValidTaskDocument(
     )
   }
 
+  const normalizedTasks: CodexTask[] = []
+  for (const item of candidate.tasks) {
+    if (typeof item !== "object" || item === null) {
+      continue
+    }
+
+    const record = item as Record<string, unknown>
+    const id = typeof record.id === "string" ? record.id : null
+    const projectId =
+      typeof record.projectId === "string"
+        ? record.projectId
+        : typeof record.workspaceId === "string"
+          ? record.workspaceId
+          : null
+    const projectPath =
+      typeof record.projectPath === "string"
+        ? record.projectPath
+        : typeof record.workspacePath === "string"
+          ? record.workspacePath
+          : null
+    const prompt = typeof record.prompt === "string" ? record.prompt : null
+    const status = typeof record.status === "string" ? record.status : null
+    const createdAt =
+      typeof record.createdAt === "string" ? record.createdAt : null
+
+    if (!id || !projectId || !projectPath || !prompt || !status || !createdAt) {
+      continue
+    }
+
+    normalizedTasks.push({
+      id,
+      projectId,
+      projectPath,
+      prompt,
+      model: typeof record.model === "string" ? record.model : null,
+      status: status as CodexTask["status"],
+      createdAt,
+      startedAt: typeof record.startedAt === "string" ? record.startedAt : null,
+      finishedAt:
+        typeof record.finishedAt === "string" ? record.finishedAt : null,
+      exitCode: typeof record.exitCode === "number" ? record.exitCode : null,
+      command: Array.isArray(record.command)
+        ? record.command.filter((value): value is string => typeof value === "string")
+        : [],
+      stdout: typeof record.stdout === "string" ? record.stdout : "",
+      stderr: typeof record.stderr === "string" ? record.stderr : "",
+      error: typeof record.error === "string" ? record.error : null,
+    })
+  }
+
   return {
     version:
       typeof candidate.version === "number" ? candidate.version : STORE_VERSION,
@@ -53,17 +103,7 @@ function ensureValidTaskDocument(
       typeof candidate.updatedAt === "string"
         ? candidate.updatedAt
         : nowIsoString(),
-    tasks: candidate.tasks
-      .filter((item) => typeof item === "object" && item !== null)
-      .filter(
-        (item) =>
-          typeof item.id === "string" &&
-          typeof item.workspaceId === "string" &&
-          typeof item.workspacePath === "string" &&
-          typeof item.prompt === "string" &&
-          typeof item.status === "string" &&
-          typeof item.createdAt === "string",
-      ) as CodexTask[],
+    tasks: normalizedTasks,
   }
 }
 
@@ -116,18 +156,18 @@ export class TaskRepositoryError extends Error {
   }
 }
 
-export async function listTasksByWorkspace(args: {
-  workspaceId: string
+export async function listTasksByProject(args: {
+  projectId: string
   limit?: number
 }): Promise<CodexTask[]> {
-  const workspaceId = args.workspaceId.trim()
-  if (!workspaceId) {
+  const projectId = args.projectId.trim()
+  if (!projectId) {
     return []
   }
 
   const document = await loadTaskDocument()
   const tasks = document.tasks
-    .filter((task) => task.workspaceId === workspaceId)
+    .filter((task) => task.projectId === projectId)
     .sort(taskComparator)
 
   if (typeof args.limit === "number" && Number.isFinite(args.limit)) {
@@ -148,17 +188,17 @@ export async function getTaskById(taskId: string): Promise<CodexTask | null> {
 }
 
 export async function createTask(input: {
-  workspaceId: string
-  workspacePath: string
+  projectId: string
+  projectPath: string
   prompt: string
   model: string | null
 }): Promise<CodexTask> {
-  const workspaceId = input.workspaceId.trim()
+  const projectId = input.projectId.trim()
   const prompt = input.prompt.trim()
-  if (!workspaceId || !prompt) {
+  if (!projectId || !prompt) {
     throw new TaskRepositoryError(
       "STORE_WRITE_ERROR",
-      "workspaceId and prompt are required.",
+      "projectId and prompt are required.",
     )
   }
 
@@ -169,8 +209,8 @@ export async function createTask(input: {
 
     const task: CodexTask = {
       id: randomUUID(),
-      workspaceId,
-      workspacePath: input.workspacePath,
+      projectId,
+      projectPath: input.projectPath,
       prompt,
       model: input.model,
       status: "queued",

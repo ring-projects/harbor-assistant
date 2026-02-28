@@ -22,7 +22,7 @@ function appendWithLimit(base: string, nextChunk: string) {
 }
 
 function buildCodexExecArgs(args: {
-  workspacePath: string
+  projectPath: string
   prompt: string
   model: string | null
 }) {
@@ -34,7 +34,7 @@ function buildCodexExecArgs(args: {
     "--color",
     "never",
     "--cd",
-    args.workspacePath,
+    args.projectPath,
   ]
 
   if (args.model) {
@@ -47,20 +47,20 @@ function buildCodexExecArgs(args: {
 }
 
 export async function createAndRunCodexTask(input: {
-  workspaceId: string
-  workspacePath: string
+  projectId: string
+  projectPath: string
   prompt: string
   model: string | null
 }): Promise<CodexTask> {
   const createdTask = await createTask({
-    workspaceId: input.workspaceId,
-    workspacePath: input.workspacePath,
+    projectId: input.projectId,
+    projectPath: input.projectPath,
     prompt: input.prompt,
     model: input.model,
   })
 
   const commandArgs = buildCodexExecArgs({
-    workspacePath: input.workspacePath,
+    projectPath: input.projectPath,
     prompt: input.prompt,
     model: input.model,
   })
@@ -93,7 +93,7 @@ export async function createAndRunCodexTask(input: {
 
   try {
     const child = spawn("codex", commandArgs, {
-      cwd: input.workspacePath,
+      cwd: input.projectPath,
       env: {
         ...process.env,
         NO_COLOR: "1",

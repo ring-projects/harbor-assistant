@@ -8,8 +8,8 @@ export const OTTER_CONFIG_PATH = path.join(OTTER_HOME_DIRECTORY, "app.yaml")
 export const DEFAULT_APP_CONFIG_CONTENT = `fileBrowser:
   rootDirectory: "~"
 
-workspace:
-  dataFile: "~/.otter/data/workspaces.json"
+project:
+  dataFile: "~/.otter/data/projects.sqlite"
 
 task:
   dataFile: "~/.otter/data/tasks.json"

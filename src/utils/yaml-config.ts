@@ -6,8 +6,8 @@ import { z } from "zod"
 
 import {
   OTTER_APP_CONFIG_PATH,
+  OTTER_PROJECT_DATA_FILE,
   OTTER_TASK_DATA_FILE,
-  OTTER_WORKSPACE_DATA_FILE,
 } from "@/utils/otter-paths"
 
 const APP_CONFIG_PATH = OTTER_APP_CONFIG_PATH
@@ -19,7 +19,7 @@ const AppConfigSchema = z
         rootDirectory: z.string().min(1).optional(),
       })
       .optional(),
-    workspace: z
+    project: z
       .object({
         dataFile: z.string().min(1).optional(),
       })
@@ -36,7 +36,7 @@ export type AppConfig = {
   fileBrowser: {
     rootDirectory: string
   }
-  workspace: {
+  project: {
     dataFile: string
   }
   task: {
@@ -68,8 +68,8 @@ function createDefaultConfig(): AppConfig {
     fileBrowser: {
       rootDirectory: homedir(),
     },
-    workspace: {
-      dataFile: OTTER_WORKSPACE_DATA_FILE,
+    project: {
+      dataFile: OTTER_PROJECT_DATA_FILE,
     },
     task: {
       dataFile: OTTER_TASK_DATA_FILE,
@@ -100,10 +100,10 @@ export function getAppConfig(): AppConfig {
         ? toAbsolutePath(validated.fileBrowser.rootDirectory)
         : defaults.fileBrowser.rootDirectory,
     },
-    workspace: {
-      dataFile: validated?.workspace?.dataFile
-        ? toAbsolutePath(validated.workspace.dataFile)
-        : defaults.workspace.dataFile,
+    project: {
+      dataFile: validated?.project?.dataFile
+        ? toAbsolutePath(validated.project.dataFile)
+        : defaults.project.dataFile,
     },
     task: {
       dataFile: validated?.task?.dataFile

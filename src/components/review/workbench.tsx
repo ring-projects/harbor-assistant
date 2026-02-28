@@ -43,7 +43,7 @@ import {
 } from "./utils"
 
 type ReviewWorkbenchProps = {
-  workspaceId: string
+  projectId: string
   mode: ReviewListMode
   reviewFiles: ListReviewFilesResult
   selectedRelativePath: string | null
@@ -151,15 +151,15 @@ function flattenDirectoryTree(args: {
 }
 
 function toFileHref(args: {
-  workspaceId: string
+  projectId: string
   mode: ReviewListMode
   relativePath: string
 }) {
-  return `/${args.workspaceId}/review?mode=${args.mode}&file=${encodeURIComponent(args.relativePath)}`
+  return `/${args.projectId}/review?mode=${args.mode}&file=${encodeURIComponent(args.relativePath)}`
 }
 
-function toModeHref(args: { workspaceId: string; mode: ReviewListMode }) {
-  return `/${args.workspaceId}/review?mode=${args.mode}`
+function toModeHref(args: { projectId: string; mode: ReviewListMode }) {
+  return `/${args.projectId}/review?mode=${args.mode}`
 }
 
 function getFileBreadcrumbParts(relativePath: string | null) {
@@ -172,7 +172,7 @@ function getFileBreadcrumbParts(relativePath: string | null) {
 
 export function ReviewWorkbench(props: ReviewWorkbenchProps) {
   const {
-    workspaceId,
+    projectId,
     mode,
     reviewFiles,
     selectedRelativePath,
@@ -284,7 +284,7 @@ export function ReviewWorkbench(props: ReviewWorkbenchProps) {
     })
 
     const href = toFileHref({
-      workspaceId,
+      projectId,
       mode,
       relativePath,
     })
@@ -311,7 +311,7 @@ export function ReviewWorkbench(props: ReviewWorkbenchProps) {
       null
 
     if (!fallbackPath) {
-      router.push(toModeHref({ workspaceId, mode }))
+      router.push(toModeHref({ projectId, mode }))
       return
     }
 
@@ -472,7 +472,7 @@ export function ReviewWorkbench(props: ReviewWorkbenchProps) {
               </div>
               <div className="inline-flex rounded-md border p-1">
                 <Link
-                  href={toModeHref({ workspaceId, mode: "changed" })}
+                  href={toModeHref({ projectId, mode: "changed" })}
                   className={cn(
                     "hover:bg-muted rounded-sm px-2 py-1 text-xs",
                     mode === "changed" && "bg-muted font-medium",
@@ -481,7 +481,7 @@ export function ReviewWorkbench(props: ReviewWorkbenchProps) {
                   Changed
                 </Link>
                 <Link
-                  href={toModeHref({ workspaceId, mode: "all" })}
+                  href={toModeHref({ projectId, mode: "all" })}
                   className={cn(
                     "hover:bg-muted rounded-sm px-2 py-1 text-xs",
                     mode === "all" && "bg-muted font-medium",
@@ -502,10 +502,10 @@ export function ReviewWorkbench(props: ReviewWorkbenchProps) {
           {activeActivity === "tasks" ? (
             <div className="space-y-3 p-3 text-sm">
               <p className="text-muted-foreground">
-                Open workspace tasks to run Codex operations.
+                Open project tasks to run Codex operations.
               </p>
               <Link
-                href={`/${workspaceId}/tasks`}
+                href={`/${projectId}/tasks`}
                 className="bg-background hover:bg-muted inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium"
               >
                 Go To Tasks
