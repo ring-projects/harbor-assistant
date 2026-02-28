@@ -4,7 +4,7 @@ import { homedir } from "node:os"
 import { readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 
-import Database from "better-sqlite3"
+import { Database } from "bun:sqlite"
 
 import type { Project, ProjectErrorCode } from "@/services/project/types"
 import { getAppConfig } from "@/utils/yaml-config"
@@ -23,8 +23,8 @@ function ensureProjectDatabase() {
   mkdirSync(databaseDir, { recursive: true })
 
   const db = new Database(databasePath)
-  db.pragma("journal_mode = WAL")
-  db.pragma("foreign_keys = ON")
+  db.exec("PRAGMA journal_mode = WAL")
+  db.exec("PRAGMA foreign_keys = ON")
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
@@ -37,7 +37,7 @@ function ensureProjectDatabase() {
   return db
 }
 
-let databaseSingleton: Database.Database | null = null
+let databaseSingleton: Database | null = null
 
 function resolveLegacyWorkspaceDataFile() {
   return path.join(homedir(), ".otter", "data", "workspaces.json")
@@ -75,10 +75,10 @@ function parseLegacyWorkspaceItems(value: unknown): Array<{
     }))
 }
 
-async function migrateLegacyWorkspacesIfNeeded(db: Database.Database) {
-  const row = db
-    .prepare("SELECT COUNT(1) AS count FROM projects")
-    .get() as { count: number } | undefined
+async function migrateLegacyWorkspacesIfNeeded(db: Database) {
+  const row = db.query("SELECT COUNT(1) AS count FROM projects").get() as
+    | { count: number }
+    | undefined
   if ((row?.count ?? 0) > 0) {
     return
   }
@@ -101,25 +101,20 @@ async function migrateLegacyWorkspacesIfNeeded(db: Database.Database) {
     return
   }
 
-  const insertStatement = db.prepare(
+  const insertStatement = db.query(
     `INSERT OR IGNORE INTO projects (id, name, path, created_at)
      VALUES (?, ?, ?, ?)`,
   )
-  const transaction = db.transaction(
-    (
-      items: Array<{
-        id: string
-        name: string
-        path: string
-        createdAt: string
-      }>,
-    ) => {
-      for (const item of items) {
-        insertStatement.run(item.id, item.name, item.path, item.createdAt)
-      }
-    },
-  )
-  transaction(legacyItems)
+  db.exec("BEGIN")
+  try {
+    for (const item of legacyItems) {
+      insertStatement.run(item.id, item.name, item.path, item.createdAt)
+    }
+    db.exec("COMMIT")
+  } catch (error) {
+    db.exec("ROLLBACK")
+    throw error
+  }
 }
 
 async function getDatabase() {
@@ -200,7 +195,7 @@ export async function listProjects(): Promise<Project[]> {
   try {
     const db = await getDatabase()
     const rows = db
-      .prepare(
+      .query(
         `SELECT id, name, path, created_at AS createdAt
          FROM projects
          ORDER BY created_at DESC`,
@@ -225,7 +220,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
   try {
     const db = await getDatabase()
     const row = db
-      .prepare(
+      .query(
         `SELECT id, name, path, created_at AS createdAt
          FROM projects
          WHERE id = ?`,
@@ -255,7 +250,7 @@ export async function addProject(input: {
 
   try {
     const db = await getDatabase()
-    db.prepare(
+    db.query(
       `INSERT INTO projects (id, name, path, created_at)
        VALUES (?, ?, ?, ?)`,
     ).run(project.id, project.name, project.path, project.createdAt)
@@ -288,8 +283,15 @@ export async function deleteProject(id: string): Promise<boolean> {
 
   try {
     const db = await getDatabase()
-    const result = db.prepare(`DELETE FROM projects WHERE id = ?`).run(trimmedId)
-    return result.changes > 0
+    const existing = db
+      .query(`SELECT id FROM projects WHERE id = ?`)
+      .get(trimmedId) as { id: string } | undefined
+    if (!existing) {
+      return false
+    }
+
+    db.query(`DELETE FROM projects WHERE id = ?`).run(trimmedId)
+    return true
   } catch (error) {
     throw new ProjectRepositoryError(
       "DB_WRITE_ERROR",
