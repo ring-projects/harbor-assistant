@@ -177,7 +177,7 @@ const editorTheme = EditorView.theme({
   },
   ".cm-scroller": {
     fontFamily:
-      "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
+      "var(--font-mono), var(--font-mono-geist), ui-monospace, SFMono-Regular, Menlo, monospace",
     lineHeight: "1.4",
   },
   ".cm-content": {
