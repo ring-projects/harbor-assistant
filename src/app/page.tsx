@@ -1,10 +1,25 @@
-export default function Home() {
-  return (
-    <div className="flex items-stretch w-full h-full">
-      <div className="flex-1 bg-red-200"> Project </div>
-      <div className="flex-1 bg-green-200"> Task </div>
-      <div className="flex-1 bg-purple-200">Chat</div>
-      <div className="flex-1 bg-purple-200">Diff</div>
-    </div>
-  );
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
+
+import { LandingPage } from "@/modules/landing-page"
+import { listProjects } from "@/services/project/project.repository"
+
+const LAST_PROJECT_COOKIE_NAME = "harbor_last_project_id"
+
+export const dynamic = "force-dynamic"
+
+export default async function Home() {
+  const projects = await listProjects()
+  if (projects.length === 0) {
+    return <LandingPage />
+  }
+
+  const cookieStore = await cookies()
+  const lastProjectId = cookieStore.get(LAST_PROJECT_COOKIE_NAME)?.value
+  const targetProjectId = lastProjectId
+    ? (projects.find((project) => project.id === lastProjectId)?.id ??
+      projects[0].id)
+    : projects[0].id
+
+  redirect(`/${targetProjectId}`)
 }

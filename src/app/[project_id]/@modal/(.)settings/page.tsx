@@ -18,7 +18,7 @@ export default async function ProjectSettingsModalPage(
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold">Settings</h2>
           <Link
-            href={`/${projectId}/progress`}
+            href={`/${projectId}`}
             className="text-muted-foreground hover:text-foreground inline-flex size-8 items-center justify-center rounded-md border"
             aria-label="Close modal"
           >
