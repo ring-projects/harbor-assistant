@@ -40,7 +40,7 @@ type InteractiveCodeBlockProps = {
   showLineNumbers?: boolean
 }
 
-const ANNOTATION_STORAGE_KEY = "otter_code_annotations_v1"
+const ANNOTATION_STORAGE_KEY = "harbor_code_annotations_v1"
 
 function loadAnnotationsBySourceId(sourceId: string) {
   if (typeof window === "undefined") {

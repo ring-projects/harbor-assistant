@@ -1,5 +1,5 @@
 {
-  "name": "otter-assistant",
+  "name": "harbor-assistant",
   "version": "0.1.0",
   "private": true,
   "packageManager": "bun@1.3.5",
@@ -7,10 +7,10 @@
     "bun": ">=1.3.5"
   },
   "scripts": {
-    "init:otter": "bun scripts/init.mjs",
-    "dev": "bun run init:otter && bunx --bun next dev",
-    "build": "bun run init:otter && bunx --bun next build",
-    "start": "bun run init:otter && bunx --bun next start",
+    "init:harbor": "bun scripts/init.mjs",
+    "dev": "bun run init:harbor && bunx --bun next dev",
+    "build": "bun run init:harbor && bunx --bun next build",
+    "start": "bun run init:harbor && bunx --bun next start",
     "lint": "bunx eslint .",
     "lint:fix": "bunx eslint . --fix",
     "format": "bunx prettier --write .",

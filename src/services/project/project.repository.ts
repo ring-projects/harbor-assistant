@@ -40,7 +40,7 @@ function ensureProjectDatabase() {
 let databaseSingleton: Database | null = null
 
 function resolveLegacyWorkspaceDataFile() {
-  return path.join(homedir(), ".otter", "data", "workspaces.json")
+  return path.join(homedir(), ".harbor", "data", "workspaces.json")
 }
 
 function parseLegacyWorkspaceItems(value: unknown): Array<{
@@ -268,6 +268,70 @@ export async function addProject(input: {
     throw new ProjectRepositoryError(
       "DB_WRITE_ERROR",
       `Failed to write project: ${message}`,
+    )
+  }
+}
+
+export async function updateProject(input: {
+  id: string
+  path?: string
+  name?: string
+}): Promise<Project | null> {
+  const trimmedId = input.id.trim()
+  if (!trimmedId) {
+    throw new ProjectRepositoryError(
+      "INVALID_PROJECT_ID",
+      "Project id cannot be empty.",
+    )
+  }
+
+  const existing = await getProjectById(trimmedId)
+  if (!existing) {
+    return null
+  }
+
+  let nextPath = existing.path
+  if (typeof input.path === "string") {
+    nextPath = await resolveProjectPath(input.path)
+  }
+
+  let nextName = existing.name
+  if (typeof input.name === "string") {
+    const trimmedName = input.name.trim()
+    if (trimmedName) {
+      nextName = trimmedName
+    } else if (typeof input.path === "string") {
+      nextName = buildProjectName(nextPath)
+    }
+  } else if (typeof input.path === "string") {
+    nextName = buildProjectName(nextPath)
+  }
+
+  try {
+    const db = await getDatabase()
+    db.query(
+      `UPDATE projects
+       SET name = ?, path = ?
+       WHERE id = ?`,
+    ).run(nextName, nextPath, trimmedId)
+
+    return {
+      ...existing,
+      name: nextName,
+      path: nextPath,
+    }
+  } catch (error) {
+    const message = String(error)
+    if (message.includes("UNIQUE constraint failed: projects.path")) {
+      throw new ProjectRepositoryError(
+        "DUPLICATE_PATH",
+        `Project path already exists: ${nextPath}`,
+      )
+    }
+
+    throw new ProjectRepositoryError(
+      "DB_WRITE_ERROR",
+      `Failed to update project: ${message}`,
     )
   }
 }

@@ -20,8 +20,8 @@ const jetBrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Otter Assistant",
-  description: "Otter Assistant projects",
+  title: "Harbor Assistant",
+  description: "Harbor Assistant projects",
   icons: {
     icon: [
       { url: "/favicon.ico", type: "image/x-icon" },
@@ -43,9 +43,7 @@ export default function RootLayout({
         className={`${inter.variable} ${geistMono.variable} ${jetBrainsMono.variable} antialiased`}
       >
         <QueryProvider>
-          <div className="bg-background flex min-h-screen flex-col">
-            <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-          </div>
+          <main className="flex h-screen w-screen">{children}</main>
         </QueryProvider>
       </body>
     </html>

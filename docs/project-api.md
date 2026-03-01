@@ -7,12 +7,12 @@
 - 基础模型：`Project`
 - 数据存储：SQLite（`bun:sqlite`）
 - 数据文件位置：`getAppConfig().project.dataFile`
-- 兼容迁移：启动时可从旧 `~/.otter/data/workspaces.json` 导入
+- 兼容迁移：启动时可从旧 `~/.harbor/data/workspaces.json` 导入
 - 当前 action 返回统一结果类型：`ProjectActionResult`
 
 ## 2. 数据模型
 
-来源：[src/services/project/types.ts](/Users/qiuhao/workspace/otter-assistant/src/services/project/types.ts)
+来源：[src/services/project/types.ts](../src/services/project/types.ts)
 
 ```ts
 type Project = {
@@ -27,7 +27,7 @@ type Project = {
 
 ## 3. Service 层接口
 
-来源：[src/services/project/project.repository.ts](/Users/qiuhao/workspace/otter-assistant/src/services/project/project.repository.ts)
+来源：[src/services/project/project.repository.ts](../src/services/project/project.repository.ts)
 
 ### 3.1 `listProjects()`
 
@@ -106,7 +106,7 @@ class ProjectRepositoryError extends Error {
 
 ## 4. Server Actions 接口
 
-来源：[src/app/actions/projects.ts](/Users/qiuhao/workspace/otter-assistant/src/app/actions/projects.ts)
+来源：[src/app/actions/projects.ts](../src/app/actions/projects.ts)
 
 ### 4.1 统一返回结构
 
@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS projects (
 
 迁移来源：
 
-- `~/.otter/data/workspaces.json`
+- `~/.harbor/data/workspaces.json`
 
 迁移规则：
 
@@ -253,6 +253,30 @@ CREATE TABLE IF NOT EXISTS projects (
 - 不存在：`404`
   - `{ ok: false, projects: Project[], error: { code: "NOT_FOUND", ... } }`
 - 业务错误（如 `INVALID_PROJECT_ID`）：`400`
+
+### 6.4 `PUT /api/projects/:id`
+
+请求体：
+
+```json
+{
+  "path": "string (optional)",
+  "name": "string (optional)"
+}
+```
+
+约束：
+
+- 至少提供一个字段：`path` 或 `name`
+
+- 成功：`200`
+  - `{ ok: true, projects: Project[] }`（返回更新后的完整列表）
+- 参数错误：`400`（`INVALID_REQUEST_BODY`）
+- 不存在：`404`（`NOT_FOUND`）
+- 业务错误：
+  - `DUPLICATE_PATH` -> `409`
+  - `INVALID_PATH/PATH_NOT_FOUND/NOT_A_DIRECTORY` -> `400`
+  - 其他 -> `500`
 
 ## 7. 对接建议
 

@@ -3,10 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ProjectApiResult } from "@/services/project/contracts"
 import type { Project } from "@/services/project/types"
 
-const PROJECTS_QUERY_KEY = ["projects"] as const
+export const PROJECTS_QUERY_KEY = ["projects"] as const
 
-type ProjectMutationInput = {
+type CreateProjectInput = {
   path: string
+  name?: string
+}
+
+type UpdateProjectInput = {
+  id: string
+  path?: string
   name?: string
 }
 
@@ -55,7 +61,7 @@ async function fetchProjects() {
   return payload.projects
 }
 
-async function createProject(input: ProjectMutationInput) {
+async function createProject(input: CreateProjectInput) {
   const response = await fetch("/api/projects", {
     method: "POST",
     headers: {
@@ -67,7 +73,25 @@ async function createProject(input: ProjectMutationInput) {
   return payload.projects
 }
 
-async function removeProject(projectId: string) {
+async function updateProject(input: UpdateProjectInput) {
+  const response = await fetch(
+    `/api/projects/${encodeURIComponent(input.id)}`,
+    {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        path: input.path,
+        name: input.name,
+      }),
+    },
+  )
+  const payload = await parseProjectApiResponse(response)
+  return payload.projects
+}
+
+async function deleteProject(projectId: string) {
   const response = await fetch(
     `/api/projects/${encodeURIComponent(projectId)}`,
     {
@@ -90,14 +114,14 @@ export function getProjectActionError(error: unknown) {
   return "Unknown project error."
 }
 
-export function useProjectsQuery() {
+export function useReadProjectsQuery() {
   return useQuery<Project[]>({
     queryKey: PROJECTS_QUERY_KEY,
     queryFn: fetchProjects,
   })
 }
 
-export function useAddProjectMutation() {
+export function useCreateProjectMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: createProject,
@@ -107,12 +131,26 @@ export function useAddProjectMutation() {
   })
 }
 
-export function useDeleteProjectMutation() {
+export function useUpdateProjectMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: removeProject,
+    mutationFn: updateProject,
     onSuccess(projects) {
       queryClient.setQueryData(PROJECTS_QUERY_KEY, projects)
     },
   })
 }
+
+export function useDeleteProjectMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteProject,
+    onSuccess(projects) {
+      queryClient.setQueryData(PROJECTS_QUERY_KEY, projects)
+    },
+  })
+}
+
+// Backward-compatible aliases for existing callers.
+export const useProjectsQuery = useReadProjectsQuery
+export const useAddProjectMutation = useCreateProjectMutation

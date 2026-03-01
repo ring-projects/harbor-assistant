@@ -5,12 +5,12 @@ import YAML from "yaml"
 import { z } from "zod"
 
 import {
-  OTTER_APP_CONFIG_PATH,
-  OTTER_PROJECT_DATA_FILE,
-  OTTER_TASK_DATA_FILE,
-} from "@/utils/otter-paths"
+  HARBOR_APP_CONFIG_PATH,
+  HARBOR_PROJECT_DATA_FILE,
+  HARBOR_TASK_DATA_FILE,
+} from "@/utils/harbor-paths"
 
-const APP_CONFIG_PATH = OTTER_APP_CONFIG_PATH
+const APP_CONFIG_PATH = HARBOR_APP_CONFIG_PATH
 
 const AppConfigSchema = z
   .object({
@@ -69,10 +69,10 @@ function createDefaultConfig(): AppConfig {
       rootDirectory: homedir(),
     },
     project: {
-      dataFile: OTTER_PROJECT_DATA_FILE,
+      dataFile: HARBOR_PROJECT_DATA_FILE,
     },
     task: {
-      dataFile: OTTER_TASK_DATA_FILE,
+      dataFile: HARBOR_TASK_DATA_FILE,
     },
   }
 }
