@@ -24,11 +24,19 @@ export const metadata: Metadata = {
   description: "Harbor Assistant projects",
   icons: {
     icon: [
-      { url: "/favicon.ico", type: "image/x-icon" },
-      { url: "/logo.svg", type: "image/svg+xml" },
+      {
+        url: "/brand/harbor-favicon-black.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/brand/harbor-favicon-white.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
     ],
-    shortcut: "/favicon.ico",
-    apple: "/logo.svg",
+    shortcut: "/brand/harbor-favicon-black.svg",
+    apple: "/brand/harbor-favicon-black.svg",
   },
 }
 
