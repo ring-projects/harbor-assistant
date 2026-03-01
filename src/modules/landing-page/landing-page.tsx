@@ -1,15 +1,30 @@
-import { HarborLogo } from "@/components/logo"
+"use client"
+
+import { useState } from "react"
+
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { LandingHeader } from "@/modules/landing-page/components/landing-header"
 
 export function LandingPage() {
+  const [isCompact, setIsCompact] = useState(false)
+
+  function handleCreateClick() {
+    setIsCompact(true)
+  }
+
   return (
     <div className="bg-background text-foreground min-h-full">
       <div className="mx-auto w-full max-w-5xl px-6 md:px-8">
-        <header className="py-8 md:py-10 mt-10">
-          <HarborLogo width={360} />
-        </header>
+        <LandingHeader compact={isCompact} />
 
-        <main className="space-y-14 pb-20 md:space-y-18 md:pb-24">
+        <main
+          className={cn(
+            "space-y-14 overflow-hidden pb-20 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:space-y-18 md:pb-24",
+            isCompact ? "max-h-0 opacity-0 pt-0" : "max-h-450 pt-0 opacity-100",
+          )}
+          aria-hidden={isCompact}
+        >
           <section aria-labelledby="landing-heading" className="space-y-7">
             <div className="max-w-3xl space-y-5">
               <h1
@@ -24,7 +39,11 @@ export function LandingPage() {
                 progress in real time.
               </p>
             </div>
-            <Button className="h-11 px-6 text-sm font-semibold">
+            <Button
+              className="h-11 px-6 text-sm font-semibold"
+              onClick={handleCreateClick}
+              disabled={isCompact}
+            >
               Get Started
             </Button>
           </section>
