@@ -11,7 +11,7 @@ export function LandingHeader({ compact }: LandingHeaderProps) {
       className={cn(
         "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
         compact
-          ? "mt-0 border-b py-4 md:py-5"
+          ? "mt-0 py-2 md:py-4"
           : "mt-10 border-b border-transparent py-8 md:py-10",
       )}
     >
