@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-const LAST_PROJECT_COOKIE_NAME = "harbor_last_project_id"
+import {
+  LAST_PROJECT_COOKIE_MAX_AGE_SECONDS,
+  LAST_PROJECT_COOKIE_NAME,
+} from "@/constants"
 
 const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "api",
@@ -46,7 +49,7 @@ export function proxy(request: NextRequest) {
     path: "/",
     sameSite: "lax",
     httpOnly: true,
-    maxAge: 60 * 60 * 24 * 365,
+    maxAge: LAST_PROJECT_COOKIE_MAX_AGE_SECONDS,
   })
   return response
 }

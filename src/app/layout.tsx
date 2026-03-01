@@ -51,7 +51,7 @@ export default function RootLayout({
         className={`${inter.variable} ${geistMono.variable} ${jetBrainsMono.variable} antialiased`}
       >
         <QueryProvider>
-          <main className="flex h-screen w-screen">{children}</main>
+          <main>{children}</main>
         </QueryProvider>
       </body>
     </html>

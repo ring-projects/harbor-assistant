@@ -1,5 +1,6 @@
 "use server"
 
+import { ERROR_CODES } from "@/constants"
 import {
   addProject,
   deleteProject,
@@ -28,7 +29,7 @@ function mapError(error: unknown): ProjectActionError {
   }
 
   return {
-    code: "INTERNAL_ERROR",
+    code: ERROR_CODES.INTERNAL_ERROR,
     message: "Unexpected error occurred while updating projects.",
   }
 }
@@ -81,7 +82,7 @@ export async function deleteProjectAction(input: {
         ok: false,
         projects,
         error: {
-          code: "NOT_FOUND",
+          code: ERROR_CODES.NOT_FOUND,
           message: `Project not found: ${input.id}`,
         },
       }

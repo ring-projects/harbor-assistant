@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
 
+import { DEFAULT_CODEX_COMMAND } from "@/constants"
 import {
   createTask,
   updateTaskRunState,
@@ -92,7 +93,7 @@ export async function createAndRunCodexTask(input: {
   }
 
   try {
-    const child = spawn("codex", commandArgs, {
+    const child = spawn(DEFAULT_CODEX_COMMAND, commandArgs, {
       cwd: input.projectPath,
       env: {
         ...process.env,
@@ -105,7 +106,7 @@ export async function createAndRunCodexTask(input: {
       taskId: createdTask.id,
       status: "running",
       startedAt: nowIsoString(),
-      command: ["codex", ...commandArgs],
+      command: [DEFAULT_CODEX_COMMAND, ...commandArgs],
       error: null,
     })
 
@@ -148,7 +149,7 @@ export async function createAndRunCodexTask(input: {
       startedAt: nowIsoString(),
       finishedAt: nowIsoString(),
       exitCode: null,
-      command: ["codex", ...commandArgs],
+      command: [DEFAULT_CODEX_COMMAND, ...commandArgs],
       stdout,
       stderr,
       error: `Failed to spawn codex: ${String(error)}`,

@@ -1,10 +1,9 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
+import { LAST_PROJECT_COOKIE_NAME } from "@/constants"
 import { LandingPage } from "@/modules/landing-page"
 import { listProjects } from "@/services/project/project.repository"
-
-const LAST_PROJECT_COOKIE_NAME = "harbor_last_project_id"
 
 export const dynamic = "force-dynamic"
 

@@ -3,6 +3,10 @@ import { homedir } from "node:os"
 import path from "node:path"
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises"
 
+import {
+  CODEX_CONFIG_RELATIVE_PATH,
+  CODEX_SKILLS_RELATIVE_PATH,
+} from "@/constants"
 import { parseTomlMcpServers } from "@/services/codex-config/toml-lite"
 import type {
   CodexConfigFileInfo,
@@ -20,19 +24,19 @@ const SECRET_KEY_PATTERN = /(key|token|secret|password|authorization|auth)/i
 type ParsedMcpServer = Omit<CodexMcpServer, "source" | "name">
 
 function getGlobalCodexConfigPath() {
-  return path.join(homedir(), ".codex", "config.toml")
+  return path.join(homedir(), CODEX_CONFIG_RELATIVE_PATH)
 }
 
 function getProjectCodexConfigPath(projectPath: string) {
-  return path.join(projectPath, ".codex", "config.toml")
+  return path.join(projectPath, CODEX_CONFIG_RELATIVE_PATH)
 }
 
 function getGlobalSkillsRoot() {
-  return path.join(homedir(), ".codex", "skills")
+  return path.join(homedir(), CODEX_SKILLS_RELATIVE_PATH)
 }
 
 function getProjectSkillsRoot(projectPath: string) {
-  return path.join(projectPath, ".codex", "skills")
+  return path.join(projectPath, CODEX_SKILLS_RELATIVE_PATH)
 }
 
 function isInsideRoot(rootPath: string, targetPath: string) {

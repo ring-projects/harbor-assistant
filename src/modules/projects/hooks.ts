@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { API_ROUTES, ERROR_CODES, getProjectByIdApiRoute } from "@/constants"
 import type { ProjectApiResult } from "@/services/project/contracts"
 import type { Project } from "@/services/project/types"
 
@@ -23,7 +24,7 @@ class ProjectApiClientError extends Error {
   constructor(message: string, options?: { code?: string; status?: number }) {
     super(message)
     this.name = "ProjectApiClientError"
-    this.code = options?.code ?? "INTERNAL_ERROR"
+    this.code = options?.code ?? ERROR_CODES.INTERNAL_ERROR
     this.status = options?.status ?? 500
   }
 }
@@ -53,7 +54,7 @@ async function parseProjectApiResponse(response: Response) {
 }
 
 async function fetchProjects() {
-  const response = await fetch("/api/projects", {
+  const response = await fetch(API_ROUTES.projects, {
     method: "GET",
     cache: "no-store",
   })
@@ -62,7 +63,7 @@ async function fetchProjects() {
 }
 
 async function createProject(input: CreateProjectInput) {
-  const response = await fetch("/api/projects", {
+  const response = await fetch(API_ROUTES.projects, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -74,30 +75,24 @@ async function createProject(input: CreateProjectInput) {
 }
 
 async function updateProject(input: UpdateProjectInput) {
-  const response = await fetch(
-    `/api/projects/${encodeURIComponent(input.id)}`,
-    {
-      method: "PUT",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        path: input.path,
-        name: input.name,
-      }),
+  const response = await fetch(getProjectByIdApiRoute(input.id), {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
     },
-  )
+    body: JSON.stringify({
+      path: input.path,
+      name: input.name,
+    }),
+  })
   const payload = await parseProjectApiResponse(response)
   return payload.projects
 }
 
 async function deleteProject(projectId: string) {
-  const response = await fetch(
-    `/api/projects/${encodeURIComponent(projectId)}`,
-    {
-      method: "DELETE",
-    },
-  )
+  const response = await fetch(getProjectByIdApiRoute(projectId), {
+    method: "DELETE",
+  })
   const payload = await parseProjectApiResponse(response)
   return payload.projects
 }

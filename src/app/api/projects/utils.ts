@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { ERROR_CODES } from "@/constants"
 import type {
   ProjectApiError,
   ProjectApiResult,
@@ -42,7 +43,7 @@ export function mapProjectRouteError(
   return {
     status: 500,
     payload: {
-      code: "INTERNAL_ERROR",
+      code: ERROR_CODES.INTERNAL_ERROR,
       message: fallbackMessage,
     },
   }

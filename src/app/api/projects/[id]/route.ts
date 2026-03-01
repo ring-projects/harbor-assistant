@@ -5,6 +5,7 @@ import {
 } from "@/services/project/project.repository"
 import { z } from "zod"
 
+import { ERROR_CODES } from "@/constants"
 import { mapProjectRouteError, projectJson } from "../utils"
 
 export const runtime = "nodejs"
@@ -39,7 +40,7 @@ export async function PUT(request: Request, context: RouteContext) {
         ok: false,
         projects: [],
         error: {
-          code: "INVALID_REQUEST_BODY",
+          code: ERROR_CODES.INVALID_REQUEST_BODY,
           message: "Request body must be valid JSON.",
         },
       },
@@ -54,7 +55,7 @@ export async function PUT(request: Request, context: RouteContext) {
         ok: false,
         projects: [],
         error: {
-          code: "INVALID_REQUEST_BODY",
+          code: ERROR_CODES.INVALID_REQUEST_BODY,
           message: "Expected payload: { path?: string; name?: string }.",
         },
       },
@@ -75,7 +76,7 @@ export async function PUT(request: Request, context: RouteContext) {
           ok: false,
           projects,
           error: {
-            code: "NOT_FOUND",
+            code: ERROR_CODES.NOT_FOUND,
             message: `Project not found: ${id}`,
           },
         },
@@ -114,7 +115,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
           ok: false,
           projects,
           error: {
-            code: "NOT_FOUND",
+            code: ERROR_CODES.NOT_FOUND,
             message: `Project not found: ${id}`,
           },
         },

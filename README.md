@@ -1,31 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Harbor Assistant
 
-## Getting Started
+Harbor Assistant 是一个轻量的编程辅助工作台，面向多项目开发场景。
 
-First, run the development server:
+当前版本的目标很简单：
+
+- 管理本地项目列表（projects）
+- 在项目上下文里作为统一入口进行后续开发动作
+- 提供清晰、可扩展的基础结构，便于后续演进
+
+## 当前功能（已实现）
+
+- Project 管理：创建、读取、更新、删除
+
+说明：
+
+- 当前整体功能仍然偏基础，重点在搭建稳定骨架，不追求复杂特性。
+
+## 快速开始
 
 ```bash
 bun install
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开：`http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 项目状态
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Harbor Assistant 目前处于早期阶段。
 
-## Learn More
+接下来会在现有基础上逐步演进，但会优先保持：
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 结构清晰
+- 行为可预期
+- 迭代可控

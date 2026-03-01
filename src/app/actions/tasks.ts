@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
+import { ERROR_CODES } from "@/constants"
 import { createAndRunCodexTask } from "@/services/tasks/task-runner.service"
 import { getProjectById } from "@/services/project/project.repository"
 
@@ -29,7 +30,7 @@ export async function createCodexTaskAction(input: {
     return {
       ok: false,
       error: {
-        code: "INVALID_PROJECT_ID",
+        code: ERROR_CODES.INVALID_PROJECT_ID,
         message: "Project id is required.",
       },
     }
@@ -39,7 +40,7 @@ export async function createCodexTaskAction(input: {
     return {
       ok: false,
       error: {
-        code: "INVALID_PROMPT",
+        code: ERROR_CODES.INVALID_PROMPT,
         message: "Prompt cannot be empty.",
       },
     }
@@ -50,7 +51,7 @@ export async function createCodexTaskAction(input: {
     return {
       ok: false,
       error: {
-        code: "PROJECT_NOT_FOUND",
+        code: ERROR_CODES.PROJECT_NOT_FOUND,
         message: `Project not found: ${projectId}`,
       },
     }
@@ -73,7 +74,7 @@ export async function createCodexTaskAction(input: {
     return {
       ok: false,
       error: {
-        code: "TASK_START_FAILED",
+        code: ERROR_CODES.TASK_START_FAILED,
         message: `Failed to start Codex task: ${String(error)}`,
       },
     }

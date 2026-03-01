@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { ERROR_CODES } from "@/constants"
 import { addProject, listProjects } from "@/services/project/project.repository"
 
 import { mapProjectRouteError, projectJson } from "./utils"
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
         ok: false,
         projects: [],
         error: {
-          code: "INVALID_REQUEST_BODY",
+          code: ERROR_CODES.INVALID_REQUEST_BODY,
           message: "Request body must be valid JSON.",
         },
       },
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
         ok: false,
         projects: [],
         error: {
-          code: "INVALID_REQUEST_BODY",
+          code: ERROR_CODES.INVALID_REQUEST_BODY,
           message: "Expected payload: { path: string; name?: string }.",
         },
       },
