@@ -1,29 +1,52 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LandingHeader } from "@/modules/landing-page/components/landing-header"
+import { CreateProject } from "@/modules/projects/components"
+import type { Project } from "@/services/project/types"
 
 export function LandingPage() {
-  const [isCompact, setIsCompact] = useState(false)
+  const router = useRouter()
+  const [isCreateMode, setIsCreateMode] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   function handleCreateClick() {
-    setIsCompact(true)
+    setCreateError(null)
+    setIsCreateMode(true)
+  }
+
+  function handleCreateCancel() {
+    setCreateError(null)
+    setIsCreateMode(false)
+  }
+
+  function handleProjectCreated(projects: Project[]) {
+    const nextProject = projects[0]
+    if (!nextProject) {
+      setCreateError("Project created but no project is available to open.")
+      return
+    }
+
+    router.push(`/${nextProject.id}`)
   }
 
   return (
     <div className="bg-background text-foreground min-h-full">
       <div className="mx-auto w-full max-w-5xl px-6 md:px-8">
-        <LandingHeader compact={isCompact} />
+        <LandingHeader compact={isCreateMode} />
 
         <main
           className={cn(
             "space-y-14 overflow-hidden pb-20 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:space-y-18 md:pb-24",
-            isCompact ? "max-h-0 opacity-0 pt-0" : "max-h-450 pt-0 opacity-100",
+            isCreateMode
+              ? "pointer-events-none max-h-0 opacity-0 pt-0"
+              : "max-h-450 pt-0 opacity-100",
           )}
-          aria-hidden={isCompact}
+          aria-hidden={isCreateMode}
         >
           <section aria-labelledby="landing-heading" className="space-y-7">
             <div className="max-w-3xl space-y-5">
@@ -42,7 +65,7 @@ export function LandingPage() {
             <Button
               className="h-11 px-6 text-sm font-semibold"
               onClick={handleCreateClick}
-              disabled={isCompact}
+              disabled={isCreateMode}
             >
               Get Started
             </Button>
@@ -115,6 +138,26 @@ export function LandingPage() {
             </article>
           </section>
         </main>
+
+        <section
+          className={cn(
+            "overflow-hidden pb-16 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            isCreateMode
+              ? "max-h-[1200px] pt-2 opacity-100"
+              : "pointer-events-none max-h-0 pt-0 opacity-0",
+          )}
+          aria-hidden={!isCreateMode}
+        >
+          <CreateProject
+            submitLabel="Confirm and Launch"
+            cancelLabel="Cancel"
+            onCancel={handleCreateCancel}
+            onCreated={handleProjectCreated}
+          />
+          {createError ? (
+            <p className="text-destructive mt-3 text-sm">{createError}</p>
+          ) : null}
+        </section>
       </div>
     </div>
   )
