@@ -1,7 +1,7 @@
 export type DirectoryEntry = {
   name: string
   path: string
-  type: "directory"
+  type: "directory" | "file"
   isHidden: boolean
   isSymlink: boolean
   size: number | null
@@ -27,8 +27,8 @@ export type DirectoryListErrorResponse = {
 
 export type DirectoryPickerProps = {
   className?: string
-  title?: string
-  helperText?: string
+  title?: string | null
+  helperText?: string | null
   confirmLabel?: string
   cancelLabel?: string
   initialPath?: string

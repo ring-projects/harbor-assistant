@@ -19,7 +19,6 @@ type ListDirectoryInput = {
   cursor?: string | null
   limit?: number
   includeHidden?: boolean
-  directoriesOnly?: boolean
 }
 
 function normalizePathSeparators(value: string) {
@@ -120,7 +119,6 @@ export async function listDirectory(
   const offset = parseCursor(input.cursor)
   const limit = normalizeLimit(input.limit)
   const includeHidden = input.includeHidden === true
-  const directoriesOnly = input.directoriesOnly === true
 
   const canonicalPath = await realpath(requestedPath).catch((error) => {
     if (
@@ -210,10 +208,6 @@ export async function listDirectory(
       }
 
       if (!(entry.isDirectory() || entry.isFile())) {
-        return null
-      }
-
-      if (directoriesOnly && !entry.isDirectory()) {
         return null
       }
 

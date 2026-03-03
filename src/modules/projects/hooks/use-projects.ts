@@ -6,6 +6,10 @@ import type { Project } from "@/services/project/types"
 
 export const PROJECTS_QUERY_KEY = ["projects"] as const
 
+type ReadProjectsQueryOptions = {
+  initialData?: Project[]
+}
+
 type CreateProjectInput = {
   path: string
   name?: string
@@ -109,10 +113,11 @@ export function getProjectActionError(error: unknown) {
   return "Unknown project error."
 }
 
-export function useReadProjectsQuery() {
+export function useReadProjectsQuery(options?: ReadProjectsQueryOptions) {
   return useQuery<Project[]>({
     queryKey: PROJECTS_QUERY_KEY,
     queryFn: fetchProjects,
+    initialData: options?.initialData,
   })
 }
 

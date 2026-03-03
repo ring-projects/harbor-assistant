@@ -1,8 +1,11 @@
 "use client"
 
+import { PlusIcon } from "lucide-react"
 import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
+import { useState } from "react"
 
-import { HarborLogo } from "@/components/logo"
+import { Button } from "@/components/ui/button"
 import {
   SidebarContent,
   SidebarFooter,
@@ -16,21 +19,65 @@ import {
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import { useReadProjectsQuery } from "@/modules/projects/hooks"
+import { AddProjectModal } from "@/modules/projects/modal"
+import type { Project } from "@/services/project/types"
 
 type ProjectsListProps = {
-  activeProjectId: string
+  activeProjectId?: string
   className?: string
+  initialProjects?: Project[]
 }
 
-export function ProjectsList({ activeProjectId, className }: ProjectsListProps) {
-  const projectsQuery = useReadProjectsQuery()
+export function ProjectsList({
+  activeProjectId,
+  className,
+  initialProjects,
+}: ProjectsListProps) {
+  const params = useParams<{ project_id?: string | string[] }>()
+  const router = useRouter()
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const projectsQuery = useReadProjectsQuery({
+    initialData: initialProjects,
+  })
+  const routeProjectId = params.project_id
+  const resolvedActiveProjectId =
+    activeProjectId ??
+    (Array.isArray(routeProjectId) ? routeProjectId[0] : routeProjectId)
+
+  function handleProjectCreated(projects: Project[]) {
+    const nextProject = projects[0]
+    if (!nextProject) {
+      return
+    }
+
+    router.push(`/${nextProject.id}`)
+  }
 
   return (
     <>
       <SidebarHeader className={cn("gap-3 p-4", className)}>
-        <HarborLogo className="w-30" priority />
-        <div>
-          <p className="text-sm font-semibold">Projects</p>
+        <img
+          src="/brand/harbor-logo-black.svg"
+          alt="Harbor logo"
+          width={493}
+          height={97}
+          className="h-auto w-30"
+          draggable={false}
+        />
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <p className="text-sm font-semibold">Projects</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-6"
+              aria-label="Add project"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <PlusIcon className="size-4" />
+            </Button>
+          </div>
           <p className="text-muted-foreground text-xs">
             Select an active project to continue.
           </p>
@@ -72,7 +119,7 @@ export function ProjectsList({ activeProjectId, className }: ProjectsListProps) 
                   <SidebarMenuItem key={project.id}>
                     <SidebarMenuButton
                       asChild
-                      isActive={project.id === activeProjectId}
+                      isActive={project.id === resolvedActiveProjectId}
                       tooltip={project.path}
                       className="h-auto py-2"
                     >
@@ -93,6 +140,12 @@ export function ProjectsList({ activeProjectId, className }: ProjectsListProps) 
           Project switcher
         </div>
       </SidebarFooter>
+
+      <AddProjectModal
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        onCreated={handleProjectCreated}
+      />
     </>
   )
 }

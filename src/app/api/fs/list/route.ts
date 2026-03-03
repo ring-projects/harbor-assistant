@@ -11,7 +11,6 @@ const ListDirectoryInputSchema = z.object({
   cursor: z.string().nullable().optional(),
   limit: z.number().int().positive().optional(),
   includeHidden: z.boolean().optional(),
-  directoriesOnly: z.boolean().optional(),
 })
 
 function mapFileSystemError(error: unknown) {
@@ -86,7 +85,7 @@ export async function POST(request: Request) {
         error: {
           code: ERROR_CODES.INVALID_REQUEST_BODY,
           message:
-            "Expected payload: { path?: string; cursor?: string | null; limit?: number; includeHidden?: boolean; directoriesOnly?: boolean }.",
+            "Expected payload: { path?: string; cursor?: string | null; limit?: number; includeHidden?: boolean }.",
         },
       },
       { status: 400 },

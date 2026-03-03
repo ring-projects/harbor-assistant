@@ -25,6 +25,14 @@ type BreadcrumbSegment = {
   path: string
 }
 
+function splitPathSegments(pathValue: string) {
+  if (pathValue === "/") {
+    return []
+  }
+
+  return normalizePathForCompare(pathValue).split("/").filter(Boolean)
+}
+
 function appendPathSegment(parentPath: string, segment: string) {
   if (parentPath === "/") {
     return `/${segment}`
@@ -56,7 +64,7 @@ function buildBreadcrumbSegments(
   rootPath: string | null,
 ): BreadcrumbSegment[] {
   if (!rootPath || !isSameOrChildPath(currentPath, rootPath)) {
-    return [{ label: currentPath, path: currentPath }]
+    return [{ label: "home", path: currentPath }]
   }
 
   const normalizedCurrent = normalizePathForCompare(currentPath)
@@ -64,8 +72,17 @@ function buildBreadcrumbSegments(
   const relative = normalizedCurrent
     .slice(normalizedRoot.length)
     .replace(/^\/+/, "")
+  const rootParts = splitPathSegments(normalizedRoot)
+  const rootLeafName = rootParts.at(-1) ?? "workspace"
 
-  const segments: BreadcrumbSegment[] = [{ label: "Local", path: normalizedRoot }]
+  const segments: BreadcrumbSegment[] = [{ label: "home", path: normalizedRoot }]
+
+  if (rootLeafName.toLowerCase() !== "home") {
+    segments.push({
+      label: rootLeafName,
+      path: normalizedRoot,
+    })
+  }
 
   if (!relative) {
     return segments
@@ -93,8 +110,8 @@ function toErrorMessage(error: unknown) {
 
 function DirectoryPickerInner({
   className,
-  title = "Directory",
-  helperText = "Select a folder to start",
+  title = null,
+  helperText = null,
   confirmLabel = "Confirm and Launch",
   cancelLabel = "Cancel",
   includeHidden = false,
@@ -124,7 +141,10 @@ function DirectoryPickerInner({
     pageSize,
   })
 
-  const listEntries = query.data?.entries ?? []
+  const directoryEntries = useMemo(
+    () => (query.data?.entries ?? []).filter((entry) => entry.type === "directory"),
+    [query.data?.entries],
+  )
   const currentResolvedPath = query.data?.path ?? currentPath
 
   useEffect(() => {
@@ -134,13 +154,16 @@ function DirectoryPickerInner({
   }, [query.data, rootPath, setRootPath])
 
   useEffect(() => {
-    if (!selectedPath || listEntries.some((entry) => entry.path === selectedPath)) {
+    if (
+      !selectedPath ||
+      directoryEntries.some((entry) => entry.path === selectedPath)
+    ) {
       return
     }
 
     setSelectedPath(null)
     setActiveIndex(-1)
-  }, [listEntries, selectedPath, setActiveIndex, setSelectedPath])
+  }, [directoryEntries, selectedPath, setActiveIndex, setSelectedPath])
 
   const breadcrumbSegments = useMemo(
     () =>
@@ -186,18 +209,18 @@ function DirectoryPickerInner({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (!listEntries.length || disabled || isSubmitting) {
+    if (!directoryEntries.length || disabled || isSubmitting) {
       return
     }
 
     if (event.key === "ArrowDown") {
       event.preventDefault()
       const nextIndex = Math.min(
-        listEntries.length - 1,
+        directoryEntries.length - 1,
         activeIndex < 0 ? 0 : activeIndex + 1,
       )
       setActiveIndex(nextIndex)
-      setSelectedPath(listEntries[nextIndex]?.path ?? null)
+      setSelectedPath(directoryEntries[nextIndex]?.path ?? null)
       return
     }
 
@@ -205,13 +228,13 @@ function DirectoryPickerInner({
       event.preventDefault()
       const nextIndex = Math.max(0, activeIndex <= 0 ? 0 : activeIndex - 1)
       setActiveIndex(nextIndex)
-      setSelectedPath(listEntries[nextIndex]?.path ?? null)
+      setSelectedPath(directoryEntries[nextIndex]?.path ?? null)
       return
     }
 
     if (event.key === "Enter" && activeIndex >= 0) {
       event.preventDefault()
-      const targetPath = listEntries[activeIndex]?.path
+      const targetPath = directoryEntries[activeIndex]?.path
       if (targetPath) {
         handleEnterDirectory(targetPath)
       }
@@ -228,13 +251,17 @@ function DirectoryPickerInner({
     <div
       className={cn(
         "bg-card overflow-hidden rounded-xl border",
-        "flex min-h-[500px] flex-col",
+        "flex max-h-[70svh] flex-col",
         className,
       )}
     >
-      <div className="flex items-center justify-between border-b px-6 py-5">
+      <div className="flex items-center justify-between border-b px-5 py-2.5">
         <div className="min-w-0">
-          <p className="mb-2 text-sm font-medium text-muted-foreground">{title}</p>
+          {title ? (
+            <p className="mb-2 text-sm font-medium text-muted-foreground">
+              {title}
+            </p>
+          ) : null}
           <Breadcrumb>
             <BreadcrumbList>
               {breadcrumbSegments.map((segment, index) => {
@@ -242,14 +269,14 @@ function DirectoryPickerInner({
                 return (
                   <BreadcrumbItem key={segment.path}>
                     {isLast ? (
-                      <BreadcrumbPage className="font-mono text-sm">
+                      <BreadcrumbPage className="text-sm">
                         {segment.label}
                       </BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink asChild>
                         <button
                           type="button"
-                          className="cursor-pointer font-mono text-sm"
+                          className="cursor-pointer text-sm"
                           onClick={() => handleEnterDirectory(segment.path)}
                           disabled={disabled || isSubmitting}
                         >
@@ -257,25 +284,27 @@ function DirectoryPickerInner({
                         </button>
                       </BreadcrumbLink>
                     )}
-                    {!isLast ? <BreadcrumbSeparator /> : null}
+                    {!isLast ? <BreadcrumbSeparator>/</BreadcrumbSeparator> : null}
                   </BreadcrumbItem>
                 )
               })}
             </BreadcrumbList>
           </Breadcrumb>
         </div>
-        <p className="text-sm text-muted-foreground">{helperText}</p>
+        {helperText ? (
+          <p className="text-sm text-muted-foreground">{helperText}</p>
+        ) : null}
       </div>
 
       <div
-        className="flex-1"
+        className="min-h-0"
         role="listbox"
         tabIndex={0}
         onKeyDown={handleKeyDown}
         aria-label="Directory list"
       >
-        <ScrollArea className="h-[320px]">
-          <div className="py-3">
+        <ScrollArea className="max-h-[52svh]">
+          <div className="py-0">
             {query.isLoading ? (
               <div className="space-y-3 px-6 py-4">
                 {Array.from({ length: 5 }).map((_, index) => (
@@ -299,14 +328,14 @@ function DirectoryPickerInner({
               </div>
             ) : null}
 
-            {!query.isLoading && !query.isError && listEntries.length === 0 ? (
+            {!query.isLoading && !query.isError && directoryEntries.length === 0 ? (
               <p className="px-6 py-6 text-sm text-muted-foreground">
                 No directories found in this path.
               </p>
             ) : null}
 
-            {!query.isLoading && !query.isError && listEntries.length > 0
-              ? listEntries.map((entry, index) => {
+            {!query.isLoading && !query.isError && directoryEntries.length > 0
+              ? directoryEntries.map((entry, index) => {
                   const isSelected = selectedPath === entry.path
                   return (
                     <button
@@ -315,16 +344,17 @@ function DirectoryPickerInner({
                       role="option"
                       aria-selected={isSelected}
                       className={cn(
-                        "flex w-full items-center gap-4 px-6 py-3 text-left",
+                        "flex w-full items-center gap-2.5 px-5 py-2 text-left",
                         "hover:bg-muted/50 transition-colors",
-                        isSelected && "bg-blue-50 text-blue-700 hover:bg-blue-50",
+                        isSelected &&
+                          "bg-accent text-accent-foreground hover:bg-accent",
                       )}
                       onClick={() => handleSelect(entry.path, index)}
                       onDoubleClick={() => handleEnterDirectory(entry.path)}
                       disabled={disabled || isSubmitting}
                     >
-                      <FolderIcon className="size-6 shrink-0" />
-                      <span className="truncate text-2xl font-medium">
+                      <FolderIcon className="size-4 shrink-0" />
+                      <span className="truncate text-sm font-medium">
                         {entry.name}
                       </span>
                     </button>
@@ -335,7 +365,7 @@ function DirectoryPickerInner({
         </ScrollArea>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t px-6 py-5">
+      <div className="flex items-center justify-between gap-2 border-t px-5 py-2.5">
         <p className="min-h-5 text-sm text-destructive">{actionError ?? ""}</p>
         <div className="flex items-center gap-3">
           <Button

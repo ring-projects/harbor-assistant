@@ -12,6 +12,7 @@ type CreateProjectProps = {
   className?: string
   submitLabel?: string
   cancelLabel?: string
+  pickerTitle?: string | null
   defaultPath?: string
   defaultName?: string
   onCancel?: () => void
@@ -23,6 +24,7 @@ export function CreateProject(props: CreateProjectProps) {
     className,
     submitLabel = "Confirm and Launch",
     cancelLabel = "Cancel",
+    pickerTitle = "Select Project Directory",
     onCreated,
   } = props
   const createMutation = useCreateProjectMutation()
@@ -49,8 +51,7 @@ export function CreateProject(props: CreateProjectProps) {
       confirmLabel={createMutation.isPending ? "Launching..." : submitLabel}
       cancelLabel={cancelLabel}
       disabled={createMutation.isPending}
-      title="Select Project Directory"
-      helperText="Select a folder to start"
+      title={pickerTitle}
     />
   )
 }

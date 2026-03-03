@@ -34,7 +34,6 @@ async function fetchDirectoryEntries(input: UseDirectoryEntriesQueryInput) {
       path: input.path ?? undefined,
       limit: input.pageSize,
       includeHidden: input.includeHidden,
-      directoriesOnly: true,
       cursor: null,
     }),
   })
