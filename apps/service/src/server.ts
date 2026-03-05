@@ -11,7 +11,7 @@ const server = createServer((request, response) => {
     response.end(
       JSON.stringify({
         ok: true,
-        service: "executor-service",
+        service: "service",
         port,
         timestamp: new Date().toISOString(),
       }),
@@ -32,5 +32,5 @@ const server = createServer((request, response) => {
 })
 
 server.listen(port, () => {
-  console.info(`[executor-service] listening on http://localhost:${port}`)
+  console.info(`[service] listening on http://localhost:${port}`)
 })
