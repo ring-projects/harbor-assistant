@@ -2,6 +2,7 @@
 
 import { PlusIcon } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import { useState } from "react"
 
@@ -56,7 +57,7 @@ export function ProjectsList({
   return (
     <>
       <SidebarHeader className={cn("gap-3 p-4", className)}>
-        <img
+        <Image
           src="/brand/harbor-logo-black.svg"
           alt="Harbor logo"
           width={493}

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useRef, type ReactNode } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
 
 import {
   createDirectoryPickerStore,
@@ -20,14 +20,12 @@ export function DirectoryPickerProvider({
   children,
   initialPath,
 }: DirectoryPickerProviderProps) {
-  const storeRef = useRef<DirectoryPickerStore | null>(null)
-
-  if (!storeRef.current) {
-    storeRef.current = createDirectoryPickerStore(initialPath)
-  }
+  const [store] = useState<DirectoryPickerStore>(() =>
+    createDirectoryPickerStore(initialPath),
+  )
 
   return (
-    <DirectoryPickerStoreContext.Provider value={storeRef.current}>
+    <DirectoryPickerStoreContext.Provider value={store}>
       {children}
     </DirectoryPickerStoreContext.Provider>
   )

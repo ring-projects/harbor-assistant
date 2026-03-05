@@ -3,7 +3,7 @@
 import {
   createContext,
   useContext,
-  useRef,
+  useState,
   type ReactNode,
 } from "react"
 
@@ -20,14 +20,10 @@ export function ProjectStoreProvider({
   projectId,
   children,
 }: ProjectStoreProviderProps) {
-  const storeRef = useRef<ProjectStore | null>(null)
-
-  if (!storeRef.current) {
-    storeRef.current = createProjectStore(projectId)
-  }
+  const [store] = useState<ProjectStore>(() => createProjectStore(projectId))
 
   return (
-    <ProjectStoreContext.Provider value={storeRef.current}>
+    <ProjectStoreContext.Provider value={store}>
       {children}
     </ProjectStoreContext.Provider>
   )
