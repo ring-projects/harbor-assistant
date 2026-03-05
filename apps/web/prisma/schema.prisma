@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum TaskEventType {
+  state
+  stdout
+  stderr
+  system
+  summary
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  legacyTaskId String?    @unique
+  projectId    String
+  projectPath  String
+  prompt       String
+  executor     String
+  model        String?
+  status       TaskStatus @default(queued)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  runs         TaskRun[]
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("tasks")
+}
+
+model TaskRun {
+  id                 String     @id @default(cuid())
+  taskId             String
+  attempt            Int
+  status             TaskStatus @default(queued)
+  command            String?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  exitCode           Int?
+  failureCode        String?
+  failureMessage     String?
+  cancellationReason String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  task               Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  events             TaskEvent[]
+
+  @@unique([taskId, attempt])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([taskId, createdAt(sort: Desc)])
+  @@map("task_runs")
+}
+
+model TaskEvent {
+  id        String        @id @default(cuid())
+  runId     String
+  sequence  Int
+  type      TaskEventType
+  payload   String
+  createdAt DateTime      @default(now())
+  run       TaskRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, sequence])
+  @@index([runId, createdAt(sort: Asc)])
+  @@map("task_events")
+}

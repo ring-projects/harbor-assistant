@@ -1,0 +1,200 @@
+"use client"
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+
+import {
+  cancelTask,
+  createTask,
+  readProjectTasks,
+  readTaskDetail,
+  readTaskEvents,
+  retryTask,
+  type CreateTaskInput,
+} from "@/modules/tasks/lib/task-api-client"
+import {
+  TERMINAL_TASK_STATUSES,
+  type TaskFilter,
+  type TaskListItem,
+} from "@/modules/tasks/types/task-contract"
+
+export const taskQueryKeys = {
+  all: ["tasks"] as const,
+  byProject(projectId: string) {
+    return [...this.all, "project", projectId] as const
+  },
+  list(projectId: string, filter: Pick<TaskFilter, "timeRange" | "keyword">) {
+    return [...this.byProject(projectId), "list", filter] as const
+  },
+  detail(taskId: string) {
+    return [...this.all, "detail", taskId] as const
+  },
+  events(taskId: string) {
+    return [...this.all, "events", taskId] as const
+  },
+}
+
+export function useTaskListQuery(args: {
+  projectId: string
+  filter: Pick<TaskFilter, "timeRange" | "keyword">
+}) {
+  return useQuery({
+    queryKey: taskQueryKeys.list(args.projectId, args.filter),
+    queryFn: async () => {
+      const result = await readProjectTasks({
+        projectId: args.projectId,
+        filter: args.filter,
+      })
+
+      return result.tasks
+    },
+    staleTime: 5_000,
+    refetchInterval(query) {
+      const tasks = query.state.data
+      if (!tasks || tasks.length === 0) {
+        return 5_000
+      }
+
+      const hasActiveTask = tasks.some(
+        (task) => !TERMINAL_TASK_STATUSES.includes(task.status),
+      )
+
+      return hasActiveTask ? 2_500 : 6_000
+    },
+  })
+}
+
+export function useTaskDetailQuery(taskId: string | null) {
+  return useQuery({
+    queryKey: taskQueryKeys.detail(taskId ?? "none"),
+    queryFn: async () => {
+      if (!taskId) {
+        return null
+      }
+
+      return readTaskDetail(taskId)
+    },
+    enabled: Boolean(taskId),
+    refetchInterval: 3_000,
+  })
+}
+
+export function useTaskEventsQuery(args: {
+  taskId: string | null
+  enabled: boolean
+}) {
+  return useQuery({
+    queryKey: taskQueryKeys.events(args.taskId ?? "none"),
+    queryFn: async () => {
+      if (!args.taskId) {
+        return []
+      }
+
+      return readTaskEvents({
+        taskId: args.taskId,
+      })
+    },
+    enabled: args.enabled && Boolean(args.taskId),
+    refetchInterval: args.enabled ? 3_000 : false,
+  })
+}
+
+export function useCreateTaskMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: CreateTaskInput) => createTask(projectId, input),
+    onSuccess(result) {
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.byProject(projectId),
+      })
+
+      if (result.task) {
+        queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
+      }
+    },
+  })
+}
+
+export function useCancelTaskMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (taskId: string) => cancelTask(taskId),
+    onSuccess(task) {
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.byProject(projectId),
+      })
+
+      if (task) {
+        queryClient.setQueryData(taskQueryKeys.detail(task.taskId), task)
+      }
+    },
+  })
+}
+
+export function useRetryTaskMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (taskId: string) => retryTask(taskId),
+    onSuccess(result) {
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.byProject(projectId),
+      })
+
+      if (result.task) {
+        queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
+      }
+    },
+  })
+}
+
+export function filterTasksByStatus(
+  tasks: TaskListItem[],
+  statuses: TaskFilter["statuses"],
+) {
+  if (statuses.length === 0) {
+    return tasks
+  }
+
+  const statusSet = new Set(statuses)
+  return tasks.filter((task) => statusSet.has(task.status))
+}
+
+export function filterTasksByKeyword(tasks: TaskListItem[], keyword: string) {
+  const normalizedKeyword = keyword.trim().toLowerCase()
+  if (!normalizedKeyword) {
+    return tasks
+  }
+
+  return tasks.filter((task) => {
+    const prompt = task.prompt.toLowerCase()
+    const taskId = task.taskId.toLowerCase()
+    const model = task.model?.toLowerCase() ?? ""
+
+    return (
+      prompt.includes(normalizedKeyword) ||
+      taskId.includes(normalizedKeyword) ||
+      model.includes(normalizedKeyword)
+    )
+  })
+}
+
+export function filterTasksByTimeRange(
+  tasks: TaskListItem[],
+  timeRange: TaskFilter["timeRange"],
+) {
+  const now = Date.now()
+  const diffMsByRange: Record<TaskFilter["timeRange"], number> = {
+    "24h": 24 * 60 * 60 * 1000,
+    "7d": 7 * 24 * 60 * 60 * 1000,
+    "30d": 30 * 24 * 60 * 60 * 1000,
+  }
+
+  const threshold = now - diffMsByRange[timeRange]
+
+  return tasks.filter((task) => {
+    const date = new Date(task.createdAt)
+    return date.getTime() >= threshold
+  })
+}

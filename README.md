@@ -1,36 +1,33 @@
-# Harbor Assistant
+# Harbor Assistant Monorepo
 
-Harbor Assistant 是一个轻量的编程辅助工作台，面向多项目开发场景。
+Harbor Assistant 已切换为 Monorepo 结构，前后端代码分离：
 
-当前版本的目标很简单：
-
-- 管理本地项目列表（projects）
-- 在项目上下文里作为统一入口进行后续开发动作
-- 提供清晰、可扩展的基础结构，便于后续演进
-
-## 当前功能（已实现）
-
-- Project 管理：创建、读取、更新、删除
-
-说明：
-
-- 当前整体功能仍然偏基础，重点在搭建稳定骨架，不追求复杂特性。
+- `apps/web`：Next.js 前端应用（当前主应用）
+- `apps/executor-service`：后端服务工程（独立进程入口）
+- `scripts`：仓库级初始化脚本（如 Harbor 本地配置）
+- `docs`：产品与架构文档
 
 ## 快速开始
 
 ```bash
 bun install
-bun run dev
+bun run dev:web
 ```
 
-打开：`http://localhost:3000`
+默认会先执行 `init:harbor`，然后启动 `apps/web`。
 
-## 项目状态
+## 常用命令
 
-Harbor Assistant 目前处于早期阶段。
+```bash
+bun run dev:web
+bun run dev:executor
+bun run typecheck
+bun run lint
+```
 
-接下来会在现有基础上逐步演进，但会优先保持：
+## 数据库（当前在 web 工作区）
 
-- 结构清晰
-- 行为可预期
-- 迭代可控
+```bash
+bun run db:migrate:dev --name init_executor_tasks
+bun run db:generate
+```

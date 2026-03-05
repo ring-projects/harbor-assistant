@@ -1,0 +1,267 @@
+import { ERROR_CODES } from "@/constants"
+import type { ExecutorIdConstant } from "@/constants/executors"
+import { getProjectById } from "@/services/project/project.repository"
+import {
+  getTaskById,
+  listTaskEvents,
+  listTasksByProject,
+} from "@/services/tasks/task.repository"
+import {
+  cancelCodexTask,
+  createAndRunCodexTask,
+} from "@/services/tasks/task-runner.service"
+import type { CodexTask } from "@/services/tasks/types"
+
+type CreateTaskServiceInput = {
+  projectId: string
+  prompt: string
+  model?: string | null
+  executor?: ExecutorIdConstant | string
+}
+
+type RetryTaskServiceInput = {
+  taskId: string
+}
+
+type CancelTaskServiceInput = {
+  taskId: string
+  reason?: string
+}
+
+type ListProjectTasksInput = {
+  projectId: string
+  limit?: number
+}
+
+type ListTaskEventsInput = {
+  taskId: string
+  afterSequence?: number
+  limit?: number
+}
+
+type TaskServiceErrorCode =
+  | (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
+  | "STORE_READ_ERROR"
+  | "STORE_WRITE_ERROR"
+
+export class TaskServiceError extends Error {
+  code: TaskServiceErrorCode
+  status: number
+
+  constructor(code: TaskServiceErrorCode, message: string, status = 400) {
+    super(message)
+    this.name = "TaskServiceError"
+    this.code = code
+    this.status = status
+  }
+}
+
+function isTerminalTask(task: CodexTask) {
+  return (
+    task.status === "completed" ||
+    task.status === "failed" ||
+    task.status === "cancelled"
+  )
+}
+
+function ensureSupportedExecutor(executor: string) {
+  if (executor !== "codex") {
+    throw new TaskServiceError(
+      ERROR_CODES.UNSUPPORTED_EXECUTOR,
+      `Executor is not supported yet: ${executor}`,
+      400,
+    )
+  }
+}
+
+export async function createTaskAndRun(input: CreateTaskServiceInput) {
+  const projectId = input.projectId.trim()
+  const prompt = input.prompt.trim()
+  const model = input.model?.trim() || null
+  const executor = (input.executor?.trim() || "codex").toLowerCase()
+
+  if (!projectId) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_PROJECT_ID,
+      "Project id is required.",
+      400,
+    )
+  }
+
+  if (!prompt) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_PROMPT,
+      "Prompt cannot be empty.",
+      400,
+    )
+  }
+
+  ensureSupportedExecutor(executor)
+
+  const project = await getProjectById(projectId)
+  if (!project) {
+    throw new TaskServiceError(
+      ERROR_CODES.PROJECT_NOT_FOUND,
+      `Project not found: ${projectId}`,
+      404,
+    )
+  }
+
+  try {
+    return await createAndRunCodexTask({
+      projectId: project.id,
+      projectPath: project.path,
+      prompt,
+      model,
+    })
+  } catch (error) {
+    throw new TaskServiceError(
+      ERROR_CODES.TASK_START_FAILED,
+      `Failed to start Codex task: ${String(error)}`,
+      500,
+    )
+  }
+}
+
+export async function cancelTask(input: CancelTaskServiceInput) {
+  const taskId = input.taskId.trim()
+  if (!taskId) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_TASK_ID,
+      "Task id is required.",
+      400,
+    )
+  }
+
+  const task = await getTaskById(taskId)
+  if (!task) {
+    throw new TaskServiceError(
+      ERROR_CODES.TASK_NOT_FOUND,
+      `Task not found: ${taskId}`,
+      404,
+    )
+  }
+
+  if (task.status === "queued" || task.status === "running") {
+    try {
+      return await cancelCodexTask({
+        taskId,
+        reason: input.reason,
+      })
+    } catch (error) {
+      throw new TaskServiceError(
+        ERROR_CODES.TASK_CANCEL_FAILED,
+        `Failed to cancel task: ${String(error)}`,
+        500,
+      )
+    }
+  }
+
+  return task
+}
+
+export async function retryTask(input: RetryTaskServiceInput) {
+  const taskId = input.taskId.trim()
+  if (!taskId) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_TASK_ID,
+      "Task id is required.",
+      400,
+    )
+  }
+
+  const task = await getTaskById(taskId)
+  if (!task) {
+    throw new TaskServiceError(
+      ERROR_CODES.TASK_NOT_FOUND,
+      `Task not found: ${taskId}`,
+      404,
+    )
+  }
+
+  if (task.status !== "failed" && task.status !== "cancelled") {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_TASK_RETRY_STATE,
+      `Only failed/cancelled tasks can be retried. Current status: ${task.status}`,
+      409,
+    )
+  }
+
+  try {
+    return await createAndRunCodexTask({
+      projectId: task.projectId,
+      projectPath: task.projectPath,
+      prompt: task.prompt,
+      model: task.model,
+    })
+  } catch (error) {
+    throw new TaskServiceError(
+      ERROR_CODES.TASK_RETRY_FAILED,
+      `Failed to retry task: ${String(error)}`,
+      500,
+    )
+  }
+}
+
+export async function getTaskDetail(taskId: string) {
+  const normalizedTaskId = taskId.trim()
+  if (!normalizedTaskId) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_TASK_ID,
+      "Task id is required.",
+      400,
+    )
+  }
+
+  const task = await getTaskById(normalizedTaskId)
+  if (!task) {
+    throw new TaskServiceError(
+      ERROR_CODES.TASK_NOT_FOUND,
+      `Task not found: ${normalizedTaskId}`,
+      404,
+    )
+  }
+
+  return task
+}
+
+export async function listProjectTasks(input: ListProjectTasksInput) {
+  const projectId = input.projectId.trim()
+  if (!projectId) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_PROJECT_ID,
+      "Project id is required.",
+      400,
+    )
+  }
+
+  const project = await getProjectById(projectId)
+  if (!project) {
+    throw new TaskServiceError(
+      ERROR_CODES.PROJECT_NOT_FOUND,
+      `Project not found: ${projectId}`,
+      404,
+    )
+  }
+
+  return listTasksByProject({
+    projectId,
+    limit: input.limit,
+  })
+}
+
+export async function getTaskEvents(input: ListTaskEventsInput) {
+  const task = await getTaskDetail(input.taskId)
+
+  const events = await listTaskEvents({
+    taskId: task.id,
+    afterSequence: input.afterSequence,
+    limit: input.limit,
+  })
+
+  return {
+    task,
+    events,
+    isTerminal: isTerminalTask(task),
+  }
+}

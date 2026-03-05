@@ -13,4 +13,5 @@ project:
 
 task:
   dataFile: "~/.harbor/data/tasks.json"
+  databaseFile: "~/.harbor/data/tasks.sqlite"
 `
