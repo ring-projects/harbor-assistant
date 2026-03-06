@@ -3,7 +3,7 @@
 Harbor Assistant 已切换为 Monorepo 结构，前后端代码分离：
 
 - `apps/web`：Next.js 前端应用（当前主应用）
-- `apps/service`：后端服务工程（独立进程入口）
+- `apps/service`：后端服务工程（Fastify，独立进程入口）
 - `scripts`：仓库级初始化脚本（如 Harbor 本地配置）
 - `docs`：产品与架构文档
 
@@ -25,7 +25,7 @@ bun run typecheck
 bun run lint
 ```
 
-## 数据库（当前在 web 工作区）
+## 数据库（当前在 service 工作区）
 
 ```bash
 bun run db:migrate:dev --name init_executor_tasks

@@ -2,13 +2,13 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { LAST_PROJECT_COOKIE_NAME } from "@/constants"
+import { listProjectsFromService } from "@/lib/projects-service"
 import { LandingPage } from "@/modules/landing-page"
-import { listProjects } from "@/services/project/project.repository"
 
 export const dynamic = "force-dynamic"
 
 export default async function Home() {
-  const projects = await listProjects()
+  const projects = await listProjectsFromService()
   if (projects.length === 0) {
     return <LandingPage />
   }

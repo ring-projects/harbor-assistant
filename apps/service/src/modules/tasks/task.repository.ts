@@ -6,7 +6,7 @@ import {
   TaskStatus as PrismaTaskStatus,
 } from "@prisma/client"
 
-import { prisma } from "@/lib/prisma"
+import { prisma } from "../../lib/prisma"
 import type {
   CodexTask,
   TaskEvent,
@@ -14,8 +14,8 @@ import type {
   TaskErrorCode,
   TaskStatus,
   TaskStoreDocument,
-} from "@/services/tasks/types"
-import { getAppConfig } from "@/utils/yaml-config"
+} from "./types"
+import { getAppConfig } from "../../utils/yaml-config"
 
 type TaskSummaryPayload = {
   stdout?: string

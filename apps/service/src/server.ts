@@ -1,36 +1,35 @@
-import { createServer } from "node:http"
+import { buildServiceApp } from "./app"
+import { getServiceConfig } from "./config"
 
-const port = Number(process.env.EXECUTOR_PORT ?? 3400)
+async function run() {
+  const config = getServiceConfig()
+  const app = await buildServiceApp(config)
 
-const server = createServer((request, response) => {
-  const pathname = request.url?.split("?")[0] ?? "/"
-  response.setHeader("Content-Type", "application/json")
-
-  if (pathname === "/healthz") {
-    response.statusCode = 200
-    response.end(
-      JSON.stringify({
-        ok: true,
-        service: "service",
-        port,
-        timestamp: new Date().toISOString(),
-      }),
-    )
-    return
+  const closeApp = async () => {
+    await app.close()
+    process.exit(0)
   }
 
-  response.statusCode = 404
-  response.end(
-    JSON.stringify({
-      ok: false,
-      error: {
-        code: "NOT_FOUND",
-        message: "Route not found.",
-      },
-    }),
-  )
-})
+  process.on("SIGTERM", () => {
+    void closeApp()
+  })
+  process.on("SIGINT", () => {
+    void closeApp()
+  })
 
-server.listen(port, () => {
-  console.info(`[service] listening on http://localhost:${port}`)
-})
+  try {
+    await app.listen({
+      port: config.port,
+      host: config.host,
+    })
+
+    app.log.info(
+      `[service] listening on http://${config.host}:${String(config.port)}`,
+    )
+  } catch (error) {
+    app.log.error(error)
+    process.exitCode = 1
+  }
+}
+
+void run()

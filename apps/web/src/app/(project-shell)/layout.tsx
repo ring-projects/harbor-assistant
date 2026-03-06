@@ -1,6 +1,6 @@
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { listProjectsFromService } from "@/lib/projects-service"
 import { ProjectsList } from "@/modules/projects/components"
-import { listProjects } from "@/services/project/project.repository"
 
 type ProjectShellLayoutProps = {
   children: React.ReactNode
@@ -9,7 +9,7 @@ type ProjectShellLayoutProps = {
 export default async function ProjectShellLayout({
   children,
 }: ProjectShellLayoutProps) {
-  const initialProjects = await listProjects()
+  const initialProjects = await listProjectsFromService()
 
   return (
     <SidebarProvider defaultOpen className="bg-background min-h-svh">

@@ -5,18 +5,18 @@ import path from "node:path"
 import { createInterface } from "node:readline"
 
 import {
-  CODEX_CONFIG_RELATIVE_PATH,
   CODEX_COMMAND_CANDIDATES,
-} from "@/constants"
+} from "../../../constants/executors"
+import { CODEX_CONFIG_RELATIVE_PATH } from "../../../constants/codex"
 import {
   findInstalledCommand,
   resolveCommandVersion,
-} from "@/services/executors/shared/command"
+} from "../shared/command"
 import type {
   ExecutorCapability,
   ExecutorModelItem,
   ExecutorModelsCapability,
-} from "@/services/executors/types"
+} from "../types"
 
 function extractCodexDefaultModelFromConfig(configContent: string) {
   const match = configContent.match(/^\s*model\s*=\s*["']([^"']+)["']/m)

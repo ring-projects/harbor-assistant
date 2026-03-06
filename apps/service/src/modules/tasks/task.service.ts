@@ -1,16 +1,16 @@
-import { ERROR_CODES } from "@/constants"
-import type { ExecutorIdConstant } from "@/constants/executors"
-import { getProjectById } from "@/services/project/project.repository"
+import { ERROR_CODES } from "../../constants/errors"
+import type { ExecutorIdConstant } from "../../constants/executors"
+import { getProjectById } from "../project/project.repository"
 import {
   getTaskById,
   listTaskEvents,
   listTasksByProject,
-} from "@/services/tasks/task.repository"
+} from "./task.repository"
 import {
   cancelCodexTask,
   createAndRunCodexTask,
-} from "@/services/tasks/task-runner.service"
-import type { CodexTask } from "@/services/tasks/types"
+} from "./task-runner.service"
+import type { CodexTask } from "./types"
 
 type CreateTaskServiceInput = {
   projectId: string

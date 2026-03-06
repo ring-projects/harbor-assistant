@@ -6,11 +6,23 @@
   "scripts": {
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
-    "lint": "echo \"service lint not configured yet\"",
-    "typecheck": "bunx tsc --noEmit -p tsconfig.json"
+    "lint": "bun run typecheck",
+    "typecheck": "bunx tsc --noEmit -p tsconfig.json",
+    "db:generate": "DATABASE_URL=${DATABASE_URL:-file:${HOME}/.harbor/data/tasks.sqlite} bunx prisma generate",
+    "db:migrate:dev": "DATABASE_URL=${DATABASE_URL:-file:${HOME}/.harbor/data/tasks.sqlite} bunx prisma migrate dev",
+    "db:migrate:deploy": "DATABASE_URL=${DATABASE_URL:-file:${HOME}/.harbor/data/tasks.sqlite} bunx prisma migrate deploy",
+    "db:studio": "DATABASE_URL=${DATABASE_URL:-file:${HOME}/.harbor/data/tasks.sqlite} bunx prisma studio"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@prisma/client": "^6.5.0",
+    "fastify": "^5.8.1",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "prisma": "^6.5.0",
     "typescript": "^5"
   }
 }

@@ -6,8 +6,8 @@ import path from "node:path"
 
 import { Database } from "bun:sqlite"
 
-import type { Project, ProjectErrorCode } from "@/services/project/types"
-import { getAppConfig } from "@/utils/yaml-config"
+import type { Project, ProjectErrorCode } from "./types"
+import { getAppConfig } from "../../utils/yaml-config"
 
 function nowIsoString() {
   return new Date().toISOString()

@@ -1,4 +1,4 @@
-import type { ExecutorIdConstant } from "@/constants/executors"
+import type { ExecutorIdConstant } from "../../constants/executors"
 
 export type ExecutorId = ExecutorIdConstant
 

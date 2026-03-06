@@ -2,11 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import {
-  setGlobalMcpServerEnabled,
-  setProjectMcpServerEnabled,
-} from "@/services/codex-config/config.service"
-import { getProjectById } from "@/services/project/project.repository"
+import { requestServiceJson } from "@/lib/service-proxy"
 
 export async function setMcpServerEnabledAction(formData: FormData) {
   const projectId = String(formData.get("projectId") ?? "").trim()
@@ -19,7 +15,6 @@ export async function setMcpServerEnabledAction(formData: FormData) {
     .toLowerCase()
 
   if (
-    !projectId ||
     !serverName ||
     (scope !== "global" && scope !== "project") ||
     (enabledRaw !== "true" && enabledRaw !== "false")
@@ -27,23 +22,28 @@ export async function setMcpServerEnabledAction(formData: FormData) {
     return
   }
 
-  if (scope === "global") {
-    await setGlobalMcpServerEnabled({
-      serverName,
-      enabled: enabledRaw === "true",
-    })
-  } else {
-    const project = await getProjectById(projectId)
-    if (!project) {
-      return
-    }
-
-    await setProjectMcpServerEnabled({
-      projectPath: project.path,
-      serverName,
-      enabled: enabledRaw === "true",
-    })
+  if (scope === "project" && !projectId) {
+    return
   }
 
-  revalidatePath(`/${projectId}/mcp`)
+  await requestServiceJson<{
+    ok: boolean
+    error?: {
+      code: string
+      message: string
+    }
+  }>({
+    path: "/v1/mcp/servers/enabled",
+    method: "POST",
+    payload: {
+      projectId,
+      serverName,
+      scope,
+      enabled: enabledRaw === "true",
+    },
+  })
+
+  if (projectId) {
+    revalidatePath(`/${projectId}/mcp`)
+  }
 }

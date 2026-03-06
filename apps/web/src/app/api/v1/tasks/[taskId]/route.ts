@@ -1,6 +1,4 @@
-import { getTaskDetail } from "@/services/tasks/task.service"
-
-import { mapTaskRouteError, taskJson } from "../utils"
+import { proxyToService } from "@/lib/service-proxy"
 
 export const runtime = "nodejs"
 
@@ -13,20 +11,8 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const { taskId } = await context.params
 
-  try {
-    const task = await getTaskDetail(taskId)
-    return taskJson({
-      ok: true,
-      task,
-    })
-  } catch (error) {
-    const mapped = mapTaskRouteError(error, "Failed to fetch task detail.")
-    return taskJson(
-      {
-        ok: false,
-        error: mapped.payload,
-      },
-      mapped.status,
-    )
-  }
+  return proxyToService({
+    path: `/v1/tasks/${encodeURIComponent(taskId)}`,
+    method: "GET",
+  })
 }

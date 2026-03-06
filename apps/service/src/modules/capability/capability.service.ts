@@ -1,18 +1,18 @@
 import {
   EXECUTOR_COMMAND_CANDIDATES,
   EXECUTOR_IDS,
-} from "@/constants/executors"
-import { inspectCodexExecutor } from "@/services/executors/adapters/codex.adapter"
+} from "../../constants/executors"
+import { inspectCodexExecutor } from "../executors/adapters/codex.adapter"
 import {
   findInstalledCommand,
   resolveCommandVersion,
-} from "@/services/executors/shared/command"
+} from "../executors/shared/command"
 import type {
   ExecutorCapability,
   ExecutorCapabilityMap,
   ExecutorCapabilityResult,
   ExecutorId,
-} from "@/services/executors/types"
+} from "../executors/types"
 
 async function inspectBasicExecutor(executor: ExecutorId) {
   const command = await findInstalledCommand(EXECUTOR_COMMAND_CANDIDATES[executor])

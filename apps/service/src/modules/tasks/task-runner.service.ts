@@ -3,13 +3,13 @@ import {
   spawn,
 } from "node:child_process"
 
-import { DEFAULT_CODEX_COMMAND } from "@/constants"
+import { DEFAULT_CODEX_COMMAND } from "../../constants/executors"
 import {
   createTask,
   getTaskById,
   updateTaskRunState,
-} from "@/services/tasks/task.repository"
-import type { CodexTask } from "@/services/tasks/types"
+} from "./task.repository"
+import type { CodexTask } from "./types"
 
 const MAX_CAPTURED_OUTPUT_LENGTH = 200_000
 const CANCEL_KILL_TIMEOUT_MS = 3_000

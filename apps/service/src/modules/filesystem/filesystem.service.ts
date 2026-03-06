@@ -1,18 +1,18 @@
-import { readdir, lstat, realpath, stat } from "node:fs/promises"
+import { lstat, readdir, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 
+import { ERROR_CODES } from "../../constants/errors"
 import {
-  ERROR_CODES,
   FS_DEFAULT_LIST_LIMIT,
   FS_IGNORED_DIRECTORY_NAMES,
   FS_MAX_LIST_LIMIT,
-} from "@/constants"
+} from "../../constants/fs"
+import { getAppConfig } from "../../utils/yaml-config"
 import {
   FileSystemServiceError,
   type FileSystemListEntry,
   type FileSystemListResult,
-} from "@/services/filesystem/types"
-import { getAppConfig } from "@/utils/yaml-config"
+} from "./types"
 
 type ListDirectoryInput = {
   path?: string
@@ -77,7 +77,8 @@ function isPermissionError(error: unknown) {
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    (error.code === "EACCES" || error.code === "EPERM")
+    ((error as { code?: string }).code === "EACCES" ||
+      (error as { code?: string }).code === "EPERM")
   )
 }
 
@@ -125,7 +126,7 @@ export async function listDirectory(
       typeof error === "object" &&
       error !== null &&
       "code" in error &&
-      error.code === "ENOENT"
+      (error as { code?: string }).code === "ENOENT"
     ) {
       throw new FileSystemServiceError(
         ERROR_CODES.PATH_NOT_FOUND,
@@ -199,19 +200,17 @@ export async function listDirectory(
         return null
       }
 
-      const absoluteEntryPath = path.join(canonicalPath, name)
-
-      if (entry.isDirectory()) {
-        if (FS_IGNORED_DIRECTORY_NAMES.has(name)) {
-          return null
-        }
+      if (entry.isDirectory() && FS_IGNORED_DIRECTORY_NAMES.has(name)) {
+        return null
       }
 
       if (!(entry.isDirectory() || entry.isFile())) {
         return null
       }
 
+      const absoluteEntryPath = path.join(canonicalPath, name)
       const stats = await lstat(absoluteEntryPath).catch(() => null)
+
       const item: FileSystemListEntry = {
         name,
         path: normalizePathSeparators(absoluteEntryPath),
