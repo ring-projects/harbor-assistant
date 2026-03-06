@@ -3,18 +3,22 @@ import { z } from "zod"
 import { ERROR_CODES } from "@/constants"
 import {
   TASK_STATUS_VALUES,
+  type TaskConversation,
+  type TaskConversationMessage,
   type TaskDetail,
   type TaskEvent,
   type TaskFilter,
   type TaskListItem,
   type TaskStatus,
   type TaskTimeRange,
+  taskConversationMessageSchema,
+  taskConversationSchema,
   taskDetailSchema,
   taskEventSchema,
   taskListItemSchema,
 } from "@/modules/tasks/types/task-contract"
 
-const EXECUTOR_API_BASE = "/v1"
+const EXECUTOR_API_BASE = "/api/v1"
 
 const taskApiErrorSchema = z.object({
   code: z.string(),
@@ -86,6 +90,25 @@ function toNumber(value: unknown) {
   }
 
   return 0
+}
+
+function toIntegerOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") {
+    return null
+  }
+
+  if (typeof value === "number" && Number.isInteger(value)) {
+    return value
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value)
+    if (Number.isInteger(parsed)) {
+      return parsed
+    }
+  }
+
+  return null
 }
 
 function toStatus(value: unknown): TaskStatus | null {
@@ -165,6 +188,7 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
       new Date().toISOString(),
     startedAt: toOptionalDateString(source.startedAt ?? source.started_at),
     finishedAt: toOptionalDateString(source.finishedAt ?? source.finished_at),
+    exitCode: toIntegerOrNull(source.exitCode ?? source.exit_code),
     command: toCommand(source.command),
     stdout: toStringOrEmpty(source.stdout),
     stderr: toStringOrEmpty(source.stderr),
@@ -277,6 +301,67 @@ function extractTaskEvents(payload: unknown, taskId: string): TaskEvent[] {
     .filter((item): item is TaskEvent => item !== null)
 
   return events.sort((left, right) => left.sequence - right.sequence)
+}
+
+function normalizeConversationMessageCandidate(
+  candidate: unknown,
+  fallbackTaskId: string,
+): TaskConversationMessage | null {
+  const source = asRecord(candidate)
+  if (!source) {
+    return null
+  }
+
+  const parsed = taskConversationMessageSchema.safeParse({
+    id:
+      toStringOrNull(source.id) ??
+      `${fallbackTaskId}-${toStringOrNull(source.timestamp) ?? "message"}`,
+    role: toStringOrNull(source.role) ?? "assistant",
+    content: toStringOrEmpty(source.content),
+    timestamp: toOptionalDateString(source.timestamp),
+  })
+
+  return parsed.success ? parsed.data : null
+}
+
+function extractSingleConversation(payload: unknown): TaskConversation | null {
+  const source = asRecord(payload)
+  if (!source) {
+    return null
+  }
+
+  const root =
+    source.conversation && typeof source.conversation === "object"
+      ? asRecord(source.conversation)
+      : source
+
+  if (!root) {
+    return null
+  }
+
+  const taskId =
+    toStringOrNull(root.taskId) ??
+    toStringOrNull(root.task_id) ??
+    toStringOrNull(source.taskId) ??
+    null
+  if (!taskId) {
+    return null
+  }
+
+  const messagesRaw = Array.isArray(root.messages) ? root.messages : []
+  const messages = messagesRaw
+    .map((item) => normalizeConversationMessageCandidate(item, taskId))
+    .filter((item): item is TaskConversationMessage => item !== null)
+
+  const parsed = taskConversationSchema.safeParse({
+    taskId,
+    threadId: toStringOrNull(root.threadId ?? root.thread_id),
+    rolloutPath: toStringOrNull(root.rolloutPath ?? root.rollout_path),
+    messages,
+    truncated: root.truncated === true,
+  })
+
+  return parsed.success ? parsed.data : null
 }
 
 function computeRangeStart(range: TaskTimeRange) {
@@ -451,6 +536,38 @@ export async function readTaskEvents(args: {
   throwIfFailed(response, payload, "Failed to load task events.")
 
   return extractTaskEvents(payload, args.taskId)
+}
+
+export async function readTaskConversation(args: {
+  taskId: string
+  limit?: number
+}): Promise<TaskConversation> {
+  const searchParams = new URLSearchParams()
+  if (typeof args.limit === "number" && Number.isFinite(args.limit)) {
+    searchParams.set("limit", String(Math.max(1, Math.trunc(args.limit))))
+  }
+
+  const suffix = searchParams.toString()
+  const response = await fetch(
+    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(args.taskId)}/conversation${suffix ? `?${suffix}` : ""}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to load task conversation.")
+
+  const conversation = extractSingleConversation(payload)
+  if (!conversation) {
+    throw new TaskApiClientError("Task conversation payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return conversation
 }
 
 export async function cancelTask(taskId: string): Promise<TaskDetail | null> {

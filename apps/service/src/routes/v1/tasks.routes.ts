@@ -7,6 +7,7 @@ import {
   TaskServiceError,
   cancelTask,
   createTaskAndRun,
+  getTaskConversation,
   getTaskDetail,
   getTaskEvents,
   listProjectTasks,
@@ -394,6 +395,34 @@ export async function registerTaskRoutes(app: FastifyInstance) {
     }, 15_000)
 
     return reply
+  })
+
+  app.get("/tasks/:taskId/conversation", async (request, reply) => {
+    const { taskId } = request.params as { taskId: string }
+    const query = request.query as { limit?: string }
+
+    try {
+      const conversation = await getTaskConversation({
+        taskId,
+        limit: parseOptionalLimit(
+          typeof query.limit === "string" ? query.limit : null,
+        ),
+      })
+
+      return reply.send({
+        ok: true,
+        conversation,
+      })
+    } catch (error) {
+      const mapped = mapTaskRouteError(
+        error,
+        "Failed to fetch task conversation.",
+      )
+      return reply.status(mapped.status).send({
+        ok: false,
+        error: mapped.payload,
+      })
+    }
   })
 
   app.get("/projects/:projectId/tasks", async (request, reply) => {

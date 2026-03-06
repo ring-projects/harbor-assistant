@@ -38,6 +38,7 @@ export const taskListItemSchema = z.object({
   createdAt: z.string().min(1),
   startedAt: z.string().nullable().default(null),
   finishedAt: z.string().nullable().default(null),
+  exitCode: z.number().int().nullable().default(null),
   command: z.array(z.string()).default([]),
   stdout: z.string().default(""),
   stderr: z.string().default(""),
@@ -57,6 +58,21 @@ export const taskEventSchema = z.object({
   createdAt: z.string().min(1),
 })
 
+export const taskConversationMessageSchema = z.object({
+  id: z.string().min(1),
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string().default(""),
+  timestamp: z.string().nullable().default(null),
+})
+
+export const taskConversationSchema = z.object({
+  taskId: z.string().min(1),
+  threadId: z.string().nullable().default(null),
+  rolloutPath: z.string().nullable().default(null),
+  messages: z.array(taskConversationMessageSchema).default([]),
+  truncated: z.boolean().default(false),
+})
+
 export type TaskStatus = z.infer<typeof taskStatusSchema>
 export type TaskEventType = z.infer<typeof taskEventTypeSchema>
 export type TaskTimeRange = z.infer<typeof taskTimeRangeSchema>
@@ -64,6 +80,8 @@ export type TaskFilter = z.infer<typeof taskFilterSchema>
 export type TaskListItem = z.infer<typeof taskListItemSchema>
 export type TaskDetail = z.infer<typeof taskDetailSchema>
 export type TaskEvent = z.infer<typeof taskEventSchema>
+export type TaskConversationMessage = z.infer<typeof taskConversationMessageSchema>
+export type TaskConversation = z.infer<typeof taskConversationSchema>
 
 export const TERMINAL_TASK_STATUSES: TaskStatus[] = [
   "completed",

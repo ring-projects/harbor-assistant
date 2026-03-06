@@ -1,8 +1,10 @@
 import { ERROR_CODES } from "../../constants/errors"
 import type { ExecutorIdConstant } from "../../constants/executors"
 import { getProjectById } from "../project/project.repository"
+import { listProjectCodexThreadSnapshots } from "./codex-thread-index.service"
 import {
   getTaskById,
+  importCodexThreadSnapshots,
   listTaskEvents,
   listTasksByProject,
 } from "./task.repository"
@@ -10,6 +12,7 @@ import {
   cancelCodexTask,
   createAndRunCodexTask,
 } from "./task-runner.service"
+import { readTaskConversation } from "./task-conversation.service"
 import type { CodexTask } from "./types"
 
 type CreateTaskServiceInput = {
@@ -39,10 +42,18 @@ type ListTaskEventsInput = {
   limit?: number
 }
 
+type GetTaskConversationInput = {
+  taskId: string
+  limit?: number
+}
+
 type TaskServiceErrorCode =
   | (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
   | "STORE_READ_ERROR"
   | "STORE_WRITE_ERROR"
+
+const CODEX_THREAD_SYNC_INTERVAL_MS = 20_000
+const projectLastCodexSyncAt = new Map<string, number>()
 
 export class TaskServiceError extends Error {
   code: TaskServiceErrorCode
@@ -72,6 +83,34 @@ function ensureSupportedExecutor(executor: string) {
       400,
     )
   }
+}
+
+async function syncProjectCodexThreads(args: {
+  projectId: string
+  projectPath: string
+}) {
+  const now = Date.now()
+  const lastSyncAt = projectLastCodexSyncAt.get(args.projectId) ?? 0
+  if (now - lastSyncAt < CODEX_THREAD_SYNC_INTERVAL_MS) {
+    return
+  }
+
+  projectLastCodexSyncAt.set(args.projectId, now)
+
+  const threadSnapshots = await listProjectCodexThreadSnapshots({
+    projectPath: args.projectPath,
+    limit: 120,
+  })
+
+  if (threadSnapshots.length === 0) {
+    return
+  }
+
+  await importCodexThreadSnapshots({
+    projectId: args.projectId,
+    projectPath: args.projectPath,
+    threads: threadSnapshots,
+  })
 }
 
 export async function createTaskAndRun(input: CreateTaskServiceInput) {
@@ -244,6 +283,14 @@ export async function listProjectTasks(input: ListProjectTasksInput) {
     )
   }
 
+  try {
+    await syncProjectCodexThreads({
+      projectId: project.id,
+      projectPath: project.path,
+    })
+  } catch {
+  }
+
   return listTasksByProject({
     projectId,
     limit: input.limit,
@@ -263,5 +310,25 @@ export async function getTaskEvents(input: ListTaskEventsInput) {
     task,
     events,
     isTerminal: isTerminalTask(task),
+  }
+}
+
+export async function getTaskConversation(input: GetTaskConversationInput) {
+  const task = await getTaskDetail(input.taskId)
+
+  try {
+    return await readTaskConversation({
+      taskId: task.id,
+      projectPath: task.projectPath,
+      taskCreatedAt: task.createdAt,
+      taskPrompt: task.prompt,
+      limit: input.limit,
+    })
+  } catch (error) {
+    throw new TaskServiceError(
+      ERROR_CODES.READ_ERROR,
+      `Failed to read Codex task conversation: ${String(error)}`,
+      500,
+    )
   }
 }

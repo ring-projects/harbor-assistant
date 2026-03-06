@@ -6,6 +6,7 @@ import {
   cancelTask,
   createTask,
   readProjectTasks,
+  readTaskConversation,
   readTaskDetail,
   readTaskEvents,
   retryTask,
@@ -30,6 +31,9 @@ export const taskQueryKeys = {
   },
   events(taskId: string) {
     return [...this.all, "events", taskId] as const
+  },
+  conversation(taskId: string) {
+    return [...this.all, "conversation", taskId] as const
   },
 }
 
@@ -95,6 +99,34 @@ export function useTaskEventsQuery(args: {
     },
     enabled: args.enabled && Boolean(args.taskId),
     refetchInterval: args.enabled ? 3_000 : false,
+  })
+}
+
+export function useTaskConversationQuery(args: {
+  taskId: string | null
+  enabled: boolean
+}) {
+  return useQuery({
+    queryKey: taskQueryKeys.conversation(args.taskId ?? "none"),
+    queryFn: async () => {
+      if (!args.taskId) {
+        return null
+      }
+
+      return readTaskConversation({
+        taskId: args.taskId,
+      })
+    },
+    enabled: args.enabled && Boolean(args.taskId),
+    staleTime: 5_000,
+    refetchInterval(query) {
+      const conversation = query.state.data
+      if (!conversation || conversation.messages.length === 0) {
+        return 4_000
+      }
+
+      return 8_000
+    },
   })
 }
 

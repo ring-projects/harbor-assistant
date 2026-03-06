@@ -12,11 +12,16 @@ import {
   filterTasksByKeyword,
   filterTasksByStatus,
   filterTasksByTimeRange,
+  useTaskConversationQuery,
+  useTaskDetailQuery,
+  useTaskEventsQuery,
   useTaskListQuery,
 } from "@/modules/tasks/hooks/use-task-queries"
 import {
   TASK_STATUS_VALUES,
   TASK_TIME_RANGE_VALUES,
+  type TaskDetail,
+  type TaskEvent,
   type TaskFilter,
   type TaskStatus,
   type TaskTimeRange,
@@ -101,24 +106,364 @@ function getErrorMessage(error: unknown) {
   return "加载失败，请重试。"
 }
 
-function PlaceholderPanel(props: {
-  title: string
-  description: string
-  taskId: string | null
+function parseSummaryPayload(payload: string) {
+  try {
+    const parsed = JSON.parse(payload) as {
+      stdout?: unknown
+      stderr?: unknown
+    }
+    return {
+      stdout: typeof parsed.stdout === "string" ? parsed.stdout : "",
+      stderr: typeof parsed.stderr === "string" ? parsed.stderr : "",
+    }
+  } catch {
+    return {
+      stdout: "",
+      stderr: "",
+    }
+  }
+}
+
+function resolveTaskStreams(args: {
+  detail: TaskDetail | null | undefined
+  events: TaskEvent[] | undefined
 }) {
+  const summaryEvent = args.events
+    ?.slice()
+    .reverse()
+    .find((event) => event.type === "summary")
+
+  if (summaryEvent) {
+    const parsed = parseSummaryPayload(summaryEvent.payload)
+    return {
+      stdout: parsed.stdout || args.detail?.stdout || "",
+      stderr: parsed.stderr || args.detail?.stderr || "",
+    }
+  }
+
+  return {
+    stdout: args.detail?.stdout || "",
+    stderr: args.detail?.stderr || "",
+  }
+}
+
+function extractDiffBlocks(text: string) {
+  if (!text.trim()) {
+    return []
+  }
+
+  const blocks: string[] = []
+
+  const fencedDiff = /```diff\s*([\s\S]*?)```/g
+  for (const match of text.matchAll(fencedDiff)) {
+    const content = match[1]?.trim()
+    if (content) {
+      blocks.push(content)
+    }
+  }
+
+  const lines = text.split(/\r?\n/)
+  let currentBlock: string[] = []
+
+  function flushCurrentBlock() {
+    if (currentBlock.length === 0) {
+      return
+    }
+
+    const merged = currentBlock.join("\n").trim()
+    if (merged.length > 0) {
+      blocks.push(merged)
+    }
+
+    currentBlock = []
+  }
+
+  for (const line of lines) {
+    if (line.startsWith("diff --git ")) {
+      flushCurrentBlock()
+      currentBlock.push(line)
+      continue
+    }
+
+    if (currentBlock.length > 0) {
+      currentBlock.push(line)
+    }
+  }
+
+  flushCurrentBlock()
+
+  return blocks
+}
+
+function extractChangedFiles(diffBlocks: string[]) {
+  const files = new Set<string>()
+
+  for (const block of diffBlocks) {
+    for (const line of block.split("\n")) {
+      if (line.startsWith("diff --git ")) {
+        const match = line.match(/^diff --git a\/(.+?) b\/(.+)$/)
+        if (match?.[2]) {
+          files.add(match[2].trim())
+        }
+        continue
+      }
+
+      if (line.startsWith("+++ b/")) {
+        files.add(line.slice("+++ b/".length).trim())
+      }
+    }
+  }
+
+  return Array.from(files)
+}
+
+function TaskConversationPanel(props: { taskId: string | null }) {
+  const conversationQuery = useTaskConversationQuery({
+    taskId: props.taskId,
+    enabled: Boolean(props.taskId),
+  })
+
+  const conversation = conversationQuery.data
+
+  return (
+    <Card className="min-h-0 p-3">
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">Chat</p>
+            <p className="text-muted-foreground text-xs">
+              Codex 会话回放（基于本地 history/session）
+            </p>
+          </div>
+
+          {conversation?.threadId ? (
+            <span className="text-muted-foreground rounded border px-2 py-0.5 font-mono text-[11px]">
+              {truncateTaskId(conversation.threadId)}
+            </span>
+          ) : null}
+        </div>
+
+        {!props.taskId ? (
+          <div className="text-muted-foreground flex flex-1 items-center justify-center rounded-md border border-dashed text-xs">
+            请选择左侧任务
+          </div>
+        ) : null}
+
+        {props.taskId && conversationQuery.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-16 rounded-md" />
+            ))}
+          </div>
+        ) : null}
+
+        {props.taskId && conversationQuery.isError ? (
+          <div className="rounded-md border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
+            {getErrorMessage(conversationQuery.error)}
+          </div>
+        ) : null}
+
+        {props.taskId &&
+        !conversationQuery.isLoading &&
+        !conversationQuery.isError &&
+        conversation &&
+        conversation.messages.length === 0 ? (
+          <div className="text-muted-foreground flex flex-1 items-center justify-center rounded-md border border-dashed text-xs">
+            当前任务暂无可读取会话记录。
+          </div>
+        ) : null}
+
+        {props.taskId &&
+        !conversationQuery.isLoading &&
+        !conversationQuery.isError &&
+        conversation &&
+        conversation.messages.length > 0 ? (
+          <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
+            {conversation.messages.map((message) => (
+              <div key={message.id} className="rounded-md border p-2.5">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex rounded-full border px-2 py-0.5 text-[11px]",
+                      message.role === "assistant"
+                        ? "border-blue-200 bg-blue-50 text-blue-700"
+                        : message.role === "user"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-slate-200 bg-slate-50 text-slate-700",
+                    )}
+                  >
+                    {message.role}
+                  </span>
+                  <span className="text-muted-foreground text-[11px]">
+                    {formatDateTime(message.timestamp)}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap text-xs leading-5">
+                  {message.content}
+                </p>
+              </div>
+            ))}
+            {conversation.truncated ? (
+              <p className="text-muted-foreground text-xs">
+                仅显示最近部分会话内容。
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </Card>
+  )
+}
+
+function TaskDiffPanel(props: { taskId: string | null }) {
+  const detailQuery = useTaskDetailQuery(props.taskId)
+  const eventsQuery = useTaskEventsQuery({
+    taskId: props.taskId,
+    enabled: Boolean(props.taskId),
+  })
+
+  const streams = useMemo(
+    () =>
+      resolveTaskStreams({
+        detail: detailQuery.data,
+        events: eventsQuery.data,
+      }),
+    [detailQuery.data, eventsQuery.data],
+  )
+
+  const diffBlocks = useMemo(
+    () => [
+      ...extractDiffBlocks(streams.stdout),
+      ...extractDiffBlocks(streams.stderr),
+    ],
+    [streams.stderr, streams.stdout],
+  )
+
+  const changedFiles = useMemo(
+    () => extractChangedFiles(diffBlocks),
+    [diffBlocks],
+  )
+
+  const outputPreview = useMemo(() => {
+    const combined = `${streams.stdout}\n${streams.stderr}`.trim()
+    if (!combined) {
+      return ""
+    }
+
+    if (combined.length <= 2_000) {
+      return combined
+    }
+
+    return combined.slice(combined.length - 2_000)
+  }, [streams.stderr, streams.stdout])
+
   return (
     <Card className="min-h-0 p-3">
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div>
-          <p className="text-sm font-semibold">{props.title}</p>
-          <p className="text-muted-foreground text-xs">{props.description}</p>
+          <p className="text-sm font-semibold">Diff</p>
+          <p className="text-muted-foreground text-xs">任务详情与变更预览</p>
         </div>
 
-        <div className="text-muted-foreground flex flex-1 items-center justify-center rounded-md border border-dashed text-xs">
-          {props.taskId
-            ? `当前任务：${truncateTaskId(props.taskId)}`
-            : "请选择左侧任务"}
-        </div>
+        {!props.taskId ? (
+          <div className="text-muted-foreground flex flex-1 items-center justify-center rounded-md border border-dashed text-xs">
+            请选择左侧任务
+          </div>
+        ) : null}
+
+        {props.taskId && (detailQuery.isLoading || eventsQuery.isLoading) ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-16 rounded-md" />
+            ))}
+          </div>
+        ) : null}
+
+        {props.taskId && (detailQuery.isError || eventsQuery.isError) ? (
+          <div className="rounded-md border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
+            {getErrorMessage(detailQuery.error ?? eventsQuery.error)}
+          </div>
+        ) : null}
+
+        {props.taskId &&
+        !detailQuery.isLoading &&
+        !eventsQuery.isLoading &&
+        !detailQuery.isError &&
+        !eventsQuery.isError &&
+        detailQuery.data ? (
+          <>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="rounded-md border p-2">
+                <p className="text-muted-foreground">状态</p>
+                <p className="pt-1">
+                  <span
+                    className={cn(
+                      "inline-flex rounded-full border px-2 py-0.5",
+                      STATUS_META[detailQuery.data.status].badgeClassName,
+                    )}
+                  >
+                    {STATUS_META[detailQuery.data.status].label}
+                  </span>
+                </p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-muted-foreground">退出码</p>
+                <p className="pt-1 font-mono">
+                  {detailQuery.data.exitCode === null
+                    ? "-"
+                    : String(detailQuery.data.exitCode)}
+                </p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-muted-foreground">开始</p>
+                <p className="pt-1">{formatDateTime(detailQuery.data.startedAt)}</p>
+              </div>
+              <div className="rounded-md border p-2">
+                <p className="text-muted-foreground">结束</p>
+                <p className="pt-1">{formatDateTime(detailQuery.data.finishedAt)}</p>
+              </div>
+            </div>
+
+            {changedFiles.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">变更文件</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {changedFiles.map((filePath) => (
+                    <span
+                      key={filePath}
+                      className="bg-muted rounded border px-2 py-0.5 font-mono text-[11px]"
+                    >
+                      {filePath}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {diffBlocks.length > 0 ? (
+              <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
+                {diffBlocks.map((block, index) => (
+                  <pre
+                    key={`${index}-${block.slice(0, 20)}`}
+                    className="bg-muted overflow-x-auto rounded-md border p-2 text-[11px] leading-5 whitespace-pre"
+                  >
+                    {block}
+                  </pre>
+                ))}
+              </div>
+            ) : outputPreview ? (
+              <div className="min-h-0 flex-1 overflow-auto rounded-md border">
+                <pre className="bg-muted h-full overflow-x-auto p-2 text-[11px] leading-5 whitespace-pre-wrap">
+                  {outputPreview}
+                </pre>
+              </div>
+            ) : (
+              <div className="text-muted-foreground flex flex-1 items-center justify-center rounded-md border border-dashed text-xs">
+                当前任务暂无 diff 或输出内容。
+              </div>
+            )}
+          </>
+        ) : null}
       </div>
     </Card>
   )
@@ -333,17 +678,9 @@ export function TaskWorkbench({ projectId }: TaskWorkbenchProps) {
           </div>
         </Card>
 
-        <PlaceholderPanel
-          title="Chat"
-          description="任务会话区（占位）"
-          taskId={selectedTaskId}
-        />
+        <TaskConversationPanel taskId={selectedTaskId} />
 
-        <PlaceholderPanel
-          title="Diff"
-          description="任务变更区（占位）"
-          taskId={selectedTaskId}
-        />
+        <TaskDiffPanel taskId={selectedTaskId} />
       </div>
     </div>
   )

@@ -16,6 +16,7 @@ import type {
   TaskStoreDocument,
 } from "./types"
 import { getAppConfig } from "../../utils/yaml-config"
+import type { CodexThreadSnapshot } from "./codex-thread-index.service"
 
 type TaskSummaryPayload = {
   stdout?: string
@@ -759,6 +760,159 @@ export async function listTaskEvents(args: {
     throw new TaskRepositoryError(
       "STORE_READ_ERROR",
       `Failed to read task events: ${String(error)}`,
+    )
+  }
+}
+
+export async function appendTaskEvent(args: {
+  taskId: string
+  type: DomainTaskEventType
+  payload: string
+}) {
+  const taskId = args.taskId.trim()
+  if (!taskId) {
+    throw new TaskRepositoryError("INVALID_TASK_ID", "Task id cannot be empty.")
+  }
+
+  try {
+    await ensureLegacyTasksImportedOrThrow("STORE_WRITE_ERROR")
+
+    await prisma.$transaction(async (tx) => {
+      const latestRun = await tx.taskRun.findFirst({
+        where: {
+          taskId,
+        },
+        orderBy: {
+          attempt: "desc",
+        },
+        select: {
+          id: true,
+        },
+      })
+
+      if (!latestRun) {
+        throw new TaskRepositoryError("NOT_FOUND", `Task run not found: ${taskId}`)
+      }
+
+      const sequence = await nextTaskEventSequence({
+        runId: latestRun.id,
+        tx,
+      })
+
+      await tx.taskEvent.create({
+        data: {
+          runId: latestRun.id,
+          sequence,
+          type: args.type,
+          payload: args.payload,
+        },
+      })
+    })
+  } catch (error) {
+    if (error instanceof TaskRepositoryError) {
+      throw error
+    }
+
+    throw new TaskRepositoryError(
+      "STORE_WRITE_ERROR",
+      `Failed to append task event: ${String(error)}`,
+    )
+  }
+}
+
+export async function importCodexThreadSnapshots(args: {
+  projectId: string
+  projectPath: string
+  threads: CodexThreadSnapshot[]
+}) {
+  const projectId = args.projectId.trim()
+  if (!projectId) {
+    return 0
+  }
+
+  try {
+    await ensureLegacyTasksImportedOrThrow("STORE_WRITE_ERROR")
+
+    let importedCount = 0
+    for (const thread of args.threads) {
+      const threadId = thread.threadId.trim()
+      if (!threadId) {
+        continue
+      }
+
+      const legacyTaskId = `codex-thread:${threadId}`
+      const existing = await prisma.task.findUnique({
+        where: {
+          legacyTaskId,
+        },
+        select: {
+          id: true,
+        },
+      })
+
+      if (existing) {
+        continue
+      }
+
+      const prompt =
+        thread.firstUserMessage?.trim() ||
+        thread.title?.trim() ||
+        `Codex session ${threadId}`
+      const createdAt = toDate(thread.createdAt) ?? new Date()
+      const finishedAt = toDate(thread.updatedAt) ?? createdAt
+
+      await prisma.task.create({
+        data: {
+          legacyTaskId,
+          projectId,
+          projectPath: args.projectPath,
+          prompt,
+          model: null,
+          executor: "codex",
+          status: PrismaTaskStatus.completed,
+          createdAt,
+          runs: {
+            create: {
+              attempt: 1,
+              status: PrismaTaskStatus.completed,
+              startedAt: createdAt,
+              finishedAt,
+              exitCode: 0,
+              events: {
+                create: [
+                  {
+                    sequence: 1,
+                    type: TaskEventType.system,
+                    payload: JSON.stringify({
+                      kind: "codex-session",
+                      threadId,
+                      rolloutPath: thread.rolloutPath,
+                    }),
+                  },
+                  {
+                    sequence: 2,
+                    type: TaskEventType.state,
+                    payload: JSON.stringify({
+                      from: "queued",
+                      to: "completed",
+                      source: "codex-thread-import",
+                    }),
+                  },
+                ],
+              },
+            },
+          },
+        },
+      })
+
+      importedCount += 1
+    }
+
+    return importedCount
+  } catch (error) {
+    throw new TaskRepositoryError(
+      "STORE_WRITE_ERROR",
+      `Failed to import Codex thread snapshots: ${String(error)}`,
     )
   }
 }

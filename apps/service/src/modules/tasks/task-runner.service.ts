@@ -5,6 +5,7 @@ import {
 
 import { DEFAULT_CODEX_COMMAND } from "../../constants/executors"
 import {
+  appendTaskEvent,
   createTask,
   getTaskById,
   updateTaskRunState,
@@ -13,6 +14,8 @@ import type { CodexTask } from "./types"
 
 const MAX_CAPTURED_OUTPUT_LENGTH = 200_000
 const CANCEL_KILL_TIMEOUT_MS = 3_000
+const MAX_STDOUT_LINE_BUFFER_LENGTH = 100_000
+const CODEX_SESSION_EVENT_KIND = "codex-session"
 
 type RunningCodexProcess = {
   child: ChildProcess
@@ -36,6 +39,47 @@ function appendWithLimit(base: string, nextChunk: string) {
   return combined.slice(combined.length - MAX_CAPTURED_OUTPUT_LENGTH)
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function parseJsonLine(line: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(line)
+    return isRecord(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function extractCodexSessionMetadata(line: Record<string, unknown>) {
+  if (line.type !== "session_meta") {
+    return null
+  }
+
+  const payload = line.payload
+  if (!isRecord(payload)) {
+    return null
+  }
+
+  const threadId = typeof payload.id === "string" ? payload.id : null
+  if (!threadId) {
+    return null
+  }
+
+  const rolloutPath =
+    typeof payload.rollout_path === "string"
+      ? payload.rollout_path
+      : typeof payload.rolloutPath === "string"
+        ? payload.rolloutPath
+        : null
+
+  return {
+    threadId,
+    rolloutPath,
+  }
+}
+
 function buildCodexExecArgs(args: {
   projectPath: string
   prompt: string
@@ -56,6 +100,7 @@ function buildCodexExecArgs(args: {
     commandArgs.push("--model", args.model)
   }
 
+  commandArgs.push("--json")
   commandArgs.push(args.prompt)
 
   return commandArgs
@@ -82,9 +127,13 @@ export async function createAndRunCodexTask(input: {
 
   let stdout = ""
   let stderr = ""
+  let stdoutLineBuffer = ""
   let finalized = false
   let runningTask: CodexTask | null = null
   let childProcess: ChildProcess | null = null
+  let codexThreadId: string | null = null
+  let codexRolloutPath: string | null = null
+  let codexSessionMetadataPersisted = false
 
   function getRunningProcess() {
     return runningCodexProcesses.get(createdTask.id) ?? null
@@ -101,6 +150,56 @@ export async function createAndRunCodexTask(input: {
     }
 
     runningCodexProcesses.delete(createdTask.id)
+  }
+
+  function persistCodexSessionMetadata() {
+    if (codexSessionMetadataPersisted || !codexThreadId) {
+      return
+    }
+
+    codexSessionMetadataPersisted = true
+    void appendTaskEvent({
+      taskId: createdTask.id,
+      type: "system",
+      payload: JSON.stringify({
+        kind: CODEX_SESSION_EVENT_KIND,
+        threadId: codexThreadId,
+        rolloutPath: codexRolloutPath,
+      }),
+    }).catch(() => {
+      codexSessionMetadataPersisted = false
+    })
+  }
+
+  function consumeStdoutLine(line: string) {
+    const normalized = line.trim()
+    if (!normalized) {
+      return
+    }
+
+    const parsedLine = parseJsonLine(normalized)
+    if (!parsedLine) {
+      return
+    }
+
+    const metadata = extractCodexSessionMetadata(parsedLine)
+    if (!metadata) {
+      return
+    }
+
+    codexThreadId = metadata.threadId
+    codexRolloutPath = metadata.rolloutPath
+    persistCodexSessionMetadata()
+  }
+
+  function flushStdoutLineBuffer() {
+    const remaining = stdoutLineBuffer.trim()
+    stdoutLineBuffer = ""
+    if (!remaining) {
+      return
+    }
+
+    consumeStdoutLine(remaining)
   }
 
   function finalizeTask(payload: {
@@ -152,7 +251,22 @@ export async function createAndRunCodexTask(input: {
     })
 
     spawnedChild.stdout?.on("data", (chunk: Buffer | string) => {
-      stdout = appendWithLimit(stdout, String(chunk))
+      const text = String(chunk)
+      stdout = appendWithLimit(stdout, text)
+      stdoutLineBuffer = `${stdoutLineBuffer}${text}`.slice(
+        -MAX_STDOUT_LINE_BUFFER_LENGTH,
+      )
+
+      while (true) {
+        const nextLineBreak = stdoutLineBuffer.indexOf("\n")
+        if (nextLineBreak < 0) {
+          break
+        }
+
+        const line = stdoutLineBuffer.slice(0, nextLineBreak)
+        stdoutLineBuffer = stdoutLineBuffer.slice(nextLineBreak + 1)
+        consumeStdoutLine(line)
+      }
     })
 
     spawnedChild.stderr?.on("data", (chunk: Buffer | string) => {
@@ -160,6 +274,8 @@ export async function createAndRunCodexTask(input: {
     })
 
     spawnedChild.on("error", (error) => {
+      flushStdoutLineBuffer()
+
       const runningProcess = getRunningProcess()
       if (runningProcess?.cancellationRequested) {
         finalizeTask({
@@ -180,6 +296,8 @@ export async function createAndRunCodexTask(input: {
     })
 
     spawnedChild.on("close", (code) => {
+      flushStdoutLineBuffer()
+
       const runningProcess = getRunningProcess()
       if (runningProcess?.cancellationRequested) {
         finalizeTask({
