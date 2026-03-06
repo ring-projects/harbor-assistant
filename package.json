@@ -13,6 +13,7 @@
   "scripts": {
     "init:harbor": "bun scripts/init.mjs",
     "dev": "bun run dev:web",
+    "dev:all": "bun run init:harbor && bun run --filter '@harbor/*' dev",
     "dev:web": "bun run init:harbor && bun run --cwd apps/web dev",
     "build:web": "bun run --cwd apps/web build",
     "start:web": "bun run --cwd apps/web start",

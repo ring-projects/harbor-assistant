@@ -14,6 +14,12 @@ bun run dev:service
 bun run dev
 ```
 
+从仓库根目录一条命令同时启动前后端：
+
+```bash
+bun run dev:all
+```
+
 ## 健康检查
 
 - `GET /healthz`
