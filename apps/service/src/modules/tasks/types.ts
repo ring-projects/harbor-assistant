@@ -7,6 +7,8 @@ export type TaskStatus =
 
 export type TaskEventType = "state" | "stdout" | "stderr" | "system" | "summary"
 
+export type TaskMessageRole = "user" | "assistant" | "system"
+
 export type CodexTask = {
   id: string
   projectId: string
@@ -14,6 +16,8 @@ export type CodexTask = {
   prompt: string
   model: string | null
   status: TaskStatus
+  threadId: string | null
+  parentTaskId: string | null
   createdAt: string
   startedAt: string | null
   finishedAt: string | null
@@ -34,10 +38,21 @@ export type TaskEvent = {
   createdAt: string
 }
 
-export type TaskStoreDocument = {
-  version: number
-  updatedAt: string
-  tasks: CodexTask[]
+export type TaskConversationMessage = {
+  id: string
+  taskId: string
+  role: TaskMessageRole
+  content: string
+  timestamp: string | null
+  source: string
+}
+
+export type TaskConversation = {
+  taskId: string
+  threadId: string | null
+  rolloutPath: string | null
+  messages: TaskConversationMessage[]
+  truncated: boolean
 }
 
 export type TaskErrorCode =

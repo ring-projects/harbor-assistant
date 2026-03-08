@@ -1,16 +1,16 @@
 import { ERROR_CODES } from "../../constants/errors"
 import type { ExecutorIdConstant } from "../../constants/executors"
 import { getProjectById } from "../project/project.repository"
-import { listProjectCodexThreadSnapshots } from "./codex-thread-index.service"
 import {
   getTaskById,
-  importCodexThreadSnapshots,
+  hasActiveTaskInThread,
   listTaskEvents,
   listTasksByProject,
 } from "./task.repository"
 import {
   cancelCodexTask,
   createAndRunCodexTask,
+  followupCodexTask,
 } from "./task-runner.service"
 import { readTaskConversation } from "./task-conversation.service"
 import type { CodexTask } from "./types"
@@ -24,6 +24,12 @@ type CreateTaskServiceInput = {
 
 type RetryTaskServiceInput = {
   taskId: string
+}
+
+type FollowupTaskServiceInput = {
+  taskId: string
+  prompt: string
+  model?: string | null
 }
 
 type CancelTaskServiceInput = {
@@ -51,9 +57,6 @@ type TaskServiceErrorCode =
   | (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
   | "STORE_READ_ERROR"
   | "STORE_WRITE_ERROR"
-
-const CODEX_THREAD_SYNC_INTERVAL_MS = 20_000
-const projectLastCodexSyncAt = new Map<string, number>()
 
 export class TaskServiceError extends Error {
   code: TaskServiceErrorCode
@@ -83,34 +86,6 @@ function ensureSupportedExecutor(executor: string) {
       400,
     )
   }
-}
-
-async function syncProjectCodexThreads(args: {
-  projectId: string
-  projectPath: string
-}) {
-  const now = Date.now()
-  const lastSyncAt = projectLastCodexSyncAt.get(args.projectId) ?? 0
-  if (now - lastSyncAt < CODEX_THREAD_SYNC_INTERVAL_MS) {
-    return
-  }
-
-  projectLastCodexSyncAt.set(args.projectId, now)
-
-  const threadSnapshots = await listProjectCodexThreadSnapshots({
-    projectPath: args.projectPath,
-    limit: 120,
-  })
-
-  if (threadSnapshots.length === 0) {
-    return
-  }
-
-  await importCodexThreadSnapshots({
-    projectId: args.projectId,
-    projectPath: args.projectPath,
-    threads: threadSnapshots,
-  })
 }
 
 export async function createTaskAndRun(input: CreateTaskServiceInput) {
@@ -152,11 +127,81 @@ export async function createTaskAndRun(input: CreateTaskServiceInput) {
       projectPath: project.path,
       prompt,
       model,
+      parentTaskId: null,
     })
   } catch (error) {
     throw new TaskServiceError(
       ERROR_CODES.TASK_START_FAILED,
       `Failed to start Codex task: ${String(error)}`,
+      500,
+    )
+  }
+}
+
+export async function followupTask(input: FollowupTaskServiceInput) {
+  const taskId = input.taskId.trim()
+  const prompt = input.prompt.trim()
+  const model = input.model?.trim() || null
+
+  if (!taskId) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_TASK_ID,
+      "Task id is required.",
+      400,
+    )
+  }
+
+  if (!prompt) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_PROMPT,
+      "Prompt cannot be empty.",
+      400,
+    )
+  }
+
+  const task = await getTaskById(taskId)
+  if (!task) {
+    throw new TaskServiceError(
+      ERROR_CODES.TASK_NOT_FOUND,
+      `Task not found: ${taskId}`,
+      404,
+    )
+  }
+
+  if (!task.threadId) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_TASK_FOLLOWUP_STATE,
+      "Task thread is not available yet. Wait for the initial run to start.",
+      409,
+    )
+  }
+
+  if (
+    await hasActiveTaskInThread({
+      threadId: task.threadId,
+      excludeTaskId: task.id,
+    })
+  ) {
+    throw new TaskServiceError(
+      ERROR_CODES.INVALID_TASK_FOLLOWUP_STATE,
+      "Another task is already running on this thread.",
+      409,
+    )
+  }
+
+  try {
+    return await followupCodexTask({
+      parentTaskId: task.id,
+      threadId: task.threadId,
+      projectId: task.projectId,
+      projectPath: task.projectPath,
+      prompt,
+      model: model ?? task.model,
+    })
+  } catch (error) {
+    throw new TaskServiceError(
+      ERROR_CODES.TASK_FOLLOWUP_FAILED,
+      `Failed to create task follow-up: ${String(error)}`,
       500,
     )
   }
@@ -227,13 +272,42 @@ export async function retryTask(input: RetryTaskServiceInput) {
   }
 
   try {
+    if (task.threadId) {
+      if (
+        await hasActiveTaskInThread({
+          threadId: task.threadId,
+          excludeTaskId: task.id,
+        })
+      ) {
+        throw new TaskServiceError(
+          ERROR_CODES.INVALID_TASK_RETRY_STATE,
+          "Another task is already running on this thread.",
+          409,
+        )
+      }
+
+      return await followupCodexTask({
+        parentTaskId: task.id,
+        threadId: task.threadId,
+        projectId: task.projectId,
+        projectPath: task.projectPath,
+        prompt: task.prompt,
+        model: task.model,
+      })
+    }
+
     return await createAndRunCodexTask({
       projectId: task.projectId,
       projectPath: task.projectPath,
       prompt: task.prompt,
       model: task.model,
+      parentTaskId: task.id,
     })
   } catch (error) {
+    if (error instanceof TaskServiceError) {
+      throw error
+    }
+
     throw new TaskServiceError(
       ERROR_CODES.TASK_RETRY_FAILED,
       `Failed to retry task: ${String(error)}`,
@@ -283,14 +357,6 @@ export async function listProjectTasks(input: ListProjectTasksInput) {
     )
   }
 
-  try {
-    await syncProjectCodexThreads({
-      projectId: project.id,
-      projectPath: project.path,
-    })
-  } catch {
-  }
-
   return listTasksByProject({
     projectId,
     limit: input.limit,
@@ -319,9 +385,6 @@ export async function getTaskConversation(input: GetTaskConversationInput) {
   try {
     return await readTaskConversation({
       taskId: task.id,
-      projectPath: task.projectPath,
-      taskCreatedAt: task.createdAt,
-      taskPrompt: task.prompt,
       limit: input.limit,
     })
   } catch (error) {

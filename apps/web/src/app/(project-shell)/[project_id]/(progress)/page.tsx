@@ -15,12 +15,12 @@ export default async function ProjectProgressRoutePage(
 
   return (
     <ProjectStoreProvider key={projectId} projectId={projectId}>
-      <div className="flex h-full min-h-svh flex-col">
+      <div className="flex h-svh min-h-0 flex-col overflow-hidden">
         <header className="flex h-12 items-center border-b px-3">
           <SidebarTrigger />
         </header>
 
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <TaskWorkbench projectId={projectId} />
         </div>
       </div>

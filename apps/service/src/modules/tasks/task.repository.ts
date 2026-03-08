@@ -1,74 +1,71 @@
-import { readFile } from "node:fs/promises"
-
 import {
   Prisma,
-  TaskEventType,
+  TaskEventType as PrismaTaskEventType,
+  TaskMessageRole as PrismaTaskMessageRole,
   TaskStatus as PrismaTaskStatus,
 } from "@prisma/client"
 
 import { prisma } from "../../lib/prisma"
 import type {
   CodexTask,
-  TaskEvent,
-  TaskEventType as DomainTaskEventType,
+  TaskConversation,
+  TaskConversationMessage,
   TaskErrorCode,
+  TaskEvent,
+  TaskEventType,
+  TaskMessageRole,
   TaskStatus,
-  TaskStoreDocument,
 } from "./types"
-import { getAppConfig } from "../../utils/yaml-config"
-import type { CodexThreadSnapshot } from "./codex-thread-index.service"
 
 type TaskSummaryPayload = {
   stdout?: string
   stderr?: string
 }
 
-type TaskWithLatestRun = {
-  id: string
-  projectId: string
-  projectPath: string
-  prompt: string
-  model: string | null
-  status: PrismaTaskStatus
-  createdAt: Date
-  runs: Array<{
-    status: PrismaTaskStatus
-    startedAt: Date | null
-    finishedAt: Date | null
-    exitCode: number | null
-    command: string | null
-    failureMessage: string | null
-    cancellationReason: string | null
-    events: Array<{
-      payload: string
-    }>
-  }>
-}
+type TaskWithLatestRun = Prisma.TaskGetPayload<{
+  include: {
+    runs: {
+      orderBy: {
+        attempt: "desc"
+      }
+      take: 1
+      include: {
+        events: {
+          where: {
+            type: "summary"
+          }
+          orderBy: {
+            sequence: "desc"
+          }
+          take: 1
+        }
+      }
+    }
+  }
+}>
 
 function toPrismaTaskStatus(status: TaskStatus): PrismaTaskStatus {
   return status
+}
+
+function toPrismaTaskEventType(type: TaskEventType): PrismaTaskEventType {
+  return type
+}
+
+function toPrismaTaskMessageRole(role: TaskMessageRole): PrismaTaskMessageRole {
+  return role
 }
 
 function toDomainTaskStatus(status: PrismaTaskStatus): TaskStatus {
   return status
 }
 
-function toDomainTaskEventType(type: TaskEventType): DomainTaskEventType {
-  return type
-}
-
-function normalizeLegacyStatus(value: unknown): TaskStatus {
-  if (
-    value === "queued" ||
-    value === "running" ||
-    value === "completed" ||
-    value === "failed" ||
-    value === "cancelled"
-  ) {
-    return value
+function toIsoString(value: Date | null | undefined): string | null {
+  if (!value) {
+    return null
   }
 
-  return "failed"
+  return value.toISOString()
 }
 
 function toDate(value: string | null | undefined): Date | null {
@@ -84,40 +81,8 @@ function toDate(value: string | null | undefined): Date | null {
   return parsed
 }
 
-function toIsoString(value: Date | null | undefined): string | null {
-  if (!value) {
-    return null
-  }
-
-  return value.toISOString()
-}
-
-function parseSummaryPayload(payload: string | null | undefined): TaskSummaryPayload {
-  if (!payload) {
-    return {}
-  }
-
-  try {
-    const parsed = JSON.parse(payload)
-    if (typeof parsed !== "object" || parsed === null) {
-      return {}
-    }
-
-    return {
-      stdout: typeof parsed.stdout === "string" ? parsed.stdout : undefined,
-      stderr: typeof parsed.stderr === "string" ? parsed.stderr : undefined,
-    }
-  } catch {
-    return {}
-  }
-}
-
 function serializeCommand(command: string[] | undefined) {
-  if (command === undefined) {
-    return undefined
-  }
-
-  if (command.length === 0) {
+  if (!command || command.length === 0) {
     return null
   }
 
@@ -131,287 +96,27 @@ function parseCommand(command: string | null): string[] {
 
   try {
     const parsed = JSON.parse(command)
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.filter((item): item is string => typeof item === "string")
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : []
   } catch {
     return []
   }
 }
 
-function toCodexTask(task: TaskWithLatestRun): CodexTask {
-  const latestRun = task.runs[0]
-  const summary = parseSummaryPayload(latestRun?.events[0]?.payload)
-
-  return {
-    id: task.id,
-    projectId: task.projectId,
-    projectPath: task.projectPath,
-    prompt: task.prompt,
-    model: task.model,
-    status: latestRun
-      ? toDomainTaskStatus(latestRun.status)
-      : toDomainTaskStatus(task.status),
-    createdAt: task.createdAt.toISOString(),
-    startedAt: toIsoString(latestRun?.startedAt),
-    finishedAt: toIsoString(latestRun?.finishedAt),
-    exitCode: latestRun?.exitCode ?? null,
-    command: parseCommand(latestRun?.command ?? null),
-    stdout: summary.stdout ?? "",
-    stderr: summary.stderr ?? "",
-    error: latestRun?.failureMessage ?? latestRun?.cancellationReason ?? null,
+function parseSummaryPayload(payload: string | null | undefined): TaskSummaryPayload {
+  if (!payload) {
+    return {}
   }
-}
 
-function normalizeLegacyTaskDocument(candidate: unknown): TaskStoreDocument {
-  if (
-    typeof candidate !== "object" ||
-    candidate === null ||
-    !Array.isArray((candidate as { tasks?: unknown[] }).tasks)
-  ) {
+  try {
+    const parsed = JSON.parse(payload) as Record<string, unknown>
     return {
-      version: 1,
-      updatedAt: new Date().toISOString(),
-      tasks: [],
+      stdout: typeof parsed.stdout === "string" ? parsed.stdout : undefined,
+      stderr: typeof parsed.stderr === "string" ? parsed.stderr : undefined,
     }
-  }
-
-  const tasks = (candidate as { tasks: unknown[] }).tasks
-  const normalizedTasks: CodexTask[] = []
-
-  for (const item of tasks) {
-    if (typeof item !== "object" || item === null) {
-      continue
-    }
-
-    const record = item as Record<string, unknown>
-    const id = typeof record.id === "string" ? record.id : null
-    const projectId =
-      typeof record.projectId === "string"
-        ? record.projectId
-        : typeof record.workspaceId === "string"
-          ? record.workspaceId
-          : null
-    const projectPath =
-      typeof record.projectPath === "string"
-        ? record.projectPath
-        : typeof record.workspacePath === "string"
-          ? record.workspacePath
-          : null
-    const prompt = typeof record.prompt === "string" ? record.prompt : null
-    const createdAt =
-      typeof record.createdAt === "string" ? record.createdAt : null
-
-    if (!id || !projectId || !projectPath || !prompt || !createdAt) {
-      continue
-    }
-
-    normalizedTasks.push({
-      id,
-      projectId,
-      projectPath,
-      prompt,
-      model: typeof record.model === "string" ? record.model : null,
-      status: normalizeLegacyStatus(record.status),
-      createdAt,
-      startedAt: typeof record.startedAt === "string" ? record.startedAt : null,
-      finishedAt:
-        typeof record.finishedAt === "string" ? record.finishedAt : null,
-      exitCode: typeof record.exitCode === "number" ? record.exitCode : null,
-      command: Array.isArray(record.command)
-        ? record.command.filter((value): value is string => typeof value === "string")
-        : [],
-      stdout: typeof record.stdout === "string" ? record.stdout : "",
-      stderr: typeof record.stderr === "string" ? record.stderr : "",
-      error: typeof record.error === "string" ? record.error : null,
-    })
-  }
-
-  return {
-    version:
-      typeof (candidate as { version?: unknown }).version === "number"
-        ? ((candidate as { version: number }).version ?? 1)
-        : 1,
-    updatedAt:
-      typeof (candidate as { updatedAt?: unknown }).updatedAt === "string"
-        ? ((candidate as { updatedAt: string }).updatedAt ?? new Date().toISOString())
-        : new Date().toISOString(),
-    tasks: normalizedTasks,
-  }
-}
-
-async function loadLegacyTaskDocument(): Promise<TaskStoreDocument> {
-  const legacyFilePath = getAppConfig().task.dataFile
-
-  try {
-    const content = await readFile(legacyFilePath, "utf8")
-    return normalizeLegacyTaskDocument(JSON.parse(content))
-  } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      (error as { code?: unknown }).code === "ENOENT"
-    ) {
-      return {
-        version: 1,
-        updatedAt: new Date().toISOString(),
-        tasks: [],
-      }
-    }
-
-    throw error
-  }
-}
-
-let legacyImportPromise: Promise<void> | null = null
-let legacyImportCompleted = false
-
-async function ensureLegacyTasksImported() {
-  if (legacyImportCompleted) {
-    return
-  }
-
-  if (legacyImportPromise) {
-    await legacyImportPromise
-    return
-  }
-
-  legacyImportPromise = (async () => {
-    const legacyDocument = await loadLegacyTaskDocument()
-    if (legacyDocument.tasks.length === 0) {
-      legacyImportCompleted = true
-      return
-    }
-
-    for (const legacyTask of legacyDocument.tasks) {
-      const existing = await prisma.task.findUnique({
-        where: {
-          legacyTaskId: legacyTask.id,
-        },
-        select: {
-          id: true,
-        },
-      })
-
-      if (existing) {
-        continue
-      }
-
-      const status = toPrismaTaskStatus(legacyTask.status)
-      const createdAt = toDate(legacyTask.createdAt) ?? new Date()
-      const startedAt = toDate(legacyTask.startedAt)
-      const finishedAt = toDate(legacyTask.finishedAt)
-
-      const runEvents: Array<{
-        sequence: number
-        type: TaskEventType
-        payload: string
-      }> = []
-      let sequence = 1
-
-      runEvents.push({
-        sequence,
-        type: TaskEventType.state,
-        payload: JSON.stringify({
-          to: legacyTask.status,
-          source: "legacy-import",
-        }),
-      })
-      sequence += 1
-
-      if (legacyTask.stdout || legacyTask.stderr) {
-        runEvents.push({
-          sequence,
-          type: TaskEventType.summary,
-          payload: JSON.stringify({
-            stdout: legacyTask.stdout,
-            stderr: legacyTask.stderr,
-          }),
-        })
-        sequence += 1
-      }
-
-      if (legacyTask.error) {
-        runEvents.push({
-          sequence,
-          type: TaskEventType.system,
-          payload: legacyTask.error,
-        })
-      }
-
-      await prisma.task.create({
-        data: {
-          legacyTaskId: legacyTask.id,
-          projectId: legacyTask.projectId,
-          projectPath: legacyTask.projectPath,
-          prompt: legacyTask.prompt,
-          executor: "codex",
-          model: legacyTask.model,
-          status,
-          createdAt,
-          runs: {
-            create: {
-              attempt: 1,
-              status,
-              startedAt,
-              finishedAt,
-              exitCode: legacyTask.exitCode,
-              command: serializeCommand(legacyTask.command) ?? null,
-              failureMessage: legacyTask.error,
-              cancellationReason:
-                legacyTask.status === "cancelled" ? legacyTask.error : null,
-              createdAt,
-              events: runEvents.length
-                ? {
-                    create: runEvents,
-                  }
-                : undefined,
-            },
-          },
-        },
-      })
-    }
-
-    legacyImportCompleted = true
-  })()
-
-  try {
-    await legacyImportPromise
-  } finally {
-    legacyImportPromise = null
-  }
-}
-
-async function nextTaskEventSequence(args: {
-  runId: string
-  tx: Prisma.TransactionClient
-}) {
-  const row = await args.tx.taskEvent.findFirst({
-    where: {
-      runId: args.runId,
-    },
-    select: {
-      sequence: true,
-    },
-    orderBy: {
-      sequence: "desc",
-    },
-  })
-
-  return (row?.sequence ?? 0) + 1
-}
-
-async function ensureLegacyTasksImportedOrThrow(code: TaskErrorCode) {
-  try {
-    await ensureLegacyTasksImported()
-  } catch (error) {
-    throw new TaskRepositoryError(
-      code,
-      `Failed to import legacy task store: ${String(error)}`,
-    )
+  } catch {
+    return {}
   }
 }
 
@@ -419,22 +124,78 @@ function withLatestRunQuery() {
   return {
     runs: {
       orderBy: {
-        attempt: "desc" as const,
+        attempt: "desc",
       },
       take: 1,
       include: {
         events: {
           where: {
-            type: TaskEventType.summary,
+            type: PrismaTaskEventType.summary,
           },
           orderBy: {
-            sequence: "desc" as const,
+            sequence: "desc",
           },
           take: 1,
         },
       },
     },
+  } satisfies Prisma.TaskInclude
+}
+
+function toCodexTask(task: TaskWithLatestRun): CodexTask {
+  const run = task.runs[0]
+  const summary = parseSummaryPayload(run?.events[0]?.payload)
+
+  return {
+    id: task.id,
+    projectId: task.projectId,
+    projectPath: task.projectPath,
+    prompt: task.prompt,
+    model: task.model,
+    status: toDomainTaskStatus(task.status),
+    threadId: task.threadId,
+    parentTaskId: task.parentTaskId,
+    createdAt: task.createdAt.toISOString(),
+    startedAt: toIsoString(run?.startedAt),
+    finishedAt: toIsoString(run?.finishedAt),
+    exitCode: run?.exitCode ?? null,
+    command: parseCommand(run?.command ?? null),
+    stdout: summary.stdout ?? "",
+    stderr: summary.stderr ?? "",
+    error: run?.failureMessage ?? run?.cancellationReason ?? null,
   }
+}
+
+async function nextTaskEventSequence(args: {
+  runId: string
+  tx: Prisma.TransactionClient
+}) {
+  const aggregate = await args.tx.taskEvent.aggregate({
+    where: {
+      runId: args.runId,
+    },
+    _max: {
+      sequence: true,
+    },
+  })
+
+  return (aggregate._max.sequence ?? 0) + 1
+}
+
+async function nextThreadMessageSequence(args: {
+  threadId: string
+  tx: Prisma.TransactionClient
+}) {
+  const aggregate = await args.tx.taskMessage.aggregate({
+    where: {
+      threadId: args.threadId,
+    },
+    _max: {
+      sequence: true,
+    },
+  })
+
+  return (aggregate._max.sequence ?? 0) + 1
 }
 
 export class TaskRepositoryError extends Error {
@@ -457,20 +218,20 @@ export async function listTasksByProject(args: {
   }
 
   try {
-    await ensureLegacyTasksImportedOrThrow("STORE_READ_ERROR")
+    const take =
+      typeof args.limit === "number" && Number.isFinite(args.limit)
+        ? Math.max(1, Math.trunc(args.limit))
+        : 200
 
     const tasks = await prisma.task.findMany({
       where: {
         projectId,
       },
+      include: withLatestRunQuery(),
       orderBy: {
         createdAt: "desc",
       },
-      take:
-        typeof args.limit === "number" && Number.isFinite(args.limit)
-          ? Math.max(1, Math.trunc(args.limit))
-          : undefined,
-      include: withLatestRunQuery(),
+      take,
     })
 
     return tasks.map((task) => toCodexTask(task))
@@ -483,26 +244,20 @@ export async function listTasksByProject(args: {
 }
 
 export async function getTaskById(taskId: string): Promise<CodexTask | null> {
-  const trimmedTaskId = taskId.trim()
-  if (!trimmedTaskId) {
+  const normalizedTaskId = taskId.trim()
+  if (!normalizedTaskId) {
     return null
   }
 
   try {
-    await ensureLegacyTasksImportedOrThrow("STORE_READ_ERROR")
-
     const task = await prisma.task.findUnique({
       where: {
-        id: trimmedTaskId,
+        id: normalizedTaskId,
       },
       include: withLatestRunQuery(),
     })
 
-    if (!task) {
-      return null
-    }
-
-    return toCodexTask(task)
+    return task ? toCodexTask(task) : null
   } catch (error) {
     throw new TaskRepositoryError(
       "STORE_READ_ERROR",
@@ -516,6 +271,8 @@ export async function createTask(input: {
   projectPath: string
   prompt: string
   model: string | null
+  threadId?: string | null
+  parentTaskId?: string | null
 }): Promise<CodexTask> {
   const projectId = input.projectId.trim()
   const prompt = input.prompt.trim()
@@ -527,8 +284,6 @@ export async function createTask(input: {
   }
 
   try {
-    await ensureLegacyTasksImportedOrThrow("STORE_WRITE_ERROR")
-
     const task = await prisma.task.create({
       data: {
         projectId,
@@ -537,6 +292,8 @@ export async function createTask(input: {
         model: input.model,
         executor: "codex",
         status: PrismaTaskStatus.queued,
+        threadId: input.threadId ?? null,
+        parentTaskId: input.parentTaskId ?? null,
         runs: {
           create: {
             attempt: 1,
@@ -556,6 +313,96 @@ export async function createTask(input: {
   }
 }
 
+export async function attachThreadToTask(input: {
+  taskId: string
+  threadId: string
+  projectId: string
+  projectPath: string
+  model: string | null
+}) {
+  const taskId = input.taskId.trim()
+  const threadId = input.threadId.trim()
+  if (!taskId || !threadId) {
+    throw new TaskRepositoryError(
+      "STORE_WRITE_ERROR",
+      "taskId and threadId are required.",
+    )
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.taskThread.upsert({
+        where: {
+          id: threadId,
+        },
+        update: {
+          projectId: input.projectId,
+          projectPath: input.projectPath,
+          model: input.model,
+        },
+        create: {
+          id: threadId,
+          projectId: input.projectId,
+          projectPath: input.projectPath,
+          model: input.model,
+        },
+      })
+
+      await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          threadId,
+        },
+      })
+    })
+  } catch (error) {
+    throw new TaskRepositoryError(
+      "STORE_WRITE_ERROR",
+      `Failed to attach task thread: ${String(error)}`,
+    )
+  }
+}
+
+export async function hasActiveTaskInThread(args: {
+  threadId: string
+  excludeTaskId?: string
+}) {
+  const threadId = args.threadId.trim()
+  if (!threadId) {
+    return false
+  }
+
+  try {
+    const activeTask = await prisma.task.findFirst({
+      where: {
+        threadId,
+        status: {
+          in: [PrismaTaskStatus.queued, PrismaTaskStatus.running],
+        },
+        ...(args.excludeTaskId
+          ? {
+              id: {
+                not: args.excludeTaskId,
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    return Boolean(activeTask)
+  } catch (error) {
+    throw new TaskRepositoryError(
+      "STORE_READ_ERROR",
+      `Failed to read thread activity: ${String(error)}`,
+    )
+  }
+}
+
 export async function updateTaskRunState(input: {
   taskId: string
   status: TaskStatus
@@ -566,6 +413,7 @@ export async function updateTaskRunState(input: {
   stdout?: string
   stderr?: string
   error?: string | null
+  failureCode?: string | null
 }): Promise<CodexTask> {
   const taskId = input.taskId.trim()
   if (!taskId) {
@@ -573,8 +421,6 @@ export async function updateTaskRunState(input: {
   }
 
   try {
-    await ensureLegacyTasksImportedOrThrow("STORE_WRITE_ERROR")
-
     return await prisma.$transaction(async (tx) => {
       const task = await tx.task.findUnique({
         where: {
@@ -586,6 +432,17 @@ export async function updateTaskRunState(input: {
               attempt: "desc",
             },
             take: 1,
+            include: {
+              events: {
+                where: {
+                  type: PrismaTaskEventType.summary,
+                },
+                orderBy: {
+                  sequence: "desc",
+                },
+                take: 1,
+              },
+            },
           },
         },
       })
@@ -600,8 +457,8 @@ export async function updateTaskRunState(input: {
       }
 
       const nextStatus = toPrismaTaskStatus(input.status)
-      const command = serializeCommand(input.command)
-      const failureMessage = input.error === undefined ? undefined : input.error
+      const command =
+        input.command === undefined ? undefined : serializeCommand(input.command)
 
       await tx.task.update({
         where: {
@@ -624,7 +481,9 @@ export async function updateTaskRunState(input: {
             input.finishedAt !== undefined ? toDate(input.finishedAt) : undefined,
           exitCode: input.exitCode !== undefined ? input.exitCode : undefined,
           command,
-          failureMessage,
+          failureCode:
+            input.failureCode !== undefined ? input.failureCode : undefined,
+          failureMessage: input.error !== undefined ? input.error : undefined,
           cancellationReason:
             input.status === "cancelled" && input.error !== undefined
               ? input.error
@@ -632,7 +491,7 @@ export async function updateTaskRunState(input: {
         },
       })
 
-      let eventSequence = await nextTaskEventSequence({
+      let sequence = await nextTaskEventSequence({
         runId: run.id,
         tx,
       })
@@ -641,8 +500,8 @@ export async function updateTaskRunState(input: {
         await tx.taskEvent.create({
           data: {
             runId: run.id,
-            sequence: eventSequence,
-            type: TaskEventType.state,
+            sequence,
+            type: PrismaTaskEventType.state,
             payload: JSON.stringify({
               from: run.status,
               to: nextStatus,
@@ -650,21 +509,35 @@ export async function updateTaskRunState(input: {
           },
         })
 
-        eventSequence += 1
+        sequence += 1
       }
 
       if (input.stdout !== undefined || input.stderr !== undefined) {
-        await tx.taskEvent.create({
-          data: {
-            runId: run.id,
-            sequence: eventSequence,
-            type: TaskEventType.summary,
-            payload: JSON.stringify({
-              stdout: input.stdout ?? "",
-              stderr: input.stderr ?? "",
-            }),
-          },
-        })
+        if (run.events[0]) {
+          await tx.taskEvent.update({
+            where: {
+              id: run.events[0].id,
+            },
+            data: {
+              payload: JSON.stringify({
+                stdout: input.stdout ?? "",
+                stderr: input.stderr ?? "",
+              }),
+            },
+          })
+        } else {
+          await tx.taskEvent.create({
+            data: {
+              runId: run.id,
+              sequence,
+              type: PrismaTaskEventType.summary,
+              payload: JSON.stringify({
+                stdout: input.stdout ?? "",
+                stderr: input.stderr ?? "",
+              }),
+            },
+          })
+        }
       }
 
       const updatedTask = await tx.task.findUnique({
@@ -703,8 +576,6 @@ export async function listTaskEvents(args: {
   }
 
   try {
-    await ensureLegacyTasksImportedOrThrow("STORE_READ_ERROR")
-
     const latestRun = await prisma.taskRun.findFirst({
       where: {
         taskId,
@@ -748,7 +619,7 @@ export async function listTaskEvents(args: {
       taskId,
       runId: event.runId,
       sequence: event.sequence,
-      type: toDomainTaskEventType(event.type),
+      type: event.type,
       payload: event.payload,
       createdAt: event.createdAt.toISOString(),
     }))
@@ -766,7 +637,7 @@ export async function listTaskEvents(args: {
 
 export async function appendTaskEvent(args: {
   taskId: string
-  type: DomainTaskEventType
+  type: TaskEventType
   payload: string
 }) {
   const taskId = args.taskId.trim()
@@ -775,8 +646,6 @@ export async function appendTaskEvent(args: {
   }
 
   try {
-    await ensureLegacyTasksImportedOrThrow("STORE_WRITE_ERROR")
-
     await prisma.$transaction(async (tx) => {
       const latestRun = await tx.taskRun.findFirst({
         where: {
@@ -803,7 +672,7 @@ export async function appendTaskEvent(args: {
         data: {
           runId: latestRun.id,
           sequence,
-          type: args.type,
+          type: toPrismaTaskEventType(args.type),
           payload: args.payload,
         },
       })
@@ -820,99 +689,160 @@ export async function appendTaskEvent(args: {
   }
 }
 
-export async function importCodexThreadSnapshots(args: {
-  projectId: string
-  projectPath: string
-  threads: CodexThreadSnapshot[]
-}) {
-  const projectId = args.projectId.trim()
-  if (!projectId) {
-    return 0
+export async function appendTaskMessage(args: {
+  threadId: string
+  taskId: string
+  role: TaskMessageRole
+  content: string
+  source: string
+  externalId?: string | null
+  createdAt?: string | null
+}): Promise<TaskConversationMessage> {
+  const threadId = args.threadId.trim()
+  const taskId = args.taskId.trim()
+  const content = args.content.trim()
+
+  if (!threadId || !taskId || !content) {
+    throw new TaskRepositoryError(
+      "STORE_WRITE_ERROR",
+      "threadId, taskId and content are required.",
+    )
   }
 
   try {
-    await ensureLegacyTasksImportedOrThrow("STORE_WRITE_ERROR")
-
-    let importedCount = 0
-    for (const thread of args.threads) {
-      const threadId = thread.threadId.trim()
-      if (!threadId) {
-        continue
-      }
-
-      const legacyTaskId = `codex-thread:${threadId}`
-      const existing = await prisma.task.findUnique({
-        where: {
-          legacyTaskId,
-        },
-        select: {
-          id: true,
-        },
-      })
-
-      if (existing) {
-        continue
-      }
-
-      const prompt =
-        thread.firstUserMessage?.trim() ||
-        thread.title?.trim() ||
-        `Codex session ${threadId}`
-      const createdAt = toDate(thread.createdAt) ?? new Date()
-      const finishedAt = toDate(thread.updatedAt) ?? createdAt
-
-      await prisma.task.create({
-        data: {
-          legacyTaskId,
-          projectId,
-          projectPath: args.projectPath,
-          prompt,
-          model: null,
-          executor: "codex",
-          status: PrismaTaskStatus.completed,
-          createdAt,
-          runs: {
-            create: {
-              attempt: 1,
-              status: PrismaTaskStatus.completed,
-              startedAt: createdAt,
-              finishedAt,
-              exitCode: 0,
-              events: {
-                create: [
-                  {
-                    sequence: 1,
-                    type: TaskEventType.system,
-                    payload: JSON.stringify({
-                      kind: "codex-session",
-                      threadId,
-                      rolloutPath: thread.rolloutPath,
-                    }),
-                  },
-                  {
-                    sequence: 2,
-                    type: TaskEventType.state,
-                    payload: JSON.stringify({
-                      from: "queued",
-                      to: "completed",
-                      source: "codex-thread-import",
-                    }),
-                  },
-                ],
-              },
+    const message = await prisma.$transaction(async (tx) => {
+      if (args.externalId) {
+        const existing = await tx.taskMessage.findUnique({
+          where: {
+            threadId_externalId: {
+              threadId,
+              externalId: args.externalId,
             },
           },
-        },
+        })
+
+        if (existing) {
+          return existing
+        }
+      }
+
+      const sequence = await nextThreadMessageSequence({
+        threadId,
+        tx,
       })
 
-      importedCount += 1
+      return tx.taskMessage.create({
+        data: {
+          threadId,
+          taskId,
+          role: toPrismaTaskMessageRole(args.role),
+          content,
+          sequence,
+          source: args.source,
+          externalId: args.externalId ?? null,
+          createdAt: toDate(args.createdAt) ?? undefined,
+        },
+      })
+    })
+
+    return {
+      id: message.id,
+      taskId: message.taskId,
+      role: message.role,
+      content: message.content,
+      timestamp: message.createdAt.toISOString(),
+      source: message.source,
+    }
+  } catch (error) {
+    if (error instanceof TaskRepositoryError) {
+      throw error
     }
 
-    return importedCount
-  } catch (error) {
     throw new TaskRepositoryError(
       "STORE_WRITE_ERROR",
-      `Failed to import Codex thread snapshots: ${String(error)}`,
+      `Failed to append task message: ${String(error)}`,
+    )
+  }
+}
+
+export async function readTaskConversationFromDb(args: {
+  taskId: string
+  limit?: number
+}): Promise<TaskConversation> {
+  const taskId = args.taskId.trim()
+  if (!taskId) {
+    throw new TaskRepositoryError("INVALID_TASK_ID", "Task id cannot be empty.")
+  }
+
+  try {
+    const task = await prisma.task.findUnique({
+      where: {
+        id: taskId,
+      },
+      select: {
+        threadId: true,
+      },
+    })
+
+    if (!task) {
+      throw new TaskRepositoryError("NOT_FOUND", `Task not found: ${taskId}`)
+    }
+
+    if (!task.threadId) {
+      return {
+        taskId,
+        threadId: null,
+        rolloutPath: null,
+        messages: [],
+        truncated: false,
+      }
+    }
+
+    const normalizedLimit =
+      typeof args.limit === "number" && Number.isFinite(args.limit)
+        ? Math.max(1, Math.trunc(args.limit))
+        : 200
+
+    const total = await prisma.taskMessage.count({
+      where: {
+        threadId: task.threadId,
+      },
+    })
+
+    const messages = await prisma.taskMessage.findMany({
+      where: {
+        threadId: task.threadId,
+      },
+      orderBy: {
+        sequence: "desc",
+      },
+      take: normalizedLimit,
+    })
+
+    return {
+      taskId,
+      threadId: task.threadId,
+      rolloutPath: null,
+      messages: messages
+        .reverse()
+        .map((message) => ({
+          id: message.id,
+          taskId: message.taskId,
+          role: message.role,
+          content: message.content,
+          timestamp: message.createdAt.toISOString(),
+          source: message.source,
+        })),
+      truncated: total > normalizedLimit,
+    }
+  } catch (error) {
+    if (error instanceof TaskRepositoryError) {
+      throw error
+    }
+
+    throw new TaskRepositoryError(
+      "STORE_READ_ERROR",
+      `Failed to read task conversation: ${String(error)}`,
     )
   }
 }

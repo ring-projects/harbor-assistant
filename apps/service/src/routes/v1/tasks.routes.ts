@@ -7,6 +7,7 @@ import {
   TaskServiceError,
   cancelTask,
   createTaskAndRun,
+  followupTask,
   getTaskConversation,
   getTaskDetail,
   getTaskEvents,
@@ -23,6 +24,11 @@ const CreateTaskInputSchema = z.object({
 
 const CancelTaskInputSchema = z.object({
   reason: z.string().optional(),
+})
+
+const FollowupTaskInputSchema = z.object({
+  prompt: z.string(),
+  model: z.string().optional(),
 })
 
 function statusFromTaskErrorCode(code: string) {
@@ -45,6 +51,10 @@ function statusFromTaskErrorCode(code: string) {
   }
 
   if (code === ERROR_CODES.INVALID_TASK_RETRY_STATE) {
+    return 409
+  }
+
+  if (code === ERROR_CODES.INVALID_TASK_FOLLOWUP_STATE) {
     return 409
   }
 
@@ -231,6 +241,40 @@ export async function registerTaskRoutes(app: FastifyInstance) {
       })
     } catch (error) {
       const mapped = mapTaskRouteError(error, "Failed to retry task.")
+      return reply.status(mapped.status).send({
+        ok: false,
+        error: mapped.payload,
+      })
+    }
+  })
+
+  app.post("/tasks/:taskId/followup", async (request, reply) => {
+    const { taskId } = request.params as { taskId: string }
+    const parsed = FollowupTaskInputSchema.safeParse(request.body)
+
+    if (!parsed.success) {
+      return reply.status(400).send({
+        ok: false,
+        error: {
+          code: ERROR_CODES.INVALID_REQUEST_BODY,
+          message: "Expected payload: { prompt: string; model?: string }.",
+        },
+      })
+    }
+
+    try {
+      const task = await followupTask({
+        taskId,
+        prompt: parsed.data.prompt,
+        model: parsed.data.model,
+      })
+
+      return reply.send({
+        ok: true,
+        task,
+      })
+    } catch (error) {
+      const mapped = mapTaskRouteError(error, "Failed to follow up task.")
       return reply.status(mapped.status).send({
         ok: false,
         error: mapped.payload,

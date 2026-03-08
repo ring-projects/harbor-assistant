@@ -15,7 +15,3 @@ export const HARBOR_TASK_DATABASE_FILE = path.join(
   HARBOR_DATA_DIRECTORY,
   "tasks.sqlite",
 )
-export const HARBOR_TASK_DATA_FILE = path.join(
-  HARBOR_DATA_DIRECTORY,
-  "tasks.json",
-)

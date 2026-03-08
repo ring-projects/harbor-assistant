@@ -9,7 +9,6 @@ import {
   HARBOR_APP_CONFIG_PATH,
   HARBOR_PROJECT_DATA_FILE,
   HARBOR_TASK_DATABASE_FILE,
-  HARBOR_TASK_DATA_FILE,
 } from "./harbor-paths"
 
 const AppConfigSchema = z
@@ -26,7 +25,6 @@ const AppConfigSchema = z
       .optional(),
     task: z
       .object({
-        dataFile: z.string().min(1).optional(),
         databaseFile: z.string().min(1).optional(),
       })
       .optional(),
@@ -41,7 +39,6 @@ export type AppConfig = {
     dataFile: string
   }
   task: {
-    dataFile: string
     databaseFile: string
   }
 }
@@ -74,7 +71,6 @@ function createDefaultConfig(): AppConfig {
       dataFile: HARBOR_PROJECT_DATA_FILE,
     },
     task: {
-      dataFile: HARBOR_TASK_DATA_FILE,
       databaseFile: HARBOR_TASK_DATABASE_FILE,
     },
   }
@@ -109,9 +105,6 @@ export function getAppConfig(): AppConfig {
         : defaults.project.dataFile,
     },
     task: {
-      dataFile: validated?.task?.dataFile
-        ? toAbsolutePath(validated.task.dataFile)
-        : defaults.task.dataFile,
       databaseFile: validated?.task?.databaseFile
         ? toAbsolutePath(validated.task.databaseFile)
         : defaults.task.databaseFile,

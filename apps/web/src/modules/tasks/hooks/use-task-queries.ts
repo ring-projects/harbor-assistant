@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   cancelTask,
   createTask,
+  followupTask,
   readProjectTasks,
   readTaskConversation,
   readTaskDetail,
@@ -172,6 +173,45 @@ export function useRetryTaskMutation(projectId: string) {
     onSuccess(result) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
+      })
+
+      if (result.task) {
+        queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
+      }
+    },
+  })
+}
+
+export function useTaskFollowupMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: { taskId: string; prompt: string; model?: string }) =>
+      followupTask(input.taskId, {
+        prompt: input.prompt,
+        model: input.model,
+      }),
+    onSuccess(result, variables) {
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.byProject(projectId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.detail(variables.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.events(variables.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.conversation(variables.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.detail(result.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.events(result.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.conversation(result.taskId),
       })
 
       if (result.task) {

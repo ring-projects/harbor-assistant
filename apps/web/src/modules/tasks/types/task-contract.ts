@@ -35,6 +35,8 @@ export const taskListItemSchema = z.object({
   model: z.string().nullable().default(null),
   executor: z.string().default("codex"),
   status: taskStatusSchema,
+  threadId: z.string().nullable().default(null),
+  parentTaskId: z.string().nullable().default(null),
   createdAt: z.string().min(1),
   startedAt: z.string().nullable().default(null),
   finishedAt: z.string().nullable().default(null),
@@ -43,7 +45,6 @@ export const taskListItemSchema = z.object({
   stdout: z.string().default(""),
   stderr: z.string().default(""),
   error: z.string().nullable().default(null),
-  retrySourceTaskId: z.string().nullable().default(null),
 })
 
 export const taskDetailSchema = taskListItemSchema
@@ -60,9 +61,11 @@ export const taskEventSchema = z.object({
 
 export const taskConversationMessageSchema = z.object({
   id: z.string().min(1),
+  taskId: z.string().min(1),
   role: z.enum(["user", "assistant", "system"]),
   content: z.string().default(""),
   timestamp: z.string().nullable().default(null),
+  source: z.string().default("assistant"),
 })
 
 export const taskConversationSchema = z.object({

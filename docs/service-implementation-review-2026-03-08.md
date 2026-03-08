@@ -1,0 +1,132 @@
+# Harbor Service Implementation Review
+
+Date: 2026-03-08  
+Scope: `apps/service` (HTTP routes, task runtime, repository/persistence, config, capability probe)
+
+## Executive Summary
+
+The current service implementation is already production-leaning in terms of typed request validation, modular route registration, and task lifecycle persistence with Prisma. However, there are several **high-risk correctness and reliability gaps** in task cancellation/output handling, path boundary enforcement, and persistence/config consistency.
+
+**Review outcome:** Changes requested before considering the service lifecycle stable.
+
+---
+
+## Architecture Snapshot (Current State)
+
+- Entrypoint + HTTP shell: `apps/service/src/server.ts`, `apps/service/src/app.ts`
+- API routes: `apps/service/src/routes/v1/*`
+- Domain modules:
+  - Task lifecycle + execution: `apps/service/src/modules/tasks/*`
+  - Project metadata: `apps/service/src/modules/project/project.repository.ts`
+  - Filesystem browsing: `apps/service/src/modules/filesystem/filesystem.service.ts`
+  - Executor capability probing: `apps/service/src/modules/capability/capability.service.ts`
+- Persistence:
+  - Tasks/runs/events/messages via Prisma: `apps/service/src/modules/tasks/task.repository.ts`
+  - Projects via Bun SQLite direct access: `apps/service/src/modules/project/project.repository.ts`
+
+---
+
+## Findings
+
+### High Severity
+
+1. **Path boundary is not enforced for project registration/execution**
+   - Evidence: `apps/service/src/modules/project/project.repository.ts:139`, `apps/service/src/modules/project/project.repository.ts:171`
+   - Problem: `resolveProjectPath` resolves and canonicalizes paths but does not enforce that the canonical path is inside configured root (`fileBrowser.rootDirectory`).
+   - Impact: tasks can be executed against arbitrary directories if user provides absolute paths.
+   - Recommendation: enforce root-boundary check (similar to filesystem module logic) before storing project path.
+
+2. **Task cancellation race can end in `completed` after user cancellation**
+   - Evidence: `apps/service/src/modules/tasks/task-runner.service.ts:75`, `apps/service/src/modules/tasks/task-runner.service.ts:128`, `apps/service/src/modules/tasks/task-runner.service.ts:265`, `apps/service/src/modules/tasks/task-runner.service.ts:271`
+   - Problem: cancellation flag is only checked in `catch`; successful completion path always finalizes as `completed`.
+   - Impact: non-deterministic task state and broken cancel semantics.
+   - Recommendation: introduce terminal-state guard/compare-and-set so only first terminal transition wins, and check cancellation flag before marking completed.
+
+3. **Failure path drops runtime output (debug signal loss)**
+   - Evidence: `apps/service/src/modules/tasks/task-runner.service.ts:99`, `apps/service/src/modules/tasks/task-runner.service.ts:153`
+   - Problem: both failure handlers persist `stdout/stderr` as empty strings even when output had been captured before failure.
+   - Impact: postmortem/debugging quality is significantly reduced; user sees less actionable failure context.
+   - Recommendation: propagate partial buffers in error path (e.g., typed gateway error carrying captured stdout/stderr).
+
+4. **`stderr` stream is effectively not implemented**
+   - Evidence: `apps/service/src/modules/tasks/codex-sdk.gateway.ts:199`, `apps/service/src/modules/tasks/codex-sdk.gateway.ts:331`
+   - Problem: gateway only appends `stdout` events and always returns `stderr: ""`.
+   - Impact: does not satisfy lifecycle observability expectations for error output.
+   - Recommendation: capture stderr-equivalent events from SDK and persist as `stderr` task events + summary payload.
+
+5. **Task DB config in `app.yaml` is not wired into Prisma connection**
+   - Evidence: `apps/service/src/utils/yaml-config.ts:27`, `apps/service/src/utils/yaml-config.ts:107`, `apps/service/src/lib/prisma.ts:6`, `apps/service/src/lib/prisma.ts:12`
+   - Problem: config schema supports `task.databaseFile`, but Prisma fallback ignores it and hardcodes `$HOME/.harbor/data/tasks.sqlite`.
+   - Impact: operator configuration appears supported but is not effective.
+   - Recommendation: derive fallback `DATABASE_URL` from `getAppConfig().task.databaseFile` (or remove unused config field).
+
+### Medium Severity
+
+6. **Event/message sequence generation is race-prone under concurrent writes**
+   - Evidence: `apps/service/src/modules/tasks/task.repository.ts:173`, `apps/service/src/modules/tasks/task.repository.ts:494`, `apps/service/src/modules/tasks/task.repository.ts:666`
+   - Problem: sequence is generated via `MAX(sequence) + 1`; concurrent transactions can produce duplicate sequence values.
+   - Impact: intermittent unique-key failures (`runId+sequence`) under cancel/stream overlap or future multi-writer scenarios.
+   - Recommendation: move sequence increment to a single atomic counter or add retry-on-conflict strategy.
+
+7. **Pagination limits are not capped on task endpoints**
+   - Evidence: `apps/service/src/routes/v1/tasks.routes.ts:93`, `apps/service/src/routes/v1/tasks.routes.ts:110`, `apps/service/src/modules/tasks/task.repository.ts:222`, `apps/service/src/modules/tasks/task.repository.ts:801`
+   - Problem: `limit` is validated as positive but has no upper bound.
+   - Impact: large requests can create heavy DB/memory pressure.
+   - Recommendation: enforce global caps (e.g., events 500, tasks/messages 200) at route layer.
+
+8. **Persistence stack is split across Prisma and direct Bun SQLite**
+   - Evidence: `apps/service/src/modules/project/project.repository.ts:7`, `apps/service/src/modules/tasks/task.repository.ts:8`
+   - Problem: project metadata uses Bun SQLite APIs while task runtime uses Prisma.
+   - Impact: duplicated migration/transaction patterns and higher maintenance cost.
+   - Recommendation: consolidate persistence strategy (prefer Prisma for all entities or define strict bounded contexts).
+
+### Low Severity
+
+9. **CORS is fully open by default**
+   - Evidence: `apps/service/src/app.ts:20`
+   - Problem: `origin: true` reflects permissive CORS behavior.
+   - Impact: local-first setups are usually fine, but this is risky if service is exposed beyond localhost/trusted network.
+   - Recommendation: add configurable allowlist and environment-sensitive defaults.
+
+10. **No automated tests for critical lifecycle paths**
+    - Evidence: no test files under `apps/service` (`rg --files apps/service | rg -i "test|spec"` returns none)
+    - Problem: core flows (cancel/retry/followup/event stream) are unguarded by regression tests.
+    - Impact: high chance of lifecycle regressions during ongoing refactors.
+    - Recommendation: add focused tests for task state transitions and repository event sequencing.
+
+---
+
+## What Is Good
+
+- Route-level payload validation with Zod is consistent and readable (`apps/service/src/routes/v1/*.ts`).
+- Task domain separation is clear (`task.service` orchestration vs `task.repository` persistence vs `task-runner` execution).
+- SSE route design supports both polling JSON and stream mode (`apps/service/src/routes/v1/tasks.routes.ts`).
+- Prisma schema for task lineage/thread/message entities is reasonably extensible (`apps/service/prisma/schema.prisma`).
+
+---
+
+## Prioritized Remediation Plan
+
+### P0 (Do immediately)
+
+1. Fix cancellation terminal-state race and ensure status monotonicity.
+2. Preserve partial output in failure paths and implement stderr capture.
+3. Enforce project path root boundary checks before persistence/execution.
+
+### P1 (Next sprint)
+
+4. Replace `MAX+1` sequence allocation with conflict-safe strategy.
+5. Add route-level max limits for list/events/conversation endpoints.
+6. Wire `task.databaseFile` config to Prisma fallback behavior.
+
+### P2 (Stabilization)
+
+7. Consolidate project/task persistence strategy.
+8. Add lifecycle regression tests (create → running → cancel/complete/fail/retry/followup).
+
+---
+
+## Verification Notes
+
+- Typecheck status: passed (`bun run --cwd apps/service typecheck`).
+- Review mode: static code review of service implementation and current repository state (no behavior changes applied in this document).

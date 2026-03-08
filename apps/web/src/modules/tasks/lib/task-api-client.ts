@@ -51,6 +51,11 @@ export type CreateTaskInput = {
   model?: string
 }
 
+export type FollowupTaskInput = {
+  prompt: string
+  model?: string
+}
+
 export type CreateTaskResult = {
   taskId: string
   task?: TaskDetail
@@ -182,6 +187,14 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
       toStringOrNull(source.model) ?? toStringOrNull(source.modelName) ?? null,
     executor: toStringOrNull(source.executor) ?? "codex",
     status,
+    threadId:
+      toStringOrNull(source.threadId) ?? toStringOrNull(source.thread_id) ?? null,
+    parentTaskId:
+      toStringOrNull(source.parentTaskId) ??
+      toStringOrNull(source.parent_task_id) ??
+      toStringOrNull(source.retrySourceTaskId) ??
+      toStringOrNull(source.retry_source_task_id) ??
+      null,
     createdAt:
       toStringOrNull(source.createdAt) ??
       toStringOrNull(source.created_at) ??
@@ -196,11 +209,6 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
       toStringOrNull(source.error) ??
       toStringOrNull(source.failureMessage) ??
       toStringOrNull(source.failure_message) ??
-      null,
-    retrySourceTaskId:
-      toStringOrNull(source.retrySourceTaskId) ??
-      toStringOrNull(source.retry_source_task_id) ??
-      toStringOrNull(source.parentTaskId) ??
       null,
   })
 
@@ -316,9 +324,14 @@ function normalizeConversationMessageCandidate(
     id:
       toStringOrNull(source.id) ??
       `${fallbackTaskId}-${toStringOrNull(source.timestamp) ?? "message"}`,
+    taskId:
+      toStringOrNull(source.taskId) ??
+      toStringOrNull(source.task_id) ??
+      fallbackTaskId,
     role: toStringOrNull(source.role) ?? "assistant",
     content: toStringOrEmpty(source.content),
     timestamp: toOptionalDateString(source.timestamp),
+    source: toStringOrNull(source.source) ?? "assistant",
   })
 
   return parsed.success ? parsed.data : null
@@ -614,6 +627,48 @@ export async function retryTask(taskId: string): Promise<CreateTaskResult> {
   if (!nextTaskId) {
     throw new TaskApiClientError("Retry succeeded but taskId is missing.", {
       code: ERROR_CODES.TASK_RETRY_FAILED,
+      status: response.status,
+    })
+  }
+
+  return {
+    taskId: nextTaskId,
+    task: task ?? undefined,
+  }
+}
+
+export async function followupTask(
+  taskId: string,
+  input: FollowupTaskInput,
+): Promise<CreateTaskResult> {
+  const response = await fetch(
+    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/followup`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt: input.prompt,
+        model: input.model,
+      }),
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to follow up task.")
+
+  const task = extractSingleTask(payload)
+  const nextTaskId =
+    toStringOrNull(payload?.newTaskId) ??
+    toStringOrNull(payload?.taskId) ??
+    toStringOrNull(payload?.id) ??
+    task?.taskId ??
+    null
+
+  if (!nextTaskId) {
+    throw new TaskApiClientError("Follow-up succeeded but taskId is missing.", {
+      code: ERROR_CODES.TASK_FOLLOWUP_FAILED,
       status: response.status,
     })
   }
