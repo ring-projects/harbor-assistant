@@ -2,11 +2,8 @@ import cors from "@fastify/cors"
 import Fastify, { type FastifyInstance } from "fastify"
 
 import type { ServiceConfig } from "./config"
+import prismaPlugin from "./plugins/prisma"
 import { registerV1Routes } from "./routes/v1"
-
-function nowIsoString() {
-  return new Date().toISOString()
-}
 
 export async function buildServiceApp(
   config: ServiceConfig,
@@ -20,12 +17,13 @@ export async function buildServiceApp(
   await app.register(cors, {
     origin: true,
   })
+  await app.register(prismaPlugin)
 
   app.get("/healthz", async () => {
     return {
       ok: true,
       service: config.serviceName,
-      timestamp: nowIsoString(),
+      timestamp: new Date().toISOString()
     }
   })
 

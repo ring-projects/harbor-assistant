@@ -1,36 +1,33 @@
-import path from "node:path"
-
 import { PrismaClient } from "@prisma/client"
+import { config } from "../config"
 
-function resolveDatabaseUrl() {
-  const configuredValue = process.env.DATABASE_URL?.trim()
-  if (configuredValue) {
-    return configuredValue
+let prismaClient: PrismaClient | null = null
+
+/**
+ * 获取 Prisma 客户端实例
+ * 用于在非 Fastify 上下文中访问数据库
+ */
+export function getPrismaClient(): PrismaClient {
+  if (!prismaClient) {
+    if (!config.database) {
+      throw new Error("Database config not found")
+    }
+
+    prismaClient = new PrismaClient({
+      datasourceUrl: config.database,
+      log: config.isProduction ? ["error"] : ["error", "warn", "info"],
+    })
   }
 
-  const fallbackPath = path.join(
-    process.env.HOME ?? "",
-    ".harbor",
-    "data",
-    "tasks.sqlite",
-  )
-  return `file:${fallbackPath}`
+  return prismaClient
 }
 
-declare global {
-  var __harborServicePrisma: PrismaClient | undefined
-}
-
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = resolveDatabaseUrl()
-}
-
-export const prisma =
-  globalThis.__harborServicePrisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "production" ? ["error"] : ["error", "warn"],
-  })
-
-if (process.env.NODE_ENV !== "production") {
-  globalThis.__harborServicePrisma = prisma
+/**
+ * 关闭 Prisma 客户端连接
+ */
+export async function disconnectPrisma() {
+  if (prismaClient) {
+    await prismaClient.$disconnect()
+    prismaClient = null
+  }
 }

@@ -9,7 +9,7 @@ import {
   listProjects,
   updateProject,
 } from "../../modules/project/project.repository"
-import type { ProjectErrorCode } from "../../modules/project/types"
+import type { ProjectErrorCode } from "../../modules/project/errors"
 
 const AddProjectInputSchema = z.object({
   path: z.string(),

@@ -1,59 +1,58 @@
-import { spawn } from "node:child_process"
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
+import { spawn } from "node:child_process"
 import { createInterface } from "node:readline"
 
-import {
-  CODEX_COMMAND_CANDIDATES,
-} from "../../../constants/executors"
-import { CODEX_CONFIG_RELATIVE_PATH } from "../../../constants/codex"
+import type { AgentCapabilities, AgentModel } from "../types"
 import {
   findInstalledCommand,
   resolveCommandVersion,
-} from "../shared/command"
-import type {
-  ExecutorCapability,
-  ExecutorModelItem,
-  ExecutorModelsCapability,
-} from "../types"
+} from "../utils/command"
+import { AGENT_COMMANDS, CODEX_CONFIG_PATH } from "../constants"
 
-function extractCodexDefaultModelFromConfig(configContent: string) {
+/**
+ * Extract default model from config file
+ */
+function extractDefaultModelFromConfig(configContent: string): string | null {
   const match = configContent.match(/^\s*model\s*=\s*["']([^"']+)["']/m)
   return match?.[1]?.trim() || null
 }
 
-async function resolveCodexModelsFromConfig() {
+/**
+ * Resolve models from config file
+ */
+async function resolveModelsFromConfig(): Promise<AgentModel[] | null> {
   try {
-    const configPath = path.join(homedir(), CODEX_CONFIG_RELATIVE_PATH)
+    const configPath = path.join(homedir(), CODEX_CONFIG_PATH)
     const content = await readFile(configPath, "utf8")
-    const model = extractCodexDefaultModelFromConfig(content)
+    const model = extractDefaultModelFromConfig(content)
+
     if (!model) {
       return null
     }
 
-    return {
-      status: "ok",
-      source: "config",
-      items: [
-        {
-          model,
-          displayName: model,
-          isDefault: true,
-        },
-      ],
-    } satisfies ExecutorModelsCapability
+    return [
+      {
+        id: model,
+        displayName: model,
+        isDefault: true,
+      },
+    ]
   } catch {
     return null
   }
 }
 
-function normalizeCodexModelItems(data: unknown) {
+/**
+ * Normalize model data
+ */
+function normalizeModelItems(data: unknown): AgentModel[] {
   if (!Array.isArray(data)) {
     return []
   }
 
-  const items: ExecutorModelItem[] = []
+  const items: AgentModel[] = []
   const seen = new Set<string>()
 
   for (const rawItem of data) {
@@ -61,24 +60,24 @@ function normalizeCodexModelItems(data: unknown) {
       continue
     }
 
-    const model =
+    const id =
       "model" in rawItem && typeof rawItem.model === "string"
         ? rawItem.model
         : "id" in rawItem && typeof rawItem.id === "string"
           ? rawItem.id
           : null
 
-    if (!model || seen.has(model)) {
+    if (!id || seen.has(id)) {
       continue
     }
 
-    seen.add(model)
+    seen.add(id)
     items.push({
-      model,
+      id,
       displayName:
         "displayName" in rawItem && typeof rawItem.displayName === "string"
           ? rawItem.displayName
-          : model,
+          : id,
       isDefault: "isDefault" in rawItem && rawItem.isDefault === true,
     })
   }
@@ -86,9 +85,12 @@ function normalizeCodexModelItems(data: unknown) {
   return items
 }
 
-async function resolveCodexModelsViaAppServer(
+/**
+ * Resolve models via app-server
+ */
+async function resolveModelsViaAppServer(
   codexCommand: string,
-): Promise<ExecutorModelsCapability> {
+): Promise<AgentModel[]> {
   return new Promise((resolve) => {
     const child = spawn(codexCommand, ["app-server"], {
       stdio: ["pipe", "pipe", "pipe"],
@@ -100,12 +102,7 @@ async function resolveCodexModelsViaAppServer(
 
     const stdout = child.stdout
     if (!stdout) {
-      resolve({
-        status: "error",
-        source: "app-server",
-        items: [],
-        error: "Codex app-server stdout stream is unavailable.",
-      })
+      resolve([])
       return
     }
 
@@ -117,26 +114,14 @@ async function resolveCodexModelsViaAppServer(
     let settled = false
     let requestId = 1
     let pendingModelRequestId: number | null = null
-    const collectedItems: ExecutorModelItem[] = []
-    let lastStderrOutput = ""
-
-    function pushStderr(chunk: Buffer | string) {
-      const next = String(chunk).trim()
-      if (!next) {
-        return
-      }
-
-      lastStderrOutput = `${lastStderrOutput}\n${next}`.trim().slice(-2_000)
-    }
-
-    child.stderr?.on("data", pushStderr)
+    const collectedItems: AgentModel[] = []
 
     function stopProcess() {
       readline.close()
       child.kill("SIGTERM")
     }
 
-    function settleWith(payload: ExecutorModelsCapability) {
+    function settleWith(items: AgentModel[]) {
       if (settled) {
         return
       }
@@ -144,7 +129,7 @@ async function resolveCodexModelsViaAppServer(
       settled = true
       clearTimeout(timeout)
       stopProcess()
-      resolve(payload)
+      resolve(items)
     }
 
     function sendJsonRpc(message: unknown) {
@@ -166,36 +151,17 @@ async function resolveCodexModelsViaAppServer(
     }
 
     const timeout = setTimeout(() => {
-      settleWith({
-        status: "error",
-        source: "app-server",
-        items: [],
-        error: "Codex model list request timed out.",
-      })
+      settleWith([])
     }, 4_000)
 
-    child.on("error", (error) => {
-      settleWith({
-        status: "error",
-        source: "app-server",
-        items: [],
-        error: `Failed to start codex app-server: ${String(error)}`,
-      })
+    child.on("error", () => {
+      settleWith([])
     })
 
-    child.on("close", (code) => {
-      if (settled) {
-        return
+    child.on("close", () => {
+      if (!settled) {
+        settleWith([])
       }
-
-      settleWith({
-        status: "error",
-        source: "app-server",
-        items: [],
-        error:
-          `Codex app-server exited before returning models (code=${String(code)}).` +
-          (lastStderrOutput ? ` ${lastStderrOutput}` : ""),
-      })
     })
 
     readline.on("line", (line) => {
@@ -218,12 +184,7 @@ async function resolveCodexModelsViaAppServer(
 
       if (typedMessage.id === 1) {
         if (typedMessage.error) {
-          settleWith({
-            status: "error",
-            source: "app-server",
-            items: [],
-            error: "Codex app-server initialization failed.",
-          })
+          settleWith([])
           return
         }
 
@@ -240,12 +201,7 @@ async function resolveCodexModelsViaAppServer(
       }
 
       if (typedMessage.error) {
-        settleWith({
-          status: "error",
-          source: "app-server",
-          items: [],
-          error: "Codex app-server model/list failed.",
-        })
+        settleWith([])
         return
       }
 
@@ -253,12 +209,7 @@ async function resolveCodexModelsViaAppServer(
         typeof typedMessage.result !== "object" ||
         typedMessage.result === null
       ) {
-        settleWith({
-          status: "error",
-          source: "app-server",
-          items: [],
-          error: "Codex app-server returned an invalid model/list payload.",
-        })
+        settleWith([])
         return
       }
 
@@ -267,7 +218,7 @@ async function resolveCodexModelsViaAppServer(
         nextCursor?: unknown
       }
 
-      collectedItems.push(...normalizeCodexModelItems(typedResult.data))
+      collectedItems.push(...normalizeModelItems(typedResult.data))
       const nextCursor =
         typeof typedResult.nextCursor === "string" &&
         typedResult.nextCursor.length > 0
@@ -279,11 +230,7 @@ async function resolveCodexModelsViaAppServer(
         return
       }
 
-      settleWith({
-        status: "ok",
-        source: "app-server",
-        items: normalizeCodexModelItems(collectedItems),
-      })
+      settleWith(normalizeModelItems(collectedItems))
     })
 
     sendJsonRpc({
@@ -304,32 +251,36 @@ async function resolveCodexModelsViaAppServer(
   })
 }
 
-async function resolveCodexModels(codexCommand: string) {
-  const appServerModels = await resolveCodexModelsViaAppServer(codexCommand)
-  if (appServerModels.status === "ok" && appServerModels.items.length > 0) {
+/**
+ * Resolve Codex model list
+ */
+async function resolveCodexModels(codexCommand: string): Promise<AgentModel[]> {
+  const appServerModels = await resolveModelsViaAppServer(codexCommand)
+  if (appServerModels.length > 0) {
     return appServerModels
   }
 
-  const configModels = await resolveCodexModelsFromConfig()
+  const configModels = await resolveModelsFromConfig()
   if (configModels) {
     return configModels
   }
 
-  return appServerModels
+  return []
 }
 
-export async function inspectCodexExecutor(): Promise<ExecutorCapability> {
-  const command = await findInstalledCommand(CODEX_COMMAND_CANDIDATES)
+/**
+ * Inspect Codex agent capabilities
+ */
+export async function inspectCodexCapabilities(): Promise<AgentCapabilities> {
+  const command = await findInstalledCommand(AGENT_COMMANDS.codex)
+
   if (!command) {
     return {
       installed: false,
       version: null,
-      models: {
-        status: "not_installed",
-        source: null,
-        items: [],
-        error: "Codex is not installed.",
-      },
+      models: [],
+      supportsResume: false,
+      supportsStreaming: false,
     }
   }
 
@@ -337,5 +288,7 @@ export async function inspectCodexExecutor(): Promise<ExecutorCapability> {
     installed: true,
     version: await resolveCommandVersion(command),
     models: await resolveCodexModels(command),
+    supportsResume: true,
+    supportsStreaming: true,
   }
 }

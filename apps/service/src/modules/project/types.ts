@@ -1,15 +1,46 @@
+/**
+ * Project domain types
+ */
 export type Project = {
   id: string
   name: string
+  slug: string | null
+  rootPath: string
+  normalizedPath: string
+  description: string | null
+  status: ProjectStatus
+  lastOpenedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  archivedAt: Date | null
+  // Convenience alias for normalizedPath (commonly used in codebase)
   path: string
-  createdAt: string
 }
 
-export type ProjectErrorCode =
-  | "INVALID_PATH"
-  | "PATH_NOT_FOUND"
-  | "NOT_A_DIRECTORY"
-  | "DUPLICATE_PATH"
-  | "INVALID_PROJECT_ID"
-  | "DB_READ_ERROR"
-  | "DB_WRITE_ERROR"
+export type ProjectStatus = "active" | "archived" | "missing"
+
+export type ProjectWithSettings = Project & {
+  settings: ProjectSettings | null
+}
+
+export type ProjectSettings = {
+  projectId: string
+  defaultExecutor: string | null
+  defaultModel: string | null
+  maxConcurrentTasks: number
+  logRetentionDays: number | null
+  eventRetentionDays: number | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type ProjectMcpServer = {
+  id: string
+  projectId: string
+  serverName: string
+  enabled: boolean
+  source: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+

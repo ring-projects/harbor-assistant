@@ -2,16 +2,16 @@ import { homedir } from "node:os"
 import path from "node:path"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 
-import { CODEX_CONFIG_RELATIVE_PATH } from "../../constants/codex"
+import { CODEX_CONFIG_PATH } from "../../lib/agents"
 
 type CodexConfigScope = "global" | "project"
 
 function getGlobalCodexConfigPath() {
-  return path.join(homedir(), CODEX_CONFIG_RELATIVE_PATH)
+  return path.join(homedir(), CODEX_CONFIG_PATH)
 }
 
 function getProjectCodexConfigPath(projectPath: string) {
-  return path.join(projectPath, CODEX_CONFIG_RELATIVE_PATH)
+  return path.join(projectPath, CODEX_CONFIG_PATH)
 }
 
 function parseSectionName(line: string) {

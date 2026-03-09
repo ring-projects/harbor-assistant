@@ -5,7 +5,7 @@ import {
   TaskStatus as PrismaTaskStatus,
 } from "@prisma/client"
 
-import { prisma } from "../../lib/prisma"
+import { getPrismaClient } from "../../lib/prisma"
 import type {
   CodexTask,
   TaskConversation,
@@ -223,7 +223,7 @@ export async function listTasksByProject(args: {
         ? Math.max(1, Math.trunc(args.limit))
         : 200
 
-    const tasks = await prisma.task.findMany({
+    const tasks = await getPrismaClient().task.findMany({
       where: {
         projectId,
       },
@@ -250,7 +250,7 @@ export async function getTaskById(taskId: string): Promise<CodexTask | null> {
   }
 
   try {
-    const task = await prisma.task.findUnique({
+    const task = await getPrismaClient().task.findUnique({
       where: {
         id: normalizedTaskId,
       },
@@ -284,7 +284,7 @@ export async function createTask(input: {
   }
 
   try {
-    const task = await prisma.task.create({
+    const task = await getPrismaClient().task.create({
       data: {
         projectId,
         projectPath: input.projectPath,
@@ -330,7 +330,7 @@ export async function attachThreadToTask(input: {
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await getPrismaClient().$transaction(async (tx) => {
       await tx.taskThread.upsert({
         where: {
           id: threadId,
@@ -375,7 +375,7 @@ export async function hasActiveTaskInThread(args: {
   }
 
   try {
-    const activeTask = await prisma.task.findFirst({
+    const activeTask = await getPrismaClient().task.findFirst({
       where: {
         threadId,
         status: {
@@ -421,7 +421,7 @@ export async function updateTaskRunState(input: {
   }
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    return await getPrismaClient().$transaction(async (tx) => {
       const task = await tx.task.findUnique({
         where: {
           id: taskId,
@@ -576,7 +576,7 @@ export async function listTaskEvents(args: {
   }
 
   try {
-    const latestRun = await prisma.taskRun.findFirst({
+    const latestRun = await getPrismaClient().taskRun.findFirst({
       where: {
         taskId,
       },
@@ -601,7 +601,7 @@ export async function listTaskEvents(args: {
         ? Math.max(0, Math.trunc(args.afterSequence))
         : 0
 
-    const events = await prisma.taskEvent.findMany({
+    const events = await getPrismaClient().taskEvent.findMany({
       where: {
         runId: latestRun.id,
         sequence: {
@@ -646,7 +646,7 @@ export async function appendTaskEvent(args: {
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await getPrismaClient().$transaction(async (tx) => {
       const latestRun = await tx.taskRun.findFirst({
         where: {
           taskId,
@@ -710,7 +710,7 @@ export async function appendTaskMessage(args: {
   }
 
   try {
-    const message = await prisma.$transaction(async (tx) => {
+    const message = await getPrismaClient().$transaction(async (tx) => {
       if (args.externalId) {
         const existing = await tx.taskMessage.findUnique({
           where: {
@@ -775,7 +775,7 @@ export async function readTaskConversationFromDb(args: {
   }
 
   try {
-    const task = await prisma.task.findUnique({
+    const task = await getPrismaClient().task.findUnique({
       where: {
         id: taskId,
       },
@@ -803,13 +803,13 @@ export async function readTaskConversationFromDb(args: {
         ? Math.max(1, Math.trunc(args.limit))
         : 200
 
-    const total = await prisma.taskMessage.count({
+    const total = await getPrismaClient().taskMessage.count({
       where: {
         threadId: task.threadId,
       },
     })
 
-    const messages = await prisma.taskMessage.findMany({
+    const messages = await getPrismaClient().taskMessage.findMany({
       where: {
         threadId: task.threadId,
       },

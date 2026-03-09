@@ -1,177 +1,53 @@
-import { randomUUID } from "node:crypto"
-import { mkdirSync } from "node:fs"
-import { homedir } from "node:os"
-import { readFile, realpath, stat } from "node:fs/promises"
+import { realpath, stat } from "node:fs/promises"
 import path from "node:path"
+import { Prisma } from "@prisma/client"
 
-import { Database } from "bun:sqlite"
+import { getPrismaClient } from "../../lib/prisma"
+import type { Project } from "./types"
+import {
+  ProjectRepositoryError,
+  createProjectError,
+  PROJECT_ERROR_CODES,
+} from "./errors"
 
-import type { Project, ProjectErrorCode } from "./types"
-import { getAppConfig } from "../../utils/yaml-config"
-
-function nowIsoString() {
-  return new Date().toISOString()
-}
-
-function resolveProjectDataFile() {
-  return path.resolve(getAppConfig().project.dataFile)
-}
-
-function ensureProjectDatabase() {
-  const databasePath = resolveProjectDataFile()
-  const databaseDir = path.dirname(databasePath)
-  mkdirSync(databaseDir, { recursive: true })
-
-  const db = new Database(databasePath)
-  db.exec("PRAGMA journal_mode = WAL")
-  db.exec("PRAGMA foreign_keys = ON")
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS projects (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      path TEXT NOT NULL UNIQUE,
-      created_at TEXT NOT NULL
-    )
-  `)
-
-  return db
-}
-
-let databaseSingleton: Database | null = null
-
-function resolveLegacyWorkspaceDataFile() {
-  return path.join(homedir(), ".harbor", "data", "workspaces.json")
-}
-
-function parseLegacyWorkspaceItems(value: unknown): Array<{
-  id: string
-  name: string
-  path: string
-  createdAt: string
-}> {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !Array.isArray((value as { workspaces?: unknown[] }).workspaces)
-  ) {
-    return []
-  }
-
-  const workspaces = (value as { workspaces: unknown[] }).workspaces
-  return workspaces
-    .filter((item) => typeof item === "object" && item !== null)
-    .filter(
-      (item) =>
-        typeof (item as { id?: unknown }).id === "string" &&
-        typeof (item as { name?: unknown }).name === "string" &&
-        typeof (item as { path?: unknown }).path === "string" &&
-        typeof (item as { createdAt?: unknown }).createdAt === "string",
-    )
-    .map((item) => ({
-      id: String((item as { id: string }).id),
-      name: String((item as { name: string }).name),
-      path: String((item as { path: string }).path),
-      createdAt: String((item as { createdAt: string }).createdAt),
-    }))
-}
-
-async function migrateLegacyWorkspacesIfNeeded(db: Database) {
-  const row = db.query("SELECT COUNT(1) AS count FROM projects").get() as
-    | { count: number }
-    | undefined
-  if ((row?.count ?? 0) > 0) {
-    return
-  }
-
-  const legacyFilePath = resolveLegacyWorkspaceDataFile()
-  const rawContent = await readFile(legacyFilePath, "utf8").catch(() => null)
-  if (!rawContent) {
-    return
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(rawContent)
-  } catch {
-    return
-  }
-
-  const legacyItems = parseLegacyWorkspaceItems(parsed)
-  if (legacyItems.length === 0) {
-    return
-  }
-
-  const insertStatement = db.query(
-    `INSERT OR IGNORE INTO projects (id, name, path, created_at)
-     VALUES (?, ?, ?, ?)`,
-  )
-  db.exec("BEGIN")
-  try {
-    for (const item of legacyItems) {
-      insertStatement.run(item.id, item.name, item.path, item.createdAt)
-    }
-    db.exec("COMMIT")
-  } catch (error) {
-    db.exec("ROLLBACK")
-    throw error
-  }
-}
-
-async function getDatabase() {
-  if (databaseSingleton) {
-    return databaseSingleton
-  }
-
-  databaseSingleton = ensureProjectDatabase()
-  await migrateLegacyWorkspacesIfNeeded(databaseSingleton)
-  return databaseSingleton
-}
-
-async function resolveProjectPath(rawPath: string) {
+/**
+ * Resolve and validate project path
+ */
+async function resolveProjectPath(rawPath: string): Promise<string> {
   const trimmedPath = rawPath.trim()
   if (!trimmedPath) {
-    throw new ProjectRepositoryError(
-      "INVALID_PATH",
-      "Project path cannot be empty.",
-    )
+    throw createProjectError.invalidPath("Project path cannot be empty")
   }
 
-  const baseRootDirectory = getAppConfig().fileBrowser.rootDirectory
   const absolutePath = path.isAbsolute(trimmedPath)
     ? path.resolve(trimmedPath)
-    : path.resolve(baseRootDirectory, trimmedPath)
+    : path.resolve(process.cwd(), trimmedPath)
 
   let canonicalPath: string
   try {
     canonicalPath = await realpath(absolutePath)
   } catch (error) {
-    throw new ProjectRepositoryError(
-      "PATH_NOT_FOUND",
-      `Project path does not exist: ${absolutePath}. ${String(error)}`,
-    )
+    throw createProjectError.pathNotFound(absolutePath)
   }
 
   let pathStats
   try {
     pathStats = await stat(canonicalPath)
   } catch (error) {
-    throw new ProjectRepositoryError(
-      "PATH_NOT_FOUND",
-      `Failed to stat project path: ${canonicalPath}. ${String(error)}`,
-    )
+    throw createProjectError.pathNotFound(canonicalPath)
   }
 
   if (!pathStats.isDirectory()) {
-    throw new ProjectRepositoryError(
-      "NOT_A_DIRECTORY",
-      "Project path must point to a directory.",
-    )
+    throw createProjectError.notADirectory(canonicalPath)
   }
 
   return canonicalPath
 }
 
-function buildProjectName(canonicalPath: string, explicitName?: string) {
+/**
+ * Build project name from path
+ */
+function buildProjectName(canonicalPath: string, explicitName?: string): string {
   const trimmedName = explicitName?.trim()
   if (trimmedName) {
     return trimmedName
@@ -181,108 +57,173 @@ function buildProjectName(canonicalPath: string, explicitName?: string) {
   return basename || canonicalPath
 }
 
-export class ProjectRepositoryError extends Error {
-  code: ProjectErrorCode
+/**
+ * Generate slug from project name
+ */
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
 
-  constructor(code: ProjectErrorCode, message: string) {
-    super(message)
-    this.name = "ProjectRepositoryError"
-    this.code = code
+/**
+ * Convert Prisma Project to domain Project
+ */
+function toDomainProject(prismaProject: any): Project {
+  return {
+    id: prismaProject.id,
+    name: prismaProject.name,
+    slug: prismaProject.slug,
+    rootPath: prismaProject.rootPath,
+    normalizedPath: prismaProject.normalizedPath,
+    description: prismaProject.description,
+    status: prismaProject.status,
+    lastOpenedAt: prismaProject.lastOpenedAt,
+    createdAt: prismaProject.createdAt,
+    updatedAt: prismaProject.updatedAt,
+    archivedAt: prismaProject.archivedAt,
+    // Convenience alias - commonly used throughout the codebase
+    path: prismaProject.normalizedPath,
   }
 }
 
-export async function listProjects(): Promise<Project[]> {
+/**
+ * Project repository error
+ */
+export { ProjectRepositoryError } from "./errors"
+
+/**
+ * List all projects
+ */
+export async function listProjects(options?: {
+  status?: "active" | "archived" | "missing"
+  includeSettings?: boolean
+}): Promise<Project[]> {
   try {
-    const db = await getDatabase()
-    const rows = db
-      .query(
-        `SELECT id, name, path, created_at AS createdAt
-         FROM projects
-         ORDER BY created_at DESC`,
-      )
-      .all() as Project[]
+    const prisma = getPrismaClient()
+    const projects = await prisma.project.findMany({
+      where: options?.status ? { status: options.status } : undefined,
+      include: options?.includeSettings ? { settings: true } : undefined,
+      orderBy: { updatedAt: "desc" },
+    })
 
-    return rows
+    return projects.map(toDomainProject)
   } catch (error) {
-    throw new ProjectRepositoryError(
-      "DB_READ_ERROR",
-      `Failed to read projects: ${String(error)}`,
-    )
+    throw createProjectError.dbReadError("list projects", error)
   }
 }
 
-export async function getProjectById(id: string): Promise<Project | null> {
+/**
+ * Get project by ID
+ */
+export async function getProjectById(
+  id: string,
+  options?: { includeSettings?: boolean },
+): Promise<Project | null> {
   const trimmedId = id.trim()
   if (!trimmedId) {
     return null
   }
 
   try {
-    const db = await getDatabase()
-    const row = db
-      .query(
-        `SELECT id, name, path, created_at AS createdAt
-         FROM projects
-         WHERE id = ?`,
-      )
-      .get(trimmedId) as Project | undefined
+    const prisma = getPrismaClient()
+    const project = await prisma.project.findUnique({
+      where: { id: trimmedId },
+      include: options?.includeSettings ? { settings: true } : undefined,
+    })
 
-    return row ?? null
+    return project ? toDomainProject(project) : null
   } catch (error) {
-    throw new ProjectRepositoryError(
-      "DB_READ_ERROR",
-      `Failed to read project: ${String(error)}`,
-    )
+    throw createProjectError.dbReadError("get project by id", error)
   }
 }
 
+/**
+ * Get project by path
+ */
+export async function getProjectByPath(
+  normalizedPath: string,
+): Promise<Project | null> {
+  try {
+    const prisma = getPrismaClient()
+    const project = await prisma.project.findUnique({
+      where: { normalizedPath },
+    })
+
+    return project ? toDomainProject(project) : null
+  } catch (error) {
+    throw createProjectError.dbReadError("get project by path", error)
+  }
+}
+
+/**
+ * Add new project
+ */
 export async function addProject(input: {
   path: string
   name?: string
+  description?: string
 }): Promise<Project> {
   const canonicalPath = await resolveProjectPath(input.path)
-  const project: Project = {
-    id: randomUUID(),
-    name: buildProjectName(canonicalPath, input.name),
-    path: canonicalPath,
-    createdAt: nowIsoString(),
-  }
+  const projectName = buildProjectName(canonicalPath, input.name)
+  const slug = generateSlug(projectName)
 
   try {
-    const db = await getDatabase()
-    db.query(
-      `INSERT INTO projects (id, name, path, created_at)
-       VALUES (?, ?, ?, ?)`,
-    ).run(project.id, project.name, project.path, project.createdAt)
+    const prisma = getPrismaClient()
+    const project = await prisma.project.create({
+      data: {
+        name: projectName,
+        slug,
+        rootPath: canonicalPath,
+        normalizedPath: canonicalPath,
+        description: input.description,
+        status: "active",
+        settings: {
+          create: {
+            defaultExecutor: "codex",
+            maxConcurrentTasks: 1,
+            logRetentionDays: 30,
+            eventRetentionDays: 7,
+          },
+        },
+      },
+      include: {
+        settings: true,
+      },
+    })
 
-    return project
+    return toDomainProject(project)
   } catch (error) {
-    const message = String(error)
-    if (message.includes("UNIQUE constraint failed: projects.path")) {
-      throw new ProjectRepositoryError(
-        "DUPLICATE_PATH",
-        `Project path already exists: ${canonicalPath}`,
-      )
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        const target = (error.meta?.target as string[]) || []
+        if (target.includes("normalizedPath")) {
+          throw createProjectError.duplicatePath(canonicalPath)
+        }
+        if (target.includes("slug")) {
+          throw createProjectError.duplicateSlug(slug)
+        }
+      }
     }
 
-    throw new ProjectRepositoryError(
-      "DB_WRITE_ERROR",
-      `Failed to write project: ${message}`,
-    )
+    throw createProjectError.dbWriteError("create project", error)
   }
 }
 
+/**
+ * Update project
+ */
 export async function updateProject(input: {
   id: string
   path?: string
   name?: string
+  description?: string
+  status?: "active" | "archived" | "missing"
 }): Promise<Project | null> {
   const trimmedId = input.id.trim()
   if (!trimmedId) {
-    throw new ProjectRepositoryError(
-      "INVALID_PROJECT_ID",
-      "Project id cannot be empty.",
-    )
+    throw createProjectError.invalidProjectId("Project ID cannot be empty")
   }
 
   const existing = await getProjectById(trimmedId)
@@ -290,7 +231,7 @@ export async function updateProject(input: {
     return null
   }
 
-  let nextPath = existing.path
+  let nextPath = existing.normalizedPath
   if (typeof input.path === "string") {
     nextPath = await resolveProjectPath(input.path)
   }
@@ -307,59 +248,215 @@ export async function updateProject(input: {
     nextName = buildProjectName(nextPath)
   }
 
+  const nextSlug = nextName !== existing.name ? generateSlug(nextName) : existing.slug
+
   try {
-    const db = await getDatabase()
-    db.query(
-      `UPDATE projects
-       SET name = ?, path = ?
-       WHERE id = ?`,
-    ).run(nextName, nextPath, trimmedId)
-
-    return {
-      ...existing,
+    const prisma = getPrismaClient()
+    const updateData: any = {
       name: nextName,
-      path: nextPath,
-    }
-  } catch (error) {
-    const message = String(error)
-    if (message.includes("UNIQUE constraint failed: projects.path")) {
-      throw new ProjectRepositoryError(
-        "DUPLICATE_PATH",
-        `Project path already exists: ${nextPath}`,
-      )
+      slug: nextSlug,
+      rootPath: nextPath,
+      normalizedPath: nextPath,
     }
 
-    throw new ProjectRepositoryError(
-      "DB_WRITE_ERROR",
-      `Failed to update project: ${message}`,
-    )
+    if (input.description !== undefined) {
+      updateData.description = input.description
+    }
+
+    if (input.status !== undefined) {
+      updateData.status = input.status
+      if (input.status === "archived") {
+        updateData.archivedAt = new Date()
+      } else if (input.status === "active" && existing.archivedAt) {
+        updateData.archivedAt = null
+      }
+    }
+
+    const project = await prisma.project.update({
+      where: { id: trimmedId },
+      data: updateData,
+    })
+
+    return toDomainProject(project)
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        const target = (error.meta?.target as string[]) || []
+        if (target.includes("normalizedPath")) {
+          throw createProjectError.duplicatePath(nextPath)
+        }
+      }
+    }
+
+    throw createProjectError.dbWriteError("update project", error)
   }
 }
 
+/**
+ * Delete project
+ */
 export async function deleteProject(id: string): Promise<boolean> {
   const trimmedId = id.trim()
   if (!trimmedId) {
-    throw new ProjectRepositoryError(
-      "INVALID_PROJECT_ID",
-      "Project id cannot be empty.",
-    )
+    throw createProjectError.invalidProjectId("Project ID cannot be empty")
   }
 
   try {
-    const db = await getDatabase()
-    const existing = db
-      .query(`SELECT id FROM projects WHERE id = ?`)
-      .get(trimmedId) as { id: string } | undefined
-    if (!existing) {
-      return false
-    }
-
-    db.query(`DELETE FROM projects WHERE id = ?`).run(trimmedId)
+    const prisma = getPrismaClient()
+    await prisma.project.delete({
+      where: { id: trimmedId },
+    })
     return true
   } catch (error) {
-    throw new ProjectRepositoryError(
-      "DB_WRITE_ERROR",
-      `Failed to delete project: ${String(error)}`,
-    )
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        return false
+      }
+    }
+
+    throw createProjectError.dbWriteError("delete project", error)
+  }
+}
+
+/**
+ * Update project last opened timestamp
+ */
+export async function updateProjectLastOpened(id: string): Promise<void> {
+  try {
+    const prisma = getPrismaClient()
+    await prisma.project.update({
+      where: { id },
+      data: { lastOpenedAt: new Date() },
+    })
+  } catch (error) {
+    // Silently fail - this is not critical
+  }
+}
+
+/**
+ * Get project settings
+ */
+export async function getProjectSettings(projectId: string) {
+  try {
+    const prisma = getPrismaClient()
+    return await prisma.projectSetting.findUnique({
+      where: { projectId },
+    })
+  } catch (error) {
+    throw createProjectError.dbReadError("get project settings", error)
+  }
+}
+
+/**
+ * Update project settings
+ */
+export async function updateProjectSettings(input: {
+  projectId: string
+  defaultExecutor?: string
+  defaultModel?: string
+  maxConcurrentTasks?: number
+  logRetentionDays?: number
+  eventRetentionDays?: number
+}) {
+  try {
+    const prisma = getPrismaClient()
+    return await prisma.projectSetting.upsert({
+      where: { projectId: input.projectId },
+      create: {
+        projectId: input.projectId,
+        defaultExecutor: input.defaultExecutor ?? "codex",
+        defaultModel: input.defaultModel,
+        maxConcurrentTasks: input.maxConcurrentTasks ?? 1,
+        logRetentionDays: input.logRetentionDays ?? 30,
+        eventRetentionDays: input.eventRetentionDays ?? 7,
+      },
+      update: {
+        defaultExecutor: input.defaultExecutor,
+        defaultModel: input.defaultModel,
+        maxConcurrentTasks: input.maxConcurrentTasks,
+        logRetentionDays: input.logRetentionDays,
+        eventRetentionDays: input.eventRetentionDays,
+      },
+    })
+  } catch (error) {
+    throw createProjectError.dbWriteError("update project settings", error)
+  }
+}
+
+/**
+ * List project MCP servers
+ */
+export async function listProjectMcpServers(projectId: string) {
+  try {
+    const prisma = getPrismaClient()
+    return await prisma.projectMcpServer.findMany({
+      where: { projectId },
+      orderBy: { updatedAt: "desc" },
+    })
+  } catch (error) {
+    throw createProjectError.dbReadError("list project MCP servers", error)
+  }
+}
+
+/**
+ * Add or update project MCP server
+ */
+export async function upsertProjectMcpServer(input: {
+  projectId: string
+  serverName: string
+  enabled: boolean
+  source?: string
+}) {
+  try {
+    const prisma = getPrismaClient()
+    return await prisma.projectMcpServer.upsert({
+      where: {
+        projectId_serverName: {
+          projectId: input.projectId,
+          serverName: input.serverName,
+        },
+      },
+      create: {
+        projectId: input.projectId,
+        serverName: input.serverName,
+        enabled: input.enabled,
+        source: input.source,
+      },
+      update: {
+        enabled: input.enabled,
+        source: input.source,
+      },
+    })
+  } catch (error) {
+    throw createProjectError.dbWriteError("upsert project MCP server", error)
+  }
+}
+
+/**
+ * Delete project MCP server
+ */
+export async function deleteProjectMcpServer(
+  projectId: string,
+  serverName: string,
+): Promise<boolean> {
+  try {
+    const prisma = getPrismaClient()
+    await prisma.projectMcpServer.delete({
+      where: {
+        projectId_serverName: {
+          projectId,
+          serverName,
+        },
+      },
+    })
+    return true
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        return false
+      }
+    }
+
+    throw createProjectError.dbWriteError("delete project MCP server", error)
   }
 }

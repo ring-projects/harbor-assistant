@@ -1,24 +1,29 @@
-export type ServiceConfig = {
-  port: number
-  host: string
-  serviceName: string
-  isProduction: boolean
+import { z } from "zod";
+
+const configSchema = z.object({
+  port: z.coerce.number().int().default(3400),
+  host: z.string().default("0.0.0.0"),
+  serviceName: z.string().default("harbor"),
+  database: z.url(),
+  nodeEnv: z.enum(["development", "test", "production"]).default("development"),
+});
+
+const parsed = configSchema.safeParse({
+  port: process.env.PORT,
+  host: process.env.HOST,
+  serviceName: process.env.SERVICE_NAME,
+  database: process.env.DATABASE_URL,
+  nodeEnv: process.env.NODE_ENV,
+});
+
+if (!parsed.success) {
+  console.error(parsed.error.flatten());
+  process.exit(1);
 }
 
-function parsePort(value: string | undefined, fallback: number) {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback
-  }
+export const config = {
+  ...parsed.data,
+  isProduction: parsed.data.nodeEnv === "production",
+};
 
-  return Math.trunc(parsed)
-}
-
-export function getServiceConfig(): ServiceConfig {
-  return {
-    port: parsePort(process.env.EXECUTOR_PORT, 3400),
-    host: process.env.EXECUTOR_HOST?.trim() || "0.0.0.0",
-    serviceName: process.env.EXECUTOR_SERVICE_NAME?.trim() || "service",
-    isProduction: process.env.NODE_ENV === "production",
-  }
-}
+export type ServiceConfig = typeof config;

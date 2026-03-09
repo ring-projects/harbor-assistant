@@ -1,0 +1,119 @@
+enum TaskStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum TaskEventType {
+  state
+  stdout
+  stderr
+  system
+  summary
+}
+
+enum TaskMessageRole {
+  user
+  assistant
+  system
+}
+
+model TaskThread {
+  id          String        @id
+  projectId   String
+  projectPath String
+  model       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tasks       Task[]
+  messages    TaskMessage[]
+
+  @@index([projectId, updatedAt(sort: Desc)])
+  @@map("task_threads")
+}
+
+model Task {
+  id           String       @id @default(cuid())
+  legacyTaskId String?      @unique
+  projectId    String
+  projectPath  String
+  prompt       String
+  executor     String
+  model        String?
+  status       TaskStatus   @default(queued)
+  threadId     String?
+  parentTaskId String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  thread       TaskThread?  @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  parentTask   Task?        @relation("TaskLineage", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  childTasks   Task[]       @relation("TaskLineage")
+  runs         TaskRun[]
+  messages     TaskMessage[]
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([threadId, createdAt(sort: Desc)])
+  @@index([parentTaskId, createdAt(sort: Desc)])
+  @@map("tasks")
+}
+
+model TaskRun {
+  id                 String       @id @default(cuid())
+  taskId             String
+  attempt            Int
+  status             TaskStatus   @default(queued)
+  command            String?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  exitCode           Int?
+  failureCode        String?
+  failureMessage     String?
+  cancellationReason String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  task               Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  events             TaskEvent[]
+
+  @@unique([taskId, attempt])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([taskId, createdAt(sort: Desc)])
+  @@map("task_runs")
+}
+
+model TaskEvent {
+  id        String        @id @default(cuid())
+  runId     String
+  sequence  Int
+  type      TaskEventType
+  payload   String
+  createdAt DateTime      @default(now())
+  run       TaskRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, sequence])
+  @@index([runId, createdAt(sort: Asc)])
+  @@map("task_events")
+}
+
+model TaskMessage {
+  id         String          @id @default(cuid())
+  threadId   String
+  taskId     String
+  role       TaskMessageRole
+  content    String
+  sequence   Int
+  source     String
+  externalId String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  thread     TaskThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  task       Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, sequence])
+  @@unique([threadId, externalId])
+  @@index([taskId, createdAt(sort: Asc)])
+  @@index([threadId, createdAt(sort: Asc)])
+  @@map("task_messages")
+}

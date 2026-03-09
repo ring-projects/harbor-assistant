@@ -1,5 +1,4 @@
 import { ERROR_CODES } from "../../constants/errors"
-import type { ExecutorIdConstant } from "../../constants/executors"
 import { getProjectById } from "../project/project.repository"
 import {
   getTaskById,
@@ -19,7 +18,7 @@ type CreateTaskServiceInput = {
   projectId: string
   prompt: string
   model?: string | null
-  executor?: ExecutorIdConstant | string
+  agentType?: string
 }
 
 type RetryTaskServiceInput = {
@@ -78,11 +77,11 @@ function isTerminalTask(task: CodexTask) {
   )
 }
 
-function ensureSupportedExecutor(executor: string) {
-  if (executor !== "codex") {
+function ensureSupportedAgent(agentType: string) {
+  if (agentType !== "codex") {
     throw new TaskServiceError(
       ERROR_CODES.UNSUPPORTED_EXECUTOR,
-      `Executor is not supported yet: ${executor}`,
+      `Agent type is not supported yet: ${agentType}`,
       400,
     )
   }
@@ -92,7 +91,7 @@ export async function createTaskAndRun(input: CreateTaskServiceInput) {
   const projectId = input.projectId.trim()
   const prompt = input.prompt.trim()
   const model = input.model?.trim() || null
-  const executor = (input.executor?.trim() || "codex").toLowerCase()
+  const agentType = (input.agentType?.trim() || "codex").toLowerCase()
 
   if (!projectId) {
     throw new TaskServiceError(
@@ -110,7 +109,7 @@ export async function createTaskAndRun(input: CreateTaskServiceInput) {
     )
   }
 
-  ensureSupportedExecutor(executor)
+  ensureSupportedAgent(agentType)
 
   const project = await getProjectById(projectId)
   if (!project) {
@@ -132,7 +131,7 @@ export async function createTaskAndRun(input: CreateTaskServiceInput) {
   } catch (error) {
     throw new TaskServiceError(
       ERROR_CODES.TASK_START_FAILED,
-      `Failed to start Codex task: ${String(error)}`,
+      `Failed to start agent task: ${String(error)}`,
       500,
     )
   }

@@ -1,0 +1,53 @@
+enum ProjectStatus {
+  active
+  archived
+  missing
+}
+
+model Project {
+  id             String             @id @default(uuid())
+  name           String
+  slug           String?            @unique
+  rootPath       String
+  normalizedPath String             @unique
+  description    String?
+  status         ProjectStatus      @default(active)
+  lastOpenedAt   DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  archivedAt     DateTime?
+  settings       ProjectSetting?
+  mcpServers     ProjectMcpServer[]
+
+  @@index([status, updatedAt(sort: Desc)])
+  @@map("projects")
+}
+
+model ProjectSetting {
+  projectId          String   @id
+  defaultExecutor    String?  @default("codex")
+  defaultModel       String?
+  maxConcurrentTasks Int      @default(1)
+  logRetentionDays   Int?     @default(30)
+  eventRetentionDays Int?     @default(7)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_settings")
+}
+
+model ProjectMcpServer {
+  id         String   @id @default(cuid())
+  projectId  String
+  serverName String
+  enabled    Boolean  @default(true)
+  source     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, serverName])
+  @@index([projectId, updatedAt(sort: Desc)])
+  @@map("project_mcp_servers")
+}

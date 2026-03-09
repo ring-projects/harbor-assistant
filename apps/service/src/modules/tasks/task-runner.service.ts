@@ -3,7 +3,7 @@ import {
   getTaskById,
   updateTaskRunState,
 } from "./task.repository"
-import { codexSdkGateway } from "./codex-sdk.gateway"
+import { agentGateway } from "./agent.gateway"
 import type { CodexTask } from "./types"
 
 type RunningCodexTask = {
@@ -63,7 +63,7 @@ async function executeNewThreadTask(args: {
   const runningTask = getRunningTask(args.taskId)
 
   try {
-    const result = await codexSdkGateway.startThreadAndRun({
+    const result = await agentGateway.startSessionAndRun({
       taskId: args.taskId,
       projectId: args.projectId,
       projectPath: args.projectPath,
@@ -99,7 +99,7 @@ async function executeNewThreadTask(args: {
       stdout: "",
       stderr: "",
       error: String(error),
-      failureCode: "CODEX_SDK_RUN_FAILED",
+      failureCode: "AGENT_RUN_FAILED",
     })
   }
 }
@@ -115,9 +115,9 @@ async function executeResumedThreadTask(args: {
   const runningTask = getRunningTask(args.taskId)
 
   try {
-    const result = await codexSdkGateway.resumeThreadAndRun({
+    const result = await agentGateway.resumeSessionAndRun({
       taskId: args.taskId,
-      threadId: args.threadId,
+      sessionId: args.threadId,
       projectId: args.projectId,
       projectPath: args.projectPath,
       prompt: args.prompt,
@@ -152,7 +152,7 @@ async function executeResumedThreadTask(args: {
       stdout: "",
       stderr: "",
       error: String(error),
-      failureCode: "CODEX_SDK_RUN_FAILED",
+      failureCode: "AGENT_RUN_FAILED",
     })
   }
 }
@@ -183,7 +183,7 @@ export async function createAndRunCodexTask(input: {
     taskId: createdTask.id,
     status: "running",
     startedAt: nowIsoString(),
-    command: ["@openai/codex-sdk", "startThreadAndRun"],
+    command: ["agent", "startSession"],
     error: null,
   })
 
@@ -226,7 +226,7 @@ export async function followupCodexTask(input: {
     taskId: createdTask.id,
     status: "running",
     startedAt: nowIsoString(),
-    command: ["@openai/codex-sdk", "resumeThreadAndRun", input.threadId],
+    command: ["agent", "resumeSession", input.threadId],
     error: null,
   })
 

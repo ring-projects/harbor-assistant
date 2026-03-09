@@ -17,6 +17,7 @@
         "@openai/codex-sdk": "^0.111.0",
         "@prisma/client": "^6.5.0",
         "fastify": "^5.8.1",
+        "fastify-plugin": "^5.1.0",
         "yaml": "^2.8.2",
         "zod": "^4.3.6",
       },

@@ -35,7 +35,10 @@ function readErrorOutput(error: unknown) {
   return `${stdout}\n${stderr}`.trim()
 }
 
-export async function isCommandAvailable(command: string) {
+/**
+ * Check if a command is available
+ */
+export async function isCommandAvailable(command: string): Promise<boolean> {
   try {
     const { stdout } = await execFileAsync(getCommandLocator(), [command], {
       timeout: 1_000,
@@ -48,7 +51,12 @@ export async function isCommandAvailable(command: string) {
   }
 }
 
-export async function findInstalledCommand(candidates: readonly string[]) {
+/**
+ * Find an installed command from a list of candidates
+ */
+export async function findInstalledCommand(
+  candidates: readonly string[],
+): Promise<string | null> {
   for (const command of candidates) {
     if (await isCommandAvailable(command)) {
       return command
@@ -58,7 +66,12 @@ export async function findInstalledCommand(candidates: readonly string[]) {
   return null
 }
 
-export async function resolveCommandVersion(command: string) {
+/**
+ * Resolve command version
+ */
+export async function resolveCommandVersion(
+  command: string,
+): Promise<string | null> {
   for (const args of VERSION_ARGS) {
     try {
       const { stdout, stderr } = await execFileAsync(command, args, {
