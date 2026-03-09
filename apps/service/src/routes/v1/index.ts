@@ -1,15 +1,17 @@
 import type { FastifyInstance } from "fastify"
 
-import { registerCapabilitiesRoutes } from "./capabilities.routes"
-import { registerFileSystemRoutes } from "./fs.routes"
-import { registerMcpRoutes } from "./mcp.routes"
-import { registerProjectRoutes } from "./projects.routes"
-import { registerTaskRoutes } from "./tasks.routes"
+import { registerFileSystemModuleRoutes } from "../../modules/filesystem"
+import { registerProjectModuleRoutes } from "../../modules/project"
+import { registerTaskModuleRoutes } from "../../modules/tasks"
+import type { ServiceConfig } from "../../config"
 
-export async function registerV1Routes(app: FastifyInstance) {
-  await registerProjectRoutes(app)
-  await registerFileSystemRoutes(app)
-  await registerCapabilitiesRoutes(app)
-  await registerTaskRoutes(app)
-  await registerMcpRoutes(app)
+export async function registerV1Routes(
+  app: FastifyInstance,
+  config: ServiceConfig,
+) {
+  await registerProjectModuleRoutes(app)
+  await registerFileSystemModuleRoutes(app, {
+    rootDirectory: config.fileBrowserRootDirectory,
+  })
+  await registerTaskModuleRoutes(app)
 }

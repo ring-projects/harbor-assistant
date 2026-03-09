@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "bun run typecheck",
     "typecheck": "bunx tsc --noEmit -p tsconfig.json",
     "db:generate": "DATABASE_URL=${DATABASE_URL:-file:${HOME}/.harbor/data/tasks.sqlite} bunx prisma generate",
@@ -16,15 +18,15 @@
   "dependencies": {
     "@fastify/cors": "^11.2.0",
     "@openai/codex-sdk": "^0.111.0",
-    "@prisma/client": "^6.5.0",
+    "@prisma/client": "6.19.2",
     "fastify": "^5.8.1",
     "fastify-plugin": "^5.1.0",
-    "yaml": "^2.8.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^20",
-    "prisma": "^6.5.0",
-    "typescript": "^5"
+    "prisma": "6.19.2",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

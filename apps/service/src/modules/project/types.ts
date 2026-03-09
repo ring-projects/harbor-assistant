@@ -33,14 +33,3 @@ export type ProjectSettings = {
   createdAt: Date
   updatedAt: Date
 }
-
-export type ProjectMcpServer = {
-  id: string
-  projectId: string
-  serverName: string
-  enabled: boolean
-  source: string | null
-  createdAt: Date
-  updatedAt: Date
-}
-

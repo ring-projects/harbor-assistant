@@ -146,7 +146,7 @@
 2. `task-conversation.service.ts` 中 rollout 文件解析逻辑  
 3. `codex-thread-index.service.ts` 与线程快照导入链路  
 4. `task.repository.ts` 中运行时 legacy `tasks.json` 导入逻辑  
-5. `yaml-config.ts` 中 `task.dataFile`（保留 DB 路径配置即可）
+5. 旧的分散配置入口（现已删除），统一收敛到 `src/config.ts`
 
 ---
 
@@ -201,4 +201,3 @@
 
 此文档用于新 session 的重构启动基线。  
 执行时应以“无遗留旧方式”为硬约束，不接受双轨长期共存。
-

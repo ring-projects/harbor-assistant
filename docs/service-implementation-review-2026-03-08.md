@@ -17,12 +17,11 @@ The current service implementation is already production-leaning in terms of typ
 - API routes: `apps/service/src/routes/v1/*`
 - Domain modules:
   - Task lifecycle + execution: `apps/service/src/modules/tasks/*`
-  - Project metadata: `apps/service/src/modules/project/project.repository.ts`
-  - Filesystem browsing: `apps/service/src/modules/filesystem/filesystem.service.ts`
-  - Executor capability probing: `apps/service/src/modules/capability/capability.service.ts`
+  - Project metadata: `apps/service/src/modules/project/repositories/project.repository.ts`
+  - Filesystem browsing: `apps/service/src/modules/filesystem/services/filesystem.service.ts`
 - Persistence:
-  - Tasks/runs/events/messages via Prisma: `apps/service/src/modules/tasks/task.repository.ts`
-  - Projects via Bun SQLite direct access: `apps/service/src/modules/project/project.repository.ts`
+  - Tasks/runs/events/messages via Prisma: `apps/service/src/modules/tasks/repositories/task.repository.ts`
+  - Projects via Prisma: `apps/service/src/modules/project/repositories/project.repository.ts`
 
 ---
 
@@ -31,54 +30,54 @@ The current service implementation is already production-leaning in terms of typ
 ### High Severity
 
 1. **Path boundary is not enforced for project registration/execution**
-   - Evidence: `apps/service/src/modules/project/project.repository.ts:139`, `apps/service/src/modules/project/project.repository.ts:171`
+   - Evidence: `apps/service/src/modules/project/repositories/project.repository.ts`
    - Problem: `resolveProjectPath` resolves and canonicalizes paths but does not enforce that the canonical path is inside configured root (`fileBrowser.rootDirectory`).
    - Impact: tasks can be executed against arbitrary directories if user provides absolute paths.
    - Recommendation: enforce root-boundary check (similar to filesystem module logic) before storing project path.
 
 2. **Task cancellation race can end in `completed` after user cancellation**
-   - Evidence: `apps/service/src/modules/tasks/task-runner.service.ts:75`, `apps/service/src/modules/tasks/task-runner.service.ts:128`, `apps/service/src/modules/tasks/task-runner.service.ts:265`, `apps/service/src/modules/tasks/task-runner.service.ts:271`
+   - Evidence: `apps/service/src/modules/tasks/services/task-runner.service.ts`
    - Problem: cancellation flag is only checked in `catch`; successful completion path always finalizes as `completed`.
    - Impact: non-deterministic task state and broken cancel semantics.
    - Recommendation: introduce terminal-state guard/compare-and-set so only first terminal transition wins, and check cancellation flag before marking completed.
 
 3. **Failure path drops runtime output (debug signal loss)**
-   - Evidence: `apps/service/src/modules/tasks/task-runner.service.ts:99`, `apps/service/src/modules/tasks/task-runner.service.ts:153`
+   - Evidence: `apps/service/src/modules/tasks/services/task-runner.service.ts`
    - Problem: both failure handlers persist `stdout/stderr` as empty strings even when output had been captured before failure.
    - Impact: postmortem/debugging quality is significantly reduced; user sees less actionable failure context.
    - Recommendation: propagate partial buffers in error path (e.g., typed gateway error carrying captured stdout/stderr).
 
 4. **`stderr` stream is effectively not implemented**
-   - Evidence: `apps/service/src/modules/tasks/codex-sdk.gateway.ts:199`, `apps/service/src/modules/tasks/codex-sdk.gateway.ts:331`
+   - Evidence: `apps/service/src/modules/tasks/gateways/agent.gateway.ts`
    - Problem: gateway only appends `stdout` events and always returns `stderr: ""`.
    - Impact: does not satisfy lifecycle observability expectations for error output.
    - Recommendation: capture stderr-equivalent events from SDK and persist as `stderr` task events + summary payload.
 
-5. **Task DB config in `app.yaml` is not wired into Prisma connection**
-   - Evidence: `apps/service/src/utils/yaml-config.ts:27`, `apps/service/src/utils/yaml-config.ts:107`, `apps/service/src/lib/prisma.ts:6`, `apps/service/src/lib/prisma.ts:12`
-   - Problem: config schema supports `task.databaseFile`, but Prisma fallback ignores it and hardcodes `$HOME/.harbor/data/tasks.sqlite`.
-   - Impact: operator configuration appears supported but is not effective.
-   - Recommendation: derive fallback `DATABASE_URL` from `getAppConfig().task.databaseFile` (or remove unused config field).
+5. **Task DB config fallback should stay aligned with the service config model**
+   - Evidence: historical review note; Prisma access is now centralized through the Fastify plugin
+   - Problem: this review item referred to a now-removed YAML config layer; the remaining concern is to keep all runtime configuration sourced from the same service config model.
+   - Impact: configuration drift is still possible if new ad hoc config sources are introduced.
+   - Recommendation: keep runtime config centralized in `src/config.ts`.
 
 ### Medium Severity
 
 6. **Event/message sequence generation is race-prone under concurrent writes**
-   - Evidence: `apps/service/src/modules/tasks/task.repository.ts:173`, `apps/service/src/modules/tasks/task.repository.ts:494`, `apps/service/src/modules/tasks/task.repository.ts:666`
+   - Evidence: `apps/service/src/modules/tasks/repositories/task.repository.ts`
    - Problem: sequence is generated via `MAX(sequence) + 1`; concurrent transactions can produce duplicate sequence values.
    - Impact: intermittent unique-key failures (`runId+sequence`) under cancel/stream overlap or future multi-writer scenarios.
    - Recommendation: move sequence increment to a single atomic counter or add retry-on-conflict strategy.
 
 7. **Pagination limits are not capped on task endpoints**
-   - Evidence: `apps/service/src/routes/v1/tasks.routes.ts:93`, `apps/service/src/routes/v1/tasks.routes.ts:110`, `apps/service/src/modules/tasks/task.repository.ts:222`, `apps/service/src/modules/tasks/task.repository.ts:801`
+   - Evidence: `apps/service/src/modules/tasks/routes/tasks.routes.ts`, `apps/service/src/modules/tasks/repositories/task.repository.ts`
    - Problem: `limit` is validated as positive but has no upper bound.
    - Impact: large requests can create heavy DB/memory pressure.
    - Recommendation: enforce global caps (e.g., events 500, tasks/messages 200) at route layer.
 
 8. **Persistence stack is split across Prisma and direct Bun SQLite**
-   - Evidence: `apps/service/src/modules/project/project.repository.ts:7`, `apps/service/src/modules/tasks/task.repository.ts:8`
-   - Problem: project metadata uses Bun SQLite APIs while task runtime uses Prisma.
-   - Impact: duplicated migration/transaction patterns and higher maintenance cost.
-   - Recommendation: consolidate persistence strategy (prefer Prisma for all entities or define strict bounded contexts).
+   - Evidence: historical review note
+   - Problem: this finding has been partially addressed; project metadata has already been migrated to Prisma.
+   - Impact: lower than at review time.
+   - Recommendation: keep repository boundaries consistent across modules.
 
 ### Low Severity
 
@@ -98,9 +97,9 @@ The current service implementation is already production-leaning in terms of typ
 
 ## What Is Good
 
-- Route-level payload validation with Zod is consistent and readable (`apps/service/src/routes/v1/*.ts`).
-- Task domain separation is clear (`task.service` orchestration vs `task.repository` persistence vs `task-runner` execution).
-- SSE route design supports both polling JSON and stream mode (`apps/service/src/routes/v1/tasks.routes.ts`).
+- Route-level payload validation is progressively moving to Fastify schema declarations.
+- Task domain separation is clearer after module split (`services/`, `repositories/`, `gateways/`).
+- SSE route design supports both polling JSON and stream mode (`apps/service/src/modules/tasks/routes/tasks.routes.ts`).
 - Prisma schema for task lineage/thread/message entities is reasonably extensible (`apps/service/prisma/schema.prisma`).
 
 ---
@@ -117,7 +116,7 @@ The current service implementation is already production-leaning in terms of typ
 
 4. Replace `MAX+1` sequence allocation with conflict-safe strategy.
 5. Add route-level max limits for list/events/conversation endpoints.
-6. Wire `task.databaseFile` config to Prisma fallback behavior.
+6. Keep Prisma/database configuration centralized in `src/config.ts`.
 
 ### P2 (Stabilization)
 

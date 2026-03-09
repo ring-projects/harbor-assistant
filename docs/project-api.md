@@ -5,8 +5,8 @@
 ## 1. 概览
 
 - 基础模型：`Project`
-- 数据存储：SQLite（`bun:sqlite`）
-- 数据文件位置：`getAppConfig().project.dataFile`
+- 数据存储：SQLite（Prisma）
+- 数据文件位置：由 `DATABASE_URL` 决定
 - 兼容迁移：启动时可从旧 `~/.harbor/data/workspaces.json` 导入
 - 当前 action 返回统一结果类型：`ProjectActionResult`
 
@@ -58,7 +58,7 @@ function addProject(input: { path: string; name?: string }): Promise<Project>
 路径处理与校验：
 
 - `path.trim()` 为空：抛 `INVALID_PATH`
-- 相对路径会基于 `getAppConfig().fileBrowser.rootDirectory` 解析
+- 相对路径会基于 service 配置中的 `fileBrowserRootDirectory` 解析
 - 使用 `realpath` 获取规范化绝对路径
 - 路径不存在或不可访问：抛 `PATH_NOT_FOUND`
 - 路径不是目录：抛 `NOT_A_DIRECTORY`

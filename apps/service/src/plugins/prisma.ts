@@ -1,22 +1,21 @@
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient, type Prisma } from "@prisma/client"
 import fp from "fastify-plugin"
-import { config } from "../config"
 
-function createPrismaClient () {
-  if (!config.database) {
-    throw new Error(`can't find database config`)
-  }
-
-  return new PrismaClient({
-    datasourceUrl: config.database,
-    log: config.isProduction ? ["error"] : ["error", "warn", "info"]
-  });
+type PrismaPluginOptions = {
+  datasourceUrl: string
+  log: Prisma.LogLevel[]
 }
 
+function createPrismaClient(options: PrismaPluginOptions) {
+  return new PrismaClient({
+    datasourceUrl: options.datasourceUrl,
+    log: options.log,
+  })
+}
 
 export default fp(
-  async (app) => {
-    const prisma = createPrismaClient();
+  async (app, options: PrismaPluginOptions) => {
+    const prisma = createPrismaClient(options)
 
     app.decorate("prisma", prisma)
 

@@ -9,7 +9,7 @@ Infrastructure layer for AI agent integration. Provides a unified interface for 
 - **IAgent Interface**: Unified interface that all agent adapters must implement
 - **Adapter Pattern**: Each AI agent has its own adapter that converts its SDK to the unified interface
 - **Event Stream**: Uses `AsyncIterable<AgentEvent>` to provide a unified event stream model
-- **Capability Detection**: Independent capability service to detect installed agents and available models
+- **Capability Detection**: Utilities to detect installed agents and available models
 
 ### Directory Structure
 
@@ -24,7 +24,7 @@ lib/agents/
 │   ├── codex.ts               # Codex adapter
 │   └── claude-code.ts         # Claude Code adapter
 ├── capabilities/               # Capability detection
-│   ├── index.ts               # Unified capability service
+│   ├── index.ts               # Capability detection exports
 │   ├── codex.ts               # Codex capability detection
 │   └── claude-code.ts         # Claude Code capability detection
 └── utils/                      # Utility functions

@@ -17,22 +17,3 @@ export type FileSystemListResult = {
   nextCursor: string | null
   truncated: boolean
 }
-
-export type FileSystemErrorCode =
-  | "INVALID_PATH"
-  | "PATH_NOT_FOUND"
-  | "NOT_A_DIRECTORY"
-  | "PATH_OUTSIDE_ALLOWED_ROOT"
-  | "PERMISSION_DENIED"
-  | "READ_ERROR"
-  | "INVALID_CURSOR"
-
-export class FileSystemServiceError extends Error {
-  code: FileSystemErrorCode
-
-  constructor(code: FileSystemErrorCode, message: string) {
-    super(message)
-    this.name = "FileSystemServiceError"
-    this.code = code
-  }
-}

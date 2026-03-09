@@ -1,57 +1,70 @@
-// Types
 export type {
   Project,
   ProjectStatus,
   ProjectWithSettings,
   ProjectSettings,
-  ProjectMcpServer,
 } from "./types"
 
-// Errors
 export {
   ProjectError,
-  ProjectRepositoryError,
-  ProjectServiceError,
-  ProjectValidationError,
-  PROJECT_ERROR_CODES,
-  PROJECT_ERROR_MESSAGES,
   createProjectError,
-  isProjectError,
-  isProjectRepositoryError,
-  isProjectServiceError,
-  isProjectValidationError,
 } from "./errors"
 export type { ProjectErrorCode } from "./errors"
 
-// Repository
 export {
-  listProjects,
-  getProjectById,
-  getProjectByPath,
-  addProject,
-  updateProject,
-  deleteProject,
-  updateProjectLastOpened,
-  getProjectSettings,
-  updateProjectSettings,
-  listProjectMcpServers,
-  upsertProjectMcpServer,
-  deleteProjectMcpServer,
-} from "./project.repository"
+  createProjectRepository,
+  createProjectSettingsRepository,
+} from "./repositories"
+export type {
+  AddProjectInput,
+  ListProjectsOptions,
+  ProjectDbClient,
+  ProjectRepository,
+  ProjectSettingsRepository,
+  UpdateProjectInput,
+  UpdateProjectSettingsInput,
+} from "./repositories"
 
-// Service
 export {
-  listAllProjects,
-  getProject,
-  createProject,
-  modifyProject,
-  archiveProject,
-  restoreProject,
-  removeProject,
-  markProjectOpened,
-  getSettings,
-  modifySettings,
-  getMcpServers,
-  setMcpServer,
-  removeMcpServer,
-} from "./project.service"
+  createProjectService,
+  createProjectSettingsService,
+} from "./services"
+export type {
+  ProjectService,
+  ProjectSettingsService,
+} from "./services"
+
+export { registerProjectModuleRoutes } from "./routes"
+
+import {
+  createProjectRepository,
+  createProjectSettingsRepository,
+} from "./repositories"
+import type { ProjectDbClient } from "./repositories"
+import {
+  createProjectService,
+  createProjectSettingsService,
+} from "./services"
+
+export function createProjectModule(args: { prisma: ProjectDbClient }) {
+  const projectRepository = createProjectRepository(args.prisma)
+  const projectSettingsRepository = createProjectSettingsRepository(args.prisma)
+
+  const projectService = createProjectService({
+    projectRepository,
+  })
+  const projectSettingsService = createProjectSettingsService({
+    projectSettingsRepository,
+  })
+
+  return {
+    repositories: {
+      projectRepository,
+      projectSettingsRepository,
+    },
+    services: {
+      projectService,
+      projectSettingsService,
+    },
+  }
+}

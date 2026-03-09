@@ -1,223 +1,127 @@
-# Project Module Refactoring Summary
+# Project Module
 
-## Completed ✅
+`project` 模块当前已经按 Fastify + Prisma 的组合方式做过一次收敛，职责边界如下：
 
-Successfully refactored the project module from using `bun:sqlite` directly to using Prisma ORM with a clean service layer architecture.
-
-## Architecture Overview
-
-```
+```text
 modules/project/
-├── types.ts                 # Domain types
-├── project.repository.ts    # Data access layer (Prisma)
-├── project.service.ts       # Business logic layer
-└── index.ts                 # Public exports
+├── errors.ts
+├── index.ts
+├── repositories/
+│   ├── project.repository.ts
+│   └── project-settings.repository.ts
+├── routes/
+│   ├── index.ts
+│   └── project.routes.ts
+├── schemas/
+│   ├── index.ts
+│   └── project.schema.ts
+├── services/
+│   ├── index.ts
+│   ├── project.service.ts
+│   └── project-settings.service.ts
+└── types.ts
 ```
 
-## Key Improvements
+## 1. 设计目标
 
-### 1. Clean Architecture Layers
+这个模块现在遵循以下约束：
 
-**Repository Layer** (`project.repository.ts`)
-- Direct Prisma client access
-- Data validation and transformation
-- Error handling with specific error codes
-- CRUD operations for projects, settings, and MCP servers
+- Route 只负责注册接口、声明 `schema`、调用 service。
+- Service 负责业务编排和错误收口。
+- Repository 只负责 Prisma 读写和底层数据转换。
+- 模块错误统一走 `ProjectError` + `createProjectError.*`。
+- Fastify request validation 使用原生 JSON Schema，而不是在 route 里手写解析逻辑。
 
-**Service Layer** (`project.service.ts`)
-- Business logic and validation
-- Error transformation with HTTP status codes
-- Public API for other modules
-- Transaction management
+## 2. 当前职责划分
 
-### 2. Enhanced Data Model
+### `errors.ts`
 
-**Project Model:**
-```typescript
-{
-  id: string                    // UUID
-  name: string                  // Display name
-  slug: string | null           // URL-friendly identifier
-  rootPath: string              // Original path
-  normalizedPath: string        // Canonical path (unique)
-  description: string | null    // Optional description
-  status: ProjectStatus         // active | archived | missing
-  lastOpenedAt: Date | null     // Last access timestamp
-  createdAt: Date
-  updatedAt: Date
-  archivedAt: Date | null
-  path: string                  // Legacy compatibility alias
-}
-```
+- 定义 `ProjectError`
+- 定义 `createProjectError.*` 工厂函数
+- 所有 project 相关错误都应从这里创建
 
-**Project Settings:**
-```typescript
-{
-  projectId: string
-  defaultExecutor: string       // Default agent (codex, etc.)
-  defaultModel: string          // Default AI model
-  maxConcurrentTasks: number    // Task concurrency limit
-  logRetentionDays: number      // Log cleanup policy
-  eventRetentionDays: number    // Event cleanup policy
-}
-```
+### `repositories/`
 
-**Project MCP Servers:**
-```typescript
-{
-  id: string
-  projectId: string
-  serverName: string            // MCP server identifier
-  enabled: boolean              // Enable/disable flag
-  source: string | null         // Server source/config
-}
-```
+- `project.repository.ts`
+  - 项目主表 CRUD
+  - 路径 canonicalize
+  - Prisma model 到 domain type 的映射
+- `project-settings.repository.ts`
+  - 项目设置读写
 
-### 3. Repository Functions
+Repository 层不处理 HTTP，不拼响应。
 
-**Project CRUD:**
-- `listProjects(options?)` - List all projects with filtering
-- `getProjectById(id, options?)` - Get project by ID
-- `getProjectByPath(path)` - Get project by normalized path
-- `addProject(input)` - Create new project with settings
-- `updateProject(input)` - Update project details
-- `deleteProject(id)` - Delete project (cascade)
-- `updateProjectLastOpened(id)` - Track access time
+### `services/`
 
-**Settings Management:**
-- `getProjectSettings(projectId)` - Get project settings
-- `updateProjectSettings(input)` - Update settings (upsert)
+- `project.service.ts`
+  - 项目查询、创建、更新、删除
+- `project-settings.service.ts`
+  - 项目设置业务逻辑
 
-**MCP Server Management:**
-- `listProjectMcpServers(projectId)` - List MCP servers
-- `upsertProjectMcpServer(input)` - Add/update MCP server
-- `deleteProjectMcpServer(projectId, serverName)` - Remove MCP server
+Service 层只抛结构化错误，不自己返回 HTTP 错误响应。
 
-### 4. Service Functions
+### `routes/`
 
-**Project Operations:**
-- `listAllProjects(options?)` - List projects with error handling
-- `getProject(id, options?)` - Get project with validation
-- `createProject(input)` - Create with business validation
-- `modifyProject(input)` - Update with validation
-- `archiveProject(id)` - Archive project
-- `restoreProject(id)` - Restore archived project
-- `removeProject(id)` - Delete project
-- `markProjectOpened(id)` - Update last opened timestamp
+- `project.routes.ts`
+  - `/projects`
+  - `/projects/:id`
+- `routes/index.ts`
+  - 模块 composition root
+  - 用 `app.prisma` 构造 repository / service，并把 service 注入 route
 
-**Settings Operations:**
-- `getSettings(projectId)` - Get settings with validation
-- `modifySettings(input)` - Update settings
+### `schemas/`
 
-**MCP Server Operations:**
-- `getMcpServers(projectId)` - List MCP servers
-- `setMcpServer(input)` - Add/update MCP server
-- `removeMcpServer(projectId, serverName)` - Remove MCP server
+- route body / params / response schema 全部拆到这里
+- 当前采用 Fastify 原生 JSON Schema
+- Route 文件不再堆大量 schema 常量
 
-### 5. Error Handling
+## 3. 对 Fastify 的贴合度
 
-**Repository Errors:**
-```typescript
-ProjectRepositoryError {
-  code: ProjectErrorCode
-  message: string
-}
-```
+当前 `project` 模块已经比较接近 Fastify 官方推荐的实现方式：
 
-**Service Errors:**
-```typescript
-ProjectServiceError {
-  code: ProjectServiceErrorCode
-  message: string
-  status: number  // HTTP status code
-}
-```
+- 路由声明中使用 `schema`
+- request validation 交给 Fastify / Ajv
+- error response 交给全局 error handler
+- 不在 route 里手写局部错误映射
+- 通过模块 composition root 注入依赖，而不是散落创建实例
 
-**Error Codes:**
-- `INVALID_PATH` - Invalid project path
-- `PATH_NOT_FOUND` - Path does not exist
-- `NOT_A_DIRECTORY` - Path is not a directory
-- `DUPLICATE_PATH` - Path already exists
-- `INVALID_PROJECT_ID` - Invalid project ID
-- `PROJECT_NOT_FOUND` - Project not found
-- `DB_READ_ERROR` - Database read error
-- `DB_WRITE_ERROR` - Database write error
+这比此前的“模块入口里混合导出函数、route 里直接解析输入、局部处理错误”的方式更清晰。
 
-### 6. Key Features
+## 4. 当前公开入口
 
-**Path Validation:**
-- Resolves to canonical path using `realpath()`
-- Validates directory existence
-- Prevents duplicate paths
-- Supports both absolute and relative paths
+文件：[index.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/index.ts)
 
-**Slug Generation:**
-- Auto-generates URL-friendly slugs from names
-- Handles special characters and spaces
-- Ensures uniqueness
+当前保留的公开能力只有几类：
 
-**Status Management:**
-- `active` - Normal project
-- `archived` - Archived project (with timestamp)
-- `missing` - Path no longer exists
+- domain types
+- `ProjectError` / `createProjectError`
+- repository / service factory
+- `registerProjectModuleRoutes`
+- `createProjectModule({ prisma })`
 
-**Settings Defaults:**
-- Default executor: "codex"
-- Max concurrent tasks: 1
-- Log retention: 30 days
-- Event retention: 7 days
+已经删除的遗留形态：
 
-**Legacy Compatibility:**
-- `path` property aliases `normalizedPath`
-- Maintains backward compatibility with old code
+- `listProjects()`
+- `getProjectById()`
+- `createProject()`
+- 这类基于默认单例的 wrapper export
 
-## Migration Notes
+保留 factory API 的原因是：
 
-### Breaking Changes
-None - the new implementation maintains backward compatibility through the `path` alias.
+- 避免模块偷偷持有全局状态
+- 依赖关系更清楚
+- 在 route、task service、测试里都能显式注入 `prisma`
 
-### Database Schema
-Uses existing Prisma schema with:
-- `projects` table
-- `project_settings` table (1:1 relation)
-- `project_mcp_servers` table (1:N relation)
+## 5. 仍然需要注意的点
 
-### Usage Example
+- 目前 `project.settings` 还没有完整的 REST 路由面。
+- JSON Schema 已经拆分，但还可以继续补更细的字段约束，例如更明确的长度或格式限制。
+- 还没有成体系的 route / service 测试。
 
-```typescript
-import { createProject, getProject, modifySettings } from '@/modules/project'
+## 6. 后续演进建议
 
-// Create project
-const project = await createProject({
-  path: '/path/to/project',
-  name: 'My Project',
-  description: 'A cool project'
-})
+如果继续打磨这个模块，优先级建议如下：
 
-// Get project
-const found = await getProject(project.id, { includeSettings: true })
-
-// Update settings
-await modifySettings({
-  projectId: project.id,
-  defaultModel: 'gpt-4',
-  maxConcurrentTasks: 3
-})
-
-// Archive project
-await archiveProject(project.id)
-```
-
-## Benefits
-
-1. **Type Safety** - Full TypeScript support with Prisma types
-2. **Clean Architecture** - Clear separation of concerns
-3. **Error Handling** - Comprehensive error codes and messages
-4. **Extensibility** - Easy to add new features
-5. **Testability** - Repository and service layers can be tested independently
-6. **Performance** - Prisma query optimization
-7. **Maintainability** - Clear code structure and documentation
-
-## Next Steps
-
-The project module is now production-ready and follows modern best practices. Other modules can follow this pattern for consistency.
+1. 为 `project` 路由补 Fastify 注入测试，覆盖 200 / 400 / 404 / 409。
+2. 决定是否为 `project-settings` 增补完整读写接口。
+3. 继续把其他模块按同样模式收紧边界和测试覆盖。
