@@ -24,8 +24,8 @@ export const taskQueryKeys = {
   byProject(projectId: string) {
     return [...this.all, "project", projectId] as const
   },
-  list(projectId: string, filter: Pick<TaskFilter, "timeRange" | "keyword">) {
-    return [...this.byProject(projectId), "list", filter] as const
+  list(projectId: string) {
+    return [...this.byProject(projectId), "list"] as const
   },
   detail(taskId: string) {
     return [...this.all, "detail", taskId] as const
@@ -40,14 +40,12 @@ export const taskQueryKeys = {
 
 export function useTaskListQuery(args: {
   projectId: string
-  filter: Pick<TaskFilter, "timeRange" | "keyword">
 }) {
   return useQuery({
-    queryKey: taskQueryKeys.list(args.projectId, args.filter),
+    queryKey: taskQueryKeys.list(args.projectId),
     queryFn: async () => {
       const result = await readProjectTasks({
         projectId: args.projectId,
-        filter: args.filter,
       })
 
       return result.tasks

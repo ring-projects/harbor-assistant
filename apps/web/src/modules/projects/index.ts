@@ -1,6 +1,3 @@
 export * from "./components"
 export * from "./hooks"
 export * from "./modal"
-export * from "./providers"
-export * from "./state"
-export * from "./store"

@@ -9,10 +9,37 @@ import { registerV1Routes } from "./routes/v1"
 export async function buildServiceApp(
   config: ServiceConfig,
 ): Promise<FastifyInstance> {
+  const redact = {
+    paths: [
+      "req.headers.authorization",
+      "req.headers.cookie",
+      "req.headers['set-cookie']",
+    ],
+    remove: true,
+  }
+
+  const logger = config.isProduction
+    ? {
+        level: "info",
+        redact,
+      }
+    : {
+        level: "debug",
+        transport: config.nodeEnv === "development"
+          ? {
+              target: "pino-pretty",
+              options: {
+                colorize: true,
+                ignore: "pid,hostname",
+                translateTime: "SYS:standard",
+              },
+            }
+          : undefined,
+        redact,
+      }
+
   const app = Fastify({
-    logger: {
-      level: config.isProduction ? "info" : "debug",
-    },
+    logger,
   })
 
   await app.register(cors, {

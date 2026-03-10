@@ -753,10 +753,6 @@ export function TaskWorkbench({ projectId }: TaskWorkbenchProps) {
 
   const listQuery = useTaskListQuery({
     projectId,
-    filter: {
-      keyword: filter.keyword,
-      timeRange: filter.timeRange,
-    },
   })
 
   const allTasks = useMemo(() => {

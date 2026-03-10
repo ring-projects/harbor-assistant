@@ -7,10 +7,8 @@ import {
   type TaskConversationMessage,
   type TaskDetail,
   type TaskEvent,
-  type TaskFilter,
   type TaskListItem,
   type TaskStatus,
-  type TaskTimeRange,
   taskConversationMessageSchema,
   taskConversationSchema,
   taskDetailSchema,
@@ -377,31 +375,6 @@ function extractSingleConversation(payload: unknown): TaskConversation | null {
   return parsed.success ? parsed.data : null
 }
 
-function computeRangeStart(range: TaskTimeRange) {
-  const now = Date.now()
-
-  if (range === "24h") {
-    return new Date(now - 24 * 60 * 60 * 1000).toISOString()
-  }
-
-  if (range === "7d") {
-    return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString()
-  }
-
-  return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString()
-}
-
-function buildTaskListQuery(filter: Pick<TaskFilter, "timeRange" | "keyword">) {
-  const searchParams = new URLSearchParams()
-  searchParams.set("from", computeRangeStart(filter.timeRange))
-  const keyword = filter.keyword.trim()
-  if (keyword) {
-    searchParams.set("q", keyword)
-  }
-
-  return searchParams.toString()
-}
-
 async function parseJson(response: Response): Promise<TaskEnvelopePayload | null> {
   return (await response.json().catch(() => null)) as TaskEnvelopePayload | null
 }
@@ -470,12 +443,9 @@ export async function createTask(
 
 export async function readProjectTasks(args: {
   projectId: string
-  filter: Pick<TaskFilter, "timeRange" | "keyword">
 }): Promise<TaskListResult> {
-  const query = buildTaskListQuery(args.filter)
-  const suffix = query ? `?${query}` : ""
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/projects/${encodeURIComponent(args.projectId)}/tasks${suffix}`,
+    `${EXECUTOR_API_BASE}/projects/${encodeURIComponent(args.projectId)}/tasks`,
     {
       method: "GET",
       cache: "no-store",

@@ -21,10 +21,6 @@ async function run() {
       port: config.port,
       host: config.host,
     })
-
-    app.log.info(
-      `[service] listening on http://${config.host}:${String(config.port)}`,
-    )
   } catch (error) {
     app.log.error(error)
     process.exitCode = 1
