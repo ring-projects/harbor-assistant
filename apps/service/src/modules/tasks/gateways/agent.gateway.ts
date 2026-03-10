@@ -180,7 +180,6 @@ export function createTaskAgentGateway(args: {
 
     let sessionId: string | null = null
     let stdout = ""
-    let userMessagePersisted = false
     let terminalError: string | null = null
 
     const events = agent.startSessionAndRun(
@@ -202,17 +201,6 @@ export function createTaskAgentGateway(args: {
           await taskRepository.setTaskThreadId({
             taskId: args.taskId,
             threadId: sessionId,
-          })
-        }
-
-        if (sessionId && !userMessagePersisted) {
-          userMessagePersisted = true
-          await taskRepository.appendTimelineItem({
-            taskId: args.taskId,
-            kind: "message",
-            role: "user",
-            content: args.prompt,
-            source: "user_prompt",
           })
         }
 
@@ -259,7 +247,6 @@ export function createTaskAgentGateway(args: {
     const agent = AgentFactory.getAgent(agentType)
 
     let stdout = ""
-    let userMessagePersisted = false
     let terminalError: string | null = null
 
     const events = agent.resumeSessionAndRun(
@@ -277,17 +264,6 @@ export function createTaskAgentGateway(args: {
 
     try {
       for await (const event of events) {
-        if (!userMessagePersisted) {
-          userMessagePersisted = true
-          await taskRepository.appendTimelineItem({
-            taskId: args.taskId,
-            kind: "message",
-            role: "user",
-            content: args.prompt,
-            source: "user_prompt",
-          })
-        }
-
         const result = await handleAgentEvent({
           event,
           taskId: args.taskId,
