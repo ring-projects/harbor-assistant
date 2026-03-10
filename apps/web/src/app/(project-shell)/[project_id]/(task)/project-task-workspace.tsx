@@ -8,13 +8,13 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ProjectSettingsModal } from "@/modules/settings"
 import { TaskWorkbench } from "@/modules/tasks"
 
-type ProjectProgressWorkspaceProps = {
+type ProjectTaskWorkspaceProps = {
   projectId: string
 }
 
-export function ProjectProgressWorkspace({
+export function ProjectTaskWorkspace({
   projectId,
-}: ProjectProgressWorkspaceProps) {
+}: ProjectTaskWorkspaceProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   return (

@@ -2,12 +2,18 @@
 
 import {
   PlusIcon,
-  RefreshCcwIcon,
-  XIcon,
 } from "lucide-react"
 import { useEffect, useMemo, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -105,58 +111,56 @@ export function TaskListPanel({
           <div className="flex items-center gap-2">
             <Button
               type="button"
-              variant={isCreateComposerOpen ? "secondary" : "outline"}
+              variant="outline"
               size="sm"
               onClick={() => {
                 setCreateTaskError(null)
-                setIsCreateComposerOpen((current) => !current)
+                setIsCreateComposerOpen(true)
               }}
             >
-              {isCreateComposerOpen ? (
-                <XIcon className="size-4" />
-              ) : (
-                <PlusIcon className="size-4" />
-              )}
-              {isCreateComposerOpen ? "收起" : "New Task"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => listQuery.refetch()}
-              disabled={listQuery.isFetching}
-            >
-              <RefreshCcwIcon className={cn(listQuery.isFetching && "animate-spin")} />
-              刷新
+              <PlusIcon className="size-4" />
+              New Task
             </Button>
           </div>
         </div>
 
-        {isCreateComposerOpen ? (
-          <form
-            className="grid gap-2 rounded-md border bg-muted/20 p-3"
-            onSubmit={handleCreateTask}
-          >
-            <Input
-              value={newTaskPrompt}
-              onChange={(event) => setNewTaskPrompt(event.target.value)}
-              placeholder="输入初始化 prompt，开始一个新的 thread"
-              disabled={createTaskMutation.isPending}
-            />
+        <Dialog
+          open={isCreateComposerOpen}
+          onOpenChange={(open) => {
+            setIsCreateComposerOpen(open)
+            if (!open && !createTaskMutation.isPending) {
+              setCreateTaskError(null)
+              setNewTaskPrompt("")
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Create New Task</DialogTitle>
+              <DialogDescription>
+                输入初始化 prompt，创建一个新的 Codex thread。
+              </DialogDescription>
+            </DialogHeader>
 
-            {createTaskError ? (
-              <div className="rounded-md border border-rose-300 bg-rose-50 p-2 text-xs text-rose-700">
-                {createTaskError}
-              </div>
-            ) : null}
+            <form className="grid gap-3" onSubmit={handleCreateTask}>
+              <Input
+                value={newTaskPrompt}
+                onChange={(event) => setNewTaskPrompt(event.target.value)}
+                placeholder="输入初始化 prompt"
+                disabled={createTaskMutation.isPending}
+                autoFocus
+              />
 
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              {createTaskError ? (
+                <div className="rounded-md border border-rose-300 bg-rose-50 p-2 text-xs text-rose-700">
+                  {createTaskError}
+                </div>
+              ) : null}
+
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
                   onClick={() => {
                     setIsCreateComposerOpen(false)
                     setCreateTaskError(null)
@@ -168,16 +172,15 @@ export function TaskListPanel({
                 </Button>
                 <Button
                   type="submit"
-                  size="sm"
                   disabled={createTaskMutation.isPending || newTaskPrompt.trim().length === 0}
                 >
                   <PlusIcon className="size-4" />
                   {createTaskMutation.isPending ? "创建中..." : "创建"}
                 </Button>
-              </div>
-            </div>
-          </form>
-        ) : null}
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
           {listQuery.isLoading ? (

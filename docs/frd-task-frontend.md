@@ -3,9 +3,9 @@
 ## 1. 文档信息
 
 - 文档名称：Task Frontend Requirements Document
-- 版本：v1.0
-- 日期：2026-03-05
-- 范围：项目内 Task 工作台（创建、列表、详情、日志、取消、重试）
+- 版本：v1.1
+- 日期：2026-03-11
+- 范围：项目内 Task 工作台（创建、列表、timeline、follow-up、取消、重试）
 - 依赖文档：
   - `/Users/qiuhao/workspace/harbor-assistant/docs/frd-frontend.md`
   - `/Users/qiuhao/workspace/harbor-assistant/docs/prd-executor-service.md`
@@ -21,7 +21,7 @@
    - 用户能快速看到任务是否开始、是否卡住、为什么失败。
 
 3. **稳定可回溯**
-   - 任务历史可筛选、可定位，失败任务可重试。
+   - 任务历史可定位，timeline 可连续查看，失败任务可重试。
 
 4. **TypeScript-first**
    - 任务类型、状态、事件结构全部类型化，避免隐式字段。
@@ -33,31 +33,35 @@
 
 ## 3. 产品决策（已定）
 
-1. Task 工作台采用**单页面结构**（列表 + 详情 + 创建表单同页）。
+1. Task 工作台采用**单页面结构**（列表 + timeline + diff 同页）。
 2. v1 执行器固定为 `codex`，不提供执行器切换。
-3. 任务历史必须提供筛选能力（至少状态 + 时间范围）。
+3. 当前任务列表不提供筛选器，默认按创建时间倒序展示。
 4. 设置页默认模型仅做 mock 展示，不做持久化。
+5. `followup` 在同一 thread 内继续执行，但**复用当前 task record**，不会新建 task。
 
 ---
 
 ## 4. 页面信息架构（Single Page IA）
 
-建议在 `/:project_id` 的 progress 工作台中采用三段布局：
+建议在 `/:project_id` 的 task 工作台中采用三段布局：
 
 1. **顶部控制区**
-   - 页面标题、刷新按钮、状态统计（queued/running/completed/failed/cancelled）
+   - Sidebar Trigger
+   - Settings 按钮
 
 2. **左侧任务区**
-   - 筛选器（状态、时间范围、关键词可选）
-   - 任务列表（分页或无限加载）
+   - 创建任务入口
+   - 刷新按钮
+   - 任务列表（默认按创建时间倒序）
 
-3. **右侧详情区**
-   - 任务基础信息（prompt、model、状态、时间）
-   - 日志面板（stdout/stderr/系统事件）
-   - 操作区（cancel/retry）
+3. **中间 timeline 区**
+   - 当前 task 的统一 timeline
+   - follow-up 输入框
+   - thread 标识
 
-4. **创建任务区**
-   - 可置于顶部抽屉、页内折叠区或详情上方固定表单（保持单页面原则）
+4. **右侧 diff 区**
+   - 当前 task 的状态信息
+   - diff / stdout / stderr 预览
 
 ---
 
@@ -92,7 +96,7 @@
 
 ---
 
-## 5.2 任务列表与筛选（TFR-005 ~ TFR-009）
+## 5.2 任务列表（TFR-005 ~ TFR-008）
 
 ### TFR-005 列表项字段
 
@@ -104,62 +108,47 @@
 4. createdAt / startedAt / finishedAt（按可用性展示）
 5. model（若有）
 
-### TFR-006 状态筛选（必选）
+### TFR-006 列表排序
 
-支持多状态筛选或单选切换：
+1. 默认按 `createdAt desc` 展示。
+2. 新创建任务成功后应优先定位到该任务。
 
-- queued
-- running
-- completed
-- failed
-- cancelled
-
-### TFR-007 时间范围筛选（必选）
-
-至少支持：
-
-1. 最近 24 小时
-2. 最近 7 天
-3. 最近 30 天
-4. 自定义范围（可在 v1.1）
-
-### TFR-008 列表状态
+### TFR-007 列表状态
 
 1. loading：skeleton
 2. empty：无数据提示 + 创建引导
 3. error：错误提示 + 重试按钮
 
-### TFR-009 列表性能
+### TFR-008 列表性能
 
 1. 默认分页，避免一次性加载全部任务。
-2. 列表更新不应导致详情区重置（除非当前任务被移除）。
+2. 列表更新不应导致 timeline / diff 区重置（除非当前任务被移除）。
 
 ---
 
-## 5.3 任务详情与日志（TFR-010 ~ TFR-015）
+## 5.3 Timeline 与详情（TFR-009 ~ TFR-015）
 
-### TFR-010 详情基础信息
+### TFR-009 Timeline 基础信息
 
-详情区需展示：
+timeline 区需展示：
 
 1. taskId
-2. 状态与状态变更时间
-3. prompt（可折叠展开）
-4. model
-5. 执行命令摘要（可选）
+2. threadId（若已存在）
+3. 当前 task 的 timeline items
+4. follow-up 输入框
 
-### TFR-011 日志展示
+### TFR-010 Timeline item 展示
 
-1. 支持 stdout 与 stderr 分区或标签切换。
-2. 日志按时间顺序追加。
-3. 支持“自动滚动到底部”开关。
+1. message / status / stdout / stderr / summary / error / system 统一按时间顺序展示。
+2. item 需保留 `sequence` 与 `createdAt`。
+3. 不同 `kind` 允许差异化视觉样式。
 
-### TFR-012 实时更新优先级
+### TFR-011 实时更新优先级
 
-1. 优先 SSE：`GET /v1/tasks/:taskId/events`
+1. 优先 SSE：`GET /v1/tasks/:taskId/timeline?format=sse`
 2. SSE 不可用时回退轮询策略
 
-### TFR-013 终态识别
+### TFR-012 当前 task 终态识别
 
 终态必须明确标识：
 
@@ -169,10 +158,17 @@
 
 并附带终态原因（若有）。
 
-### TFR-014 日志大文本策略
+### TFR-013 Diff / 输出区
 
-1. 对超长日志进行分段渲染（避免一次性渲染卡顿）。
-2. 提供“复制日志”与“折叠历史”能力（P1）。
+1. 右侧单独展示当前 task 的状态、退出码、开始/结束时间。
+2. 优先提取 diff block。
+3. 若无 diff，则回退展示 stdout / stderr 预览。
+
+### TFR-014 Follow-up 交互语义
+
+1. `followup` 继续使用同一 thread。
+2. `followup` 不创建新的 task，而是复用当前 task record 继续执行。
+3. 当 task 非终态时，不允许 follow-up。
 
 ### TFR-015 详情埋点
 
@@ -193,7 +189,8 @@
 ### TFR-017 重试任务
 
 1. 仅 `failed/cancelled` 状态显示重试按钮。
-2. 重试成功生成新 run（或新 task，按后端契约展示关联）。
+2. 若当前 task 存在 threadId，重试复用当前 task record 并恢复同一 thread。
+3. 若当前 task 没有 threadId，重试允许退回创建新的 task。
 3. UI 需清晰标识“重试来源”。
 
 ### TFR-018 操作失败处理
@@ -223,7 +220,9 @@
 1. `POST /v1/tasks`
 2. `GET /v1/projects/:projectId/tasks`
 3. `GET /v1/tasks/:taskId`
-4. `GET /v1/tasks/:taskId/events`（SSE）
+4. `GET /v1/tasks/:taskId/timeline`
+5. `GET /v1/tasks/:taskId/timeline?format=sse`
+6. `POST /v1/tasks/:taskId/followup`
 5. `POST /v1/tasks/:taskId/cancel`
 6. `POST /v1/tasks/:taskId/retry`
 
@@ -232,8 +231,8 @@
 1. `TaskStatus`
 2. `TaskListItem`
 3. `TaskDetail`
-4. `TaskEvent`
-5. `TaskFilter`
+4. `TaskTimelineItem`
+5. `TaskTimeline`
 
 建议使用 `zod` 定义响应 schema 并在前端解析。
 
@@ -243,18 +242,18 @@
 
 1. 首次打开任务页，列表首屏数据响应目标 < 1s（本地环境）。
 2. 状态变化到 UI 可见延迟目标 < 1s（SSE）或 < 3s（轮询）。
-3. 日志面板在 10k+ 行文本情况下仍可操作（通过分段/虚拟化策略）。
+3. timeline / 输出面板在 10k+ 行文本情况下仍可操作（通过分段/虚拟化策略）。
 4. 错误文案需覆盖：网络失败、执行器不可用、参数错误、权限错误。
 
 ---
 
 ## 8. 验收标准（Task MVP）
 
-1. 用户可在单页面完成创建任务、查看列表、查看详情。
-2. 用户可按状态和时间范围筛选任务历史。
-3. 用户可看到实时日志或轮询降级日志更新。
+1. 用户可在单页面完成创建任务、查看列表、查看 timeline、查看 diff。
+2. 用户可在同一 thread 上 follow-up，并看到当前 task timeline 继续增长。
+3. 用户可看到实时 timeline 或轮询降级 timeline 更新。
 4. 用户可取消 running/queued 任务并看到终态收敛。
-5. 用户可重试失败任务并看到新 run 结果。
+5. 用户可重试失败任务，并按 thread 能力决定是复用当前 task 还是新建 task。
 6. 页面在 loading/empty/error 三类状态下表现稳定。
 
 ---
@@ -279,4 +278,3 @@
 1. 多 executor 切换
 2. 高级过滤与视图自定义
 3. 更丰富任务分析面板
-
