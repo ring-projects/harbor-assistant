@@ -1,13 +1,11 @@
 export { createTaskRepository } from "./task.repository"
 export type {
-  AppendTaskEventInput,
-  AppendTaskMessageInput,
-  AttachThreadToTaskInput,
+  AppendTimelineItemInput,
   CreateTaskInput,
-  ListTaskEventsInput,
+  ListTaskTimelineInput,
   ListTasksByProjectInput,
-  ReadTaskConversationInput,
+  SetTaskThreadIdInput,
   TaskDbClient,
   TaskRepository,
-  UpdateTaskRunStateInput,
+  UpdateTaskStateInput,
 } from "./task.repository"

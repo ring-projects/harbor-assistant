@@ -1,13 +1,7 @@
 type ProjectLayoutProps = {
   children: React.ReactNode
-  modal: React.ReactNode
 }
 
-export default function ProjectLayout({ children, modal }: ProjectLayoutProps) {
-  return (
-    <>
-      {children}
-      {modal}
-    </>
-  )
+export default function ProjectLayout({ children }: ProjectLayoutProps) {
+  return children
 }

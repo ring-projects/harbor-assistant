@@ -1,0 +1,46 @@
+"use client"
+
+import { Settings2Icon } from "lucide-react"
+import { useState } from "react"
+
+import { Button } from "@/components/ui/button"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { ProjectSettingsModal } from "@/modules/settings"
+import { TaskWorkbench } from "@/modules/tasks"
+
+type ProjectProgressWorkspaceProps = {
+  projectId: string
+}
+
+export function ProjectProgressWorkspace({
+  projectId,
+}: ProjectProgressWorkspaceProps) {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <header className="flex h-12 items-center justify-between border-b px-3">
+        <SidebarTrigger />
+
+        <Button
+          type="button"
+          variant={isSettingsOpen ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => setIsSettingsOpen((current) => !current)}
+        >
+          <Settings2Icon className="size-4" />
+          Settings
+        </Button>
+      </header>
+
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <TaskWorkbench projectId={projectId} />
+        <ProjectSettingsModal
+          projectId={projectId}
+          open={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      </div>
+    </div>
+  )
+}

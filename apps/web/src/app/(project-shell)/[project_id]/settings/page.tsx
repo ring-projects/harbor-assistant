@@ -1,10 +1,17 @@
-export default function ProjectSettingsPage() {
+import { ProjectSettingsView } from "@/modules/settings"
+
+type ProjectSettingsPageProps = {
+  params: Promise<{
+    project_id: string
+  }>
+}
+
+export default async function ProjectSettingsPage(props: ProjectSettingsPageProps) {
+  const { project_id: projectId } = await props.params
+
   return (
-    <div className="p-4">
-      <h1 className="text-lg font-semibold">Settings</h1>
-      <p className="text-muted-foreground mt-2 text-sm">
-        This is the full settings page.
-      </p>
+    <div className="h-svh min-h-0 overflow-hidden">
+      <ProjectSettingsView projectId={projectId} />
     </div>
   )
 }

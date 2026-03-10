@@ -1,6 +1,3 @@
-export { createTaskConversationService } from "./task-conversation.service"
-export type { TaskConversationService } from "./task-conversation.service"
-
 export { createTaskRunnerService } from "./task-runner.service"
 export type { TaskRunnerService } from "./task-runner.service"
 
@@ -9,8 +6,7 @@ export type {
   CancelTaskInput,
   CreateTaskInput,
   FollowupTaskInput,
-  GetTaskConversationInput,
-  GetTaskEventsInput,
+  GetTaskTimelineInput,
   ListProjectTasksInput,
   RetryTaskInput,
   TaskService,

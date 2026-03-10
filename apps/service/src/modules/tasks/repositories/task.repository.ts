@@ -1,20 +1,19 @@
 import {
   Prisma,
   type PrismaClient,
-  TaskEventType as PrismaTaskEventType,
   TaskMessageRole as PrismaTaskMessageRole,
   TaskStatus as PrismaTaskStatus,
+  TaskTimelineItemKind as PrismaTaskTimelineItemKind,
 } from "@prisma/client"
 
 import { createTaskError, TaskError } from "../errors"
 import type {
   CodexTask,
-  TaskConversation,
-  TaskConversationMessage,
-  TaskEvent,
-  TaskEventType,
   TaskMessageRole,
   TaskStatus,
+  TaskTimeline,
+  TaskTimelineItem,
+  TaskTimelineItemKind,
 } from "../types"
 
 export type TaskDbClient = PrismaClient
@@ -33,15 +32,7 @@ export type CreateTaskInput = {
   parentTaskId?: string | null
 }
 
-export type AttachThreadToTaskInput = {
-  taskId: string
-  threadId: string
-  projectId: string
-  projectPath: string
-  model: string | null
-}
-
-export type UpdateTaskRunStateInput = {
+export type UpdateTaskStateInput = {
   taskId: string
   status: TaskStatus
   startedAt?: string | null
@@ -51,73 +42,44 @@ export type UpdateTaskRunStateInput = {
   stdout?: string
   stderr?: string
   error?: string | null
-  failureCode?: string | null
 }
 
-export type ListTaskEventsInput = {
+export type SetTaskThreadIdInput = {
+  taskId: string
+  threadId: string
+}
+
+export type ListTaskTimelineInput = {
   taskId: string
   afterSequence?: number
   limit?: number
 }
 
-export type AppendTaskEventInput = {
+export type AppendTimelineItemInput = {
   taskId: string
-  type: TaskEventType
-  payload: string
-}
-
-export type AppendTaskMessageInput = {
-  threadId: string
-  taskId: string
-  role: TaskMessageRole
-  content: string
-  source: string
-  externalId?: string | null
+  kind: TaskTimelineItemKind
+  role?: TaskMessageRole | null
+  status?: TaskStatus | null
+  source?: string | null
+  content?: string | null
+  payload?: string | null
   createdAt?: string | null
 }
-
-export type ReadTaskConversationInput = {
-  taskId: string
-  limit?: number
-}
-
-type TaskSummaryPayload = {
-  stdout?: string
-  stderr?: string
-}
-
-type TaskWithLatestRun = Prisma.TaskGetPayload<{
-  include: {
-    runs: {
-      orderBy: {
-        attempt: "desc"
-      }
-      take: 1
-      include: {
-        events: {
-          where: {
-            type: "summary"
-          }
-          orderBy: {
-            sequence: "desc"
-          }
-          take: 1
-        }
-      }
-    }
-  }
-}>
 
 function toPrismaTaskStatus(status: TaskStatus): PrismaTaskStatus {
   return status
 }
 
-function toPrismaTaskEventType(type: TaskEventType): PrismaTaskEventType {
-  return type
+function toPrismaTaskMessageRole(
+  role: TaskMessageRole | null | undefined,
+): PrismaTaskMessageRole | null {
+  return role ?? null
 }
 
-function toPrismaTaskMessageRole(role: TaskMessageRole): PrismaTaskMessageRole {
-  return role
+function toPrismaTaskTimelineItemKind(
+  kind: TaskTimelineItemKind,
+): PrismaTaskTimelineItemKind {
+  return kind
 }
 
 function toDomainTaskStatus(status: PrismaTaskStatus): TaskStatus {
@@ -168,75 +130,79 @@ function parseCommand(command: string | null): string[] {
   }
 }
 
-function parseSummaryPayload(payload: string | null | undefined): TaskSummaryPayload {
-  if (!payload) {
-    return {}
-  }
-
-  try {
-    const parsed = JSON.parse(payload) as Record<string, unknown>
-    return {
-      stdout: typeof parsed.stdout === "string" ? parsed.stdout : undefined,
-      stderr: typeof parsed.stderr === "string" ? parsed.stderr : undefined,
-    }
-  } catch {
-    return {}
-  }
-}
-
-function withLatestRunQuery() {
-  return {
-    runs: {
-      orderBy: {
-        attempt: "desc",
-      },
-      take: 1,
-      include: {
-        events: {
-          where: {
-            type: PrismaTaskEventType.summary,
-          },
-          orderBy: {
-            sequence: "desc",
-          },
-          take: 1,
-        },
-      },
-    },
-  } satisfies Prisma.TaskInclude
-}
-
-function toCodexTask(task: TaskWithLatestRun): CodexTask {
-  const run = task.runs[0]
-  const summary = parseSummaryPayload(run?.events[0]?.payload)
-
+function toCodexTask(task: {
+  id: string
+  projectId: string
+  projectPath: string
+  prompt: string
+  executor: string
+  model: string | null
+  status: PrismaTaskStatus
+  threadId: string | null
+  parentTaskId: string | null
+  createdAt: Date
+  startedAt: Date | null
+  finishedAt: Date | null
+  exitCode: number | null
+  command: string | null
+  stdout: string
+  stderr: string
+  error: string | null
+}): CodexTask {
   return {
     id: task.id,
     projectId: task.projectId,
     projectPath: task.projectPath,
     prompt: task.prompt,
+    executor: task.executor,
     model: task.model,
     status: toDomainTaskStatus(task.status),
     threadId: task.threadId,
     parentTaskId: task.parentTaskId,
     createdAt: task.createdAt.toISOString(),
-    startedAt: toIsoString(run?.startedAt),
-    finishedAt: toIsoString(run?.finishedAt),
-    exitCode: run?.exitCode ?? null,
-    command: parseCommand(run?.command ?? null),
-    stdout: summary.stdout ?? "",
-    stderr: summary.stderr ?? "",
-    error: run?.failureMessage ?? run?.cancellationReason ?? null,
+    startedAt: toIsoString(task.startedAt),
+    finishedAt: toIsoString(task.finishedAt),
+    exitCode: task.exitCode,
+    command: parseCommand(task.command),
+    stdout: task.stdout,
+    stderr: task.stderr,
+    error: task.error,
   }
 }
 
-async function nextTaskEventSequence(args: {
-  runId: string
+function toTaskTimelineItem(item: {
+  id: string
+  taskId: string
+  sequence: number
+  kind: PrismaTaskTimelineItemKind
+  role: PrismaTaskMessageRole | null
+  status: PrismaTaskStatus | null
+  source: string | null
+  content: string | null
+  payload: string | null
+  createdAt: Date
+}): TaskTimelineItem {
+  return {
+    id: item.id,
+    taskId: item.taskId,
+    sequence: item.sequence,
+    kind: item.kind,
+    role: item.role,
+    status: item.status ? toDomainTaskStatus(item.status) : null,
+    source: item.source,
+    content: item.content,
+    payload: item.payload,
+    createdAt: item.createdAt.toISOString(),
+  }
+}
+
+async function nextTaskTimelineSequence(args: {
+  taskId: string
   tx: Prisma.TransactionClient
 }) {
-  const aggregate = await args.tx.taskEvent.aggregate({
+  const aggregate = await args.tx.taskTimelineItem.aggregate({
     where: {
-      runId: args.runId,
+      taskId: args.taskId,
     },
     _max: {
       sequence: true,
@@ -246,20 +212,30 @@ async function nextTaskEventSequence(args: {
   return (aggregate._max.sequence ?? 0) + 1
 }
 
-async function nextThreadMessageSequence(args: {
-  threadId: string
+async function appendTimelineItemInTransaction(args: {
   tx: Prisma.TransactionClient
+  input: AppendTimelineItemInput
 }) {
-  const aggregate = await args.tx.taskMessage.aggregate({
-    where: {
-      threadId: args.threadId,
-    },
-    _max: {
-      sequence: true,
+  const sequence = await nextTaskTimelineSequence({
+    taskId: args.input.taskId,
+    tx: args.tx,
+  })
+
+  const item = await args.tx.taskTimelineItem.create({
+    data: {
+      taskId: args.input.taskId,
+      sequence,
+      kind: toPrismaTaskTimelineItemKind(args.input.kind),
+      role: toPrismaTaskMessageRole(args.input.role),
+      status: args.input.status ? toPrismaTaskStatus(args.input.status) : null,
+      source: args.input.source ?? null,
+      content: args.input.content ?? null,
+      payload: args.input.payload ?? null,
+      createdAt: toDate(args.input.createdAt) ?? undefined,
     },
   })
 
-  return (aggregate._max.sequence ?? 0) + 1
+  return toTaskTimelineItem(item)
 }
 
 export function createTaskRepository(prisma: TaskDbClient) {
@@ -281,7 +257,6 @@ export function createTaskRepository(prisma: TaskDbClient) {
         where: {
           projectId,
         },
-        include: withLatestRunQuery(),
         orderBy: {
           createdAt: "desc",
         },
@@ -305,7 +280,6 @@ export function createTaskRepository(prisma: TaskDbClient) {
         where: {
           id: normalizedTaskId,
         },
-        include: withLatestRunQuery(),
       })
 
       return task ? toCodexTask(task) : null
@@ -325,72 +299,63 @@ export function createTaskRepository(prisma: TaskDbClient) {
     }
 
     try {
-      const task = await prisma.task.create({
-        data: {
-          projectId,
-          projectPath: input.projectPath,
-          prompt,
-          model: input.model,
-          executor: "codex",
-          status: PrismaTaskStatus.queued,
-          threadId: input.threadId ?? null,
-          parentTaskId: input.parentTaskId ?? null,
-          runs: {
-            create: {
-              attempt: 1,
-              status: PrismaTaskStatus.queued,
-            },
+      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const task = await tx.task.create({
+          data: {
+            projectId,
+            projectPath: input.projectPath,
+            prompt,
+            model: input.model,
+            executor: "codex",
+            status: PrismaTaskStatus.queued,
+            threadId: input.threadId ?? null,
+            parentTaskId: input.parentTaskId ?? null,
           },
-        },
-        include: withLatestRunQuery(),
-      })
+        })
 
-      return toCodexTask(task)
+        await appendTimelineItemInTransaction({
+          tx,
+          input: {
+            taskId: task.id,
+            kind: "status",
+            status: "queued",
+            source: "task.lifecycle",
+            content: "Task queued.",
+            payload: JSON.stringify({
+              from: null,
+              to: "queued",
+            }),
+          },
+        })
+
+        return toCodexTask(task)
+      })
     } catch (error) {
       throw createTaskError.storeWriteError("create task", error)
     }
   }
 
-  async function attachThreadToTask(input: AttachThreadToTaskInput) {
+  async function setTaskThreadId(input: SetTaskThreadIdInput) {
     const taskId = input.taskId.trim()
     const threadId = input.threadId.trim()
     if (!taskId || !threadId) {
       throw createTaskError.storeWriteError(
-        "attach thread to task",
+        "set task thread id",
         new Error("taskId and threadId are required."),
       )
     }
 
     try {
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        await tx.taskThread.upsert({
-          where: {
-            id: threadId,
-          },
-          update: {
-            projectId: input.projectId,
-            projectPath: input.projectPath,
-            model: input.model,
-          },
-          create: {
-            id: threadId,
-            projectId: input.projectId,
-            projectPath: input.projectPath,
-            model: input.model,
-          },
-        })
-
-        await tx.task.update({
-          where: {
-            id: taskId,
-          },
-          data: {
-            threadId,
-          },
-        })
+      await prisma.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          threadId,
+        },
       })
     } catch (error) {
-      throw createTaskError.storeWriteError("attach thread to task", error)
+      throw createTaskError.storeWriteError("set task thread id", error)
     }
   }
 
@@ -429,8 +394,8 @@ export function createTaskRepository(prisma: TaskDbClient) {
     }
   }
 
-  async function updateTaskRunState(
-    input: UpdateTaskRunStateInput,
+  async function updateTaskState(
+    input: UpdateTaskStateInput,
   ): Promise<CodexTask> {
     const taskId = input.taskId.trim()
     if (!taskId) {
@@ -443,55 +408,19 @@ export function createTaskRepository(prisma: TaskDbClient) {
           where: {
             id: taskId,
           },
-          include: {
-            runs: {
-              orderBy: {
-                attempt: "desc",
-              },
-              take: 1,
-              include: {
-                events: {
-                  where: {
-                    type: PrismaTaskEventType.summary,
-                  },
-                  orderBy: {
-                    sequence: "desc",
-                  },
-                  take: 1,
-                },
-              },
-            },
-          },
         })
 
         if (!task) {
           throw createTaskError.taskNotFound(taskId)
         }
 
-        const run = task.runs[0]
-        if (!run) {
-          throw createTaskError.storeReadError(
-            "update task run state",
-            new Error(`Task run not found: ${taskId}`),
-          )
-        }
-
         const nextStatus = toPrismaTaskStatus(input.status)
         const command =
           input.command === undefined ? undefined : serializeCommand(input.command)
 
-        await tx.task.update({
+        const updatedTask = await tx.task.update({
           where: {
             id: taskId,
-          },
-          data: {
-            status: nextStatus,
-          },
-        })
-
-        await tx.taskRun.update({
-          where: {
-            id: run.id,
           },
           data: {
             status: nextStatus,
@@ -501,74 +430,27 @@ export function createTaskRepository(prisma: TaskDbClient) {
               input.finishedAt !== undefined ? toDate(input.finishedAt) : undefined,
             exitCode: input.exitCode !== undefined ? input.exitCode : undefined,
             command,
-            failureCode:
-              input.failureCode !== undefined ? input.failureCode : undefined,
-            failureMessage: input.error !== undefined ? input.error : undefined,
-            cancellationReason:
-              input.status === "cancelled" && input.error !== undefined
-                ? input.error
-                : undefined,
+            stdout: input.stdout !== undefined ? input.stdout : undefined,
+            stderr: input.stderr !== undefined ? input.stderr : undefined,
+            error: input.error !== undefined ? input.error : undefined,
           },
         })
 
-        let sequence = await nextTaskEventSequence({
-          runId: run.id,
-          tx,
-        })
-
-        if (run.status !== nextStatus) {
-          await tx.taskEvent.create({
-            data: {
-              runId: run.id,
-              sequence,
-              type: PrismaTaskEventType.state,
+        if (task.status !== nextStatus) {
+          await appendTimelineItemInTransaction({
+            tx,
+            input: {
+              taskId,
+              kind: "status",
+              status: input.status,
+              source: "task.lifecycle",
+              content: `Task status changed: ${task.status} -> ${input.status}.`,
               payload: JSON.stringify({
-                from: run.status,
-                to: nextStatus,
+                from: task.status,
+                to: input.status,
               }),
             },
           })
-
-          sequence += 1
-        }
-
-        if (input.stdout !== undefined || input.stderr !== undefined) {
-          if (run.events[0]) {
-            await tx.taskEvent.update({
-              where: {
-                id: run.events[0].id,
-              },
-              data: {
-                payload: JSON.stringify({
-                  stdout: input.stdout ?? "",
-                  stderr: input.stderr ?? "",
-                }),
-              },
-            })
-          } else {
-            await tx.taskEvent.create({
-              data: {
-                runId: run.id,
-                sequence,
-                type: PrismaTaskEventType.summary,
-                payload: JSON.stringify({
-                  stdout: input.stdout ?? "",
-                  stderr: input.stderr ?? "",
-                }),
-              },
-            })
-          }
-        }
-
-        const updatedTask = await tx.task.findUnique({
-          where: {
-            id: taskId,
-          },
-          include: withLatestRunQuery(),
-        })
-
-        if (!updatedTask) {
-          throw createTaskError.taskNotFound(taskId)
         }
 
         return toCodexTask(updatedTask)
@@ -578,33 +460,59 @@ export function createTaskRepository(prisma: TaskDbClient) {
         throw error
       }
 
-      throw createTaskError.storeWriteError("update task run state", error)
+      throw createTaskError.storeWriteError("update task state", error)
     }
   }
 
-  async function listTaskEvents(args: ListTaskEventsInput): Promise<TaskEvent[]> {
+  async function appendTimelineItem(
+    input: AppendTimelineItemInput,
+  ): Promise<TaskTimelineItem> {
+    const taskId = input.taskId.trim()
+    if (!taskId) {
+      throw createTaskError.invalidTaskId("Task id cannot be empty.")
+    }
+
+    try {
+      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const task = await tx.task.findUnique({
+          where: {
+            id: taskId,
+          },
+          select: {
+            id: true,
+          },
+        })
+
+        if (!task) {
+          throw createTaskError.taskNotFound(taskId)
+        }
+
+        return appendTimelineItemInTransaction({
+          tx,
+          input: {
+            ...input,
+            taskId,
+          },
+        })
+      })
+    } catch (error) {
+      if (error instanceof TaskError) {
+        throw error
+      }
+
+      throw createTaskError.storeWriteError("append timeline item", error)
+    }
+  }
+
+  async function listTaskTimeline(
+    args: ListTaskTimelineInput,
+  ): Promise<TaskTimeline> {
     const taskId = args.taskId.trim()
     if (!taskId) {
       throw createTaskError.invalidTaskId("Task id cannot be empty.")
     }
 
     try {
-      const latestRun = await prisma.taskRun.findFirst({
-        where: {
-          taskId,
-        },
-        orderBy: {
-          attempt: "desc",
-        },
-        select: {
-          id: true,
-        },
-      })
-
-      if (!latestRun) {
-        return []
-      }
-
       const normalizedLimit =
         typeof args.limit === "number" && Number.isFinite(args.limit)
           ? Math.max(1, Math.trunc(args.limit))
@@ -614,9 +522,9 @@ export function createTaskRepository(prisma: TaskDbClient) {
           ? Math.max(0, Math.trunc(args.afterSequence))
           : 0
 
-      const events = await prisma.taskEvent.findMany({
+      const items = await prisma.taskTimelineItem.findMany({
         where: {
-          runId: latestRun.id,
+          taskId,
           sequence: {
             gt: afterSequence,
           },
@@ -627,216 +535,22 @@ export function createTaskRepository(prisma: TaskDbClient) {
         take: normalizedLimit,
       })
 
-      return events.map((event) => ({
-        id: event.id,
-        taskId,
-        runId: event.runId,
-        sequence: event.sequence,
-        type: event.type,
-        payload: event.payload,
-        createdAt: event.createdAt.toISOString(),
-      }))
-    } catch (error) {
-      if (error instanceof TaskError) {
-        throw error
-      }
-
-      throw createTaskError.storeReadError("list task events", error)
-    }
-  }
-
-  async function appendTaskEvent(args: AppendTaskEventInput) {
-    const taskId = args.taskId.trim()
-    if (!taskId) {
-      throw createTaskError.invalidTaskId("Task id cannot be empty.")
-    }
-
-    try {
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const latestRun = await tx.taskRun.findFirst({
-          where: {
-            taskId,
-          },
-          orderBy: {
-            attempt: "desc",
-          },
-          select: {
-            id: true,
-          },
-        })
-
-        if (!latestRun) {
-          throw createTaskError.storeReadError(
-            "append task event",
-            new Error(`Task run not found: ${taskId}`),
-          )
-        }
-
-        const sequence = await nextTaskEventSequence({
-          runId: latestRun.id,
-          tx,
-        })
-
-        await tx.taskEvent.create({
-          data: {
-            runId: latestRun.id,
-            sequence,
-            type: toPrismaTaskEventType(args.type),
-            payload: args.payload,
-          },
-        })
-      })
-    } catch (error) {
-      if (error instanceof TaskError) {
-        throw error
-      }
-
-      throw createTaskError.storeWriteError("append task event", error)
-    }
-  }
-
-  async function appendTaskMessage(
-    args: AppendTaskMessageInput,
-  ): Promise<TaskConversationMessage> {
-    const threadId = args.threadId.trim()
-    const taskId = args.taskId.trim()
-    const content = args.content.trim()
-
-    if (!threadId || !taskId || !content) {
-      throw createTaskError.storeWriteError(
-        "append task message",
-        new Error("threadId, taskId and content are required."),
+      const nextSequence = items.reduce(
+        (maxSequence, item) => Math.max(maxSequence, item.sequence),
+        afterSequence,
       )
-    }
-
-    try {
-      const message = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        if (args.externalId) {
-          const existing = await tx.taskMessage.findUnique({
-            where: {
-              threadId_externalId: {
-                threadId,
-                externalId: args.externalId,
-              },
-            },
-          })
-
-          if (existing) {
-            return existing
-          }
-        }
-
-        const sequence = await nextThreadMessageSequence({
-          threadId,
-          tx,
-        })
-
-        return tx.taskMessage.create({
-          data: {
-            threadId,
-            taskId,
-            role: toPrismaTaskMessageRole(args.role),
-            content,
-            sequence,
-            source: args.source,
-            externalId: args.externalId ?? null,
-            createdAt: toDate(args.createdAt) ?? undefined,
-          },
-        })
-      })
-
-      return {
-        id: message.id,
-        taskId: message.taskId,
-        role: message.role,
-        content: message.content,
-        timestamp: message.createdAt.toISOString(),
-        source: message.source,
-      }
-    } catch (error) {
-      if (error instanceof TaskError) {
-        throw error
-      }
-
-      throw createTaskError.storeWriteError("append task message", error)
-    }
-  }
-
-  async function readTaskConversation(
-    args: ReadTaskConversationInput,
-  ): Promise<TaskConversation> {
-    const taskId = args.taskId.trim()
-    if (!taskId) {
-      throw createTaskError.invalidTaskId("Task id cannot be empty.")
-    }
-
-    try {
-      const task = await prisma.task.findUnique({
-        where: {
-          id: taskId,
-        },
-        select: {
-          threadId: true,
-        },
-      })
-
-      if (!task) {
-        throw createTaskError.taskNotFound(taskId)
-      }
-
-      if (!task.threadId) {
-        return {
-          taskId,
-          threadId: null,
-          rolloutPath: null,
-          messages: [],
-          truncated: false,
-        }
-      }
-
-      const normalizedLimit =
-        typeof args.limit === "number" && Number.isFinite(args.limit)
-          ? Math.max(1, Math.trunc(args.limit))
-          : 200
-
-      const total = await prisma.taskMessage.count({
-        where: {
-          threadId: task.threadId,
-        },
-      })
-
-      const messages = await prisma.taskMessage.findMany({
-        where: {
-          threadId: task.threadId,
-        },
-        orderBy: {
-          sequence: "desc",
-        },
-        take: normalizedLimit,
-      })
 
       return {
         taskId,
-        threadId: task.threadId,
-        rolloutPath: null,
-        messages: messages
-          .reverse()
-          .map((message) => ({
-            id: message.id,
-            taskId: message.taskId,
-            role: message.role,
-            content: message.content,
-            timestamp: message.createdAt.toISOString(),
-            source: message.source,
-          })),
-        truncated: total > normalizedLimit,
+        items: items.map((item) => toTaskTimelineItem(item)),
+        nextSequence,
       }
     } catch (error) {
       if (error instanceof TaskError) {
         throw error
       }
 
-      throw createTaskError.storeReadError("read task conversation", error)
+      throw createTaskError.storeReadError("list task timeline", error)
     }
   }
 
@@ -844,13 +558,11 @@ export function createTaskRepository(prisma: TaskDbClient) {
     listTasksByProject,
     getTaskById,
     createTask,
-    attachThreadToTask,
+    setTaskThreadId,
     hasActiveTaskInThread,
-    updateTaskRunState,
-    listTaskEvents,
-    appendTaskEvent,
-    appendTaskMessage,
-    readTaskConversation,
+    updateTaskState,
+    appendTimelineItem,
+    listTaskTimeline,
   }
 }
 

@@ -8,18 +8,20 @@ export const TASK_STATUS_VALUES = [
   "cancelled",
 ] as const
 
-export const TASK_EVENT_TYPE_VALUES = [
-  "state",
+export const TASK_TIMELINE_KIND_VALUES = [
+  "message",
+  "status",
   "stdout",
   "stderr",
-  "system",
   "summary",
+  "error",
+  "system",
 ] as const
 
 export const TASK_TIME_RANGE_VALUES = ["24h", "7d", "30d"] as const
 
 export const taskStatusSchema = z.enum(TASK_STATUS_VALUES)
-export const taskEventTypeSchema = z.enum(TASK_EVENT_TYPE_VALUES)
+export const taskTimelineKindSchema = z.enum(TASK_TIMELINE_KIND_VALUES)
 export const taskTimeRangeSchema = z.enum(TASK_TIME_RANGE_VALUES)
 
 export const taskFilterSchema = z.object({
@@ -49,42 +51,33 @@ export const taskListItemSchema = z.object({
 
 export const taskDetailSchema = taskListItemSchema
 
-export const taskEventSchema = z.object({
+export const taskTimelineItemSchema = z.object({
   id: z.string().min(1),
   taskId: z.string().min(1),
-  runId: z.string().default(""),
   sequence: z.number().int().nonnegative(),
-  type: taskEventTypeSchema,
-  payload: z.string().default(""),
+  kind: taskTimelineKindSchema,
+  role: z.enum(["user", "assistant", "system"]).nullable().default(null),
+  status: taskStatusSchema.nullable().default(null),
+  source: z.string().nullable().default(null),
+  content: z.string().nullable().default(null),
+  payload: z.string().nullable().default(null),
   createdAt: z.string().min(1),
 })
 
-export const taskConversationMessageSchema = z.object({
-  id: z.string().min(1),
+export const taskTimelineSchema = z.object({
   taskId: z.string().min(1),
-  role: z.enum(["user", "assistant", "system"]),
-  content: z.string().default(""),
-  timestamp: z.string().nullable().default(null),
-  source: z.string().default("assistant"),
-})
-
-export const taskConversationSchema = z.object({
-  taskId: z.string().min(1),
-  threadId: z.string().nullable().default(null),
-  rolloutPath: z.string().nullable().default(null),
-  messages: z.array(taskConversationMessageSchema).default([]),
-  truncated: z.boolean().default(false),
+  items: z.array(taskTimelineItemSchema).default([]),
+  nextSequence: z.number().int().nonnegative(),
 })
 
 export type TaskStatus = z.infer<typeof taskStatusSchema>
-export type TaskEventType = z.infer<typeof taskEventTypeSchema>
+export type TaskTimelineKind = z.infer<typeof taskTimelineKindSchema>
 export type TaskTimeRange = z.infer<typeof taskTimeRangeSchema>
 export type TaskFilter = z.infer<typeof taskFilterSchema>
 export type TaskListItem = z.infer<typeof taskListItemSchema>
 export type TaskDetail = z.infer<typeof taskDetailSchema>
-export type TaskEvent = z.infer<typeof taskEventSchema>
-export type TaskConversationMessage = z.infer<typeof taskConversationMessageSchema>
-export type TaskConversation = z.infer<typeof taskConversationSchema>
+export type TaskTimelineItem = z.infer<typeof taskTimelineItemSchema>
+export type TaskTimeline = z.infer<typeof taskTimelineSchema>
 
 export const TERMINAL_TASK_STATUSES: TaskStatus[] = [
   "completed",

@@ -25,6 +25,6 @@ export function getV1TaskRetryApiRoute(taskId: string) {
   return `${getV1TaskByIdApiRoute(taskId)}/retry`
 }
 
-export function getV1TaskEventsApiRoute(taskId: string) {
-  return `${getV1TaskByIdApiRoute(taskId)}/events`
+export function getV1TaskTimelineApiRoute(taskId: string) {
+  return `${getV1TaskByIdApiRoute(taskId)}/timeline`
 }

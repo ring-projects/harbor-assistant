@@ -18,11 +18,8 @@ describe("task routes", () => {
   })
 
   afterEach(async () => {
-    await prisma.taskEvent.deleteMany()
-    await prisma.taskRun.deleteMany()
-    await prisma.taskMessage.deleteMany()
+    await prisma.taskTimelineItem.deleteMany()
     await prisma.task.deleteMany()
-    await prisma.taskThread.deleteMany()
     await prisma.projectSetting.deleteMany()
     await prisma.project.deleteMany()
   })

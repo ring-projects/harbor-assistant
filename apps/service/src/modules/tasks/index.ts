@@ -1,11 +1,10 @@
 export type {
   CodexTask,
-  TaskConversation,
-  TaskConversationMessage,
-  TaskEvent,
-  TaskEventType,
   TaskMessageRole,
   TaskStatus,
+  TaskTimeline,
+  TaskTimelineItem,
+  TaskTimelineItemKind,
 } from "./types"
 
 export { TaskError, createTaskError } from "./errors"
@@ -13,23 +12,20 @@ export type { TaskErrorCode } from "./errors"
 
 export { createTaskRepository } from "./repositories"
 export type {
-  AppendTaskEventInput,
-  AppendTaskMessageInput,
-  AttachThreadToTaskInput,
+  AppendTimelineItemInput,
   CreateTaskInput as CreateTaskRecordInput,
-  ListTaskEventsInput as ListTaskEventsRepositoryInput,
+  ListTaskTimelineInput as ListTaskTimelineRepositoryInput,
   ListTasksByProjectInput as ListTasksByProjectRepositoryInput,
-  ReadTaskConversationInput,
+  SetTaskThreadIdInput,
   TaskDbClient,
   TaskRepository,
-  UpdateTaskRunStateInput,
+  UpdateTaskStateInput,
 } from "./repositories"
 
 export { createTaskAgentGateway } from "./gateways"
 export type { TaskAgentGateway } from "./gateways"
 
 export {
-  createTaskConversationService,
   createTaskRunnerService,
   createTaskService,
 } from "./services"
@@ -37,11 +33,9 @@ export type {
   CancelTaskInput,
   CreateTaskInput,
   FollowupTaskInput,
-  GetTaskConversationInput,
-  GetTaskEventsInput,
+  GetTaskTimelineInput,
   ListProjectTasksInput,
   RetryTaskInput,
-  TaskConversationService,
   TaskRunnerService,
   TaskService,
 } from "./services"
@@ -53,7 +47,6 @@ import { createTaskAgentGateway } from "./gateways"
 import { createTaskRepository } from "./repositories"
 import type { TaskDbClient } from "./repositories"
 import {
-  createTaskConversationService,
   createTaskRunnerService,
   createTaskService,
 } from "./services"
@@ -64,9 +57,6 @@ export function createTaskModule(args: { prisma: TaskDbClient }) {
   const taskAgentGateway = createTaskAgentGateway({
     taskRepository,
   })
-  const taskConversationService = createTaskConversationService({
-    taskRepository,
-  })
   const taskRunnerService = createTaskRunnerService({
     taskRepository,
     taskAgentGateway,
@@ -75,7 +65,6 @@ export function createTaskModule(args: { prisma: TaskDbClient }) {
     projectRepository,
     taskRepository,
     taskRunnerService,
-    taskConversationService,
   })
 
   return {
@@ -84,7 +73,6 @@ export function createTaskModule(args: { prisma: TaskDbClient }) {
       taskRepository,
     },
     services: {
-      taskConversationService,
       taskRunnerService,
       taskService,
     },

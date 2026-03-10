@@ -65,45 +65,24 @@ export function ProjectsList({
           className="h-auto w-30"
           draggable={false}
         />
-        <div className="space-y-1">
-          <div className="flex items-center gap-1">
-            <p className="text-sm font-semibold">Projects</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-6"
-              aria-label="Add project"
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <PlusIcon className="size-4" />
-            </Button>
-          </div>
-          <p className="text-muted-foreground text-xs">
-            Select an active project to continue.
-          </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold">Projects</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-6"
+            aria-label="Add project"
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <PlusIcon className="size-4" />
+          </Button>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            {projectsQuery.isLoading ? (
-              <SidebarMenu>
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <SidebarMenuItem key={index}>
-                    <SidebarMenuSkeleton showIcon />
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            ) : null}
-
-            {!projectsQuery.isLoading && projectsQuery.isError ? (
-              <div className="text-destructive rounded-md border p-3 text-xs">
-                Failed to load projects.
-              </div>
-            ) : null}
-
             {!projectsQuery.isLoading &&
             !projectsQuery.isError &&
             (projectsQuery.data?.length ?? 0) === 0 ? (
@@ -135,13 +114,6 @@ export function ProjectsList({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="p-3">
-        <div className="text-muted-foreground rounded-md border px-3 py-2 text-xs">
-          Project switcher
-        </div>
-      </SidebarFooter>
-
       <AddProjectModal
         open={isAddModalOpen}
         onOpenChange={setIsAddModalOpen}

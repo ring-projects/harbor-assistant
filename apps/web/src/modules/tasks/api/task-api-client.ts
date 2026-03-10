@@ -3,18 +3,14 @@ import { z } from "zod"
 import { ERROR_CODES } from "@/constants"
 import {
   TASK_STATUS_VALUES,
-  type TaskConversation,
-  type TaskConversationMessage,
   type TaskDetail,
-  type TaskEvent,
   type TaskListItem,
   type TaskStatus,
-  taskConversationMessageSchema,
-  taskConversationSchema,
+  type TaskTimeline,
   taskDetailSchema,
-  taskEventSchema,
   taskListItemSchema,
-} from "@/modules/tasks/types/task-contract"
+  taskTimelineSchema,
+} from "@/modules/tasks/contracts"
 
 const EXECUTOR_API_BASE = "/api/v1"
 
@@ -78,21 +74,6 @@ function toStringOrNull(value: unknown): string | null {
 
 function toStringOrEmpty(value: unknown) {
   return typeof value === "string" ? value : ""
-}
-
-function toNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) {
-      return parsed
-    }
-  }
-
-  return 0
 }
 
 function toIntegerOrNull(value: unknown): number | null {
@@ -161,17 +142,11 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
     toStringOrNull(source.taskId) ??
     toStringOrNull(source.id) ??
     toStringOrNull(source.task_id)
-
   const projectId =
     toStringOrNull(source.projectId) ??
     toStringOrNull(source.project_id) ??
-    toStringOrNull(source.workspaceId) ??
-    toStringOrNull(source.workspace_id)
-
-  const status =
-    toStatus(source.status) ??
-    toStatus(source.taskStatus) ??
-    toStatus(source.task_status)
+    null
+  const status = toStatus(source.status)
 
   if (!taskId || !projectId || !status) {
     return null
@@ -181,40 +156,22 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
     taskId,
     projectId,
     prompt: toStringOrEmpty(source.prompt),
-    model:
-      toStringOrNull(source.model) ?? toStringOrNull(source.modelName) ?? null,
+    model: toStringOrNull(source.model),
     executor: toStringOrNull(source.executor) ?? "codex",
     status,
-    threadId:
-      toStringOrNull(source.threadId) ?? toStringOrNull(source.thread_id) ?? null,
-    parentTaskId:
-      toStringOrNull(source.parentTaskId) ??
-      toStringOrNull(source.parent_task_id) ??
-      toStringOrNull(source.retrySourceTaskId) ??
-      toStringOrNull(source.retry_source_task_id) ??
-      null,
-    createdAt:
-      toStringOrNull(source.createdAt) ??
-      toStringOrNull(source.created_at) ??
-      new Date().toISOString(),
-    startedAt: toOptionalDateString(source.startedAt ?? source.started_at),
-    finishedAt: toOptionalDateString(source.finishedAt ?? source.finished_at),
-    exitCode: toIntegerOrNull(source.exitCode ?? source.exit_code),
+    threadId: toStringOrNull(source.threadId),
+    parentTaskId: toStringOrNull(source.parentTaskId),
+    createdAt: toDateString(source.createdAt),
+    startedAt: toOptionalDateString(source.startedAt),
+    finishedAt: toOptionalDateString(source.finishedAt),
+    exitCode: toIntegerOrNull(source.exitCode),
     command: toCommand(source.command),
     stdout: toStringOrEmpty(source.stdout),
     stderr: toStringOrEmpty(source.stderr),
-    error:
-      toStringOrNull(source.error) ??
-      toStringOrNull(source.failureMessage) ??
-      toStringOrNull(source.failure_message) ??
-      null,
+    error: toStringOrNull(source.error),
   })
 
-  if (!parsed.success) {
-    return null
-  }
-
-  return parsed.data
+  return parsed.success ? parsed.data : null
 }
 
 function extractTaskArray(payload: unknown): unknown[] {
@@ -242,8 +199,7 @@ function extractTaskArray(payload: unknown): unknown[] {
 }
 
 function extractSingleTask(payload: unknown): TaskDetail | null {
-  const items = extractTaskArray(payload)
-  const first = items[0]
+  const first = extractTaskArray(payload)[0]
   if (!first) {
     return null
   }
@@ -257,119 +213,30 @@ function extractSingleTask(payload: unknown): TaskDetail | null {
   return parsed.success ? parsed.data : null
 }
 
-function normalizeTaskEventCandidate(
-  candidate: unknown,
-  fallbackTaskId: string,
-): TaskEvent | null {
-  const source = asRecord(candidate)
-  if (!source) {
-    return null
-  }
-
-  const id =
-    toStringOrNull(source.id) ??
-    toStringOrNull(source.eventId) ??
-    `${fallbackTaskId}-${String(source.sequence ?? "0")}`
-  const type = toStringOrNull(source.type)
-  const sequence = toNumber(source.sequence)
-
-  if (!type) {
-    return null
-  }
-
-  const payload =
-    typeof source.payload === "string"
-      ? source.payload
-      : source.payload === null || source.payload === undefined
-        ? ""
-        : JSON.stringify(source.payload)
-
-  const parsed = taskEventSchema.safeParse({
-    id,
-    taskId:
-      toStringOrNull(source.taskId) ??
-      toStringOrNull(source.task_id) ??
-      fallbackTaskId,
-    runId: toStringOrEmpty(source.runId ?? source.run_id),
-    sequence,
-    type,
-    payload,
-    createdAt: toDateString(source.createdAt ?? source.created_at),
-  })
-
-  return parsed.success ? parsed.data : null
-}
-
-function extractTaskEvents(payload: unknown, taskId: string): TaskEvent[] {
-  const rows = extractTaskArray(payload)
-  const events = rows
-    .map((item) => normalizeTaskEventCandidate(item, taskId))
-    .filter((item): item is TaskEvent => item !== null)
-
-  return events.sort((left, right) => left.sequence - right.sequence)
-}
-
-function normalizeConversationMessageCandidate(
-  candidate: unknown,
-  fallbackTaskId: string,
-): TaskConversationMessage | null {
-  const source = asRecord(candidate)
-  if (!source) {
-    return null
-  }
-
-  const parsed = taskConversationMessageSchema.safeParse({
-    id:
-      toStringOrNull(source.id) ??
-      `${fallbackTaskId}-${toStringOrNull(source.timestamp) ?? "message"}`,
-    taskId:
-      toStringOrNull(source.taskId) ??
-      toStringOrNull(source.task_id) ??
-      fallbackTaskId,
-    role: toStringOrNull(source.role) ?? "assistant",
-    content: toStringOrEmpty(source.content),
-    timestamp: toOptionalDateString(source.timestamp),
-    source: toStringOrNull(source.source) ?? "assistant",
-  })
-
-  return parsed.success ? parsed.data : null
-}
-
-function extractSingleConversation(payload: unknown): TaskConversation | null {
+function extractTimeline(payload: unknown): TaskTimeline | null {
   const source = asRecord(payload)
   if (!source) {
     return null
   }
 
   const root =
-    source.conversation && typeof source.conversation === "object"
-      ? asRecord(source.conversation)
+    source.timeline && typeof source.timeline === "object"
+      ? asRecord(source.timeline)
       : source
-
   if (!root) {
     return null
   }
 
-  const taskId =
-    toStringOrNull(root.taskId) ??
-    toStringOrNull(root.task_id) ??
-    toStringOrNull(source.taskId) ??
-    null
-  if (!taskId) {
-    return null
-  }
-
-  const messagesRaw = Array.isArray(root.messages) ? root.messages : []
-  const messages = messagesRaw
-    .map((item) => normalizeConversationMessageCandidate(item, taskId))
-    .filter((item): item is TaskConversationMessage => item !== null)
-
-  const parsed = taskConversationSchema.safeParse({
-    taskId,
-    threadId: toStringOrNull(root.threadId ?? root.thread_id),
-    rolloutPath: toStringOrNull(root.rolloutPath ?? root.rollout_path),
-    messages,
-    truncated: root.truncated === true,
+  const parsed = taskTimelineSchema.safeParse({
+    taskId:
+      toStringOrNull(root.taskId) ??
+      toStringOrNull(source.taskId) ??
+      toStringOrNull(source.task_id),
+    items: Array.isArray(root.items) ? root.items : [],
+    nextSequence:
+      typeof root.nextSequence === "number" && Number.isInteger(root.nextSequence)
+        ? root.nextSequence
+        : 0,
   })
 
   return parsed.success ? parsed.data : null
@@ -459,12 +326,9 @@ export async function readProjectTasks(args: {
     .map((item) => normalizeTaskCandidate(item))
     .filter((item): item is TaskListItem => item !== null)
 
-  const nextCursor =
-    toStringOrNull(payload?.nextCursor) ?? toStringOrNull(payload?.cursor) ?? null
-
   return {
     tasks,
-    nextCursor,
+    nextCursor: null,
   }
 }
 
@@ -492,65 +356,48 @@ export async function readTaskDetail(taskId: string): Promise<TaskDetail> {
   return task
 }
 
-export async function readTaskEvents(args: {
+export async function readTaskTimeline(args: {
   taskId: string
+  afterSequence?: number
   limit?: number
-}): Promise<TaskEvent[]> {
+}): Promise<TaskTimeline> {
   const searchParams = new URLSearchParams()
-  searchParams.set("limit", String(args.limit ?? 300))
 
-  const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(args.taskId)}/events?${searchParams.toString()}`,
-    {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-      cache: "no-store",
-    },
-  )
-
-  const contentType = response.headers.get("content-type") ?? ""
-  if (contentType.includes("text/event-stream")) {
-    return []
+  if (typeof args.afterSequence === "number" && Number.isFinite(args.afterSequence)) {
+    searchParams.set(
+      "afterSequence",
+      String(Math.max(0, Math.trunc(args.afterSequence))),
+    )
   }
 
-  const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to load task events.")
-
-  return extractTaskEvents(payload, args.taskId)
-}
-
-export async function readTaskConversation(args: {
-  taskId: string
-  limit?: number
-}): Promise<TaskConversation> {
-  const searchParams = new URLSearchParams()
   if (typeof args.limit === "number" && Number.isFinite(args.limit)) {
     searchParams.set("limit", String(Math.max(1, Math.trunc(args.limit))))
   }
 
-  const suffix = searchParams.toString()
+  const query = searchParams.toString()
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(args.taskId)}/conversation${suffix ? `?${suffix}` : ""}`,
+    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(args.taskId)}/timeline${query ? `?${query}` : ""}`,
     {
       method: "GET",
       cache: "no-store",
+      headers: {
+        accept: "application/json",
+      },
     },
   )
 
   const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to load task conversation.")
+  throwIfFailed(response, payload, "Failed to load task timeline.")
 
-  const conversation = extractSingleConversation(payload)
-  if (!conversation) {
-    throw new TaskApiClientError("Task conversation payload is invalid.", {
+  const timeline = extractTimeline(payload)
+  if (!timeline) {
+    throw new TaskApiClientError("Task timeline payload is invalid.", {
       code: ERROR_CODES.INTERNAL_ERROR,
       status: response.status,
     })
   }
 
-  return conversation
+  return timeline
 }
 
 export async function cancelTask(taskId: string): Promise<TaskDetail | null> {
@@ -647,37 +494,4 @@ export async function followupTask(
     taskId: nextTaskId,
     task: task ?? undefined,
   }
-}
-
-export function parseTaskEventFromSSE(args: {
-  data: string
-  taskId: string
-}): TaskEvent | null {
-  const text = args.data.trim()
-  if (!text) {
-    return null
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    return null
-  }
-
-  if (Array.isArray(parsed)) {
-    const first = parsed[0]
-    return first ? normalizeTaskEventCandidate(first, args.taskId) : null
-  }
-
-  const record = asRecord(parsed)
-  if (!record) {
-    return null
-  }
-
-  if (record.event && typeof record.event === "object") {
-    return normalizeTaskEventCandidate(record.event, args.taskId)
-  }
-
-  return normalizeTaskEventCandidate(record, args.taskId)
 }

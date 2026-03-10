@@ -27,10 +27,23 @@ bun run dev:all
 ## Prisma 初始化
 
 ```bash
-bun run db:generate
-bun run db:migrate:deploy
+bun run --cwd apps/service db:generate
+bun run --cwd apps/service db:migrate:deploy
 ```
 
-默认 `DATABASE_URL` 使用：
+`DATABASE_URL` 由 `apps/service/.env` 提供，Prisma schema 会直接读取该环境变量。
 
-- `file:$HOME/.harbor/data/tasks.sqlite`
+当前默认配置示例：
+
+- `file:/Users/<your-user>/.harbor/data/harbor.sqlite`
+
+如果你需要清空本地 SQLite 数据库并按最新 schema 重建：
+
+1. 停掉当前 service 进程。
+2. 查看 `apps/service/.env` 中的 `DATABASE_URL`。
+3. 删除对应的 sqlite 文件，以及可能存在的 `-wal` / `-shm` 文件。
+4. 重新执行迁移：
+
+```bash
+bun run --cwd apps/service db:migrate:dev
+```

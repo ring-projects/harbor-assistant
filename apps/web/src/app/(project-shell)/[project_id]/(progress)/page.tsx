@@ -1,5 +1,4 @@
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { TaskWorkbench } from "@/modules/tasks"
+import { ProjectProgressWorkspace } from "./project-progress-workspace"
 
 type ProjectProgressPageProps = {
   params: Promise<{
@@ -12,15 +11,5 @@ export default async function ProjectProgressRoutePage(
 ) {
   const { project_id: projectId } = await props.params
 
-  return (
-    <div className="flex h-svh min-h-0 flex-col overflow-hidden">
-      <header className="flex h-12 items-center border-b px-3">
-        <SidebarTrigger />
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <TaskWorkbench projectId={projectId} />
-      </div>
-    </div>
-  )
+  return <ProjectProgressWorkspace projectId={projectId} />
 }

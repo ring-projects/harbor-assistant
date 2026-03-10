@@ -4,7 +4,6 @@ import { createProjectRepository } from "../../project"
 import { createTaskAgentGateway } from "../gateways"
 import { createTaskRepository } from "../repositories"
 import {
-  createTaskConversationService,
   createTaskRunnerService,
   createTaskService,
 } from "../services"
@@ -17,9 +16,6 @@ export async function registerTaskModuleRoutes(app: FastifyInstance) {
   const taskAgentGateway = createTaskAgentGateway({
     taskRepository,
   })
-  const taskConversationService = createTaskConversationService({
-    taskRepository,
-  })
   const taskRunnerService = createTaskRunnerService({
     taskRepository,
     taskAgentGateway,
@@ -28,7 +24,6 @@ export async function registerTaskModuleRoutes(app: FastifyInstance) {
     projectRepository,
     taskRepository,
     taskRunnerService,
-    taskConversationService,
   })
 
   await registerTaskRoutes(app, {

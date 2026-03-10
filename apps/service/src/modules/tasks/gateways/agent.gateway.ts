@@ -32,7 +32,7 @@ export type AgentGatewayRunResult = {
 export function createTaskAgentGateway(args: {
   taskRepository: Pick<
     TaskRepository,
-    "appendTaskEvent" | "appendTaskMessage" | "attachThreadToTask"
+    "appendTimelineItem" | "setTaskThreadId"
   >
 }) {
   const { taskRepository } = args
@@ -49,11 +49,16 @@ export function createTaskAgentGateway(args: {
     switch (event.type) {
       case "session.started": {
         threadId = event.sessionId
-        await taskRepository.appendTaskEvent({
+        await taskRepository.setTaskThreadId({
           taskId,
-          type: "system",
+          threadId: event.sessionId,
+        })
+        await taskRepository.appendTimelineItem({
+          taskId,
+          kind: "system",
+          source: "session.started",
+          content: `Session started: ${event.sessionId}`,
           payload: JSON.stringify({
-            kind: "session-started",
             sessionId: event.sessionId,
           }),
         })
@@ -62,13 +67,12 @@ export function createTaskAgentGateway(args: {
 
       case "message": {
         if (threadId && event.content.trim()) {
-          await taskRepository.appendTaskMessage({
-            threadId,
+          await taskRepository.appendTimelineItem({
             taskId,
+            kind: "message",
             role: event.role,
             content: event.content,
             source: event.source,
-            externalId: event.externalId ?? null,
             createdAt: event.timestamp.toISOString(),
           })
         }
@@ -77,33 +81,37 @@ export function createTaskAgentGateway(args: {
 
       case "command.output": {
         stdout = appendWithLimit(stdout, event.output)
-        await taskRepository.appendTaskEvent({
+        await taskRepository.appendTimelineItem({
           taskId,
-          type: "stdout",
-          payload: event.output,
+          kind: "stdout",
+          source: event.commandId,
+          content: event.output,
+          createdAt: event.timestamp.toISOString(),
         })
         break
       }
 
       case "command.completed": {
-        await taskRepository.appendTaskEvent({
+        await taskRepository.appendTimelineItem({
           taskId,
-          type: "system",
+          kind: "system",
+          source: "command.completed",
+          content: `Command completed (${event.status}${event.exitCode === undefined ? "" : `, exit=${String(event.exitCode)}`}).`,
           payload: JSON.stringify({
-            kind: "command-completed",
             commandId: event.commandId,
             exitCode: event.exitCode ?? null,
             status: event.status,
           }),
+          createdAt: event.timestamp.toISOString(),
         })
         break
       }
 
       case "reasoning": {
         if (threadId && event.content.trim()) {
-          await taskRepository.appendTaskMessage({
-            threadId,
+          await taskRepository.appendTimelineItem({
             taskId,
+            kind: "message",
             role: "system",
             content: event.content,
             source: "reasoning",
@@ -120,9 +128,9 @@ export function createTaskAgentGateway(args: {
             .join("\n")
 
           if (content.trim()) {
-            await taskRepository.appendTaskMessage({
-              threadId,
+            await taskRepository.appendTimelineItem({
               taskId,
+              kind: "message",
               role: "system",
               content,
               source: "todo_list",
@@ -135,10 +143,9 @@ export function createTaskAgentGateway(args: {
 
       case "error": {
         if (threadId && event.message.trim()) {
-          await taskRepository.appendTaskMessage({
-            threadId,
+          await taskRepository.appendTimelineItem({
             taskId,
-            role: "system",
+            kind: "error",
             content: event.message,
             source: "error",
             createdAt: event.timestamp.toISOString(),
@@ -148,13 +155,15 @@ export function createTaskAgentGateway(args: {
       }
 
       case "turn.failed": {
-        await taskRepository.appendTaskEvent({
+        await taskRepository.appendTimelineItem({
           taskId,
-          type: "system",
+          kind: "error",
+          source: "turn.failed",
+          content: event.error,
           payload: JSON.stringify({
-            kind: "turn-failed",
             error: event.error,
           }),
+          createdAt: event.timestamp.toISOString(),
         })
         break
       }
@@ -190,24 +199,20 @@ export function createTaskAgentGateway(args: {
       for await (const event of events) {
         if (event.type === "session.started" && !sessionId) {
           sessionId = event.sessionId
-          await taskRepository.attachThreadToTask({
+          await taskRepository.setTaskThreadId({
             taskId: args.taskId,
             threadId: sessionId,
-            projectId: args.projectId,
-            projectPath: args.projectPath,
-            model: args.model,
           })
         }
 
         if (sessionId && !userMessagePersisted) {
           userMessagePersisted = true
-          await taskRepository.appendTaskMessage({
-            threadId: sessionId,
+          await taskRepository.appendTimelineItem({
             taskId: args.taskId,
+            kind: "message",
             role: "user",
             content: args.prompt,
             source: "user_prompt",
-            externalId: `${args.taskId}:user`,
           })
         }
 
@@ -274,13 +279,12 @@ export function createTaskAgentGateway(args: {
       for await (const event of events) {
         if (!userMessagePersisted) {
           userMessagePersisted = true
-          await taskRepository.appendTaskMessage({
-            threadId: args.sessionId,
+          await taskRepository.appendTimelineItem({
             taskId: args.taskId,
+            kind: "message",
             role: "user",
             content: args.prompt,
             source: "user_prompt",
-            externalId: `${args.taskId}:user`,
           })
         }
 

@@ -22,13 +22,9 @@ export type ProjectIdParams = {
   projectId: string
 }
 
-export type GetTaskEventsQuery = {
+export type GetTaskTimelineQuery = {
   format?: "json" | "sse"
   afterSequence?: number
-  limit?: number
-}
-
-export type GetTaskConversationQuery = {
   limit?: number
 }
 
@@ -44,6 +40,7 @@ const taskEntitySchema = {
     "projectId",
     "projectPath",
     "prompt",
+    "executor",
     "model",
     "status",
     "threadId",
@@ -62,6 +59,7 @@ const taskEntitySchema = {
     projectId: { type: "string" },
     projectPath: { type: "string" },
     prompt: { type: "string" },
+    executor: { type: "string" },
     model: { type: ["string", "null"] },
     status: {
       type: "string",
@@ -83,54 +81,55 @@ const taskEntitySchema = {
   },
 } as const
 
-const taskEventSchema = {
+const taskTimelineItemSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "taskId", "runId", "sequence", "type", "payload", "createdAt"],
+  required: [
+    "id",
+    "taskId",
+    "sequence",
+    "kind",
+    "role",
+    "status",
+    "source",
+    "content",
+    "payload",
+    "createdAt",
+  ],
   properties: {
     id: { type: "string" },
     taskId: { type: "string" },
-    runId: { type: "string" },
     sequence: { type: "integer" },
-    type: {
+    kind: {
       type: "string",
-      enum: ["state", "stdout", "stderr", "system", "summary"],
+      enum: ["message", "status", "stdout", "stderr", "summary", "error", "system"],
     },
-    payload: { type: "string" },
+    role: {
+      type: ["string", "null"],
+      enum: ["user", "assistant", "system", null],
+    },
+    status: {
+      type: ["string", "null"],
+      enum: ["queued", "running", "completed", "failed", "cancelled", null],
+    },
+    source: { type: ["string", "null"] },
+    content: { type: ["string", "null"] },
+    payload: { type: ["string", "null"] },
     createdAt: { type: "string", format: "date-time" },
   },
 } as const
 
-const taskConversationMessageSchema = {
+const taskTimelineSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "taskId", "role", "content", "timestamp", "source"],
-  properties: {
-    id: { type: "string" },
-    taskId: { type: "string" },
-    role: {
-      type: "string",
-      enum: ["user", "assistant", "system"],
-    },
-    content: { type: "string" },
-    timestamp: { type: ["string", "null"], format: "date-time" },
-    source: { type: "string" },
-  },
-} as const
-
-const taskConversationSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["taskId", "threadId", "rolloutPath", "messages", "truncated"],
+  required: ["taskId", "items", "nextSequence"],
   properties: {
     taskId: { type: "string" },
-    threadId: { type: ["string", "null"] },
-    rolloutPath: { type: ["string", "null"] },
-    messages: {
+    items: {
       type: "array",
-      items: taskConversationMessageSchema,
+      items: taskTimelineItemSchema,
     },
-    truncated: { type: "boolean" },
+    nextSequence: { type: "integer" },
   },
 } as const
 
@@ -157,27 +156,14 @@ const tasksSuccessResponseSchema = {
   },
 } as const
 
-const taskEventsSuccessResponseSchema = {
+const taskTimelineSuccessResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["ok", "task", "events"],
+  required: ["ok", "task", "timeline"],
   properties: {
     ok: { type: "boolean", const: true },
     task: taskEntitySchema,
-    events: {
-      type: "array",
-      items: taskEventSchema,
-    },
-  },
-} as const
-
-const taskConversationSuccessResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["ok", "conversation"],
-  properties: {
-    ok: { type: "boolean", const: true },
-    conversation: taskConversationSchema,
+    timeline: taskTimelineSchema,
   },
 } as const
 
@@ -239,7 +225,7 @@ export const followupTaskBodySchema = {
   },
 } as const
 
-const taskEventsQuerySchema = {
+const taskTimelineQuerySchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -297,20 +283,12 @@ export const followupTaskRouteSchema = {
   },
 } as const
 
-export const getTaskEventsRouteSchema = {
+export const getTaskTimelineRouteSchema = {
   params: taskIdParamsSchema,
-  querystring: taskEventsQuerySchema,
+  querystring: taskTimelineQuerySchema,
   response: {
-    200: taskEventsSuccessResponseSchema,
-    206: taskEventsSuccessResponseSchema,
-  },
-} as const
-
-export const getTaskConversationRouteSchema = {
-  params: taskIdParamsSchema,
-  querystring: limitOnlyQuerySchema,
-  response: {
-    200: taskConversationSuccessResponseSchema,
+    200: taskTimelineSuccessResponseSchema,
+    206: taskTimelineSuccessResponseSchema,
   },
 } as const
 

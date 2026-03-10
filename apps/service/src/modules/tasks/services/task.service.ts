@@ -2,7 +2,6 @@ import type { ProjectRepository } from "../../project"
 import { createTaskError, TaskError } from "../errors"
 import type { TaskRepository } from "../repositories"
 import type { CodexTask } from "../types"
-import type { TaskConversationService } from "./task-conversation.service"
 import type { TaskRunnerService } from "./task-runner.service"
 
 export type CreateTaskInput = {
@@ -32,14 +31,9 @@ export type ListProjectTasksInput = {
   limit?: number
 }
 
-export type GetTaskEventsInput = {
+export type GetTaskTimelineInput = {
   taskId: string
   afterSequence?: number
-  limit?: number
-}
-
-export type GetTaskConversationInput = {
-  taskId: string
   limit?: number
 }
 
@@ -61,16 +55,14 @@ export function createTaskService(args: {
   projectRepository: Pick<ProjectRepository, "getProjectById">
   taskRepository: Pick<
     TaskRepository,
-    "getTaskById" | "hasActiveTaskInThread" | "listTaskEvents" | "listTasksByProject"
+    "getTaskById" | "hasActiveTaskInThread" | "listTaskTimeline" | "listTasksByProject"
   >
   taskRunnerService: TaskRunnerService
-  taskConversationService: TaskConversationService
 }) {
   const {
     projectRepository,
     taskRepository,
     taskRunnerService,
-    taskConversationService,
   } = args
 
   async function createTaskAndRun(input: CreateTaskInput) {
@@ -138,6 +130,12 @@ export function createTaskService(args: {
       )
     }
 
+    if (!isTerminalTask(task)) {
+      throw createTaskError.invalidTaskFollowupState(
+        `Task must be in a terminal state before follow-up. Current status: ${task.status}`,
+      )
+    }
+
     if (
       await taskRepository.hasActiveTaskInThread({
         threadId: task.threadId,
@@ -151,7 +149,7 @@ export function createTaskService(args: {
 
     try {
       return await taskRunnerService.followupTask({
-        parentTaskId: task.id,
+        taskId: task.id,
         threadId: task.threadId,
         projectId: task.projectId,
         projectPath: task.projectPath,
@@ -233,7 +231,7 @@ export function createTaskService(args: {
         }
 
         return await taskRunnerService.followupTask({
-          parentTaskId: task.id,
+          taskId: task.id,
           threadId: task.threadId,
           projectId: task.projectId,
           projectPath: task.projectPath,
@@ -292,10 +290,10 @@ export function createTaskService(args: {
     })
   }
 
-  async function getTaskEvents(input: GetTaskEventsInput) {
+  async function getTaskTimeline(input: GetTaskTimelineInput) {
     const task = await getTaskDetail(input.taskId)
 
-    const events = await taskRepository.listTaskEvents({
+    const timeline = await taskRepository.listTaskTimeline({
       taskId: task.id,
       afterSequence: input.afterSequence,
       limit: input.limit,
@@ -303,28 +301,8 @@ export function createTaskService(args: {
 
     return {
       task,
-      events,
+      timeline,
       isTerminal: isTerminalTask(task),
-    }
-  }
-
-  async function getTaskConversation(input: GetTaskConversationInput) {
-    const task = await getTaskDetail(input.taskId)
-
-    try {
-      return await taskConversationService.readConversation({
-        taskId: task.id,
-        limit: input.limit,
-      })
-    } catch (error) {
-      if (error instanceof TaskError) {
-        throw error
-      }
-
-      throw createTaskError.readError(
-        `Failed to read Codex task conversation: ${String(error)}`,
-        error,
-      )
     }
   }
 
@@ -334,8 +312,7 @@ export function createTaskService(args: {
     cancelTask,
     retryTask,
     getTaskDetail,
-    getTaskEvents,
-    getTaskConversation,
+    getTaskTimeline,
     listProjectTasks,
   }
 }

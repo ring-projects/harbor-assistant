@@ -6,12 +6,10 @@ import {
   type CreateTaskBody,
   type FollowupTaskBody,
   type GetProjectTasksQuery,
-  type GetTaskConversationQuery,
-  type GetTaskEventsQuery,
+  type GetTaskTimelineQuery,
   getProjectTasksRouteSchema,
-  getTaskConversationRouteSchema,
-  getTaskEventsRouteSchema,
   getTaskRouteSchema,
+  getTaskTimelineRouteSchema,
   postCancelTaskRouteSchema,
   postRetryTaskRouteSchema,
   type ProjectIdParams,
@@ -168,10 +166,10 @@ export async function registerTaskRoutes(
     },
   )
 
-  app.get<{ Params: TaskIdParams; Querystring: GetTaskEventsQuery }>(
-    "/tasks/:taskId/events",
+  app.get<{ Params: TaskIdParams; Querystring: GetTaskTimelineQuery }>(
+    "/tasks/:taskId/timeline",
     {
-      schema: getTaskEventsRouteSchema,
+      schema: getTaskTimelineRouteSchema,
     },
     async (request, reply) => {
       const { taskId } = request.params
@@ -182,7 +180,7 @@ export async function registerTaskRoutes(
       const limit = normalizePositiveInteger(query.limit, 200)
 
       if (!isSseRequest({ accept: request.headers.accept, format })) {
-        const { task, events, isTerminal } = await taskService.getTaskEvents({
+        const { task, timeline, isTerminal } = await taskService.getTaskTimeline({
           taskId,
           afterSequence,
           limit,
@@ -191,13 +189,12 @@ export async function registerTaskRoutes(
         return reply.status(isTerminal ? 200 : 206).send({
           ok: true,
           task,
-          events,
+          timeline,
         })
       }
 
       let cursor = afterSequence
       let streamClosed = false
-      let lastStatus: string | null = null
       let intervalId: ReturnType<typeof setInterval> | null = null
       let heartbeatId: ReturnType<typeof setInterval> | null = null
 
@@ -224,39 +221,24 @@ export async function registerTaskRoutes(
         }
       }
 
-      const publishNextEvents = async () => {
+      const publishNextItems = async () => {
         if (streamClosed) {
           return
         }
 
         try {
-          const { task, events, isTerminal } = await taskService.getTaskEvents({
+          const { task, timeline, isTerminal } = await taskService.getTaskTimeline({
             taskId,
             afterSequence: cursor,
             limit,
           })
 
-          for (const event of events) {
-            cursor = Math.max(cursor, event.sequence)
-            reply.raw.write(
-              toSseData("task_event", {
-                ...event,
-                taskId: task.id,
-              }),
-            )
+          for (const item of timeline.items) {
+            cursor = Math.max(cursor, item.sequence)
+            reply.raw.write(toSseData("timeline_item", item))
           }
 
-          if (lastStatus !== task.status) {
-            lastStatus = task.status
-            reply.raw.write(
-              toSseData("task_status", {
-                taskId: task.id,
-                status: task.status,
-              }),
-            )
-          }
-
-          if (isTerminal && events.length === 0) {
+          if (isTerminal && timeline.items.length === 0) {
             reply.raw.write(
               toSseData("task_end", {
                 taskId: task.id,
@@ -295,13 +277,13 @@ export async function registerTaskRoutes(
         }),
       )
 
-      await publishNextEvents()
+      await publishNextItems()
       if (streamClosed) {
         return reply
       }
 
       intervalId = setInterval(() => {
-        void publishNextEvents()
+        void publishNextItems()
       }, 1_000)
 
       heartbeatId = setInterval(() => {
@@ -312,25 +294,6 @@ export async function registerTaskRoutes(
       }, 15_000)
 
       return reply
-    },
-  )
-
-  app.get<{ Params: TaskIdParams; Querystring: GetTaskConversationQuery }>(
-    "/tasks/:taskId/conversation",
-    {
-      schema: getTaskConversationRouteSchema,
-    },
-    async (request) => {
-      const { taskId } = request.params
-      const conversation = await taskService.getTaskConversation({
-        taskId,
-        limit: normalizeOptionalLimit(request.query.limit),
-      })
-
-      return {
-        ok: true,
-        conversation,
-      }
     },
   )
 

@@ -20,7 +20,10 @@ function isTerminalStatus(status: CodexTask["status"]) {
 export function createTaskRunnerService(args: {
   taskRepository: Pick<
     TaskRepository,
-    "createTask" | "getTaskById" | "updateTaskRunState"
+    | "appendTimelineItem"
+    | "getTaskById"
+    | "updateTaskState"
+    | "createTask"
   >
   taskAgentGateway: TaskAgentGateway
 }) {
@@ -46,7 +49,7 @@ export function createTaskRunnerService(args: {
   }) {
     clearRunningTask(args.taskId)
 
-    return taskRepository.updateTaskRunState({
+    const task = await taskRepository.updateTaskState({
       taskId: args.taskId,
       status: args.status,
       finishedAt: nowIsoString(),
@@ -54,8 +57,50 @@ export function createTaskRunnerService(args: {
       stdout: args.stdout,
       stderr: args.stderr,
       error: args.error ?? null,
-      failureCode: args.failureCode ?? null,
     })
+
+    if (args.status === "completed") {
+      const summaryChunks = [args.stdout ?? "", args.stderr ?? ""]
+        .filter((chunk) => chunk.trim().length > 0)
+        .join("\n\n")
+        .trim()
+
+      if (summaryChunks) {
+        await taskRepository.appendTimelineItem({
+          taskId: args.taskId,
+          kind: "summary",
+          source: "task.finalize",
+          content: summaryChunks,
+          payload: JSON.stringify({
+            stdout: args.stdout ?? "",
+            stderr: args.stderr ?? "",
+          }),
+        })
+      }
+    }
+
+    if ((args.status === "failed" || args.status === "cancelled") && args.error) {
+      await taskRepository.appendTimelineItem({
+        taskId: args.taskId,
+        kind: "error",
+        source: args.failureCode ?? "task.finalize",
+        content: args.error,
+        payload: JSON.stringify({
+          code: args.failureCode ?? null,
+        }),
+      })
+    }
+
+    return task
+  }
+
+  async function loadTaskOrThrow(taskId: string) {
+    const task = await taskRepository.getTaskById(taskId)
+    if (!task) {
+      throw createTaskError.taskNotFound(taskId)
+    }
+
+    return task
   }
 
   async function executeNewThreadTask(args: {
@@ -118,6 +163,7 @@ export function createTaskRunnerService(args: {
     model: string | null
   }) {
     const runningTask = getRunningTask(args.taskId)
+    const existingTask = await loadTaskOrThrow(args.taskId)
 
     try {
       const result = await taskAgentGateway.resumeSessionAndRun({
@@ -133,8 +179,8 @@ export function createTaskRunnerService(args: {
       await finalizeTask({
         taskId: args.taskId,
         status: "completed",
-        stdout: result.stdout,
-        stderr: result.stderr,
+        stdout: `${existingTask.stdout}${result.stdout}`,
+        stderr: `${existingTask.stderr}${result.stderr}`,
         exitCode: 0,
       })
     } catch (error) {
@@ -184,7 +230,7 @@ export function createTaskRunnerService(args: {
       cancellationReason: null,
     })
 
-    const runningTask = await taskRepository.updateTaskRunState({
+    const runningTask = await taskRepository.updateTaskState({
       taskId: createdTask.id,
       status: "running",
       startedAt: nowIsoString(),
@@ -204,39 +250,32 @@ export function createTaskRunnerService(args: {
   }
 
   async function followupTask(input: {
-    parentTaskId: string
+    taskId: string
     threadId: string
     projectId: string
     projectPath: string
     prompt: string
     model: string | null
   }): Promise<CodexTask> {
-    const createdTask = await taskRepository.createTask({
-      projectId: input.projectId,
-      projectPath: input.projectPath,
-      prompt: input.prompt,
-      model: input.model,
-      threadId: input.threadId,
-      parentTaskId: input.parentTaskId,
-    })
-
     const controller = new AbortController()
-    runningCodexTasks.set(createdTask.id, {
+    runningCodexTasks.set(input.taskId, {
       controller,
       cancellationRequested: false,
       cancellationReason: null,
     })
 
-    const runningTask = await taskRepository.updateTaskRunState({
-      taskId: createdTask.id,
+    const runningTask = await taskRepository.updateTaskState({
+      taskId: input.taskId,
       status: "running",
       startedAt: nowIsoString(),
+      finishedAt: null,
+      exitCode: null,
       command: ["agent", "resumeSession", input.threadId],
       error: null,
     })
 
     void executeResumedThreadTask({
-      taskId: createdTask.id,
+      taskId: input.taskId,
       threadId: input.threadId,
       projectId: input.projectId,
       projectPath: input.projectPath,
@@ -273,12 +312,11 @@ export function createTaskRunnerService(args: {
       runningTask.controller.abort(reason)
     }
 
-    return taskRepository.updateTaskRunState({
+    return taskRepository.updateTaskState({
       taskId,
       status: "cancelled",
       finishedAt: nowIsoString(),
       error: reason,
-      failureCode: "TASK_CANCELLED",
     })
   }
 

@@ -7,17 +7,14 @@ import {
   createTask,
   followupTask,
   readProjectTasks,
-  readTaskConversation,
   readTaskDetail,
-  readTaskEvents,
+  readTaskTimeline,
   retryTask,
   type CreateTaskInput,
-} from "@/modules/tasks/lib/task-api-client"
+} from "@/modules/tasks/api"
 import {
   TERMINAL_TASK_STATUSES,
-  type TaskFilter,
-  type TaskListItem,
-} from "@/modules/tasks/types/task-contract"
+} from "@/modules/tasks/contracts"
 
 export const taskQueryKeys = {
   all: ["tasks"] as const,
@@ -30,11 +27,8 @@ export const taskQueryKeys = {
   detail(taskId: string) {
     return [...this.all, "detail", taskId] as const
   },
-  events(taskId: string) {
-    return [...this.all, "events", taskId] as const
-  },
-  conversation(taskId: string) {
-    return [...this.all, "conversation", taskId] as const
+  timeline(taskId: string) {
+    return [...this.all, "timeline", taskId] as const
   },
 }
 
@@ -81,51 +75,24 @@ export function useTaskDetailQuery(taskId: string | null) {
   })
 }
 
-export function useTaskEventsQuery(args: {
+export function useTaskTimelineQuery(args: {
   taskId: string | null
   enabled: boolean
 }) {
   return useQuery({
-    queryKey: taskQueryKeys.events(args.taskId ?? "none"),
-    queryFn: async () => {
-      if (!args.taskId) {
-        return []
-      }
-
-      return readTaskEvents({
-        taskId: args.taskId,
-      })
-    },
-    enabled: args.enabled && Boolean(args.taskId),
-    refetchInterval: args.enabled ? 3_000 : false,
-  })
-}
-
-export function useTaskConversationQuery(args: {
-  taskId: string | null
-  enabled: boolean
-}) {
-  return useQuery({
-    queryKey: taskQueryKeys.conversation(args.taskId ?? "none"),
+    queryKey: taskQueryKeys.timeline(args.taskId ?? "none"),
     queryFn: async () => {
       if (!args.taskId) {
         return null
       }
 
-      return readTaskConversation({
+      return readTaskTimeline({
         taskId: args.taskId,
+        limit: 500,
       })
     },
     enabled: args.enabled && Boolean(args.taskId),
-    staleTime: 5_000,
-    refetchInterval(query) {
-      const conversation = query.state.data
-      if (!conversation || conversation.messages.length === 0) {
-        return 4_000
-      }
-
-      return 8_000
-    },
+    refetchInterval: args.enabled ? 3_000 : false,
   })
 }
 
@@ -142,6 +109,9 @@ export function useCreateTaskMutation(projectId: string) {
       if (result.task) {
         queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
       }
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.timeline(result.taskId),
+      })
     },
   })
 }
@@ -158,6 +128,9 @@ export function useCancelTaskMutation(projectId: string) {
 
       if (task) {
         queryClient.setQueryData(taskQueryKeys.detail(task.taskId), task)
+        void queryClient.invalidateQueries({
+          queryKey: taskQueryKeys.timeline(task.taskId),
+        })
       }
     },
   })
@@ -176,6 +149,9 @@ export function useRetryTaskMutation(projectId: string) {
       if (result.task) {
         queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
       }
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.timeline(result.taskId),
+      })
     },
   })
 }
@@ -193,78 +169,17 @@ export function useTaskFollowupMutation(projectId: string) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
       })
+
+      if (result.task) {
+        queryClient.setQueryData(taskQueryKeys.detail(variables.taskId), result.task)
+      }
+
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.detail(variables.taskId),
       })
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.events(variables.taskId),
+        queryKey: taskQueryKeys.timeline(variables.taskId),
       })
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.conversation(variables.taskId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.detail(result.taskId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.events(result.taskId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.conversation(result.taskId),
-      })
-
-      if (result.task) {
-        queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
-      }
     },
-  })
-}
-
-export function filterTasksByStatus(
-  tasks: TaskListItem[],
-  statuses: TaskFilter["statuses"],
-) {
-  if (statuses.length === 0) {
-    return tasks
-  }
-
-  const statusSet = new Set(statuses)
-  return tasks.filter((task) => statusSet.has(task.status))
-}
-
-export function filterTasksByKeyword(tasks: TaskListItem[], keyword: string) {
-  const normalizedKeyword = keyword.trim().toLowerCase()
-  if (!normalizedKeyword) {
-    return tasks
-  }
-
-  return tasks.filter((task) => {
-    const prompt = task.prompt.toLowerCase()
-    const taskId = task.taskId.toLowerCase()
-    const model = task.model?.toLowerCase() ?? ""
-
-    return (
-      prompt.includes(normalizedKeyword) ||
-      taskId.includes(normalizedKeyword) ||
-      model.includes(normalizedKeyword)
-    )
-  })
-}
-
-export function filterTasksByTimeRange(
-  tasks: TaskListItem[],
-  timeRange: TaskFilter["timeRange"],
-) {
-  const now = Date.now()
-  const diffMsByRange: Record<TaskFilter["timeRange"], number> = {
-    "24h": 24 * 60 * 60 * 1000,
-    "7d": 7 * 24 * 60 * 60 * 1000,
-    "30d": 30 * 24 * 60 * 60 * 1000,
-  }
-
-  const threshold = now - diffMsByRange[timeRange]
-
-  return tasks.filter((task) => {
-    const date = new Date(task.createdAt)
-    return date.getTime() >= threshold
   })
 }

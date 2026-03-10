@@ -5,15 +5,23 @@ export type TaskStatus =
   | "failed"
   | "cancelled"
 
-export type TaskEventType = "state" | "stdout" | "stderr" | "system" | "summary"
-
 export type TaskMessageRole = "user" | "assistant" | "system"
+
+export type TaskTimelineItemKind =
+  | "message"
+  | "status"
+  | "stdout"
+  | "stderr"
+  | "summary"
+  | "error"
+  | "system"
 
 export type CodexTask = {
   id: string
   projectId: string
   projectPath: string
   prompt: string
+  executor: string
   model: string | null
   status: TaskStatus
   threadId: string | null
@@ -28,31 +36,23 @@ export type CodexTask = {
   error: string | null
 }
 
-export type TaskEvent = {
+export type TaskTimelineItem = {
   id: string
   taskId: string
-  runId: string
   sequence: number
-  type: TaskEventType
-  payload: string
+  kind: TaskTimelineItemKind
+  role: TaskMessageRole | null
+  status: TaskStatus | null
+  source: string | null
+  content: string | null
+  payload: string | null
   createdAt: string
 }
 
-export type TaskConversationMessage = {
-  id: string
+export type TaskTimeline = {
   taskId: string
-  role: TaskMessageRole
-  content: string
-  timestamp: string | null
-  source: string
-}
-
-export type TaskConversation = {
-  taskId: string
-  threadId: string | null
-  rolloutPath: string | null
-  messages: TaskConversationMessage[]
-  truncated: boolean
+  items: TaskTimelineItem[]
+  nextSequence: number
 }
 
 export type TaskErrorCode =
