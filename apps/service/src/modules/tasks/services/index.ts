@@ -5,6 +5,7 @@ export { createTaskService } from "./task.service"
 export type {
   CancelTaskInput,
   CreateTaskInput,
+  GetTaskDiffInput,
   FollowupTaskInput,
   GetTaskTimelineInput,
   ListProjectTasksInput,

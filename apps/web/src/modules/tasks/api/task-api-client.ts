@@ -3,10 +3,12 @@ import { z } from "zod"
 import { ERROR_CODES } from "@/constants"
 import {
   TASK_STATUS_VALUES,
+  type TaskDiff,
   type TaskDetail,
   type TaskListItem,
   type TaskStatus,
   type TaskTimeline,
+  taskDiffSchema,
   taskDetailSchema,
   taskListItemSchema,
   taskTimelineSchema,
@@ -242,6 +244,29 @@ function extractTimeline(payload: unknown): TaskTimeline | null {
   return parsed.success ? parsed.data : null
 }
 
+function extractDiff(payload: unknown): TaskDiff | null {
+  const source = asRecord(payload)
+  if (!source) {
+    return null
+  }
+
+  const root =
+    source.diff && typeof source.diff === "object" ? asRecord(source.diff) : source
+  if (!root) {
+    return null
+  }
+
+  const parsed = taskDiffSchema.safeParse({
+    taskId:
+      toStringOrNull(root.taskId) ??
+      toStringOrNull(source.taskId) ??
+      toStringOrNull(source.task_id),
+    files: Array.isArray(root.files) ? root.files : [],
+  })
+
+  return parsed.success ? parsed.data : null
+}
+
 async function parseJson(response: Response): Promise<TaskEnvelopePayload | null> {
   return (await response.json().catch(() => null)) as TaskEnvelopePayload | null
 }
@@ -398,6 +423,32 @@ export async function readTaskTimeline(args: {
   }
 
   return timeline
+}
+
+export async function readTaskDiff(taskId: string): Promise<TaskDiff> {
+  const response = await fetch(
+    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/diff`,
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+      },
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to load task diff.")
+
+  const diff = extractDiff(payload)
+  if (!diff) {
+    throw new TaskApiClientError("Task diff payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return diff
 }
 
 export async function cancelTask(taskId: string): Promise<TaskDetail | null> {

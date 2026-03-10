@@ -28,3 +28,7 @@ export function getV1TaskRetryApiRoute(taskId: string) {
 export function getV1TaskTimelineApiRoute(taskId: string) {
   return `${getV1TaskByIdApiRoute(taskId)}/timeline`
 }
+
+export function getV1TaskDiffApiRoute(taskId: string) {
+  return `${getV1TaskByIdApiRoute(taskId)}/diff`
+}

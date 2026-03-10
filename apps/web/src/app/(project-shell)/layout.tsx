@@ -17,7 +17,7 @@ export default async function ProjectShellLayout({
         <ProjectsList initialProjects={initialProjects} />
       </Sidebar>
 
-      <SidebarInset className="min-h-svh">{children}</SidebarInset>
+      <SidebarInset className="h-svh min-h-0 overflow-hidden">{children}</SidebarInset>
     </SidebarProvider>
   )
 }

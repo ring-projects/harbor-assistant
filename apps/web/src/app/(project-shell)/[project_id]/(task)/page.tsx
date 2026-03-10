@@ -11,5 +11,9 @@ export default async function ProjectTaskRoutePage(
 ) {
   const { project_id: projectId } = await props.params
 
-  return <ProjectTaskWorkspace projectId={projectId} />
+  return (
+    <div className="h-full min-h-0 overflow-hidden">
+      <ProjectTaskWorkspace projectId={projectId} />
+    </div>
+  )
 }

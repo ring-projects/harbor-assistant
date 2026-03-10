@@ -2,9 +2,10 @@
 
 import { useState } from "react"
 
+import { ChatPanel } from "@/modules/chat"
+
 import { TaskDiffPanel } from "./task-diff-panel"
 import { TaskListPanel } from "./task-list-panel"
-import { TaskTimelinePanel } from "./task-timeline-panel"
 
 type TaskWorkbenchProps = {
   projectId: string
@@ -22,11 +23,7 @@ export function TaskWorkbench({ projectId }: TaskWorkbenchProps) {
           onSelectTask={setSelectedTaskId}
         />
 
-        <TaskTimelinePanel
-          projectId={projectId}
-          taskId={selectedTaskId}
-          onSelectTask={setSelectedTaskId}
-        />
+        <ChatPanel projectId={projectId} taskId={selectedTaskId} />
 
         <TaskDiffPanel taskId={selectedTaskId} />
       </div>

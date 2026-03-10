@@ -7,6 +7,7 @@ import {
   createTask,
   followupTask,
   readProjectTasks,
+  readTaskDiff,
   readTaskDetail,
   readTaskTimeline,
   retryTask,
@@ -29,6 +30,9 @@ export const taskQueryKeys = {
   },
   timeline(taskId: string) {
     return [...this.all, "timeline", taskId] as const
+  },
+  diff(taskId: string) {
+    return [...this.all, "diff", taskId] as const
   },
 }
 
@@ -96,6 +100,21 @@ export function useTaskTimelineQuery(args: {
   })
 }
 
+export function useTaskDiffQuery(taskId: string | null) {
+  return useQuery({
+    queryKey: taskQueryKeys.diff(taskId ?? "none"),
+    queryFn: async () => {
+      if (!taskId) {
+        return null
+      }
+
+      return readTaskDiff(taskId)
+    },
+    enabled: Boolean(taskId),
+    refetchInterval: 3_000,
+  })
+}
+
 export function useCreateTaskMutation(projectId: string) {
   const queryClient = useQueryClient()
 
@@ -111,6 +130,9 @@ export function useCreateTaskMutation(projectId: string) {
       }
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.timeline(result.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.diff(result.taskId),
       })
     },
   })
@@ -130,6 +152,9 @@ export function useCancelTaskMutation(projectId: string) {
         queryClient.setQueryData(taskQueryKeys.detail(task.taskId), task)
         void queryClient.invalidateQueries({
           queryKey: taskQueryKeys.timeline(task.taskId),
+        })
+        void queryClient.invalidateQueries({
+          queryKey: taskQueryKeys.diff(task.taskId),
         })
       }
     },
@@ -151,6 +176,9 @@ export function useRetryTaskMutation(projectId: string) {
       }
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.timeline(result.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.diff(result.taskId),
       })
     },
   })
@@ -179,6 +207,9 @@ export function useTaskFollowupMutation(projectId: string) {
       })
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.timeline(variables.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.diff(variables.taskId),
       })
     },
   })

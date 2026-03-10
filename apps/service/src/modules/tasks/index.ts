@@ -33,6 +33,7 @@ export type {
   CancelTaskInput,
   CreateTaskInput,
   FollowupTaskInput,
+  GetTaskDiffInput,
   GetTaskTimelineInput,
   ListProjectTasksInput,
   RetryTaskInput,
