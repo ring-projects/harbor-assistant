@@ -1,19 +1,16 @@
 import {
   Prisma,
   type PrismaClient,
-  TaskMessageRole as PrismaTaskMessageRole,
   TaskStatus as PrismaTaskStatus,
-  TaskTimelineItemKind as PrismaTaskTimelineItemKind,
 } from "@prisma/client"
 
 import { createTaskError, TaskError } from "../errors"
 import type {
+  TaskAgentEvent,
+  TaskAgentEventStream,
+  TaskAgentEventType,
   CodexTask,
-  TaskMessageRole,
   TaskStatus,
-  TaskTimeline,
-  TaskTimelineItem,
-  TaskTimelineItemKind,
 } from "../types"
 
 export type TaskDbClient = PrismaClient
@@ -49,37 +46,21 @@ export type SetTaskThreadIdInput = {
   threadId: string
 }
 
-export type ListTaskTimelineInput = {
+export type ListTaskAgentEventsInput = {
   taskId: string
   afterSequence?: number
   limit?: number
 }
 
-export type AppendTimelineItemInput = {
+export type AppendTaskAgentEventInput = {
   taskId: string
-  kind: TaskTimelineItemKind
-  role?: TaskMessageRole | null
-  status?: TaskStatus | null
-  source?: string | null
-  content?: string | null
-  payload?: string | null
+  eventType: TaskAgentEventType
+  payload: Record<string, unknown>
   createdAt?: string | null
 }
 
 function toPrismaTaskStatus(status: TaskStatus): PrismaTaskStatus {
   return status
-}
-
-function toPrismaTaskMessageRole(
-  role: TaskMessageRole | null | undefined,
-): PrismaTaskMessageRole | null {
-  return role ?? null
-}
-
-function toPrismaTaskTimelineItemKind(
-  kind: TaskTimelineItemKind,
-): PrismaTaskTimelineItemKind {
-  return kind
 }
 
 function toDomainTaskStatus(status: PrismaTaskStatus): TaskStatus {
@@ -130,6 +111,17 @@ function parseCommand(command: string | null): string[] {
   }
 }
 
+function parseJsonObject(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value)
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+  } catch {}
+
+  return {}
+}
+
 function toCodexTask(task: {
   id: string
   projectId: string
@@ -170,37 +162,29 @@ function toCodexTask(task: {
   }
 }
 
-function toTaskTimelineItem(item: {
+function toTaskAgentEvent(event: {
   id: string
   taskId: string
   sequence: number
-  kind: PrismaTaskTimelineItemKind
-  role: PrismaTaskMessageRole | null
-  status: PrismaTaskStatus | null
-  source: string | null
-  content: string | null
-  payload: string | null
+  eventType: string
+  payload: string
   createdAt: Date
-}): TaskTimelineItem {
+}): TaskAgentEvent {
   return {
-    id: item.id,
-    taskId: item.taskId,
-    sequence: item.sequence,
-    kind: item.kind,
-    role: item.role,
-    status: item.status ? toDomainTaskStatus(item.status) : null,
-    source: item.source,
-    content: item.content,
-    payload: item.payload,
-    createdAt: item.createdAt.toISOString(),
+    id: event.id,
+    taskId: event.taskId,
+    sequence: event.sequence,
+    eventType: event.eventType as TaskAgentEventType,
+    payload: parseJsonObject(event.payload),
+    createdAt: event.createdAt.toISOString(),
   }
 }
 
-async function nextTaskTimelineSequence(args: {
+async function nextTaskAgentEventSequence(args: {
   taskId: string
   tx: Prisma.TransactionClient
 }) {
-  const aggregate = await args.tx.taskTimelineItem.aggregate({
+  const aggregate = await args.tx.taskAgentEvent.aggregate({
     where: {
       taskId: args.taskId,
     },
@@ -212,30 +196,26 @@ async function nextTaskTimelineSequence(args: {
   return (aggregate._max.sequence ?? 0) + 1
 }
 
-async function appendTimelineItemInTransaction(args: {
+async function appendTaskAgentEventInTransaction(args: {
   tx: Prisma.TransactionClient
-  input: AppendTimelineItemInput
+  input: AppendTaskAgentEventInput
 }) {
-  const sequence = await nextTaskTimelineSequence({
+  const sequence = await nextTaskAgentEventSequence({
     taskId: args.input.taskId,
     tx: args.tx,
   })
 
-  const item = await args.tx.taskTimelineItem.create({
+  const event = await args.tx.taskAgentEvent.create({
     data: {
       taskId: args.input.taskId,
       sequence,
-      kind: toPrismaTaskTimelineItemKind(args.input.kind),
-      role: toPrismaTaskMessageRole(args.input.role),
-      status: args.input.status ? toPrismaTaskStatus(args.input.status) : null,
-      source: args.input.source ?? null,
-      content: args.input.content ?? null,
-      payload: args.input.payload ?? null,
+      eventType: args.input.eventType,
+      payload: JSON.stringify(args.input.payload),
       createdAt: toDate(args.input.createdAt) ?? undefined,
     },
   })
 
-  return toTaskTimelineItem(item)
+  return toTaskAgentEvent(event)
 }
 
 export function createTaskRepository(prisma: TaskDbClient) {
@@ -310,21 +290,6 @@ export function createTaskRepository(prisma: TaskDbClient) {
             status: PrismaTaskStatus.queued,
             threadId: input.threadId ?? null,
             parentTaskId: input.parentTaskId ?? null,
-          },
-        })
-
-        await appendTimelineItemInTransaction({
-          tx,
-          input: {
-            taskId: task.id,
-            kind: "status",
-            status: "queued",
-            source: "task.lifecycle",
-            content: "Task queued.",
-            payload: JSON.stringify({
-              from: null,
-              to: "queued",
-            }),
           },
         })
 
@@ -436,23 +401,6 @@ export function createTaskRepository(prisma: TaskDbClient) {
           },
         })
 
-        if (task.status !== nextStatus) {
-          await appendTimelineItemInTransaction({
-            tx,
-            input: {
-              taskId,
-              kind: "status",
-              status: input.status,
-              source: "task.lifecycle",
-              content: `Task status changed: ${task.status} -> ${input.status}.`,
-              payload: JSON.stringify({
-                from: task.status,
-                to: input.status,
-              }),
-            },
-          })
-        }
-
         return toCodexTask(updatedTask)
       })
     } catch (error) {
@@ -464,9 +412,9 @@ export function createTaskRepository(prisma: TaskDbClient) {
     }
   }
 
-  async function appendTimelineItem(
-    input: AppendTimelineItemInput,
-  ): Promise<TaskTimelineItem> {
+  async function appendTaskAgentEvent(
+    input: AppendTaskAgentEventInput,
+  ): Promise<TaskAgentEvent> {
     const taskId = input.taskId.trim()
     if (!taskId) {
       throw createTaskError.invalidTaskId("Task id cannot be empty.")
@@ -487,7 +435,7 @@ export function createTaskRepository(prisma: TaskDbClient) {
           throw createTaskError.taskNotFound(taskId)
         }
 
-        return appendTimelineItemInTransaction({
+        return appendTaskAgentEventInTransaction({
           tx,
           input: {
             ...input,
@@ -500,13 +448,13 @@ export function createTaskRepository(prisma: TaskDbClient) {
         throw error
       }
 
-      throw createTaskError.storeWriteError("append timeline item", error)
+      throw createTaskError.storeWriteError("append task agent event", error)
     }
   }
 
-  async function listTaskTimeline(
-    args: ListTaskTimelineInput,
-  ): Promise<TaskTimeline> {
+  async function listTaskAgentEvents(
+    args: ListTaskAgentEventsInput,
+  ): Promise<TaskAgentEventStream> {
     const taskId = args.taskId.trim()
     if (!taskId) {
       throw createTaskError.invalidTaskId("Task id cannot be empty.")
@@ -522,7 +470,7 @@ export function createTaskRepository(prisma: TaskDbClient) {
           ? Math.max(0, Math.trunc(args.afterSequence))
           : 0
 
-      const items = await prisma.taskTimelineItem.findMany({
+      const items = await prisma.taskAgentEvent.findMany({
         where: {
           taskId,
           sequence: {
@@ -542,7 +490,7 @@ export function createTaskRepository(prisma: TaskDbClient) {
 
       return {
         taskId,
-        items: items.map((item) => toTaskTimelineItem(item)),
+        items: items.map((item) => toTaskAgentEvent(item)),
         nextSequence,
       }
     } catch (error) {
@@ -550,7 +498,7 @@ export function createTaskRepository(prisma: TaskDbClient) {
         throw error
       }
 
-      throw createTaskError.storeReadError("list task timeline", error)
+      throw createTaskError.storeReadError("list task agent events", error)
     }
   }
 
@@ -561,8 +509,8 @@ export function createTaskRepository(prisma: TaskDbClient) {
     setTaskThreadId,
     hasActiveTaskInThread,
     updateTaskState,
-    appendTimelineItem,
-    listTaskTimeline,
+    appendTaskAgentEvent,
+    listTaskAgentEvents,
   }
 }
 

@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import {
   useCreateTaskMutation,
+  useProjectTaskListStream,
   useTaskListQuery,
 } from "@/modules/tasks/hooks/use-task-queries"
 
@@ -48,6 +49,10 @@ export function TaskListPanel({
   const createTaskMutation = useCreateTaskMutation(projectId)
   const listQuery = useTaskListQuery({
     projectId,
+  })
+  useProjectTaskListStream({
+    projectId,
+    enabled: true,
   })
 
   const allTasks = useMemo(() => {

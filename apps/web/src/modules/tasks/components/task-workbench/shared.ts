@@ -2,7 +2,6 @@
 
 import type {
   TaskStatus,
-  TaskTimelineItem,
 } from "@/modules/tasks/contracts"
 
 export const STATUS_META: Record<
@@ -49,7 +48,11 @@ export function formatDateTime(value: string | null) {
   })
 }
 
-export function truncateTaskId(taskId: string) {
+export function truncateTaskId(taskId: string | null | undefined) {
+  if (!taskId) {
+    return "-"
+  }
+
   if (taskId.length <= 14) {
     return taskId
   }
@@ -142,60 +145,4 @@ export function extractChangedFiles(diffBlocks: string[]) {
   }
 
   return Array.from(files)
-}
-
-export function getTimelineLabel(item: TaskTimelineItem) {
-  if (item.kind === "message") {
-    return item.role ?? "message"
-  }
-
-  if (item.kind === "status" && item.status) {
-    return item.status
-  }
-
-  return item.kind
-}
-
-export function getTimelineContent(item: TaskTimelineItem) {
-  if (item.content?.trim()) {
-    return item.content
-  }
-
-  if (item.payload?.trim()) {
-    return item.payload
-  }
-
-  return "(empty)"
-}
-
-export function getTimelineItemClassName(item: TaskTimelineItem) {
-  if (item.kind === "message") {
-    if (item.role === "assistant") {
-      return "border-blue-200 bg-blue-50/70"
-    }
-
-    if (item.role === "user") {
-      return "border-emerald-200 bg-emerald-50/70"
-    }
-
-    return "border-slate-200 bg-slate-50/70"
-  }
-
-  if (item.kind === "stdout") {
-    return "border-sky-200 bg-sky-50/70"
-  }
-
-  if (item.kind === "stderr" || item.kind === "error") {
-    return "border-rose-200 bg-rose-50/70"
-  }
-
-  if (item.kind === "status") {
-    return "border-violet-200 bg-violet-50/70"
-  }
-
-  if (item.kind === "summary") {
-    return "border-emerald-200 bg-emerald-50/60"
-  }
-
-  return "border-slate-200 bg-slate-50/70"
 }

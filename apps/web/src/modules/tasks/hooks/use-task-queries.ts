@@ -9,13 +9,12 @@ import {
   readProjectTasks,
   readTaskDiff,
   readTaskDetail,
-  readTaskTimeline,
+  readTaskEvents,
   retryTask,
   type CreateTaskInput,
 } from "@/modules/tasks/api"
-import {
-  TERMINAL_TASK_STATUSES,
-} from "@/modules/tasks/contracts"
+export { useTaskEventStream } from "./use-task-event-stream"
+export { useProjectTaskListStream } from "./use-project-task-list-stream"
 
 export const taskQueryKeys = {
   all: ["tasks"] as const,
@@ -28,8 +27,8 @@ export const taskQueryKeys = {
   detail(taskId: string) {
     return [...this.all, "detail", taskId] as const
   },
-  timeline(taskId: string) {
-    return [...this.all, "timeline", taskId] as const
+  events(taskId: string) {
+    return [...this.all, "events", taskId] as const
   },
   diff(taskId: string) {
     return [...this.all, "diff", taskId] as const
@@ -49,18 +48,6 @@ export function useTaskListQuery(args: {
       return result.tasks
     },
     staleTime: 5_000,
-    refetchInterval(query) {
-      const tasks = query.state.data
-      if (!tasks || tasks.length === 0) {
-        return 5_000
-      }
-
-      const hasActiveTask = tasks.some(
-        (task) => !TERMINAL_TASK_STATUSES.includes(task.status),
-      )
-
-      return hasActiveTask ? 2_500 : 6_000
-    },
   })
 }
 
@@ -75,28 +62,26 @@ export function useTaskDetailQuery(taskId: string | null) {
       return readTaskDetail(taskId)
     },
     enabled: Boolean(taskId),
-    refetchInterval: 3_000,
   })
 }
 
-export function useTaskTimelineQuery(args: {
+export function useTaskEventsQuery(args: {
   taskId: string | null
   enabled: boolean
 }) {
   return useQuery({
-    queryKey: taskQueryKeys.timeline(args.taskId ?? "none"),
+    queryKey: taskQueryKeys.events(args.taskId ?? "none"),
     queryFn: async () => {
       if (!args.taskId) {
         return null
       }
 
-      return readTaskTimeline({
+      return readTaskEvents({
         taskId: args.taskId,
         limit: 500,
       })
     },
     enabled: args.enabled && Boolean(args.taskId),
-    refetchInterval: args.enabled ? 3_000 : false,
   })
 }
 
@@ -111,7 +96,6 @@ export function useTaskDiffQuery(taskId: string | null) {
       return readTaskDiff(taskId)
     },
     enabled: Boolean(taskId),
-    refetchInterval: 3_000,
   })
 }
 
@@ -129,7 +113,7 @@ export function useCreateTaskMutation(projectId: string) {
         queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
       }
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.timeline(result.taskId),
+        queryKey: taskQueryKeys.events(result.taskId),
       })
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.diff(result.taskId),
@@ -151,7 +135,7 @@ export function useCancelTaskMutation(projectId: string) {
       if (task) {
         queryClient.setQueryData(taskQueryKeys.detail(task.taskId), task)
         void queryClient.invalidateQueries({
-          queryKey: taskQueryKeys.timeline(task.taskId),
+          queryKey: taskQueryKeys.events(task.taskId),
         })
         void queryClient.invalidateQueries({
           queryKey: taskQueryKeys.diff(task.taskId),
@@ -175,7 +159,7 @@ export function useRetryTaskMutation(projectId: string) {
         queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
       }
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.timeline(result.taskId),
+        queryKey: taskQueryKeys.events(result.taskId),
       })
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.diff(result.taskId),
@@ -206,7 +190,7 @@ export function useTaskFollowupMutation(projectId: string) {
         queryKey: taskQueryKeys.detail(variables.taskId),
       })
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.timeline(variables.taskId),
+        queryKey: taskQueryKeys.events(variables.taskId),
       })
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.diff(variables.taskId),

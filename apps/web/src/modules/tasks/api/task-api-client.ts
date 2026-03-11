@@ -2,16 +2,16 @@ import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
 import {
+  type TaskAgentEventStream,
   TASK_STATUS_VALUES,
   type TaskDiff,
   type TaskDetail,
   type TaskListItem,
   type TaskStatus,
-  type TaskTimeline,
+  taskAgentEventStreamSchema,
   taskDiffSchema,
   taskDetailSchema,
   taskListItemSchema,
-  taskTimelineSchema,
 } from "@/modules/tasks/contracts"
 
 const EXECUTOR_API_BASE = "/api/v1"
@@ -215,21 +215,21 @@ function extractSingleTask(payload: unknown): TaskDetail | null {
   return parsed.success ? parsed.data : null
 }
 
-function extractTimeline(payload: unknown): TaskTimeline | null {
+function extractTaskEvents(payload: unknown): TaskAgentEventStream | null {
   const source = asRecord(payload)
   if (!source) {
     return null
   }
 
   const root =
-    source.timeline && typeof source.timeline === "object"
-      ? asRecord(source.timeline)
+    source.events && typeof source.events === "object"
+      ? asRecord(source.events)
       : source
   if (!root) {
     return null
   }
 
-  const parsed = taskTimelineSchema.safeParse({
+  const parsed = taskAgentEventStreamSchema.safeParse({
     taskId:
       toStringOrNull(root.taskId) ??
       toStringOrNull(source.taskId) ??
@@ -381,11 +381,11 @@ export async function readTaskDetail(taskId: string): Promise<TaskDetail> {
   return task
 }
 
-export async function readTaskTimeline(args: {
+export async function readTaskEvents(args: {
   taskId: string
   afterSequence?: number
   limit?: number
-}): Promise<TaskTimeline> {
+}): Promise<TaskAgentEventStream> {
   const searchParams = new URLSearchParams()
 
   if (typeof args.afterSequence === "number" && Number.isFinite(args.afterSequence)) {
@@ -401,7 +401,7 @@ export async function readTaskTimeline(args: {
 
   const query = searchParams.toString()
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(args.taskId)}/timeline${query ? `?${query}` : ""}`,
+    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(args.taskId)}/events${query ? `?${query}` : ""}`,
     {
       method: "GET",
       cache: "no-store",
@@ -412,17 +412,17 @@ export async function readTaskTimeline(args: {
   )
 
   const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to load task timeline.")
+  throwIfFailed(response, payload, "Failed to load task events.")
 
-  const timeline = extractTimeline(payload)
-  if (!timeline) {
-    throw new TaskApiClientError("Task timeline payload is invalid.", {
+  const events = extractTaskEvents(payload)
+  if (!events) {
+    throw new TaskApiClientError("Task events payload is invalid.", {
       code: ERROR_CODES.INTERNAL_ERROR,
       status: response.status,
     })
   }
 
-  return timeline
+  return events
 }
 
 export async function readTaskDiff(taskId: string): Promise<TaskDiff> {

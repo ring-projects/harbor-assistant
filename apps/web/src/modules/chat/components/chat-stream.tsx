@@ -8,9 +8,10 @@ import { TypingIndicator } from "./typing-indicator"
 
 type ChatStreamProps = {
   blocks: ChatConversationBlock[]
+  onOpenExecution: (block: Extract<ChatConversationBlock, { type: "execution" }>) => void
 }
 
-export function ChatStream({ blocks }: ChatStreamProps) {
+export function ChatStream({ blocks, onOpenExecution }: ChatStreamProps) {
   return (
     <div className="space-y-3 pr-1">
       {blocks.map((block) => {
@@ -19,7 +20,13 @@ export function ChatStream({ blocks }: ChatStreamProps) {
         }
 
         if (block.type === "execution") {
-          return <ChatExecutionBlock key={block.id} block={block} />
+          return (
+            <ChatExecutionBlock
+              key={block.id}
+              block={block}
+              onOpen={onOpenExecution}
+            />
+          )
         }
 
         if (block.type === "typing") {

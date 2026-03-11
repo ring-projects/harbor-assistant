@@ -99,7 +99,7 @@ export function ProjectSettingsView({
             <Card className="p-4">
               <p className="text-sm font-semibold">Settings Scope</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                这组设置用于定义 project 级别的默认执行策略和 timeline 留存策略。
+                这组设置用于定义 project 级别的默认执行策略和事件留存策略。
               </p>
 
               <Separator className="my-4" />
@@ -124,7 +124,7 @@ export function ProjectSettingsView({
                   </dd>
                 </div>
                 <div className="grid gap-1">
-                  <dt className="text-muted-foreground text-xs">Timeline Retention</dt>
+                  <dt className="text-muted-foreground text-xs">Event Retention</dt>
                   <dd className="font-medium">
                     {draft.eventRetentionDays
                       ? `${draft.eventRetentionDays} days`
@@ -210,8 +210,8 @@ export function ProjectSettingsView({
                     placeholder="30"
                   />
                   <SettingsField
-                    label="Timeline Retention Days"
-                    description="timeline item 留存天数，空值表示不限制。"
+                    label="Event Retention Days"
+                    description="agent event 留存天数，空值表示不限制。"
                     value={draft.eventRetentionDays}
                     onChange={(value) =>
                       setDraft((current) => ({ ...current, eventRetentionDays: value }))
@@ -224,7 +224,7 @@ export function ProjectSettingsView({
                 <div className="bg-muted/30 rounded-lg border p-4">
                   <p className="text-sm font-medium">Retention Strategy</p>
                   <p className="text-muted-foreground mt-1 text-sm leading-6">
-                    当前的数据模型已经是 timeline-first。后续真正接接口时，这里的配置可以直接映射到
+                    当前的数据模型已经切到 event-first。后续真正接接口时，这里的配置可以直接映射到
                     `logRetentionDays` 和 `eventRetentionDays`。
                   </p>
                 </div>

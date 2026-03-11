@@ -5,10 +5,13 @@ export { createTaskService } from "./task.service"
 export type {
   CancelTaskInput,
   CreateTaskInput,
+  GetTaskEventsInput,
   GetTaskDiffInput,
   FollowupTaskInput,
-  GetTaskTimelineInput,
   ListProjectTasksInput,
   RetryTaskInput,
   TaskService,
 } from "./task.service"
+
+export { createTaskEventBus } from "./task-event-bus"
+export type { TaskEventBus, TaskStreamEvent } from "./task-event-bus"

@@ -1,10 +1,10 @@
 export type {
+  TaskAgentEvent,
+  TaskAgentEventStream,
+  TaskAgentEventType,
   CodexTask,
   TaskMessageRole,
   TaskStatus,
-  TaskTimeline,
-  TaskTimelineItem,
-  TaskTimelineItemKind,
 } from "./types"
 
 export { TaskError, createTaskError } from "./errors"
@@ -12,9 +12,9 @@ export type { TaskErrorCode } from "./errors"
 
 export { createTaskRepository } from "./repositories"
 export type {
-  AppendTimelineItemInput,
+  AppendTaskAgentEventInput,
   CreateTaskInput as CreateTaskRecordInput,
-  ListTaskTimelineInput as ListTaskTimelineRepositoryInput,
+  ListTaskAgentEventsInput as ListTaskAgentEventsRepositoryInput,
   ListTasksByProjectInput as ListTasksByProjectRepositoryInput,
   SetTaskThreadIdInput,
   TaskDbClient,
@@ -26,19 +26,22 @@ export { createTaskAgentGateway } from "./gateways"
 export type { TaskAgentGateway } from "./gateways"
 
 export {
+  createTaskEventBus,
   createTaskRunnerService,
   createTaskService,
 } from "./services"
 export type {
   CancelTaskInput,
   CreateTaskInput,
+  GetTaskEventsInput,
   FollowupTaskInput,
   GetTaskDiffInput,
-  GetTaskTimelineInput,
   ListProjectTasksInput,
   RetryTaskInput,
+  TaskEventBus,
   TaskRunnerService,
   TaskService,
+  TaskStreamEvent,
 } from "./services"
 
 export { registerTaskModuleRoutes } from "./routes"
@@ -48,6 +51,7 @@ import { createTaskAgentGateway } from "./gateways"
 import { createTaskRepository } from "./repositories"
 import type { TaskDbClient } from "./repositories"
 import {
+  createTaskEventBus,
   createTaskRunnerService,
   createTaskService,
 } from "./services"
@@ -55,12 +59,15 @@ import {
 export function createTaskModule(args: { prisma: TaskDbClient }) {
   const projectRepository = createProjectRepository(args.prisma)
   const taskRepository = createTaskRepository(args.prisma)
+  const taskEventBus = createTaskEventBus()
   const taskAgentGateway = createTaskAgentGateway({
     taskRepository,
+    taskEventBus,
   })
   const taskRunnerService = createTaskRunnerService({
     taskRepository,
     taskAgentGateway,
+    taskEventBus,
   })
   const taskService = createTaskService({
     projectRepository,
@@ -79,6 +86,9 @@ export function createTaskModule(args: { prisma: TaskDbClient }) {
     },
     gateways: {
       taskAgentGateway,
+    },
+    eventBus: {
+      taskEventBus,
     },
   }
 }

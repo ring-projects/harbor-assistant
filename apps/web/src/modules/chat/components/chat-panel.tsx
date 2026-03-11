@@ -12,13 +12,15 @@ import {
 } from "@/modules/tasks/contracts"
 import {
   useTaskDetailQuery,
+  useTaskEventStream,
+  useTaskEventsQuery,
   useTaskFollowupMutation,
-  useTaskTimelineQuery,
 } from "@/modules/tasks/hooks/use-task-queries"
 
 import { toConversationBlocks } from "../mappers/to-conversation-blocks"
 import type { ChatConversationBlock } from "../types"
 import { ChatComposer } from "./chat-composer"
+import { ChatExecutionDrawer } from "./chat-execution-drawer"
 import { ChatStream } from "./chat-stream"
 import { CHAT_STATUS_META, truncateThreadId } from "./shared"
 
@@ -60,12 +62,17 @@ function helperText(detail: TaskDetail | null | undefined, taskId: string | null
     return "当前 task 正在运行，等待回复完成后再继续。"
   }
 
-  return "Follow-up 会在同一个 task 内继续这段对话。"
+  return ""
 }
 
 export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
   const detailQuery = useTaskDetailQuery(taskId)
-  const timelineQuery = useTaskTimelineQuery({
+  const eventsQuery = useTaskEventsQuery({
+    taskId,
+    enabled: Boolean(taskId),
+  })
+  useTaskEventStream({
+    projectId,
     taskId,
     enabled: Boolean(taskId),
   })
@@ -78,32 +85,37 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
     content: string
     baselineSequence: number
   } | null>(null)
+  const [selectedExecutionBlock, setSelectedExecutionBlock] = useState<
+    Extract<ChatConversationBlock, { type: "execution" }> | null
+  >(null)
+  const [isExecutionDrawerOpen, setIsExecutionDrawerOpen] = useState(false)
 
   const detail = detailQuery.data
-  const items = useMemo(() => timelineQuery.data?.items ?? [], [timelineQuery.data?.items])
+  const events = useMemo(() => eventsQuery.data?.items ?? [], [eventsQuery.data?.items])
   const draft = taskId ? (drafts[taskId] ?? "") : ""
   const isReady = canFollowup(detail)
-  const isLoading = Boolean(taskId) && (detailQuery.isLoading || timelineQuery.isLoading)
-  const isError = Boolean(taskId) && (detailQuery.isError || timelineQuery.isError)
-  const lastSequence = items.at(-1)?.sequence ?? 0
+  const isLoading = Boolean(taskId) && (detailQuery.isLoading || eventsQuery.isLoading)
+  const isError = Boolean(taskId) && (detailQuery.isError || eventsQuery.isError)
+  const lastSequence = events.at(-1)?.sequence ?? 0
   const visiblePendingPrompt = useMemo(() => {
     if (!pendingPrompt || pendingPrompt.taskId !== taskId) {
       return null
     }
 
-    const matchedUserMessage = items.some(
-      (item) =>
-        item.sequence > pendingPrompt.baselineSequence &&
-        item.kind === "message" &&
-        item.role === "user" &&
-        item.content?.trim() === pendingPrompt.content.trim(),
+    const matchedUserMessage = events.some(
+      (event) =>
+        event.sequence > pendingPrompt.baselineSequence &&
+        event.eventType === "message" &&
+        event.payload.role === "user" &&
+        typeof event.payload.content === "string" &&
+        event.payload.content.trim() === pendingPrompt.content.trim(),
     )
 
     return matchedUserMessage ? null : pendingPrompt
-  }, [items, pendingPrompt, taskId])
+  }, [events, pendingPrompt, taskId])
 
   const blocks = useMemo(() => {
-    const mapped = toConversationBlocks(items)
+    const mapped = toConversationBlocks(events)
     const nextBlocks: ChatConversationBlock[] = [...mapped]
 
     if (visiblePendingPrompt) {
@@ -126,7 +138,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
     }
 
     return nextBlocks
-  }, [detail?.status, items, visiblePendingPrompt])
+  }, [detail?.status, events, visiblePendingPrompt])
 
   useEffect(() => {
     if (!stickToBottom) {
@@ -163,6 +175,13 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
 
     const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight
     setStickToBottom(distanceFromBottom < 48)
+  }
+
+  function openExecutionDrawer(
+    block: Extract<ChatConversationBlock, { type: "execution" }>,
+  ) {
+    setSelectedExecutionBlock(block)
+    setIsExecutionDrawerOpen(true)
   }
 
   async function submitFollowup() {
@@ -244,7 +263,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
 
         {isError ? (
           <div className="min-h-0 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm text-rose-700">
-            {getErrorMessage(detailQuery.error ?? timelineQuery.error)}
+            {getErrorMessage(detailQuery.error ?? eventsQuery.error)}
           </div>
         ) : null}
 
@@ -261,7 +280,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                     当前会话还没有可显示的消息。
                   </div>
                 ) : (
-                  <ChatStream blocks={blocks} />
+                  <ChatStream blocks={blocks} onOpenExecution={openExecutionDrawer} />
                 )}
               </div>
 
@@ -312,6 +331,17 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
           </div>
         ) : null}
       </div>
+
+      <ChatExecutionDrawer
+        block={selectedExecutionBlock}
+        open={isExecutionDrawerOpen}
+        onOpenChange={(open) => {
+          setIsExecutionDrawerOpen(open)
+          if (!open) {
+            setSelectedExecutionBlock(null)
+          }
+        }}
+      />
     </section>
   )
 }

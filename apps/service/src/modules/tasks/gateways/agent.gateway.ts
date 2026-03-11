@@ -1,6 +1,7 @@
 import type { AgentEvent, AgentType } from "../../../lib/agents"
 import { AgentFactory } from "../../../lib/agents"
 import type { TaskRepository } from "../repositories"
+import type { TaskEventBus } from "../services/task-event-bus"
 
 const MAX_CAPTURED_OUTPUT_LENGTH = 200_000
 
@@ -32,10 +33,15 @@ export type AgentGatewayRunResult = {
 export function createTaskAgentGateway(args: {
   taskRepository: Pick<
     TaskRepository,
-    "appendTimelineItem" | "setTaskThreadId"
+    "appendTaskAgentEvent" | "setTaskThreadId"
   >
+  taskEventBus: Pick<TaskEventBus, "publish">
 }) {
-  const { taskRepository } = args
+  const { taskRepository, taskEventBus } = args
+
+  function serializeAgentEvent(event: AgentEvent): Record<string, unknown> {
+    return JSON.parse(JSON.stringify(event)) as Record<string, unknown>
+  }
 
   async function handleAgentEvent(args: {
     event: AgentEvent
@@ -46,127 +52,29 @@ export function createTaskAgentGateway(args: {
     let { threadId, stdout } = args
     const { event, taskId } = args
 
-    switch (event.type) {
-      case "session.started": {
-        threadId = event.sessionId
-        await taskRepository.setTaskThreadId({
-          taskId,
-          threadId: event.sessionId,
-        })
-        await taskRepository.appendTimelineItem({
-          taskId,
-          kind: "system",
-          source: "session.started",
-          content: `Session started: ${event.sessionId}`,
-          payload: JSON.stringify({
-            sessionId: event.sessionId,
-          }),
-        })
-        break
-      }
+    const rawEvent = await taskRepository.appendTaskAgentEvent({
+      taskId,
+      eventType: event.type,
+      payload: serializeAgentEvent(event),
+      createdAt: event.timestamp.toISOString(),
+    })
 
-      case "message": {
-        if (threadId && event.content.trim()) {
-          await taskRepository.appendTimelineItem({
-            taskId,
-            kind: "message",
-            role: event.role,
-            content: event.content,
-            source: event.source,
-            createdAt: event.timestamp.toISOString(),
-          })
-        }
-        break
-      }
+    taskEventBus.publish({
+      type: "agent_event",
+      taskId,
+      event: rawEvent,
+    })
 
-      case "command.output": {
-        stdout = appendWithLimit(stdout, event.output)
-        await taskRepository.appendTimelineItem({
-          taskId,
-          kind: "stdout",
-          source: event.commandId,
-          content: event.output,
-          createdAt: event.timestamp.toISOString(),
-        })
-        break
-      }
+    if (event.type === "session.started") {
+      threadId = event.sessionId
+      await taskRepository.setTaskThreadId({
+        taskId,
+        threadId: event.sessionId,
+      })
+    }
 
-      case "command.completed": {
-        await taskRepository.appendTimelineItem({
-          taskId,
-          kind: "system",
-          source: "command.completed",
-          content: `Command completed (${event.status}${event.exitCode === undefined ? "" : `, exit=${String(event.exitCode)}`}).`,
-          payload: JSON.stringify({
-            commandId: event.commandId,
-            exitCode: event.exitCode ?? null,
-            status: event.status,
-          }),
-          createdAt: event.timestamp.toISOString(),
-        })
-        break
-      }
-
-      case "reasoning": {
-        if (threadId && event.content.trim()) {
-          await taskRepository.appendTimelineItem({
-            taskId,
-            kind: "message",
-            role: "system",
-            content: event.content,
-            source: "reasoning",
-            createdAt: event.timestamp.toISOString(),
-          })
-        }
-        break
-      }
-
-      case "todo_list": {
-        if (threadId) {
-          const content = event.items
-            .map((item) => `${item.completed ? "[x]" : "[ ]"} ${item.text}`)
-            .join("\n")
-
-          if (content.trim()) {
-            await taskRepository.appendTimelineItem({
-              taskId,
-              kind: "message",
-              role: "system",
-              content,
-              source: "todo_list",
-              createdAt: event.timestamp.toISOString(),
-            })
-          }
-        }
-        break
-      }
-
-      case "error": {
-        if (threadId && event.message.trim()) {
-          await taskRepository.appendTimelineItem({
-            taskId,
-            kind: "error",
-            content: event.message,
-            source: "error",
-            createdAt: event.timestamp.toISOString(),
-          })
-        }
-        break
-      }
-
-      case "turn.failed": {
-        await taskRepository.appendTimelineItem({
-          taskId,
-          kind: "error",
-          source: "turn.failed",
-          content: event.error,
-          payload: JSON.stringify({
-            error: event.error,
-          }),
-          createdAt: event.timestamp.toISOString(),
-        })
-        break
-      }
+    if (event.type === "command.output") {
+      stdout = appendWithLimit(stdout, event.output)
     }
 
     return { threadId, stdout }

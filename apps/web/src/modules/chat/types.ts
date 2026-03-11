@@ -1,4 +1,4 @@
-import type { TaskTimelineItem } from "@/modules/tasks/contracts"
+import type { TaskAgentEvent } from "@/modules/tasks/contracts"
 
 export type ChatMessageRole = "user" | "assistant"
 
@@ -27,7 +27,7 @@ export type ChatConversationBlock =
       timestamp: string | null
       tone: "neutral" | "error" | "success"
       source: string | null
-      item: TaskTimelineItem
+      event: TaskAgentEvent
     }
   | {
       id: string

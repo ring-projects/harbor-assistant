@@ -8,14 +8,19 @@ export const TASK_STATUS_VALUES = [
   "cancelled",
 ] as const
 
-export const TASK_TIMELINE_KIND_VALUES = [
+export const TASK_AGENT_EVENT_TYPE_VALUES = [
+  "session.started",
+  "turn.started",
   "message",
-  "status",
-  "stdout",
-  "stderr",
-  "summary",
+  "command.started",
+  "command.output",
+  "command.completed",
+  "reasoning",
+  "todo_list",
   "error",
-  "system",
+  "turn.completed",
+  "turn.failed",
+  "session.completed",
 ] as const
 
 export const TASK_DIFF_FILE_STATUS_VALUES = [
@@ -38,7 +43,6 @@ export const TASK_DIFF_LINE_TYPE_VALUES = [
 export const TASK_TIME_RANGE_VALUES = ["24h", "7d", "30d"] as const
 
 export const taskStatusSchema = z.enum(TASK_STATUS_VALUES)
-export const taskTimelineKindSchema = z.enum(TASK_TIMELINE_KIND_VALUES)
 export const taskTimeRangeSchema = z.enum(TASK_TIME_RANGE_VALUES)
 export const taskDiffFileStatusSchema = z.enum(TASK_DIFF_FILE_STATUS_VALUES)
 export const taskDiffLineTypeSchema = z.enum(TASK_DIFF_LINE_TYPE_VALUES)
@@ -70,22 +74,20 @@ export const taskListItemSchema = z.object({
 
 export const taskDetailSchema = taskListItemSchema
 
-export const taskTimelineItemSchema = z.object({
+export const taskAgentEventTypeSchema = z.enum(TASK_AGENT_EVENT_TYPE_VALUES)
+
+export const taskAgentEventSchema = z.object({
   id: z.string().min(1),
   taskId: z.string().min(1),
   sequence: z.number().int().nonnegative(),
-  kind: taskTimelineKindSchema,
-  role: z.enum(["user", "assistant", "system"]).nullable().default(null),
-  status: taskStatusSchema.nullable().default(null),
-  source: z.string().nullable().default(null),
-  content: z.string().nullable().default(null),
-  payload: z.string().nullable().default(null),
+  eventType: taskAgentEventTypeSchema,
+  payload: z.object({}).catchall(z.unknown()),
   createdAt: z.string().min(1),
 })
 
-export const taskTimelineSchema = z.object({
+export const taskAgentEventStreamSchema = z.object({
   taskId: z.string().min(1),
-  items: z.array(taskTimelineItemSchema).default([]),
+  items: z.array(taskAgentEventSchema).default([]),
   nextSequence: z.number().int().nonnegative(),
 })
 
@@ -119,15 +121,15 @@ export const taskDiffSchema = z.object({
 })
 
 export type TaskStatus = z.infer<typeof taskStatusSchema>
-export type TaskTimelineKind = z.infer<typeof taskTimelineKindSchema>
+export type TaskAgentEventType = z.infer<typeof taskAgentEventTypeSchema>
 export type TaskTimeRange = z.infer<typeof taskTimeRangeSchema>
 export type TaskDiffFileStatus = z.infer<typeof taskDiffFileStatusSchema>
 export type TaskDiffLineType = z.infer<typeof taskDiffLineTypeSchema>
 export type TaskFilter = z.infer<typeof taskFilterSchema>
 export type TaskListItem = z.infer<typeof taskListItemSchema>
 export type TaskDetail = z.infer<typeof taskDetailSchema>
-export type TaskTimelineItem = z.infer<typeof taskTimelineItemSchema>
-export type TaskTimeline = z.infer<typeof taskTimelineSchema>
+export type TaskAgentEvent = z.infer<typeof taskAgentEventSchema>
+export type TaskAgentEventStream = z.infer<typeof taskAgentEventStreamSchema>
 export type TaskDiffLine = z.infer<typeof taskDiffLineSchema>
 export type TaskDiffHunk = z.infer<typeof taskDiffHunkSchema>
 export type TaskDiffFile = z.infer<typeof taskDiffFileSchema>

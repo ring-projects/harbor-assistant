@@ -4,7 +4,6 @@ import { createTaskError, TaskError } from "../errors"
 import { createTaskRunnerService } from "./task-runner.service"
 import { createTaskService } from "./task.service"
 import type { CodexTask } from "../types"
-import type { TaskTimelineItem } from "../types"
 
 function buildTask(overrides: Partial<CodexTask> = {}): CodexTask {
   return {
@@ -29,22 +28,6 @@ function buildTask(overrides: Partial<CodexTask> = {}): CodexTask {
   }
 }
 
-function buildTimelineItem(overrides: Partial<TaskTimelineItem> = {}): TaskTimelineItem {
-  return {
-    id: "timeline-1",
-    taskId: "task-1",
-    sequence: 1,
-    kind: "message",
-    role: "user",
-    status: null,
-    source: "test",
-    content: "Continue",
-    payload: null,
-    createdAt: "2026-03-10T00:05:00.000Z",
-    ...overrides,
-  }
-}
-
 describe("task follow-up", () => {
   it("reuses the same task record when resuming a thread", async () => {
     const existingTask = buildTask()
@@ -59,7 +42,6 @@ describe("task follow-up", () => {
       command: ["agent", "resumeSession", "thread-1"],
     })
 
-    const appendTimelineItem = vi.fn(async () => buildTimelineItem())
     const createTask = vi.fn(async () => {
       throw new Error("follow-up should not create a new task")
     })
@@ -79,7 +61,6 @@ describe("task follow-up", () => {
 
     const taskRunnerService = createTaskRunnerService({
       taskRepository: {
-        appendTimelineItem,
         createTask,
         getTaskById,
         updateTaskState,
@@ -87,6 +68,9 @@ describe("task follow-up", () => {
       taskAgentGateway: {
         startSessionAndRun: vi.fn(),
         resumeSessionAndRun,
+      },
+      taskEventBus: {
+        publish: vi.fn(),
       },
     })
 
@@ -146,7 +130,7 @@ describe("task follow-up", () => {
       taskRepository: {
         getTaskById,
         hasActiveTaskInThread,
-        listTaskTimeline: vi.fn(),
+        listTaskAgentEvents: vi.fn(),
         listTasksByProject: vi.fn(),
       },
       taskRunnerService: {

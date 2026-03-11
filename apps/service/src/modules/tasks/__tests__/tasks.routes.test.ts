@@ -18,7 +18,7 @@ describe("task routes", () => {
   })
 
   afterEach(async () => {
-    await prisma.taskTimelineItem.deleteMany()
+    await prisma.taskAgentEvent.deleteMany()
     await prisma.task.deleteMany()
     await prisma.projectSetting.deleteMany()
     await prisma.project.deleteMany()
@@ -75,6 +75,69 @@ describe("task routes", () => {
       ok: false,
       error: {
         code: "TASK_NOT_FOUND",
+      },
+    })
+  })
+
+  it("returns raw task agent events", async () => {
+    const project = await prisma.project.create({
+      data: {
+        name: "Project One",
+        slug: "project-one",
+        rootPath: "/tmp/project-one",
+        normalizedPath: "/tmp/project-one",
+      },
+    })
+
+    const task = await prisma.task.create({
+      data: {
+        projectId: project.id,
+        projectPath: "/tmp/project-one",
+        prompt: "Run tests",
+        executor: "codex",
+        status: "completed",
+      },
+    })
+
+    await prisma.taskAgentEvent.create({
+      data: {
+        taskId: task.id,
+        sequence: 1,
+        eventType: "command.started",
+        payload: JSON.stringify({
+          type: "command.started",
+          commandId: "command-1",
+          command: "bun test",
+          timestamp: "2026-03-11T00:00:01.000Z",
+        }),
+      },
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/tasks/${task.id}/events`,
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: task.id,
+      },
+      events: {
+        taskId: task.id,
+        nextSequence: 1,
+        items: [
+          {
+            taskId: task.id,
+            sequence: 1,
+            eventType: "command.started",
+            payload: {
+              type: "command.started",
+              command: "bun test",
+            },
+          },
+        ],
       },
     })
   })

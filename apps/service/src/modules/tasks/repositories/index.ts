@@ -1,8 +1,8 @@
 export { createTaskRepository } from "./task.repository"
 export type {
-  AppendTimelineItemInput,
+  AppendTaskAgentEventInput,
   CreateTaskInput,
-  ListTaskTimelineInput,
+  ListTaskAgentEventsInput,
   ListTasksByProjectInput,
   SetTaskThreadIdInput,
   TaskDbClient,

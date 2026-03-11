@@ -5,8 +5,8 @@ export {
   followupTaskRouteSchema,
   getProjectTasksRouteSchema,
   getTaskDiffRouteSchema,
+  getTaskEventsRouteSchema,
   getTaskRouteSchema,
-  getTaskTimelineRouteSchema,
   postCancelTaskRouteSchema,
   postRetryTaskRouteSchema,
   type CancelTaskBody,
@@ -14,7 +14,7 @@ export {
   type FollowupTaskBody,
   type GetProjectTasksQuery,
   type GetTaskDiffQuery,
-  type GetTaskTimelineQuery,
+  type GetTaskEventsQuery,
   type ProjectIdParams,
   type TaskIdParams,
 } from "./tasks.schema"

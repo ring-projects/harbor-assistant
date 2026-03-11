@@ -2,6 +2,7 @@ import { createTaskError } from "../errors"
 import type { TaskAgentGateway } from "../gateways"
 import type { TaskRepository } from "../repositories"
 import type { CodexTask } from "../types"
+import type { TaskEventBus } from "./task-event-bus"
 
 type RunningCodexTask = {
   controller: AbortController
@@ -20,14 +21,14 @@ function isTerminalStatus(status: CodexTask["status"]) {
 export function createTaskRunnerService(args: {
   taskRepository: Pick<
     TaskRepository,
-    | "appendTimelineItem"
     | "getTaskById"
     | "updateTaskState"
     | "createTask"
   >
   taskAgentGateway: TaskAgentGateway
+  taskEventBus: Pick<TaskEventBus, "publish">
 }) {
-  const { taskRepository, taskAgentGateway } = args
+  const { taskRepository, taskAgentGateway, taskEventBus } = args
   const runningCodexTasks = new Map<string, RunningCodexTask>()
 
   function getRunningTask(taskId: string) {
@@ -59,37 +60,24 @@ export function createTaskRunnerService(args: {
       error: args.error ?? null,
     })
 
-    if (args.status === "completed") {
-      const summaryChunks = [args.stdout ?? "", args.stderr ?? ""]
-        .filter((chunk) => chunk.trim().length > 0)
-        .join("\n\n")
-        .trim()
+    taskEventBus.publish({
+      type: "task_upsert",
+      projectId: task.projectId,
+      task,
+    })
 
-      if (summaryChunks) {
-        await taskRepository.appendTimelineItem({
-          taskId: args.taskId,
-          kind: "summary",
-          source: "task.finalize",
-          content: summaryChunks,
-          payload: JSON.stringify({
-            stdout: args.stdout ?? "",
-            stderr: args.stderr ?? "",
-          }),
-        })
-      }
-    }
+    taskEventBus.publish({
+      type: "task_status",
+      taskId: args.taskId,
+      status: args.status,
+    })
 
-    if ((args.status === "failed" || args.status === "cancelled") && args.error) {
-      await taskRepository.appendTimelineItem({
-        taskId: args.taskId,
-        kind: "error",
-        source: args.failureCode ?? "task.finalize",
-        content: args.error,
-        payload: JSON.stringify({
-          code: args.failureCode ?? null,
-        }),
-      })
-    }
+    taskEventBus.publish({
+      type: "task_end",
+      taskId: args.taskId,
+      status: args.status,
+      cursor: 0,
+    })
 
     return task
   }
@@ -238,6 +226,18 @@ export function createTaskRunnerService(args: {
       error: null,
     })
 
+    taskEventBus.publish({
+      type: "task_upsert",
+      projectId: runningTask.projectId,
+      task: runningTask,
+    })
+
+    taskEventBus.publish({
+      type: "task_status",
+      taskId: createdTask.id,
+      status: "running",
+    })
+
     void executeNewThreadTask({
       taskId: createdTask.id,
       projectId: input.projectId,
@@ -272,6 +272,18 @@ export function createTaskRunnerService(args: {
       exitCode: null,
       command: ["agent", "resumeSession", input.threadId],
       error: null,
+    })
+
+    taskEventBus.publish({
+      type: "task_upsert",
+      projectId: runningTask.projectId,
+      task: runningTask,
+    })
+
+    taskEventBus.publish({
+      type: "task_status",
+      taskId: input.taskId,
+      status: "running",
     })
 
     void executeResumedThreadTask({

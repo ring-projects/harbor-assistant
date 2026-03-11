@@ -1,3 +1,5 @@
+import type { AgentEvent } from "../../lib/agents"
+
 export type TaskStatus =
   | "queued"
   | "running"
@@ -6,15 +8,6 @@ export type TaskStatus =
   | "cancelled"
 
 export type TaskMessageRole = "user" | "assistant" | "system"
-
-export type TaskTimelineItemKind =
-  | "message"
-  | "status"
-  | "stdout"
-  | "stderr"
-  | "summary"
-  | "error"
-  | "system"
 
 export type CodexTask = {
   id: string
@@ -36,22 +29,20 @@ export type CodexTask = {
   error: string | null
 }
 
-export type TaskTimelineItem = {
+export type TaskAgentEventType = AgentEvent["type"]
+
+export type TaskAgentEvent = {
   id: string
   taskId: string
   sequence: number
-  kind: TaskTimelineItemKind
-  role: TaskMessageRole | null
-  status: TaskStatus | null
-  source: string | null
-  content: string | null
-  payload: string | null
+  eventType: TaskAgentEventType
+  payload: Record<string, unknown>
   createdAt: string
 }
 
-export type TaskTimeline = {
+export type TaskAgentEventStream = {
   taskId: string
-  items: TaskTimelineItem[]
+  items: TaskAgentEvent[]
   nextSequence: number
 }
 

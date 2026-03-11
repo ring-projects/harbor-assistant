@@ -22,8 +22,7 @@ export type ProjectIdParams = {
   projectId: string
 }
 
-export type GetTaskTimelineQuery = {
-  format?: "json" | "sse"
+export type GetTaskEventsQuery = {
   afterSequence?: number
   limit?: number
 }
@@ -83,45 +82,24 @@ const taskEntitySchema = {
   },
 } as const
 
-const taskTimelineItemSchema = {
+const taskAgentEventSchema = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "id",
-    "taskId",
-    "sequence",
-    "kind",
-    "role",
-    "status",
-    "source",
-    "content",
-    "payload",
-    "createdAt",
-  ],
+  required: ["id", "taskId", "sequence", "eventType", "payload", "createdAt"],
   properties: {
     id: { type: "string" },
     taskId: { type: "string" },
     sequence: { type: "integer" },
-    kind: {
-      type: "string",
-      enum: ["message", "status", "stdout", "stderr", "summary", "error", "system"],
+    eventType: { type: "string" },
+    payload: {
+      type: "object",
+      additionalProperties: true,
     },
-    role: {
-      type: ["string", "null"],
-      enum: ["user", "assistant", "system", null],
-    },
-    status: {
-      type: ["string", "null"],
-      enum: ["queued", "running", "completed", "failed", "cancelled", null],
-    },
-    source: { type: ["string", "null"] },
-    content: { type: ["string", "null"] },
-    payload: { type: ["string", "null"] },
     createdAt: { type: "string", format: "date-time" },
   },
 } as const
 
-const taskTimelineSchema = {
+const taskAgentEventStreamSchema = {
   type: "object",
   additionalProperties: false,
   required: ["taskId", "items", "nextSequence"],
@@ -129,7 +107,7 @@ const taskTimelineSchema = {
     taskId: { type: "string" },
     items: {
       type: "array",
-      items: taskTimelineItemSchema,
+      items: taskAgentEventSchema,
     },
     nextSequence: { type: "integer" },
   },
@@ -232,14 +210,14 @@ const tasksSuccessResponseSchema = {
   },
 } as const
 
-const taskTimelineSuccessResponseSchema = {
+const taskEventsSuccessResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["ok", "task", "timeline"],
+  required: ["ok", "task", "events"],
   properties: {
     ok: { type: "boolean", const: true },
     task: taskEntitySchema,
-    timeline: taskTimelineSchema,
+    events: taskAgentEventStreamSchema,
   },
 } as const
 
@@ -311,14 +289,10 @@ export const followupTaskBodySchema = {
   },
 } as const
 
-const taskTimelineQuerySchema = {
+const taskEventsQuerySchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    format: {
-      type: "string",
-      enum: ["json", "sse"],
-    },
     afterSequence: nonNegativeIntegerQueryParamSchema,
     limit: positiveIntegerQueryParamSchema,
   },
@@ -375,12 +349,12 @@ export const followupTaskRouteSchema = {
   },
 } as const
 
-export const getTaskTimelineRouteSchema = {
+export const getTaskEventsRouteSchema = {
   params: taskIdParamsSchema,
-  querystring: taskTimelineQuerySchema,
+  querystring: taskEventsQuerySchema,
   response: {
-    200: taskTimelineSuccessResponseSchema,
-    206: taskTimelineSuccessResponseSchema,
+    200: taskEventsSuccessResponseSchema,
+    206: taskEventsSuccessResponseSchema,
   },
 } as const
 

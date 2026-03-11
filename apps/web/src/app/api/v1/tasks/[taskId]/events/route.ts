@@ -13,7 +13,7 @@ export async function GET(request: Request, context: RouteContext) {
   const url = new URL(request.url)
 
   return proxyToService({
-    path: `/v1/tasks/${encodeURIComponent(taskId)}/timeline${url.search}`,
+    path: `/v1/tasks/${encodeURIComponent(taskId)}/events${url.search}`,
     method: "GET",
   })
 }

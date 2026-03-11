@@ -32,7 +32,7 @@ export type ListProjectTasksInput = {
   limit?: number
 }
 
-export type GetTaskTimelineInput = {
+export type GetTaskEventsInput = {
   taskId: string
   afterSequence?: number
   limit?: number
@@ -60,7 +60,10 @@ export function createTaskService(args: {
   projectRepository: Pick<ProjectRepository, "getProjectById">
   taskRepository: Pick<
     TaskRepository,
-    "getTaskById" | "hasActiveTaskInThread" | "listTaskTimeline" | "listTasksByProject"
+    | "getTaskById"
+    | "hasActiveTaskInThread"
+    | "listTaskAgentEvents"
+    | "listTasksByProject"
   >
   taskRunnerService: TaskRunnerService
 }) {
@@ -295,10 +298,10 @@ export function createTaskService(args: {
     })
   }
 
-  async function getTaskTimeline(input: GetTaskTimelineInput) {
+  async function getTaskEvents(input: GetTaskEventsInput) {
     const task = await getTaskDetail(input.taskId)
 
-    const timeline = await taskRepository.listTaskTimeline({
+    const events = await taskRepository.listTaskAgentEvents({
       taskId: task.id,
       afterSequence: input.afterSequence,
       limit: input.limit,
@@ -306,7 +309,7 @@ export function createTaskService(args: {
 
     return {
       task,
-      timeline,
+      events,
       isTerminal: isTerminalTask(task),
     }
   }
@@ -337,7 +340,7 @@ export function createTaskService(args: {
     cancelTask,
     retryTask,
     getTaskDetail,
-    getTaskTimeline,
+    getTaskEvents,
     getTaskDiff,
     listProjectTasks,
   }
