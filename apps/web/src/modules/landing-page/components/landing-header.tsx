@@ -14,11 +14,11 @@ export function LandingHeader({ compact }: LandingHeaderProps) {
           ? "mt-0 py-2 md:py-4"
           : "mt-10 border-b border-transparent py-8 md:py-10",
       )}
-    >
-      <HarborLogo
-        className={cn(
-          "origin-left transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          compact
+      >
+        <HarborLogo
+          className={cn(
+            "origin-left transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            compact
             ? "w-45 translate-y-0 scale-100"
             : "w-90 translate-y-2 scale-100 md:w-105",
         )}

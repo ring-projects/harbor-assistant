@@ -1,4 +1,5 @@
 import { createTaskError } from "../errors"
+import type { AgentType } from "../../../lib/agents"
 import type { TaskAgentGateway } from "../gateways"
 import type { TaskRepository } from "../repositories"
 import type { CodexTask } from "../types"
@@ -107,6 +108,7 @@ export function createTaskRunnerService(args: {
     projectPath: string
     prompt: string
     model: string | null
+    agentType: AgentType
   }) {
     const runningTask = getRunningTask(args.taskId)
 
@@ -117,6 +119,7 @@ export function createTaskRunnerService(args: {
         projectPath: args.projectPath,
         prompt: args.prompt,
         model: args.model,
+        agentType: args.agentType,
         signal: runningTask?.controller.signal,
       })
 
@@ -156,6 +159,7 @@ export function createTaskRunnerService(args: {
     projectPath: string
     prompt: string
     model: string | null
+    agentType: AgentType
   }) {
     const runningTask = getRunningTask(args.taskId)
     const existingTask = await loadTaskOrThrow(args.taskId)
@@ -168,6 +172,7 @@ export function createTaskRunnerService(args: {
         projectPath: args.projectPath,
         prompt: args.prompt,
         model: args.model,
+        agentType: args.agentType,
         signal: runningTask?.controller.signal,
       })
 
@@ -205,6 +210,7 @@ export function createTaskRunnerService(args: {
     projectPath: string
     prompt: string
     model: string | null
+    agentType: AgentType
     parentTaskId?: string | null
   }): Promise<CodexTask> {
     const createdTask = await taskRepository.createTask({
@@ -212,6 +218,7 @@ export function createTaskRunnerService(args: {
       projectPath: input.projectPath,
       prompt: input.prompt,
       model: input.model,
+      executor: input.agentType,
       parentTaskId: input.parentTaskId ?? null,
     })
 
@@ -238,6 +245,7 @@ export function createTaskRunnerService(args: {
       projectPath: input.projectPath,
       prompt: input.prompt,
       model: input.model,
+      agentType: input.agentType,
     })
 
     return runningTask
@@ -250,6 +258,7 @@ export function createTaskRunnerService(args: {
     projectPath: string
     prompt: string
     model: string | null
+    agentType: AgentType
   }): Promise<CodexTask> {
     const controller = new AbortController()
     runningCodexTasks.set(input.taskId, {
@@ -277,6 +286,7 @@ export function createTaskRunnerService(args: {
       projectPath: input.projectPath,
       prompt: input.prompt,
       model: input.model,
+      agentType: input.agentType,
     })
 
     return runningTask

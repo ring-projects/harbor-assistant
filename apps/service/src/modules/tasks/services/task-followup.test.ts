@@ -29,6 +29,60 @@ function buildTask(overrides: Partial<CodexTask> = {}): CodexTask {
 }
 
 describe("task follow-up", () => {
+  it("normalizes Claude executor aliases before starting a task", async () => {
+    const project = {
+      id: "project-1",
+      name: "Project One",
+      slug: "project-one",
+      path: "/tmp/project-1",
+      rootPath: "/tmp/project-1",
+      normalizedPath: "/tmp/project-1",
+      description: null,
+      status: "active" as const,
+      createdAt: new Date("2026-03-10T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-10T00:00:00.000Z"),
+      archivedAt: null,
+      lastOpenedAt: null,
+    }
+    const createdTask = buildTask({
+      status: "running",
+      executor: "claude-code",
+    })
+    const createAndRunTask = vi.fn(async () => createdTask)
+
+    const taskService = createTaskService({
+      projectRepository: {
+        getProjectById: vi.fn(async () => project),
+      },
+      taskRepository: {
+        getTaskById: vi.fn(),
+        hasActiveTaskInThread: vi.fn(),
+        listTaskAgentEvents: vi.fn(),
+        listTasksByProject: vi.fn(),
+      },
+      taskRunnerService: {
+        createAndRunTask,
+        followupTask: vi.fn(),
+        breakTaskTurn: vi.fn(),
+      },
+    })
+
+    await taskService.createTaskAndRun({
+      projectId: project.id,
+      prompt: "Use Claude",
+      agentType: "claude",
+    })
+
+    expect(createAndRunTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: project.id,
+        projectPath: project.path,
+        prompt: "Use Claude",
+        agentType: "claude-code",
+      }),
+    )
+  })
+
   it("reuses the same task record when resuming a thread", async () => {
     const existingTask = buildTask()
     const resumedTask = buildTask({
@@ -81,6 +135,7 @@ describe("task follow-up", () => {
       projectPath: existingTask.projectPath,
       prompt: "Continue",
       model: existingTask.model,
+      agentType: "codex",
     })
 
     expect(result.id).toBe(existingTask.id)
@@ -102,6 +157,7 @@ describe("task follow-up", () => {
         taskId: existingTask.id,
         sessionId: "thread-1",
         prompt: "Continue",
+        agentType: "codex",
       }),
     )
     expect(updateTaskState).toHaveBeenNthCalledWith(
@@ -219,6 +275,7 @@ describe("task follow-up", () => {
       projectPath: queuedTask.projectPath,
       prompt: queuedTask.prompt,
       model: queuedTask.model,
+      agentType: "codex",
     })
 
     await taskRunnerService.breakTaskTurn({

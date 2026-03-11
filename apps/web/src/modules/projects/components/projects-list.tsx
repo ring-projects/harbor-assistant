@@ -1,15 +1,14 @@
 "use client"
 
-import { PlusIcon } from "lucide-react"
-import Link from "next/link"
 import Image from "next/image"
+import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useState } from "react"
+import { FolderOpenIcon, PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -83,6 +82,14 @@ export function ProjectsList({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
+            {projectsQuery.isLoading ? (
+              <div className="space-y-1">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <SidebarMenuSkeleton key={index} showIcon />
+                ))}
+              </div>
+            ) : null}
+
             {!projectsQuery.isLoading &&
             !projectsQuery.isError &&
             (projectsQuery.data?.length ?? 0) === 0 ? (
@@ -104,6 +111,10 @@ export function ProjectsList({
                       className="h-auto py-2"
                     >
                       <Link href={`/${encodeURIComponent(project.id)}`}>
+                        <FolderOpenIcon
+                          className="text-muted-foreground size-4 shrink-0"
+                          aria-hidden="true"
+                        />
                         <span className="truncate font-medium">{project.name}</span>
                       </Link>
                     </SidebarMenuButton>

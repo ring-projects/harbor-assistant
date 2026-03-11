@@ -24,6 +24,7 @@ export type CreateTaskInput = {
   projectId: string
   projectPath: string
   prompt: string
+  executor: string
   model: string | null
   threadId?: string | null
   parentTaskId?: string | null
@@ -271,10 +272,11 @@ export function createTaskRepository(prisma: TaskDbClient) {
   async function createTask(input: CreateTaskInput): Promise<CodexTask> {
     const projectId = input.projectId.trim()
     const prompt = input.prompt.trim()
-    if (!projectId || !prompt) {
+    const executor = input.executor.trim()
+    if (!projectId || !prompt || !executor) {
       throw createTaskError.storeWriteError(
         "create task",
-        new Error("projectId and prompt are required."),
+        new Error("projectId, prompt, and executor are required."),
       )
     }
 
@@ -286,7 +288,7 @@ export function createTaskRepository(prisma: TaskDbClient) {
             projectPath: input.projectPath,
             prompt,
             model: input.model,
-            executor: "codex",
+            executor,
             status: PrismaTaskStatus.queued,
             threadId: input.threadId ?? null,
             parentTaskId: input.parentTaskId ?? null,

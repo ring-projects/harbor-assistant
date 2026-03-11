@@ -1,4 +1,5 @@
 import type { ProjectRepository } from "../../project"
+import { AgentFactory, type AgentType } from "../../../lib/agents"
 import { createTaskError, TaskError } from "../errors"
 import type { TaskRepository } from "../repositories"
 import type { CodexTask } from "../types"
@@ -45,8 +46,18 @@ function isTerminalTask(task: CodexTask) {
   )
 }
 
-function ensureSupportedAgent(agentType: string) {
-  if (agentType !== "codex") {
+function normalizeAgentType(agentType: string | undefined): AgentType | string {
+  const normalized = (agentType?.trim() || "codex").toLowerCase()
+
+  if (normalized === "claude" || normalized === "claudcode" || normalized === "claudecode") {
+    return "claude-code"
+  }
+
+  return normalized
+}
+
+function ensureSupportedAgent(agentType: string): asserts agentType is AgentType {
+  if (!AgentFactory.getAvailableTypes().includes(agentType as AgentType)) {
     throw createTaskError.unsupportedExecutor(agentType)
   }
 }
@@ -72,7 +83,7 @@ export function createTaskService(args: {
     const projectId = input.projectId.trim()
     const prompt = input.prompt.trim()
     const model = input.model?.trim() || null
-    const agentType = (input.agentType?.trim() || "codex").toLowerCase()
+    const agentType = normalizeAgentType(input.agentType)
 
     if (!projectId) {
       throw createTaskError.invalidProjectId()
@@ -95,6 +106,7 @@ export function createTaskService(args: {
         projectPath: project.path,
         prompt,
         model,
+        agentType,
         parentTaskId: null,
       })
     } catch (error) {
@@ -151,6 +163,9 @@ export function createTaskService(args: {
     }
 
     try {
+      const agentType = normalizeAgentType(task.executor)
+      ensureSupportedAgent(agentType)
+
       return await taskRunnerService.followupTask({
         taskId: task.id,
         threadId: task.threadId,
@@ -158,6 +173,7 @@ export function createTaskService(args: {
         projectPath: task.projectPath,
         prompt,
         model: model ?? task.model,
+        agentType,
       })
     } catch (error) {
       if (error instanceof TaskError) {
@@ -227,6 +243,9 @@ export function createTaskService(args: {
     }
 
     try {
+      const agentType = normalizeAgentType(task.executor)
+      ensureSupportedAgent(agentType)
+
       if (task.threadId) {
         if (
           await taskRepository.hasActiveTaskInThread({
@@ -246,6 +265,7 @@ export function createTaskService(args: {
           projectPath: task.projectPath,
           prompt: task.prompt,
           model: task.model,
+          agentType,
         })
       }
 
@@ -254,6 +274,7 @@ export function createTaskService(args: {
         projectPath: task.projectPath,
         prompt: task.prompt,
         model: task.model,
+        agentType,
         parentTaskId: task.id,
       })
     } catch (error) {
