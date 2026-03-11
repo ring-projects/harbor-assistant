@@ -6,7 +6,6 @@ export type {
   BreakTaskTurnInput,
   CreateTaskInput,
   GetTaskEventsInput,
-  GetTaskDiffInput,
   FollowupTaskInput,
   ListProjectTasksInput,
   RetryTaskInput,

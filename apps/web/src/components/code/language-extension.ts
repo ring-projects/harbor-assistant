@@ -1,4 +1,5 @@
 import type { Extension } from "@codemirror/state"
+import type { Language, LanguageSupport } from "@codemirror/language"
 import { css } from "@codemirror/lang-css"
 import { go } from "@codemirror/lang-go"
 import { html } from "@codemirror/lang-html"
@@ -10,9 +11,9 @@ import { python } from "@codemirror/lang-python"
 import { rust } from "@codemirror/lang-rust"
 import { yaml } from "@codemirror/lang-yaml"
 
-export function getCodeMirrorLanguageExtension(
+function getLanguageSupport(
   language: string | null,
-): Extension | null {
+): LanguageSupport | null {
   if (!language) {
     return null
   }
@@ -82,4 +83,16 @@ export function getCodeMirrorLanguageExtension(
   }
 
   return null
+}
+
+export function getCodeMirrorLanguageExtension(
+  language: string | null,
+): Extension | null {
+  return getLanguageSupport(language)
+}
+
+export function getCodeMirrorLanguage(
+  language: string | null,
+): Language | null {
+  return getLanguageSupport(language)?.language ?? null
 }

@@ -5,7 +5,6 @@ import {
   type CreateTaskBody,
   type FollowupTaskBody,
   type GetProjectTasksQuery,
-  getTaskDiffRouteSchema,
   type GetTaskEventsQuery,
   getTaskEventsRouteSchema,
   getProjectTasksRouteSchema,
@@ -86,22 +85,6 @@ export async function registerTaskRoutes(
       return {
         ok: true,
         task,
-      }
-    },
-  )
-
-  app.get<{ Params: TaskIdParams }>(
-    "/tasks/:taskId/diff",
-    {
-      schema: getTaskDiffRouteSchema,
-    },
-    async (request) => {
-      const { taskId } = request.params
-      const diff = await taskService.getTaskDiff({ taskId })
-
-      return {
-        ok: true,
-        diff,
       }
     },
   )

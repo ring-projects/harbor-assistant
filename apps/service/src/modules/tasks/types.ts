@@ -46,46 +46,6 @@ export type TaskAgentEventStream = {
   nextSequence: number
 }
 
-export type TaskDiffFileStatus =
-  | "added"
-  | "modified"
-  | "deleted"
-  | "renamed"
-  | "copied"
-  | "binary"
-  | "unknown"
-
-export type TaskDiffLineType = "context" | "add" | "delete" | "meta"
-
-export type TaskDiffLine = {
-  type: TaskDiffLineType
-  content: string
-  oldLineNumber: number | null
-  newLineNumber: number | null
-}
-
-export type TaskDiffHunk = {
-  header: string
-  lines: TaskDiffLine[]
-}
-
-export type TaskDiffFile = {
-  path: string
-  oldPath: string | null
-  status: TaskDiffFileStatus
-  isBinary: boolean
-  isTooLarge: boolean
-  additions: number
-  deletions: number
-  patch: string
-  hunks: TaskDiffHunk[]
-}
-
-export type TaskDiff = {
-  taskId: string
-  files: TaskDiffFile[]
-}
-
 export type TaskErrorCode =
   | "INVALID_TASK_ID"
   | "STORE_READ_ERROR"

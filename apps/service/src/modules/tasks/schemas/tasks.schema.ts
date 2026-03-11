@@ -27,8 +27,6 @@ export type GetTaskEventsQuery = {
   limit?: number
 }
 
-export type GetTaskDiffQuery = Record<string, never>
-
 export type GetProjectTasksQuery = {
   limit?: number
 }
@@ -113,80 +111,6 @@ const taskAgentEventStreamSchema = {
   },
 } as const
 
-const taskDiffLineSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["type", "content", "oldLineNumber", "newLineNumber"],
-  properties: {
-    type: {
-      type: "string",
-      enum: ["context", "add", "delete", "meta"],
-    },
-    content: { type: "string" },
-    oldLineNumber: { type: ["integer", "null"] },
-    newLineNumber: { type: ["integer", "null"] },
-  },
-} as const
-
-const taskDiffHunkSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["header", "lines"],
-  properties: {
-    header: { type: "string" },
-    lines: {
-      type: "array",
-      items: taskDiffLineSchema,
-    },
-  },
-} as const
-
-const taskDiffFileSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "path",
-    "oldPath",
-    "status",
-    "isBinary",
-    "isTooLarge",
-    "additions",
-    "deletions",
-    "patch",
-    "hunks",
-  ],
-  properties: {
-    path: { type: "string" },
-    oldPath: { type: ["string", "null"] },
-    status: {
-      type: "string",
-      enum: ["added", "modified", "deleted", "renamed", "copied", "binary", "unknown"],
-    },
-    isBinary: { type: "boolean" },
-    isTooLarge: { type: "boolean" },
-    additions: { type: "integer" },
-    deletions: { type: "integer" },
-    patch: { type: "string" },
-    hunks: {
-      type: "array",
-      items: taskDiffHunkSchema,
-    },
-  },
-} as const
-
-const taskDiffSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["taskId", "files"],
-  properties: {
-    taskId: { type: "string" },
-    files: {
-      type: "array",
-      items: taskDiffFileSchema,
-    },
-  },
-} as const
-
 const taskSuccessResponseSchema = {
   type: "object",
   additionalProperties: false,
@@ -218,16 +142,6 @@ const taskEventsSuccessResponseSchema = {
     ok: { type: "boolean", const: true },
     task: taskEntitySchema,
     events: taskAgentEventStreamSchema,
-  },
-} as const
-
-const taskDiffSuccessResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["ok", "diff"],
-  properties: {
-    ok: { type: "boolean", const: true },
-    diff: taskDiffSchema,
   },
 } as const
 
@@ -298,12 +212,6 @@ const taskEventsQuerySchema = {
   },
 } as const
 
-const emptyQuerySchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {},
-} as const
-
 const limitOnlyQuerySchema = {
   type: "object",
   additionalProperties: false,
@@ -355,14 +263,6 @@ export const getTaskEventsRouteSchema = {
   response: {
     200: taskEventsSuccessResponseSchema,
     206: taskEventsSuccessResponseSchema,
-  },
-} as const
-
-export const getTaskDiffRouteSchema = {
-  params: taskIdParamsSchema,
-  querystring: emptyQuerySchema,
-  response: {
-    200: taskDiffSuccessResponseSchema,
   },
 } as const
 

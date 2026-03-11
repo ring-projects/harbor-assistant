@@ -124,3 +124,69 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .tok-keyword {
+    color: oklch(0.54 0.15 265);
+  }
+
+  .tok-atom,
+  .tok-bool,
+  .tok-number {
+    color: oklch(0.56 0.16 250);
+  }
+
+  .tok-string {
+    color: oklch(0.52 0.13 155);
+  }
+
+  .tok-regexp,
+  .tok-escape {
+    color: oklch(0.55 0.15 25);
+  }
+
+  .tok-variableName,
+  .tok-propertyName {
+    color: oklch(0.28 0.03 250);
+  }
+
+  .tok-typeName,
+  .tok-className,
+  .tok-namespace {
+    color: oklch(0.45 0.12 220);
+  }
+
+  .tok-function,
+  .tok-definition {
+    color: oklch(0.45 0.14 240);
+  }
+
+  .tok-comment,
+  .tok-lineComment,
+  .tok-blockComment,
+  .tok-docComment {
+    color: oklch(0.56 0.02 240);
+    font-style: italic;
+  }
+
+  .tok-operator,
+  .tok-punctuation,
+  .tok-separator {
+    color: oklch(0.42 0.03 250);
+  }
+
+  .tok-meta,
+  .tok-processingInstruction,
+  .tok-annotation {
+    color: oklch(0.48 0.08 240);
+  }
+
+  .tok-tagName,
+  .tok-angleBracket {
+    color: oklch(0.52 0.16 20);
+  }
+
+  .tok-attributeName {
+    color: oklch(0.48 0.11 215);
+  }
+}

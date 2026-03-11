@@ -3,7 +3,6 @@ import { createTaskError, TaskError } from "../errors"
 import type { TaskRepository } from "../repositories"
 import type { CodexTask } from "../types"
 import type { TaskRunnerService } from "./task-runner.service"
-import { readTaskGitDiff } from "./task-diff"
 
 export type CreateTaskInput = {
   projectId: string
@@ -36,10 +35,6 @@ export type GetTaskEventsInput = {
   taskId: string
   afterSequence?: number
   limit?: number
-}
-
-export type GetTaskDiffInput = {
-  taskId: string
 }
 
 function isTerminalTask(task: CodexTask) {
@@ -320,26 +315,6 @@ export function createTaskService(args: {
     }
   }
 
-  async function getTaskDiff(input: GetTaskDiffInput) {
-    const task = await getTaskDetail(input.taskId)
-
-    try {
-      return await readTaskGitDiff({
-        taskId: task.id,
-        projectPath: task.projectPath,
-      })
-    } catch (error) {
-      if (error instanceof TaskError) {
-        throw error
-      }
-
-      throw createTaskError.readError(
-        `Failed to read task git diff: ${String(error)}`,
-        error,
-      )
-    }
-  }
-
   return {
     createTaskAndRun,
     followupTask,
@@ -347,7 +322,6 @@ export function createTaskService(args: {
     retryTask,
     getTaskDetail,
     getTaskEvents,
-    getTaskDiff,
     listProjectTasks,
   }
 }

@@ -2,22 +2,23 @@
 
 import { useMemo, useState } from "react"
 
+import { HighlightedCodeText, inferLanguageFromFilePath } from "@/components/code"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import {
-  type TaskDiffFile,
-  type TaskDiffFileStatus,
-} from "@/modules/tasks/contracts"
-import { useTaskDiffQuery } from "@/modules/tasks/hooks/use-task-queries"
+  type GitDiffFile,
+  type GitDiffFileStatus,
+  useProjectGitDiffQuery,
+} from "@/modules/git"
 
 import { getErrorMessage } from "./shared"
 
 type TaskDiffPanelProps = {
-  taskId: string | null
+  projectId: string
 }
 
 const DIFF_STATUS_META: Record<
-  TaskDiffFileStatus,
+  GitDiffFileStatus,
   {
     label: string
     badgeClassName: string
@@ -57,7 +58,9 @@ function formatLineNumber(value: number | null) {
   return value === null ? "" : String(value)
 }
 
-function DiffFileContent({ file }: { file: TaskDiffFile }) {
+function DiffFileContent({ file }: { file: GitDiffFile }) {
+  const language = useMemo(() => inferLanguageFromFilePath(file.path), [file.path])
+
   if (file.isBinary) {
     return (
       <div className="text-muted-foreground rounded-md border border-dashed p-4 text-xs">
@@ -125,7 +128,14 @@ function DiffFileContent({ file }: { file: TaskDiffFile }) {
                           : " "}
                   </span>
                   <pre className="overflow-x-auto px-3 py-0.5 whitespace-pre-wrap break-words">
-                    {line.content || " "}
+                    {line.content ? (
+                      <HighlightedCodeText
+                        code={line.content}
+                        language={language}
+                      />
+                    ) : (
+                      " "
+                    )}
                   </pre>
                 </div>
               ))}
@@ -137,8 +147,8 @@ function DiffFileContent({ file }: { file: TaskDiffFile }) {
   )
 }
 
-export function TaskDiffPanel({ taskId }: TaskDiffPanelProps) {
-  const diffQuery = useTaskDiffQuery(taskId)
+export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
+  const diffQuery = useProjectGitDiffQuery(projectId)
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
   const files = useMemo(() => diffQuery.data?.files ?? [], [diffQuery.data?.files])
   const resolvedSelectedFilePath = useMemo(() => {
@@ -188,13 +198,7 @@ export function TaskDiffPanel({ taskId }: TaskDiffPanelProps) {
           ) : null}
         </div>
 
-        {!taskId ? (
-          <div className="text-muted-foreground flex flex-1 items-center justify-center rounded-md border border-dashed text-xs">
-            请选择左侧任务
-          </div>
-        ) : null}
-
-        {taskId && diffQuery.isLoading ? (
+        {diffQuery.isLoading ? (
           <div className="grid min-h-0 flex-1 gap-3 overflow-hidden xl:grid-cols-[240px_minmax(0,1fr)]">
             <div className="min-h-0 space-y-2 overflow-hidden">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -209,13 +213,13 @@ export function TaskDiffPanel({ taskId }: TaskDiffPanelProps) {
           </div>
         ) : null}
 
-        {taskId && diffQuery.isError ? (
+        {diffQuery.isError ? (
           <div className="rounded-md border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
             {getErrorMessage(diffQuery.error)}
           </div>
         ) : null}
 
-        {taskId && !diffQuery.isLoading && !diffQuery.isError ? (
+        {!diffQuery.isLoading && !diffQuery.isError ? (
           files.length > 0 && selectedFile ? (
             <div className="grid min-h-0 flex-1 gap-3 overflow-hidden xl:grid-cols-[240px_minmax(0,1fr)]">
               <div className="min-h-0 overflow-auto rounded-md border">
@@ -293,7 +297,7 @@ export function TaskDiffPanel({ taskId }: TaskDiffPanelProps) {
             </div>
           ) : (
             <div className="text-muted-foreground flex flex-1 items-center justify-center rounded-md border border-dashed text-xs">
-              当前工作区没有可展示的 git diff。
+              当前项目工作区没有可展示的 git diff。
             </div>
           )
         ) : null}

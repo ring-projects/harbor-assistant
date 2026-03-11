@@ -13,6 +13,10 @@ export function getV1ProjectTasksApiRoute(projectId: string) {
   return `${API_ROUTES.v1ProjectTasks}/${encodeURIComponent(projectId)}/tasks`
 }
 
+export function getV1ProjectGitDiffApiRoute(projectId: string) {
+  return `${API_ROUTES.v1ProjectTasks}/${encodeURIComponent(projectId)}/git/diff`
+}
+
 export function getV1TaskByIdApiRoute(taskId: string) {
   return `${API_ROUTES.v1Tasks}/${encodeURIComponent(taskId)}`
 }
@@ -27,8 +31,4 @@ export function getV1TaskRetryApiRoute(taskId: string) {
 
 export function getV1TaskEventsApiRoute(taskId: string) {
   return `${getV1TaskByIdApiRoute(taskId)}/events`
-}
-
-export function getV1TaskDiffApiRoute(taskId: string) {
-  return `${getV1TaskByIdApiRoute(taskId)}/diff`
 }

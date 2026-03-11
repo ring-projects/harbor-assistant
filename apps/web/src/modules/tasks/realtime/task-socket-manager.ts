@@ -3,6 +3,7 @@
 import type { QueryClient } from "@tanstack/react-query"
 import { io, type Socket } from "socket.io-client"
 
+import { gitQueryKeys } from "@/modules/git"
 import { getTaskSocketBaseUrl } from "@/modules/tasks/api"
 import type {
   TaskAgentEvent,
@@ -389,14 +390,24 @@ class TaskSocketManager {
         return
       }
 
+      const currentTask = this.queryClient.getQueryData<TaskDetail | null>(
+        taskQueryKeys.detail(payload.taskId),
+      )
+
       this.queryClient.setQueryData<TaskDetail | null>(
         taskQueryKeys.detail(payload.taskId),
         (current) => (current ? patchTaskStatus(current, payload.status) : current),
       )
 
-      void this.queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.diff(payload.taskId),
-      })
+      if (currentTask?.projectId) {
+        void this.queryClient.invalidateQueries({
+          queryKey: gitQueryKeys.byProject(currentTask.projectId),
+        })
+      } else {
+        void this.queryClient.invalidateQueries({
+          queryKey: gitQueryKeys.all,
+        })
+      }
     })
 
     this.socket.on("task-events:ready", (_payload: TaskEventsReadyPayload) => {})

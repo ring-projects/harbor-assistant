@@ -25,7 +25,7 @@ export function TaskWorkbench({ projectId }: TaskWorkbenchProps) {
 
         <ChatPanel projectId={projectId} taskId={selectedTaskId} />
 
-        <TaskDiffPanel taskId={selectedTaskId} />
+        <TaskDiffPanel projectId={projectId} />
       </div>
     </div>
   )

@@ -35,7 +35,6 @@ export type {
   CreateTaskInput,
   GetTaskEventsInput,
   FollowupTaskInput,
-  GetTaskDiffInput,
   ListProjectTasksInput,
   RetryTaskInput,
   TaskEventBus,

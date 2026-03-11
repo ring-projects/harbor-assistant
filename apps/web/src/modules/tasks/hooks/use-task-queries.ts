@@ -2,12 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { gitQueryKeys } from "@/modules/git"
 import {
   breakTaskTurn,
   createTask,
   followupTask,
   readProjectTasks,
-  readTaskDiff,
   readTaskDetail,
   readTaskEvents,
   retryTask,
@@ -29,9 +29,6 @@ export const taskQueryKeys = {
   },
   events(taskId: string) {
     return [...this.all, "events", taskId] as const
-  },
-  diff(taskId: string) {
-    return [...this.all, "diff", taskId] as const
   },
 }
 
@@ -85,20 +82,6 @@ export function useTaskEventsQuery(args: {
   })
 }
 
-export function useTaskDiffQuery(taskId: string | null) {
-  return useQuery({
-    queryKey: taskQueryKeys.diff(taskId ?? "none"),
-    queryFn: async () => {
-      if (!taskId) {
-        return null
-      }
-
-      return readTaskDiff(taskId)
-    },
-    enabled: Boolean(taskId),
-  })
-}
-
 export function useCreateTaskMutation(projectId: string) {
   const queryClient = useQueryClient()
 
@@ -108,15 +91,15 @@ export function useCreateTaskMutation(projectId: string) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
       })
+      void queryClient.invalidateQueries({
+        queryKey: gitQueryKeys.byProject(projectId),
+      })
 
       if (result.task) {
         queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
       }
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.events(result.taskId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.diff(result.taskId),
       })
     },
   })
@@ -131,14 +114,14 @@ export function useBreakTaskTurnMutation(projectId: string) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
       })
+      void queryClient.invalidateQueries({
+        queryKey: gitQueryKeys.byProject(projectId),
+      })
 
       if (task) {
         queryClient.setQueryData(taskQueryKeys.detail(task.taskId), task)
         void queryClient.invalidateQueries({
           queryKey: taskQueryKeys.events(task.taskId),
-        })
-        void queryClient.invalidateQueries({
-          queryKey: taskQueryKeys.diff(task.taskId),
         })
       }
     },
@@ -154,15 +137,15 @@ export function useRetryTaskMutation(projectId: string) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
       })
+      void queryClient.invalidateQueries({
+        queryKey: gitQueryKeys.byProject(projectId),
+      })
 
       if (result.task) {
         queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
       }
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.events(result.taskId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.diff(result.taskId),
       })
     },
   })
@@ -181,6 +164,9 @@ export function useTaskFollowupMutation(projectId: string) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
       })
+      void queryClient.invalidateQueries({
+        queryKey: gitQueryKeys.byProject(projectId),
+      })
 
       if (result.task) {
         queryClient.setQueryData(taskQueryKeys.detail(variables.taskId), result.task)
@@ -191,9 +177,6 @@ export function useTaskFollowupMutation(projectId: string) {
       })
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.events(variables.taskId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.diff(variables.taskId),
       })
     },
   })
