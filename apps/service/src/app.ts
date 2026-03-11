@@ -1,5 +1,4 @@
 import cors from "@fastify/cors"
-import websocket from "@fastify/websocket"
 import Fastify, { type FastifyInstance } from "fastify"
 
 import type { ServiceConfig } from "./config"
@@ -46,7 +45,6 @@ export async function buildServiceApp(
   await app.register(cors, {
     origin: true,
   })
-  await app.register(websocket)
   await app.register(errorHandlerPlugin)
   await app.register(prismaPlugin, {
     datasourceUrl: config.database,

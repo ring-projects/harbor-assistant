@@ -8,8 +8,8 @@ import {
   createTaskRunnerService,
   createTaskService,
 } from "../services"
+import { createTaskSocketGateway } from "../realtime/task-socket.gateway"
 import { registerTaskRoutes } from "./tasks.routes"
-import { registerTaskWebsocketRoutes } from "./tasks.websocket.routes"
 
 export async function registerTaskModuleRoutes(app: FastifyInstance) {
   const projectRepository = createProjectRepository(app.prisma)
@@ -34,7 +34,8 @@ export async function registerTaskModuleRoutes(app: FastifyInstance) {
   await registerTaskRoutes(app, {
     taskService,
   })
-  await registerTaskWebsocketRoutes(app, {
+  createTaskSocketGateway({
+    app,
     taskService,
     taskEventBus,
   })

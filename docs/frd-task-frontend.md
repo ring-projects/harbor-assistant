@@ -5,7 +5,7 @@
 - 文档名称：Task Frontend Requirements Document
 - 版本：v1.1
 - 日期：2026-03-11
-- 范围：项目内 Task 工作台（创建、列表、timeline、follow-up、取消、重试）
+- 范围：项目内 Task 工作台（创建、列表、conversation events、follow-up、取消、重试）
 - 依赖文档：
   - `/Users/qiuhao/workspace/harbor-assistant/docs/frd-frontend.md`
   - `/Users/qiuhao/workspace/harbor-assistant/docs/prd-executor-service.md`
@@ -21,7 +21,7 @@
    - 用户能快速看到任务是否开始、是否卡住、为什么失败。
 
 3. **稳定可回溯**
-   - 任务历史可定位，timeline 可连续查看，失败任务可重试。
+   - 任务历史可定位，event stream 可连续查看，失败任务可重试。
 
 4. **TypeScript-first**
    - 任务类型、状态、事件结构全部类型化，避免隐式字段。
@@ -33,7 +33,7 @@
 
 ## 3. 产品决策（已定）
 
-1. Task 工作台采用**单页面结构**（列表 + timeline + diff 同页）。
+1. Task 工作台采用**单页面结构**（列表 + conversation + diff 同页）。
 2. v1 执行器固定为 `codex`，不提供执行器切换。
 3. 当前任务列表不提供筛选器，默认按创建时间倒序展示。
 4. 设置页默认模型仅做 mock 展示，不做持久化。
@@ -54,8 +54,8 @@
    - 刷新按钮
    - 任务列表（默认按创建时间倒序）
 
-3. **中间 timeline 区**
-   - 当前 task 的统一 timeline
+3. **中间对话区**
+   - 当前 task 的统一 conversation / event stream
    - follow-up 输入框
    - thread 标识
 
@@ -122,31 +122,31 @@
 ### TFR-008 列表性能
 
 1. 默认分页，避免一次性加载全部任务。
-2. 列表更新不应导致 timeline / diff 区重置（除非当前任务被移除）。
+2. 列表更新不应导致 conversation / diff 区重置（除非当前任务被移除）。
 
 ---
 
-## 5.3 Timeline 与详情（TFR-009 ~ TFR-015）
+## 5.3 Conversation 与详情（TFR-009 ~ TFR-015）
 
-### TFR-009 Timeline 基础信息
+### TFR-009 Conversation 基础信息
 
-timeline 区需展示：
+conversation 区需展示：
 
 1. taskId
 2. threadId（若已存在）
-3. 当前 task 的 timeline items
+3. 当前 task 的 agent events
 4. follow-up 输入框
 
-### TFR-010 Timeline item 展示
+### TFR-010 Event 展示
 
-1. message / status / stdout / stderr / summary / error / system 统一按时间顺序展示。
-2. item 需保留 `sequence` 与 `createdAt`。
-3. 不同 `kind` 允许差异化视觉样式。
+1. 原始 agent event 按时间顺序展示。
+2. event 需保留 `sequence` 与 `createdAt`。
+3. 前端可以基于 eventType 做差异化视觉映射，但不改变原始数据语义。
 
 ### TFR-011 实时更新优先级
 
-1. 优先 SSE：`GET /v1/tasks/:taskId/timeline?format=sse`
-2. SSE 不可用时回退轮询策略
+1. 优先 WebSocket：`/v1/ws/tasks`
+2. WebSocket 不可用时回退 `GET /v1/tasks/:taskId/events`
 
 ### TFR-012 当前 task 终态识别
 
@@ -220,9 +220,8 @@ timeline 区需展示：
 1. `POST /v1/tasks`
 2. `GET /v1/projects/:projectId/tasks`
 3. `GET /v1/tasks/:taskId`
-4. `GET /v1/tasks/:taskId/timeline`
-5. `GET /v1/tasks/:taskId/timeline?format=sse`
-6. `POST /v1/tasks/:taskId/followup`
+4. `GET /v1/tasks/:taskId/events`
+5. `POST /v1/tasks/:taskId/followup`
 5. `POST /v1/tasks/:taskId/cancel`
 6. `POST /v1/tasks/:taskId/retry`
 
@@ -231,8 +230,8 @@ timeline 区需展示：
 1. `TaskStatus`
 2. `TaskListItem`
 3. `TaskDetail`
-4. `TaskTimelineItem`
-5. `TaskTimeline`
+4. `TaskAgentEvent`
+5. `TaskAgentEventStream`
 
 建议使用 `zod` 定义响应 schema 并在前端解析。
 
@@ -242,16 +241,16 @@ timeline 区需展示：
 
 1. 首次打开任务页，列表首屏数据响应目标 < 1s（本地环境）。
 2. 状态变化到 UI 可见延迟目标 < 1s（SSE）或 < 3s（轮询）。
-3. timeline / 输出面板在 10k+ 行文本情况下仍可操作（通过分段/虚拟化策略）。
+3. conversation / 输出面板在 10k+ 行文本情况下仍可操作（通过分段/虚拟化策略）。
 4. 错误文案需覆盖：网络失败、执行器不可用、参数错误、权限错误。
 
 ---
 
 ## 8. 验收标准（Task MVP）
 
-1. 用户可在单页面完成创建任务、查看列表、查看 timeline、查看 diff。
-2. 用户可在同一 thread 上 follow-up，并看到当前 task timeline 继续增长。
-3. 用户可看到实时 timeline 或轮询降级 timeline 更新。
+1. 用户可在单页面完成创建任务、查看列表、查看 conversation、查看 diff。
+2. 用户可在同一 thread 上 follow-up，并看到当前 task event stream 继续增长。
+3. 用户可看到实时 event stream 或拉取降级更新。
 4. 用户可取消 running/queued 任务并看到终态收敛。
 5. 用户可重试失败任务，并按 thread 能力决定是复用当前 task 还是新建 task。
 6. 页面在 loading/empty/error 三类状态下表现稳定。

@@ -127,7 +127,7 @@ Good E2E targets:
 - open app and land on the correct workspace
 - create a project
 - start a task
-- inspect timeline and diff results
+- inspect conversation events and diff results
 - retry or cancel a task
 
 Do not use E2E tests to cover every edge case. Keep them for smoke coverage of core flows.
