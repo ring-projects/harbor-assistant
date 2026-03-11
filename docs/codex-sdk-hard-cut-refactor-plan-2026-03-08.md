@@ -156,7 +156,7 @@
 - 创建任务可成功执行并落库 thread/messages
 - Chat follow-up 可在同 thread 连续对话
 - conversation API 仅来自 DB，重启服务不丢会话
-- retry/cancel 行为符合新语义定义
+- retry/break 行为符合新语义定义
 
 ### 6.2 清理验收（必须通过）
 运行以下检查应不再命中“旧主链路”：
@@ -168,7 +168,7 @@
 ### 6.3 稳定性验收
 - `bun run lint:service`
 - `bun run typecheck:service`
-- 关键集成测试/手工回归（create/followup/cancel/retry/conversation）
+- 关键集成测试/手工回归（create/followup/break/retry/conversation）
 
 ---
 

@@ -180,11 +180,11 @@ conversation 区需展示：
 
 ## 5.4 任务控制（TFR-016 ~ TFR-020）
 
-### TFR-016 取消任务
+### TFR-016 Break 当前 Turn
 
-1. 仅 `queued/running` 状态显示取消按钮。
-2. 用户点击后需二次确认（可选 P0，建议 P1）。
-3. 调用取消接口后立即展示 pending 状态，最终收敛到终态。
+1. 仅 `running` 状态显示 `Break` 按钮。
+2. `Break` 语义为“终止当前 turn”，不是销毁 task / thread。
+3. 调用 break 接口后立即展示 pending 状态，最终收敛到终态。
 
 ### TFR-017 重试任务
 
@@ -195,7 +195,7 @@ conversation 区需展示：
 
 ### TFR-018 操作失败处理
 
-1. 取消/重试失败必须可见且可重试。
+1. break/重试失败必须可见且可重试。
 2. 不得 silent fail。
 
 ### TFR-019 并发操作保护
@@ -204,9 +204,9 @@ conversation 区需展示：
 
 ### TFR-020 控制埋点
 
-1. `task_cancel_clicked`
-2. `task_cancel_succeeded`
-3. `task_cancel_failed`
+1. `task_break_clicked`
+2. `task_break_succeeded`
+3. `task_break_failed`
 4. `task_retry_clicked`
 5. `task_retry_succeeded`
 6. `task_retry_failed`
@@ -222,8 +222,8 @@ conversation 区需展示：
 3. `GET /v1/tasks/:taskId`
 4. `GET /v1/tasks/:taskId/events`
 5. `POST /v1/tasks/:taskId/followup`
-5. `POST /v1/tasks/:taskId/cancel`
-6. `POST /v1/tasks/:taskId/retry`
+6. `POST /v1/tasks/:taskId/break`
+7. `POST /v1/tasks/:taskId/retry`
 
 ## 6.2 前端类型建议
 

@@ -31,7 +31,7 @@ export {
   createTaskService,
 } from "./services"
 export type {
-  CancelTaskInput,
+  BreakTaskTurnInput,
   CreateTaskInput,
   GetTaskEventsInput,
   FollowupTaskInput,

@@ -5,7 +5,7 @@ export type CreateTaskBody = {
   executor?: string
 }
 
-export type CancelTaskBody = {
+export type BreakTaskTurnBody = {
   reason?: string
 }
 
@@ -271,7 +271,7 @@ export const createTaskBodySchema = {
   },
 } as const
 
-export const cancelTaskBodySchema = {
+export const breakTaskTurnBodySchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -326,9 +326,9 @@ export const getTaskRouteSchema = {
   },
 } as const
 
-export const postCancelTaskRouteSchema = {
+export const postBreakTaskTurnRouteSchema = {
   params: taskIdParamsSchema,
-  body: cancelTaskBodySchema,
+  body: breakTaskTurnBodySchema,
   response: {
     200: taskSuccessResponseSchema,
   },

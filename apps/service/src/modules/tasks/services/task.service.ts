@@ -22,7 +22,7 @@ export type FollowupTaskInput = {
   model?: string | null
 }
 
-export type CancelTaskInput = {
+export type BreakTaskTurnInput = {
   taskId: string
   reason?: string
 }
@@ -176,7 +176,7 @@ export function createTaskService(args: {
     }
   }
 
-  async function cancelTask(input: CancelTaskInput) {
+  async function breakTaskTurn(input: BreakTaskTurnInput) {
     const taskId = input.taskId.trim()
     if (!taskId) {
       throw createTaskError.invalidTaskId()
@@ -187,9 +187,9 @@ export function createTaskService(args: {
       throw createTaskError.taskNotFound(taskId)
     }
 
-    if (task.status === "queued" || task.status === "running") {
+    if (task.status === "running") {
       try {
-        return await taskRunnerService.cancelTask({
+        return await taskRunnerService.breakTaskTurn({
           taskId,
           reason: input.reason,
         })
@@ -198,14 +198,20 @@ export function createTaskService(args: {
           throw error
         }
 
-        throw createTaskError.taskCancelFailed(
-          `Failed to cancel task: ${String(error)}`,
+        throw createTaskError.taskBreakFailed(
+          `Failed to break current turn: ${String(error)}`,
           error,
         )
       }
     }
 
-    return task
+    throw createTaskError.invalidTaskBreakState(
+      `Only running tasks can break the current turn. Current status: ${task.status}`,
+      {
+        taskId,
+        status: task.status,
+      },
+    )
   }
 
   async function retryTask(input: RetryTaskInput) {
@@ -337,7 +343,7 @@ export function createTaskService(args: {
   return {
     createTaskAndRun,
     followupTask,
-    cancelTask,
+    breakTaskTurn,
     retryTask,
     getTaskDetail,
     getTaskEvents,

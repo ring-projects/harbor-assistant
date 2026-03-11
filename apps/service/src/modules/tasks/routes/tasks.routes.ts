@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify"
 
 import {
-  type CancelTaskBody,
+  type BreakTaskTurnBody,
   type CreateTaskBody,
   type FollowupTaskBody,
   type GetProjectTasksQuery,
@@ -10,7 +10,7 @@ import {
   getTaskEventsRouteSchema,
   getProjectTasksRouteSchema,
   getTaskRouteSchema,
-  postCancelTaskRouteSchema,
+  postBreakTaskTurnRouteSchema,
   postRetryTaskRouteSchema,
   type ProjectIdParams,
   type TaskIdParams,
@@ -106,14 +106,14 @@ export async function registerTaskRoutes(
     },
   )
 
-  app.post<{ Params: TaskIdParams; Body: CancelTaskBody }>(
-    "/tasks/:taskId/cancel",
+  app.post<{ Params: TaskIdParams; Body: BreakTaskTurnBody }>(
+    "/tasks/:taskId/break",
     {
-      schema: postCancelTaskRouteSchema,
+      schema: postBreakTaskTurnRouteSchema,
     },
     async (request) => {
       const { taskId } = request.params
-      const task = await taskService.cancelTask({
+      const task = await taskService.breakTaskTurn({
         taskId,
         reason: request.body.reason,
       })

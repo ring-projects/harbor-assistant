@@ -11,17 +11,15 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   const { taskId } = await context.params
 
-  let payload: unknown = {}
-  if (request.headers.get("content-length")) {
-    try {
-      payload = await request.json()
-    } catch {
-      payload = null
-    }
+  let payload: unknown
+  try {
+    payload = await request.json()
+  } catch {
+    payload = null
   }
 
   return proxyToService({
-    path: `/v1/tasks/${encodeURIComponent(taskId)}/cancel`,
+    path: `/v1/tasks/${encodeURIComponent(taskId)}/break`,
     method: "POST",
     payload,
   })

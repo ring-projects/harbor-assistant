@@ -14,8 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import {
   useCreateTaskMutation,
@@ -148,12 +148,14 @@ export function TaskListPanel({
             </DialogHeader>
 
             <form className="grid gap-3" onSubmit={handleCreateTask}>
-              <Input
+              <Textarea
                 value={newTaskPrompt}
                 onChange={(event) => setNewTaskPrompt(event.target.value)}
                 placeholder="输入初始化 prompt"
                 disabled={createTaskMutation.isPending}
                 autoFocus
+                rows={6}
+                className="min-h-32 resize-y"
               />
 
               {createTaskError ? (

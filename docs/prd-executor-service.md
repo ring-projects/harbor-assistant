@@ -159,7 +159,7 @@ System must define a typed adapter interface:
 
 - start run
 - stream events
-- cancel run
+- break current turn
 - map raw exit/result to normalized status
 
 ### FR-004 Event Streaming
@@ -171,9 +171,9 @@ System must provide SSE endpoint for task run events including:
 - stderr chunks
 - terminal summary
 
-### FR-005 Cancellation
+### FR-005 Break Current Turn
 
-System must support cancellation for `queued` and `running` tasks with deterministic terminal state (`cancelled` or `failed` with cancellation reason).
+System must support breaking the current turn for `running` tasks with deterministic terminal state (`cancelled` or `failed` with break reason).
 
 ### FR-006 Retry
 
@@ -279,7 +279,7 @@ System must persist command, parameters, timestamps, and terminal metadata for e
 Minimum executor API surface:
 
 - `POST /v1/tasks`
-- `POST /v1/tasks/:taskId/cancel`
+- `POST /v1/tasks/:taskId/break`
 - `POST /v1/tasks/:taskId/retry`
 - `GET /v1/projects/:projectId/tasks`
 - `GET /v1/tasks/:taskId`
@@ -294,7 +294,7 @@ All APIs must return typed error codes suitable for UI branching.
 
 1. Task list must display status badge, created time, executor, model.
 2. Task detail must show live output stream and final result summary.
-3. Cancellation action must provide immediate optimistic feedback and eventual terminal confirmation.
+3. Break action must provide immediate optimistic feedback and eventual terminal confirmation.
 4. Failure view must include normalized reason and retry CTA.
 
 ---
@@ -326,8 +326,8 @@ All APIs must return typed error codes suitable for UI branching.
 3. **Risk:** Next and executor process boundaries increase integration complexity.  
    **Mitigation:** shared TS schema package and explicit API versioning.
 
-4. **Risk:** Cancellation semantics differ per runtime.  
-   **Mitigation:** define normalized cancellation policy and runtime-specific fallback behavior.
+4. **Risk:** Break semantics differ per runtime.  
+   **Mitigation:** define normalized break policy and runtime-specific fallback behavior.
 
 ---
 

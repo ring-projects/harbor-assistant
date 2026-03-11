@@ -141,4 +141,42 @@ describe("task routes", () => {
       },
     })
   })
+
+  it("breaks a running task turn", async () => {
+    const project = await prisma.project.create({
+      data: {
+        name: "Project Two",
+        slug: "project-two",
+        rootPath: "/tmp/project-two",
+        normalizedPath: "/tmp/project-two",
+      },
+    })
+
+    const task = await prisma.task.create({
+      data: {
+        projectId: project.id,
+        projectPath: "/tmp/project-two",
+        prompt: "Run tests",
+        executor: "codex",
+        status: "running",
+        threadId: "thread-1",
+      },
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/tasks/${task.id}/break`,
+      payload: {},
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: task.id,
+        status: "cancelled",
+        error: "Current turn stopped by user request.",
+      },
+    })
+  })
 })

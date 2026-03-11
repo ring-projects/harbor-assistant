@@ -3,7 +3,7 @@ export type { TaskRunnerService } from "./task-runner.service"
 
 export { createTaskService } from "./task.service"
 export type {
-  CancelTaskInput,
+  BreakTaskTurnInput,
   CreateTaskInput,
   GetTaskEventsInput,
   GetTaskDiffInput,

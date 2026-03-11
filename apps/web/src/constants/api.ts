@@ -17,8 +17,8 @@ export function getV1TaskByIdApiRoute(taskId: string) {
   return `${API_ROUTES.v1Tasks}/${encodeURIComponent(taskId)}`
 }
 
-export function getV1TaskCancelApiRoute(taskId: string) {
-  return `${getV1TaskByIdApiRoute(taskId)}/cancel`
+export function getV1TaskBreakApiRoute(taskId: string) {
+  return `${getV1TaskByIdApiRoute(taskId)}/break`
 }
 
 export function getV1TaskRetryApiRoute(taskId: string) {

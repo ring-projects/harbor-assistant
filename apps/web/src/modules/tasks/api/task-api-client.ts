@@ -451,9 +451,9 @@ export async function readTaskDiff(taskId: string): Promise<TaskDiff> {
   return diff
 }
 
-export async function cancelTask(taskId: string): Promise<TaskDetail | null> {
+export async function breakTaskTurn(taskId: string): Promise<TaskDetail | null> {
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/cancel`,
+    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/break`,
     {
       method: "POST",
       headers: {
@@ -464,7 +464,7 @@ export async function cancelTask(taskId: string): Promise<TaskDetail | null> {
   )
 
   const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to cancel task.")
+  throwIfFailed(response, payload, "Failed to break current turn.")
 
   return extractSingleTask(payload)
 }

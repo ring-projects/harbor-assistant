@@ -1,5 +1,5 @@
 export {
-  cancelTaskBodySchema,
+  breakTaskTurnBodySchema,
   createTaskRouteSchema,
   followupTaskBodySchema,
   followupTaskRouteSchema,
@@ -7,9 +7,9 @@ export {
   getTaskDiffRouteSchema,
   getTaskEventsRouteSchema,
   getTaskRouteSchema,
-  postCancelTaskRouteSchema,
+  postBreakTaskTurnRouteSchema,
   postRetryTaskRouteSchema,
-  type CancelTaskBody,
+  type BreakTaskTurnBody,
   type CreateTaskBody,
   type FollowupTaskBody,
   type GetProjectTasksQuery,

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
-  cancelTask,
+  breakTaskTurn,
   createTask,
   followupTask,
   readProjectTasks,
@@ -122,11 +122,11 @@ export function useCreateTaskMutation(projectId: string) {
   })
 }
 
-export function useCancelTaskMutation(projectId: string) {
+export function useBreakTaskTurnMutation(projectId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (taskId: string) => cancelTask(taskId),
+    mutationFn: (taskId: string) => breakTaskTurn(taskId),
     onSuccess(task) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),

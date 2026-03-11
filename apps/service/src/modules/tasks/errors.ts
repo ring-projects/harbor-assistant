@@ -59,8 +59,13 @@ export const createTaskError = {
       details,
     }),
 
-  taskCancelFailed: (message = "Failed to cancel task.", cause?: unknown) =>
-    new TaskError(ERROR_CODES.TASK_CANCEL_FAILED, 500, message, {
+  invalidTaskBreakState: (message: string, details?: unknown) =>
+    new TaskError(ERROR_CODES.INVALID_TASK_BREAK_STATE, 409, message, {
+      details,
+    }),
+
+  taskBreakFailed: (message = "Failed to break current turn.", cause?: unknown) =>
+    new TaskError(ERROR_CODES.TASK_BREAK_FAILED, 500, message, {
       details: { cause: String(cause) },
       cause,
     }),

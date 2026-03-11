@@ -136,7 +136,7 @@ describe("task follow-up", () => {
       taskRunnerService: {
         createAndRunTask: vi.fn(),
         followupTask,
-        cancelTask: vi.fn(),
+        breakTaskTurn: vi.fn(),
       },
     })
 
@@ -151,5 +151,96 @@ describe("task follow-up", () => {
 
     expect(hasActiveTaskInThread).not.toHaveBeenCalled()
     expect(followupTask).not.toHaveBeenCalled()
+  })
+
+  it("breaks a running turn and does not complete when the agent resolves afterwards", async () => {
+    let resolveRun!: (value: {
+      sessionId: string
+      stdout: string
+      stderr: string
+    }) => void
+
+    const queuedTask = buildTask({
+      status: "queued",
+      threadId: null,
+      startedAt: null,
+      finishedAt: null,
+      stdout: "",
+    })
+    const runningTask = buildTask({
+      status: "running",
+      threadId: null,
+      startedAt: "2026-03-10T00:05:00.000Z",
+      finishedAt: null,
+      stdout: "",
+    })
+    const brokenTask = buildTask({
+      status: "cancelled",
+      threadId: "thread-1",
+      startedAt: "2026-03-10T00:05:00.000Z",
+      finishedAt: "2026-03-10T00:05:10.000Z",
+      stdout: "",
+      error: "Current turn stopped by user request.",
+    })
+
+    const createTask = vi.fn(async () => queuedTask)
+    const getTaskById = vi
+      .fn()
+      .mockResolvedValueOnce(runningTask)
+    const updateTaskState = vi
+      .fn()
+      .mockResolvedValueOnce(runningTask)
+      .mockResolvedValueOnce(brokenTask)
+
+    const startSessionAndRun = vi.fn(
+      () =>
+        new Promise<{ sessionId: string; stdout: string; stderr: string }>((resolve) => {
+          resolveRun = resolve
+        }),
+    )
+
+    const taskRunnerService = createTaskRunnerService({
+      taskRepository: {
+        createTask,
+        getTaskById,
+        updateTaskState,
+      },
+      taskAgentGateway: {
+        startSessionAndRun,
+        resumeSessionAndRun: vi.fn(),
+      },
+      taskEventBus: {
+        publish: vi.fn(),
+      },
+    })
+
+    await taskRunnerService.createAndRunTask({
+      projectId: queuedTask.projectId,
+      projectPath: queuedTask.projectPath,
+      prompt: queuedTask.prompt,
+      model: queuedTask.model,
+    })
+
+    await taskRunnerService.breakTaskTurn({
+      taskId: runningTask.id,
+    })
+
+    resolveRun({
+      sessionId: "thread-1",
+      stdout: "late output",
+      stderr: "",
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(updateTaskState).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        taskId: runningTask.id,
+        status: "cancelled",
+        error: "Current turn stopped by user request.",
+      }),
+    )
+    expect(updateTaskState).toHaveBeenCalledTimes(2)
   })
 })

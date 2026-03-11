@@ -6,8 +6,8 @@ import type { TaskEventBus } from "./task-event-bus"
 
 type RunningCodexTask = {
   controller: AbortController
-  cancellationRequested: boolean
-  cancellationReason: string | null
+  breakRequested: boolean
+  breakReason: string | null
 }
 
 function nowIsoString() {
@@ -39,6 +39,33 @@ export function createTaskRunnerService(args: {
     runningCodexTasks.delete(taskId)
   }
 
+  function isBreakRequested(taskId: string) {
+    return runningCodexTasks.get(taskId)?.breakRequested === true
+  }
+
+  function publishTaskState(task: CodexTask) {
+    taskEventBus.publish({
+      type: "task_upsert",
+      projectId: task.projectId,
+      task,
+    })
+
+    taskEventBus.publish({
+      type: "task_status",
+      taskId: task.id,
+      status: task.status,
+    })
+
+    if (isTerminalStatus(task.status)) {
+      taskEventBus.publish({
+        type: "task_end",
+        taskId: task.id,
+        status: task.status,
+        cursor: 0,
+      })
+    }
+  }
+
   async function finalizeTask(args: {
     taskId: string
     status: "completed" | "failed" | "cancelled"
@@ -60,24 +87,7 @@ export function createTaskRunnerService(args: {
       error: args.error ?? null,
     })
 
-    taskEventBus.publish({
-      type: "task_upsert",
-      projectId: task.projectId,
-      task,
-    })
-
-    taskEventBus.publish({
-      type: "task_status",
-      taskId: args.taskId,
-      status: args.status,
-    })
-
-    taskEventBus.publish({
-      type: "task_end",
-      taskId: args.taskId,
-      status: args.status,
-      cursor: 0,
-    })
+    publishTaskState(task)
 
     return task
   }
@@ -110,6 +120,11 @@ export function createTaskRunnerService(args: {
         signal: runningTask?.controller.signal,
       })
 
+      if (isBreakRequested(args.taskId)) {
+        clearRunningTask(args.taskId)
+        return
+      }
+
       await finalizeTask({
         taskId: args.taskId,
         status: "completed",
@@ -118,16 +133,8 @@ export function createTaskRunnerService(args: {
         exitCode: 0,
       })
     } catch (error) {
-      const current = getRunningTask(args.taskId)
-      if (current?.cancellationRequested) {
-        await finalizeTask({
-          taskId: args.taskId,
-          status: "cancelled",
-          stdout: "",
-          stderr: "",
-          error: current.cancellationReason ?? "Task cancelled by user request.",
-          failureCode: "TASK_CANCELLED",
-        })
+      if (isBreakRequested(args.taskId)) {
+        clearRunningTask(args.taskId)
         return
       }
 
@@ -164,6 +171,11 @@ export function createTaskRunnerService(args: {
         signal: runningTask?.controller.signal,
       })
 
+      if (isBreakRequested(args.taskId)) {
+        clearRunningTask(args.taskId)
+        return
+      }
+
       await finalizeTask({
         taskId: args.taskId,
         status: "completed",
@@ -172,16 +184,8 @@ export function createTaskRunnerService(args: {
         exitCode: 0,
       })
     } catch (error) {
-      const current = getRunningTask(args.taskId)
-      if (current?.cancellationRequested) {
-        await finalizeTask({
-          taskId: args.taskId,
-          status: "cancelled",
-          stdout: "",
-          stderr: "",
-          error: current.cancellationReason ?? "Task cancelled by user request.",
-          failureCode: "TASK_CANCELLED",
-        })
+      if (isBreakRequested(args.taskId)) {
+        clearRunningTask(args.taskId)
         return
       }
 
@@ -214,8 +218,8 @@ export function createTaskRunnerService(args: {
     const controller = new AbortController()
     runningCodexTasks.set(createdTask.id, {
       controller,
-      cancellationRequested: false,
-      cancellationReason: null,
+      breakRequested: false,
+      breakReason: null,
     })
 
     const runningTask = await taskRepository.updateTaskState({
@@ -226,17 +230,7 @@ export function createTaskRunnerService(args: {
       error: null,
     })
 
-    taskEventBus.publish({
-      type: "task_upsert",
-      projectId: runningTask.projectId,
-      task: runningTask,
-    })
-
-    taskEventBus.publish({
-      type: "task_status",
-      taskId: createdTask.id,
-      status: "running",
-    })
+    publishTaskState(runningTask)
 
     void executeNewThreadTask({
       taskId: createdTask.id,
@@ -260,8 +254,8 @@ export function createTaskRunnerService(args: {
     const controller = new AbortController()
     runningCodexTasks.set(input.taskId, {
       controller,
-      cancellationRequested: false,
-      cancellationReason: null,
+      breakRequested: false,
+      breakReason: null,
     })
 
     const runningTask = await taskRepository.updateTaskState({
@@ -274,17 +268,7 @@ export function createTaskRunnerService(args: {
       error: null,
     })
 
-    taskEventBus.publish({
-      type: "task_upsert",
-      projectId: runningTask.projectId,
-      task: runningTask,
-    })
-
-    taskEventBus.publish({
-      type: "task_status",
-      taskId: input.taskId,
-      status: "running",
-    })
+    publishTaskState(runningTask)
 
     void executeResumedThreadTask({
       taskId: input.taskId,
@@ -298,7 +282,7 @@ export function createTaskRunnerService(args: {
     return runningTask
   }
 
-  async function cancelTask(input: {
+  async function breakTaskTurn(input: {
     taskId: string
     reason?: string
   }): Promise<CodexTask> {
@@ -312,30 +296,40 @@ export function createTaskRunnerService(args: {
       throw createTaskError.taskNotFound(taskId)
     }
 
-    if (isTerminalStatus(existing.status)) {
-      return existing
+    if (existing.status !== "running") {
+      throw createTaskError.invalidTaskBreakState(
+        `Only running tasks can break the current turn. Current status: ${existing.status}`,
+        {
+          taskId,
+          status: existing.status,
+        },
+      )
     }
 
-    const reason = input.reason?.trim() || "Task cancelled by user request."
+    const reason = input.reason?.trim() || "Current turn stopped by user request."
     const runningTask = getRunningTask(taskId)
     if (runningTask) {
-      runningTask.cancellationRequested = true
-      runningTask.cancellationReason = reason
+      runningTask.breakRequested = true
+      runningTask.breakReason = reason
       runningTask.controller.abort(reason)
     }
 
-    return taskRepository.updateTaskState({
+    const task = await taskRepository.updateTaskState({
       taskId,
       status: "cancelled",
       finishedAt: nowIsoString(),
       error: reason,
     })
+
+    publishTaskState(task)
+
+    return task
   }
 
   return {
     createAndRunTask,
     followupTask,
-    cancelTask,
+    breakTaskTurn,
   }
 }
 

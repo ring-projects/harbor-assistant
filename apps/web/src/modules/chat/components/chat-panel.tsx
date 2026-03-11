@@ -14,6 +14,7 @@ import {
   useTaskDetailQuery,
   useTaskEventStream,
   useTaskEventsQuery,
+  useBreakTaskTurnMutation,
   useTaskFollowupMutation,
 } from "@/modules/tasks/hooks/use-task-queries"
 
@@ -76,6 +77,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
     taskId,
     enabled: Boolean(taskId),
   })
+  const breakTurnMutation = useBreakTaskTurnMutation(projectId)
   const followupMutation = useTaskFollowupMutation(projectId)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
@@ -93,6 +95,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
   const detail = detailQuery.data
   const events = useMemo(() => eventsQuery.data?.items ?? [], [eventsQuery.data?.items])
   const draft = taskId ? (drafts[taskId] ?? "") : ""
+  const isBreaking = breakTurnMutation.isPending
   const isReady = canFollowup(detail)
   const isLoading = Boolean(taskId) && (detailQuery.isLoading || eventsQuery.isLoading)
   const isError = Boolean(taskId) && (detailQuery.isError || eventsQuery.isError)
@@ -185,7 +188,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
   }
 
   async function submitFollowup() {
-    if (!taskId || !isReady || !draft.trim()) {
+    if (!taskId || !isReady || !draft.trim() || isBreaking) {
       return
     }
 
@@ -216,6 +219,14 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
     await submitFollowup()
   }
 
+  async function handleBreakTurn() {
+    if (!taskId || detail?.status !== "running" || isBreaking) {
+      return
+    }
+
+    await breakTurnMutation.mutateAsync(taskId)
+  }
+
   return (
     <section className="bg-background h-full min-h-0 min-w-0 overflow-hidden p-3">
       <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
@@ -228,6 +239,20 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            {detail?.status === "running" ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void handleBreakTurn()
+                }}
+                disabled={isBreaking}
+              >
+                {isBreaking ? "Stopping..." : "Break"}
+              </Button>
+            ) : null}
+
             {detail?.status ? (
               <span
                 className={cn(
@@ -311,16 +336,25 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
 
             <form className="min-h-0" onSubmit={handleSubmit}>
               <ChatComposer
-                canSubmit={Boolean(taskId) && isReady && draft.trim().length > 0}
-                inputDisabled={!taskId || !detail?.threadId || followupMutation.isPending}
+                canSubmit={Boolean(taskId) && isReady && draft.trim().length > 0 && !isBreaking}
+                inputDisabled={
+                  !taskId ||
+                  !detail?.threadId ||
+                  followupMutation.isPending ||
+                  isBreaking
+                }
                 isSubmitting={followupMutation.isPending}
-                helperText={helperText(detail, taskId)}
+                helperText={
+                  isBreaking ? "Stopping current turn..." : helperText(detail, taskId)
+                }
                 placeholder={taskId ? "继续这段对话…" : "请先选择 task"}
                 value={draft}
                 errorMessage={
-                  followupMutation.isError
-                    ? getErrorMessage(followupMutation.error)
-                    : null
+                  breakTurnMutation.isError
+                    ? getErrorMessage(breakTurnMutation.error)
+                    : followupMutation.isError
+                      ? getErrorMessage(followupMutation.error)
+                      : null
                 }
                 onChange={updateDraft}
                 onSubmit={() => {
