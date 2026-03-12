@@ -34,8 +34,8 @@ async function hasHeadCommit(projectPath: string) {
 async function readTrackedPatch(projectPath: string) {
   const headExists = await hasHeadCommit(projectPath)
   const args = headExists
-    ? ["diff", "--no-color", "--no-ext-diff", "--find-renames", "--find-copies", "--binary", "HEAD", "--"]
-    : ["diff", "--no-color", "--no-ext-diff", "--find-renames", "--find-copies", "--binary", "--cached", "--root", "--"]
+    ? ["diff", "-U1", "--no-color", "--no-ext-diff", "--find-renames", "--find-copies", "--binary", "HEAD", "--"]
+    : ["diff", "-U1", "--no-color", "--no-ext-diff", "--find-renames", "--find-copies", "--binary", "--cached", "--root", "--"]
 
   const result = await runGitCommand(args, projectPath)
   if (result.exitCode !== 0 && result.exitCode !== 1) {

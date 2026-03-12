@@ -1,8 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { Diff, Hunk, parseDiff, type DiffType } from "react-diff-view"
 
-import { HighlightedCodeText, inferLanguageFromFilePath } from "@/components/code"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import {
@@ -55,17 +55,23 @@ const DIFF_STATUS_META: Record<
   },
 }
 
-function formatLineNumber(value: number | null) {
-  return value === null ? "" : String(value)
-}
-
 function DiffFileContent({ file }: { file: GitDiffFile }) {
-  const language = useMemo(() => inferLanguageFromFilePath(file.path), [file.path])
+  const parsedFile = useMemo(() => {
+    if (!file.patch.trim()) {
+      return null
+    }
+
+    const [firstFile] = parseDiff(file.patch, {
+      nearbySequences: "zip",
+    })
+
+    return firstFile ?? null
+  }, [file.patch])
 
   if (file.isBinary) {
     return (
       <div className="text-muted-foreground rounded-md border border-dashed p-4 text-xs">
-        二进制文件暂不支持文本预览。
+        Binary files do not support text preview yet.
       </div>
     )
   }
@@ -73,76 +79,31 @@ function DiffFileContent({ file }: { file: GitDiffFile }) {
   if (file.isTooLarge) {
     return (
       <div className="text-muted-foreground rounded-md border border-dashed p-4 text-xs">
-        这个 diff 过大，当前版本先不完整展开。你仍然可以在文件列表里看到文件状态和变更统计。
+        This diff is too large to expand fully in the current version. You can still inspect file status and change counts in the file list.
       </div>
     )
   }
 
-  if (file.hunks.length === 0) {
+  if (!parsedFile || parsedFile.hunks.length === 0) {
     return (
       <div className="text-muted-foreground rounded-md border border-dashed p-4 text-xs">
-        当前文件没有可展示的文本 diff。
+        No text diff is available for this file.
       </div>
     )
   }
 
   return (
-    <div className="overflow-auto rounded-md border">
-      <div className="min-w-[680px] divide-y">
-        {file.hunks.map((hunk) => (
-          <div key={`${file.path}-${hunk.header}`} className="bg-background">
-            <div className="bg-muted/60 border-b px-3 py-2 font-mono text-[11px] text-slate-700">
-              {hunk.header}
-            </div>
-
-            <div>
-              {hunk.lines.map((line, index) => (
-                <div
-                  key={`${file.path}-${hunk.header}-${index}`}
-                  className={cn(
-                    "grid grid-cols-[64px_64px_20px_minmax(0,1fr)] font-mono text-[11px] leading-5",
-                    line.type === "add" && "bg-emerald-50/70",
-                    line.type === "delete" && "bg-rose-50/70",
-                    line.type === "meta" && "bg-slate-100/80 text-slate-600",
-                  )}
-                >
-                  <span className="text-muted-foreground border-r px-2 py-0.5 text-right">
-                    {formatLineNumber(line.oldLineNumber)}
-                  </span>
-                  <span className="text-muted-foreground border-r px-2 py-0.5 text-right">
-                    {formatLineNumber(line.newLineNumber)}
-                  </span>
-                  <span
-                    className={cn(
-                      "border-r px-1 py-0.5 text-center",
-                      line.type === "add" && "text-emerald-700",
-                      line.type === "delete" && "text-rose-700",
-                      line.type === "meta" && "text-slate-500",
-                    )}
-                  >
-                    {line.type === "add"
-                      ? "+"
-                      : line.type === "delete"
-                        ? "-"
-                        : line.type === "meta"
-                          ? "\\"
-                          : " "}
-                  </span>
-                  <pre className="overflow-x-auto px-3 py-0.5 whitespace-pre-wrap break-words">
-                    {line.content ? (
-                      <HighlightedCodeText
-                        code={line.content}
-                        language={language}
-                      />
-                    ) : (
-                      " "
-                    )}
-                  </pre>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+    <div className="overflow-auto rounded-md border bg-background">
+      <div className="min-w-[680px]">
+        <Diff
+          viewType="split"
+          diffType={parsedFile.type as DiffType}
+          hunks={parsedFile.hunks}
+          gutterType="default"
+          className="rdv-table w-full"
+        >
+          {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
+        </Diff>
       </div>
     </div>
   )
@@ -188,7 +149,7 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">Diff</p>
-            <p className="text-muted-foreground text-xs">基于当前项目工作区的 git diff 预览</p>
+            <p className="text-muted-foreground text-xs">Git diff preview for the current project workspace</p>
           </div>
 
           {files.length > 0 ? (
@@ -299,7 +260,7 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
             </div>
           ) : (
             <div className="text-muted-foreground flex flex-1 items-center justify-center rounded-md border border-dashed text-xs">
-              当前项目工作区没有可展示的 git diff。
+              No git diff is available for the current project workspace.
             </div>
           )
         ) : null}
