@@ -6,7 +6,7 @@ import {
   getProjectActionError,
   useCreateProjectMutation,
 } from "@/modules/projects/hooks"
-import type { Project } from "@/services/project/types"
+import type { Project } from "@/modules/projects/types"
 
 type CreateProjectProps = {
   className?: string

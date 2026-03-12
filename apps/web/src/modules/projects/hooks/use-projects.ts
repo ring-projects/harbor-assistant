@@ -1,8 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { API_ROUTES, ERROR_CODES, getProjectByIdApiRoute } from "@/constants"
-import type { ProjectApiResult } from "@/services/project/contracts"
-import type { Project } from "@/services/project/types"
+import {
+  API_ROUTES,
+  ERROR_CODES,
+  getProjectByIdApiRoute,
+  getProjectSettingsApiRoute,
+} from "@/constants"
+import type {
+  ProjectApiResult,
+  ProjectSettingsApiResult,
+} from "@/modules/projects/contracts"
+import type {
+  Project,
+  ProjectExecutionMode,
+  ProjectExecutor,
+  ProjectSettings,
+} from "@/modules/projects/types"
 
 export const PROJECTS_QUERY_KEY = ["projects"] as const
 
@@ -20,6 +33,19 @@ type UpdateProjectInput = {
   path?: string
   name?: string
 }
+
+type UpdateProjectSettingsInput = {
+  projectId: string
+  defaultExecutor?: ProjectExecutor
+  defaultModel?: string | null
+  defaultExecutionMode?: ProjectExecutionMode
+  maxConcurrentTasks?: number
+  logRetentionDays?: number | null
+  eventRetentionDays?: number | null
+}
+
+export const projectSettingsQueryKey = (projectId: string) =>
+  [...PROJECTS_QUERY_KEY, "settings", projectId] as const
 
 class ProjectApiClientError extends Error {
   code: string
@@ -101,6 +127,38 @@ async function deleteProject(projectId: string) {
   return payload.projects
 }
 
+async function fetchProjectSettings(projectId: string) {
+  const response = await fetch(getProjectSettingsApiRoute(projectId), {
+    method: "GET",
+    cache: "no-store",
+  })
+  const payload = (await parseProjectApiResponse(
+    response,
+  )) as ProjectSettingsApiResult
+  return payload.settings
+}
+
+async function updateProjectSettings(input: UpdateProjectSettingsInput) {
+  const response = await fetch(getProjectSettingsApiRoute(input.projectId), {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      defaultExecutor: input.defaultExecutor,
+      defaultModel: input.defaultModel,
+      defaultExecutionMode: input.defaultExecutionMode,
+      maxConcurrentTasks: input.maxConcurrentTasks,
+      logRetentionDays: input.logRetentionDays,
+      eventRetentionDays: input.eventRetentionDays,
+    }),
+  })
+  const payload = (await parseProjectApiResponse(
+    response,
+  )) as ProjectSettingsApiResult
+  return payload.settings
+}
+
 export function getProjectActionError(error: unknown) {
   if (error instanceof ProjectApiClientError) {
     return `${error.code}: ${error.message}`
@@ -118,6 +176,20 @@ export function useReadProjectsQuery(options?: ReadProjectsQueryOptions) {
     queryKey: PROJECTS_QUERY_KEY,
     queryFn: fetchProjects,
     initialData: options?.initialData,
+  })
+}
+
+export function useProjectSettingsQuery(projectId: string | null) {
+  return useQuery<ProjectSettings>({
+    queryKey: projectSettingsQueryKey(projectId ?? "none"),
+    queryFn: async () => {
+      if (!projectId) {
+        throw new ProjectApiClientError("Project ID is required.")
+      }
+
+      return fetchProjectSettings(projectId)
+    },
+    enabled: Boolean(projectId),
   })
 }
 
@@ -147,6 +219,21 @@ export function useDeleteProjectMutation() {
     mutationFn: deleteProject,
     onSuccess(projects) {
       queryClient.setQueryData(PROJECTS_QUERY_KEY, projects)
+    },
+  })
+}
+
+export function useUpdateProjectSettingsMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: Omit<UpdateProjectSettingsInput, "projectId">) =>
+      updateProjectSettings({
+        projectId,
+        ...input,
+      }),
+    onSuccess(settings) {
+      queryClient.setQueryData(projectSettingsQueryKey(projectId), settings)
     },
   })
 }

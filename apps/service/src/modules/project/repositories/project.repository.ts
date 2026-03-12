@@ -160,6 +160,7 @@ export function createProjectRepository(prisma: ProjectDbClient) {
           settings: {
             create: {
               defaultExecutor: "codex",
+              defaultExecutionMode: "safe",
               maxConcurrentTasks: 1,
               logRetentionDays: 30,
               eventRetentionDays: 7,

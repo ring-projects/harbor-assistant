@@ -1,6 +1,8 @@
 import type { AgentEvent, AgentType } from "../../../lib/agents"
 import { AgentFactory } from "../../../lib/agents"
 import type { TaskRepository } from "../repositories"
+import type { RuntimePolicy } from "../runtime-policy"
+import { runtimePolicyToSessionOptions } from "../runtime-policy"
 import type { TaskEventBus } from "../services/task-event-bus"
 
 const MAX_CAPTURED_OUTPUT_LENGTH = 200_000
@@ -12,6 +14,7 @@ type RunTaskArgs = {
   prompt: string
   model: string | null
   agentType?: AgentType
+  runtimePolicy: RuntimePolicy
   signal?: AbortSignal
 }
 
@@ -94,9 +97,7 @@ export function createTaskAgentGateway(args: {
       {
         workingDirectory: args.projectPath,
         model: args.model ?? undefined,
-        sandboxMode: "workspace-write",
-        approvalPolicy: "never",
-        networkAccessEnabled: false,
+        ...runtimePolicyToSessionOptions(args.runtimePolicy),
       },
       args.prompt,
       args.signal,
@@ -162,9 +163,7 @@ export function createTaskAgentGateway(args: {
       {
         workingDirectory: args.projectPath,
         model: args.model ?? undefined,
-        sandboxMode: "workspace-write",
-        approvalPolicy: "never",
-        networkAccessEnabled: false,
+        ...runtimePolicyToSessionOptions(args.runtimePolicy),
       },
       args.prompt,
       args.signal,

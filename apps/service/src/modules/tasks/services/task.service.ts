@@ -1,8 +1,13 @@
-import type { ProjectRepository } from "../../project"
+import type { ProjectRepository, ProjectSettingsRepository } from "../../project"
 import { AgentFactory, type AgentType } from "../../../lib/agents"
 import { createTaskError, TaskError } from "../errors"
 import type { TaskRepository } from "../repositories"
 import type { CodexTask } from "../types"
+import type {
+  RuntimeExecutionMode,
+  RuntimePolicyInput,
+} from "../runtime-policy"
+import { resolveRuntimePolicy } from "../runtime-policy"
 import type { TaskRunnerService } from "./task-runner.service"
 
 export type CreateTaskInput = {
@@ -10,6 +15,8 @@ export type CreateTaskInput = {
   prompt: string
   model?: string | null
   agentType?: string
+  executionMode?: string | null
+  runtimePolicy?: RuntimePolicyInput | null
 }
 
 export type RetryTaskInput = {
@@ -20,6 +27,8 @@ export type FollowupTaskInput = {
   taskId: string
   prompt: string
   model?: string | null
+  executionMode?: RuntimeExecutionMode | null
+  runtimePolicy?: RuntimePolicyInput | null
 }
 
 export type BreakTaskTurnInput = {
@@ -64,6 +73,7 @@ function ensureSupportedAgent(agentType: string): asserts agentType is AgentType
 
 export function createTaskService(args: {
   projectRepository: Pick<ProjectRepository, "getProjectById">
+  projectSettingsRepository: Pick<ProjectSettingsRepository, "getProjectSettings">
   taskRepository: Pick<
     TaskRepository,
     | "getTaskById"
@@ -75,6 +85,7 @@ export function createTaskService(args: {
 }) {
   const {
     projectRepository,
+    projectSettingsRepository,
     taskRepository,
     taskRunnerService,
   } = args
@@ -82,8 +93,8 @@ export function createTaskService(args: {
   async function createTaskAndRun(input: CreateTaskInput) {
     const projectId = input.projectId.trim()
     const prompt = input.prompt.trim()
-    const model = input.model?.trim() || null
-    const agentType = normalizeAgentType(input.agentType)
+    const requestedModel = input.model?.trim() || null
+    const requestedAgentType = input.agentType
 
     if (!projectId) {
       throw createTaskError.invalidProjectId()
@@ -93,12 +104,24 @@ export function createTaskService(args: {
       throw createTaskError.invalidPrompt()
     }
 
-    ensureSupportedAgent(agentType)
-
     const project = await projectRepository.getProjectById(projectId)
     if (!project) {
       throw createTaskError.projectNotFound(projectId)
     }
+
+    const projectSettings =
+      await projectSettingsRepository.getProjectSettings(project.id)
+
+    const model = requestedModel ?? projectSettings?.defaultModel ?? null
+    const agentType = normalizeAgentType(
+      requestedAgentType ?? projectSettings?.defaultExecutor ?? undefined,
+    )
+    ensureSupportedAgent(agentType)
+
+    const resolvedRuntimePolicy = resolveRuntimePolicy({
+      executionMode: input.executionMode ?? projectSettings?.defaultExecutionMode,
+      runtimePolicy: input.runtimePolicy,
+    })
 
     try {
       return await taskRunnerService.createAndRunTask({
@@ -107,6 +130,8 @@ export function createTaskService(args: {
         prompt,
         model,
         agentType,
+        executionMode: resolvedRuntimePolicy.executionMode,
+        runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
         parentTaskId: null,
       })
     } catch (error) {
@@ -165,6 +190,10 @@ export function createTaskService(args: {
     try {
       const agentType = normalizeAgentType(task.executor)
       ensureSupportedAgent(agentType)
+      const resolvedRuntimePolicy = resolveRuntimePolicy({
+        executionMode: input.executionMode ?? task.executionMode,
+        runtimePolicy: input.runtimePolicy ?? task.runtimePolicy,
+      })
 
       return await taskRunnerService.followupTask({
         taskId: task.id,
@@ -174,6 +203,8 @@ export function createTaskService(args: {
         prompt,
         model: model ?? task.model,
         agentType,
+        executionMode: resolvedRuntimePolicy.executionMode,
+        runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
       })
     } catch (error) {
       if (error instanceof TaskError) {
@@ -245,6 +276,10 @@ export function createTaskService(args: {
     try {
       const agentType = normalizeAgentType(task.executor)
       ensureSupportedAgent(agentType)
+      const resolvedRuntimePolicy = resolveRuntimePolicy({
+        executionMode: task.executionMode,
+        runtimePolicy: task.runtimePolicy,
+      })
 
       if (task.threadId) {
         if (
@@ -266,6 +301,8 @@ export function createTaskService(args: {
           prompt: task.prompt,
           model: task.model,
           agentType,
+          executionMode: resolvedRuntimePolicy.executionMode,
+          runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
         })
       }
 
@@ -275,6 +312,8 @@ export function createTaskService(args: {
         prompt: task.prompt,
         model: task.model,
         agentType,
+        executionMode: resolvedRuntimePolicy.executionMode,
+        runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
         parentTaskId: task.id,
       })
     } catch (error) {

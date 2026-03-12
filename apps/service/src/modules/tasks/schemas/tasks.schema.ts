@@ -3,6 +3,14 @@ export type CreateTaskBody = {
   prompt: string
   model?: string
   executor?: string
+  executionMode?: "safe" | "connected" | "full-access" | "custom"
+  runtimePolicy?: {
+    sandboxMode?: "read-only" | "workspace-write" | "danger-full-access"
+    approvalPolicy?: "never" | "on-request" | "untrusted"
+    networkAccessEnabled?: boolean
+    webSearchMode?: "disabled" | "cached" | "live"
+    additionalDirectories?: string[]
+  }
 }
 
 export type BreakTaskTurnBody = {
@@ -40,6 +48,8 @@ const taskEntitySchema = {
     "projectPath",
     "prompt",
     "executor",
+    "executionMode",
+    "runtimePolicy",
     "model",
     "status",
     "threadId",
@@ -59,6 +69,37 @@ const taskEntitySchema = {
     projectPath: { type: "string" },
     prompt: { type: "string" },
     executor: { type: "string" },
+    executionMode: { type: ["string", "null"] },
+    runtimePolicy: {
+      type: ["object", "null"],
+      additionalProperties: false,
+      required: [
+        "sandboxMode",
+        "approvalPolicy",
+        "networkAccessEnabled",
+        "webSearchMode",
+        "additionalDirectories",
+      ],
+      properties: {
+        sandboxMode: {
+          type: "string",
+          enum: ["read-only", "workspace-write", "danger-full-access"],
+        },
+        approvalPolicy: {
+          type: "string",
+          enum: ["never", "on-request", "untrusted"],
+        },
+        networkAccessEnabled: { type: "boolean" },
+        webSearchMode: {
+          type: "string",
+          enum: ["disabled", "cached", "live"],
+        },
+        additionalDirectories: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+    },
     model: { type: ["string", "null"] },
     status: {
       type: "string",
@@ -182,6 +223,33 @@ export const createTaskBodySchema = {
     prompt: { type: "string" },
     model: { type: "string" },
     executor: { type: "string" },
+    executionMode: {
+      type: "string",
+      enum: ["safe", "connected", "full-access", "custom"],
+    },
+    runtimePolicy: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        sandboxMode: {
+          type: "string",
+          enum: ["read-only", "workspace-write", "danger-full-access"],
+        },
+        approvalPolicy: {
+          type: "string",
+          enum: ["never", "on-request", "untrusted"],
+        },
+        networkAccessEnabled: { type: "boolean" },
+        webSearchMode: {
+          type: "string",
+          enum: ["disabled", "cached", "live"],
+        },
+        additionalDirectories: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+    },
   },
 } as const
 

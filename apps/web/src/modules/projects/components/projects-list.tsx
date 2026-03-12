@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useReadProjectsQuery } from "@/modules/projects/hooks"
 import { AddProjectModal } from "@/modules/projects/modal"
-import type { Project } from "@/services/project/types"
+import type { Project } from "@/modules/projects/types"
 
 type ProjectsListProps = {
   activeProjectId?: string

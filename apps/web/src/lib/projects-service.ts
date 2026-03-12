@@ -1,7 +1,7 @@
 import "server-only"
 
 import { requestServiceJson } from "@/lib/service-proxy"
-import type { Project } from "@/services/project/types"
+import type { Project } from "@/modules/projects/types"
 
 export async function listProjectsFromService(): Promise<Project[]> {
   const response = await requestServiceJson<{

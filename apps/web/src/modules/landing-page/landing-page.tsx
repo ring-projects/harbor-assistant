@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LandingHeader } from "@/modules/landing-page/components/landing-header"
 import { CreateProject } from "@/modules/projects/components"
-import type { Project } from "@/services/project/types"
+import type { Project } from "@/modules/projects/types"
 
 export function LandingPage() {
   const router = useRouter()

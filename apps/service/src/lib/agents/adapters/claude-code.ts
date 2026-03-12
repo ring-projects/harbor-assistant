@@ -138,8 +138,6 @@ function mapApprovalPolicyToPermissionMode(
       return "bypassPermissions"
     case "on-request":
       return "default"
-    case "on-failure":
-      return "auto"
     case "untrusted":
       return "plan"
     default:
@@ -170,6 +168,10 @@ function buildClaudeArgs(args: {
     "--add-dir",
     args.options.workingDirectory,
   ]
+
+  for (const directory of args.options.additionalDirectories ?? []) {
+    cliArgs.push("--add-dir", directory)
+  }
 
   if (args.options.model) {
     cliArgs.push("--model", args.options.model)

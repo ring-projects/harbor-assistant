@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { CreateProject } from "@/modules/projects/components/create-project"
-import type { Project } from "@/services/project/types"
+import type { Project } from "@/modules/projects/types"
 
 type AddProjectModalProps = {
   open: boolean

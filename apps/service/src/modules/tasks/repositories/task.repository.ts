@@ -12,6 +12,14 @@ import type {
   CodexTask,
   TaskStatus,
 } from "../types"
+import type {
+  RuntimeExecutionMode,
+  RuntimePolicy,
+} from "../runtime-policy"
+import {
+  parseRuntimePolicy,
+  serializeRuntimePolicy,
+} from "../runtime-policy"
 
 export type TaskDbClient = PrismaClient
 
@@ -25,6 +33,8 @@ export type CreateTaskInput = {
   projectPath: string
   prompt: string
   executor: string
+  executionMode?: RuntimeExecutionMode | null
+  runtimePolicy?: RuntimePolicy | null
   model: string | null
   threadId?: string | null
   parentTaskId?: string | null
@@ -129,6 +139,8 @@ function toCodexTask(task: {
   projectPath: string
   prompt: string
   executor: string
+  executionMode: string | null
+  runtimePolicy: string | null
   model: string | null
   status: PrismaTaskStatus
   threadId: string | null
@@ -148,6 +160,8 @@ function toCodexTask(task: {
     projectPath: task.projectPath,
     prompt: task.prompt,
     executor: task.executor,
+    executionMode: (task.executionMode as RuntimeExecutionMode | null) ?? null,
+    runtimePolicy: parseRuntimePolicy(task.runtimePolicy),
     model: task.model,
     status: toDomainTaskStatus(task.status),
     threadId: task.threadId,
@@ -289,6 +303,8 @@ export function createTaskRepository(prisma: TaskDbClient) {
             prompt,
             model: input.model,
             executor,
+            executionMode: input.executionMode ?? null,
+            runtimePolicy: serializeRuntimePolicy(input.runtimePolicy),
             status: PrismaTaskStatus.queued,
             threadId: input.threadId ?? null,
             parentTaskId: input.parentTaskId ?? null,

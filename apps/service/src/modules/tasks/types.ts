@@ -1,4 +1,8 @@
 import type { AgentEvent } from "../../lib/agents"
+import type {
+  RuntimeExecutionMode,
+  RuntimePolicy,
+} from "./runtime-policy"
 
 export type TaskStatus =
   | "queued"
@@ -15,6 +19,8 @@ export type CodexTask = {
   projectPath: string
   prompt: string
   executor: string
+  executionMode: RuntimeExecutionMode | null
+  runtimePolicy: RuntimePolicy | null
   model: string | null
   status: TaskStatus
   threadId: string | null

@@ -9,9 +9,11 @@ export type AgentType = "codex" | "claude-code"
 export type SessionOptions = {
   workingDirectory: string
   model?: string
-  sandboxMode?: "workspace-write" | "workspace-read" | "isolated"
-  approvalPolicy?: "never" | "on-request" | "on-failure" | "untrusted"
+  sandboxMode?: "read-only" | "workspace-write" | "danger-full-access"
+  approvalPolicy?: "never" | "on-request" | "untrusted"
   networkAccessEnabled?: boolean
+  webSearchMode?: "disabled" | "cached" | "live"
+  additionalDirectories?: string[]
 }
 
 /**

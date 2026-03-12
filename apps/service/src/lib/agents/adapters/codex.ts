@@ -34,9 +34,11 @@ function buildThreadOptions(options: SessionOptions) {
   return {
     workingDirectory: options.workingDirectory,
     model: options.model ?? undefined,
-    sandboxMode: "workspace-write" as const,
+    sandboxMode: options.sandboxMode ?? "workspace-write",
     approvalPolicy: options.approvalPolicy ?? "never",
     networkAccessEnabled: options.networkAccessEnabled ?? false,
+    webSearchMode: options.webSearchMode ?? undefined,
+    additionalDirectories: options.additionalDirectories ?? undefined,
     skipGitRepoCheck: true,
   }
 }

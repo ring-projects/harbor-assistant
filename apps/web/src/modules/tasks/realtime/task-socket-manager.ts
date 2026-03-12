@@ -86,6 +86,51 @@ function toCommand(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string")
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null
+  }
+
+  return value as Record<string, unknown>
+}
+
+function toExecutionMode(
+  value: unknown,
+): "safe" | "connected" | "full-access" | "custom" | null {
+  return value === "safe" ||
+    value === "connected" ||
+    value === "full-access" ||
+    value === "custom"
+    ? value
+    : null
+}
+
+function toSandboxMode(
+  value: unknown,
+): "read-only" | "workspace-write" | "danger-full-access" | null {
+  return value === "read-only" ||
+    value === "workspace-write" ||
+    value === "danger-full-access"
+    ? value
+    : null
+}
+
+function toApprovalPolicy(
+  value: unknown,
+): "never" | "on-request" | "untrusted" | null {
+  return value === "never" || value === "on-request" || value === "untrusted"
+    ? value
+    : null
+}
+
+function toWebSearchMode(
+  value: unknown,
+): "disabled" | "cached" | "live" | null {
+  return value === "disabled" || value === "cached" || value === "live"
+    ? value
+    : null
+}
+
 function normalizeTask(input: Record<string, unknown>): TaskListItem | null {
   const taskId = toStringOrNull(input.taskId) ?? toStringOrNull(input.id)
   const projectId = toStringOrNull(input.projectId)
@@ -103,12 +148,28 @@ function normalizeTask(input: Record<string, unknown>): TaskListItem | null {
     return null
   }
 
+  const runtimePolicy = asRecord(input.runtimePolicy)
+
   return {
     taskId,
     projectId,
     prompt: toStringOrEmpty(input.prompt),
     model: toStringOrNull(input.model),
     executor: toStringOrNull(input.executor) ?? "codex",
+    executionMode: toExecutionMode(input.executionMode),
+    runtimePolicy: runtimePolicy
+      ? {
+          sandboxMode: toSandboxMode(runtimePolicy.sandboxMode) ?? "workspace-write",
+          approvalPolicy: toApprovalPolicy(runtimePolicy.approvalPolicy) ?? "never",
+          networkAccessEnabled: runtimePolicy.networkAccessEnabled === true,
+          webSearchMode: toWebSearchMode(runtimePolicy.webSearchMode) ?? "disabled",
+          additionalDirectories: Array.isArray(runtimePolicy.additionalDirectories)
+            ? runtimePolicy.additionalDirectories.filter(
+                (item): item is string => typeof item === "string",
+              )
+            : [],
+        }
+      : null,
     status,
     threadId: toStringOrNull(input.threadId),
     parentTaskId: toStringOrNull(input.parentTaskId),

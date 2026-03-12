@@ -77,6 +77,44 @@ export function getErrorMessage(error: unknown) {
   return "加载失败，请重试。"
 }
 
+export function formatExecutorLabel(executor: string | null | undefined) {
+  const normalized = executor?.trim().toLowerCase()
+
+  if (!normalized) {
+    return "-"
+  }
+
+  if (
+    normalized === "claude-code" ||
+    normalized === "claude" ||
+    normalized === "claudecode" ||
+    normalized === "claudcode"
+  ) {
+    return "Claude Code"
+  }
+
+  if (normalized === "codex") {
+    return "Codex"
+  }
+
+  return executor ?? "-"
+}
+
+export function formatExecutionModeLabel(executionMode: string | null | undefined) {
+  switch (executionMode?.trim().toLowerCase()) {
+    case "safe":
+      return "Safe"
+    case "connected":
+      return "Connected"
+    case "full-access":
+      return "Full Access"
+    case "custom":
+      return "Custom"
+    default:
+      return "-"
+  }
+}
+
 export function extractDiffBlocks(text: string) {
   if (!text.trim()) {
     return []

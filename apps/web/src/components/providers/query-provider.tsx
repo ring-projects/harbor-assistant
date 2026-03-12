@@ -3,6 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useState } from "react"
 
+import { ThemeProvider } from "@/components/providers/theme-provider"
+
 type QueryProviderProps = {
   children: React.ReactNode
 }
@@ -22,6 +24,8 @@ export function QueryProvider({ children }: QueryProviderProps) {
   )
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </ThemeProvider>
   )
 }

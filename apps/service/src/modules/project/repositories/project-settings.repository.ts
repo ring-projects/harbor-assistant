@@ -5,11 +5,12 @@ import { createProjectError } from "../errors"
 
 export type UpdateProjectSettingsInput = {
   projectId: string
-  defaultExecutor?: string
-  defaultModel?: string
+  defaultExecutor?: string | null
+  defaultModel?: string | null
+  defaultExecutionMode?: string | null
   maxConcurrentTasks?: number
-  logRetentionDays?: number
-  eventRetentionDays?: number
+  logRetentionDays?: number | null
+  eventRetentionDays?: number | null
 }
 
 export function createProjectSettingsRepository(prisma: ProjectDbClient) {
@@ -30,7 +31,8 @@ export function createProjectSettingsRepository(prisma: ProjectDbClient) {
         create: {
           projectId: input.projectId,
           defaultExecutor: input.defaultExecutor ?? "codex",
-          defaultModel: input.defaultModel,
+          defaultModel: input.defaultModel ?? null,
+          defaultExecutionMode: input.defaultExecutionMode ?? "safe",
           maxConcurrentTasks: input.maxConcurrentTasks ?? 1,
           logRetentionDays: input.logRetentionDays ?? 30,
           eventRetentionDays: input.eventRetentionDays ?? 7,
@@ -38,6 +40,7 @@ export function createProjectSettingsRepository(prisma: ProjectDbClient) {
         update: {
           defaultExecutor: input.defaultExecutor,
           defaultModel: input.defaultModel,
+          defaultExecutionMode: input.defaultExecutionMode,
           maxConcurrentTasks: input.maxConcurrentTasks,
           logRetentionDays: input.logRetentionDays,
           eventRetentionDays: input.eventRetentionDays,

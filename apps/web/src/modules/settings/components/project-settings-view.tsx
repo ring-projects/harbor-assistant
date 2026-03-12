@@ -1,13 +1,22 @@
 "use client"
 
 import { RotateCcwIcon, SaveIcon, XIcon } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ComponentProps } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  getProjectActionError,
+  type ProjectExecutionMode,
+  type ProjectExecutor,
+  type ProjectSettings,
+  useProjectSettingsQuery,
+  useUpdateProjectSettingsMutation,
+} from "@/modules/projects"
 
 type ProjectSettingsViewProps = {
   projectId: string
@@ -16,19 +25,79 @@ type ProjectSettingsViewProps = {
 }
 
 type SettingsDraft = {
-  defaultExecutor: string
+  defaultExecutor: ProjectExecutor
   defaultModel: string
+  defaultExecutionMode: ProjectExecutionMode
   maxConcurrentTasks: string
   logRetentionDays: string
   eventRetentionDays: string
 }
 
-const INITIAL_DRAFT: SettingsDraft = {
-  defaultExecutor: "codex",
-  defaultModel: "gpt-5-codex",
-  maxConcurrentTasks: "1",
-  logRetentionDays: "30",
-  eventRetentionDays: "14",
+const EXECUTOR_OPTIONS: Array<{
+  value: ProjectExecutor
+  label: string
+  description: string
+}> = [
+  {
+    value: "codex",
+    label: "Codex",
+    description: "OpenAI Codex runtime",
+  },
+  {
+    value: "claude-code",
+    label: "Claude Code",
+    description: "Anthropic Claude Code runtime",
+  },
+]
+
+const EXECUTION_MODE_OPTIONS: Array<{
+  value: ProjectExecutionMode
+  label: string
+  description: string
+}> = [
+  {
+    value: "safe",
+    label: "Safe",
+    description: "Write workspace, no shell network, cached search",
+  },
+  {
+    value: "connected",
+    label: "Connected",
+    description: "Write workspace, allow network, live search",
+  },
+  {
+    value: "full-access",
+    label: "Full Access",
+    description: "Minimal restrictions, highest risk",
+  },
+]
+
+function toDraft(settings: ProjectSettings): SettingsDraft {
+  return {
+    defaultExecutor: settings.defaultExecutor ?? "codex",
+    defaultModel: settings.defaultModel ?? "",
+    defaultExecutionMode: settings.defaultExecutionMode ?? "safe",
+    maxConcurrentTasks: String(settings.maxConcurrentTasks),
+    logRetentionDays:
+      settings.logRetentionDays === null ? "" : String(settings.logRetentionDays),
+    eventRetentionDays:
+      settings.eventRetentionDays === null ? "" : String(settings.eventRetentionDays),
+  }
+}
+
+function parsePositiveInteger(value: string, fallback: number) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function parseNullablePositiveInteger(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const parsed = Number(trimmed)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
 
 function SettingsField(props: {
@@ -37,7 +106,7 @@ function SettingsField(props: {
   value: string
   placeholder?: string
   onChange: (value: string) => void
-  type?: React.ComponentProps<typeof Input>["type"]
+  type?: ComponentProps<typeof Input>["type"]
 }) {
   return (
     <label className="grid gap-1.5">
@@ -58,17 +127,73 @@ export function ProjectSettingsView({
   mode = "page",
   onClose,
 }: ProjectSettingsViewProps) {
-  const [draft, setDraft] = useState<SettingsDraft>(INITIAL_DRAFT)
+  const settingsQuery = useProjectSettingsQuery(projectId)
+  const updateMutation = useUpdateProjectSettingsMutation(projectId)
+  const [draft, setDraft] = useState<SettingsDraft | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
 
-  const hasChanges = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(INITIAL_DRAFT),
-    [draft],
+  useEffect(() => {
+    if (!settingsQuery.data || draft) {
+      return
+    }
+
+    setDraft(toDraft(settingsQuery.data))
+  }, [draft, settingsQuery.data])
+
+  const baselineDraft = useMemo(
+    () => (settingsQuery.data ? toDraft(settingsQuery.data) : null),
+    [settingsQuery.data],
   )
+
+  const hasChanges = useMemo(() => {
+    if (!draft || !baselineDraft) {
+      return false
+    }
+
+    return JSON.stringify(draft) !== JSON.stringify(baselineDraft)
+  }, [baselineDraft, draft])
 
   const shellClassName =
     mode === "modal"
       ? "bg-background flex h-full min-h-0 flex-col"
       : "bg-background flex min-h-full flex-col"
+
+  async function handleSave() {
+    if (!draft) {
+      return
+    }
+
+    try {
+      setSaveError(null)
+      const nextSettings = await updateMutation.mutateAsync({
+        defaultExecutor: draft.defaultExecutor,
+        defaultModel: draft.defaultModel.trim() || null,
+        defaultExecutionMode: draft.defaultExecutionMode,
+        maxConcurrentTasks: parsePositiveInteger(draft.maxConcurrentTasks, 1),
+        logRetentionDays: parseNullablePositiveInteger(draft.logRetentionDays),
+        eventRetentionDays: parseNullablePositiveInteger(draft.eventRetentionDays),
+      })
+
+      setDraft(toDraft(nextSettings))
+      setSaveSuccessMessage("Project settings saved.")
+    } catch (error) {
+      setSaveSuccessMessage(null)
+      setSaveError(getProjectActionError(error))
+    }
+  }
+
+  function handleReset() {
+    if (!baselineDraft) {
+      return
+    }
+
+    setSaveError(null)
+    setSaveSuccessMessage(null)
+    setDraft(baselineDraft)
+  }
+
+  const summary = draft ?? baselineDraft
 
   return (
     <div className={shellClassName}>
@@ -81,7 +206,7 @@ export function ProjectSettingsView({
             </span>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
-            当前先完善设置界面交互。真实读写接口后续再接入。
+            定义 project 级别的默认执行器、运行模式与保留策略。
           </p>
         </div>
 
@@ -99,152 +224,260 @@ export function ProjectSettingsView({
             <Card className="p-4">
               <p className="text-sm font-semibold">Settings Scope</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                这组设置用于定义 project 级别的默认执行策略和事件留存策略。
+                新 task 默认会继承这里的 executor 和 execution mode，除非创建时显式覆盖。
               </p>
 
               <Separator className="my-4" />
 
-              <dl className="grid gap-3 text-sm">
-                <div className="grid gap-1">
-                  <dt className="text-muted-foreground text-xs">Default Executor</dt>
-                  <dd className="font-medium">{draft.defaultExecutor || "-"}</dd>
+              {summary ? (
+                <dl className="grid gap-3 text-sm">
+                  <div className="grid gap-1">
+                    <dt className="text-muted-foreground text-xs">Default Executor</dt>
+                    <dd className="font-medium">{summary.defaultExecutor}</dd>
+                  </div>
+                  <div className="grid gap-1">
+                    <dt className="text-muted-foreground text-xs">Execution Mode</dt>
+                    <dd className="font-medium">{summary.defaultExecutionMode}</dd>
+                  </div>
+                  <div className="grid gap-1">
+                    <dt className="text-muted-foreground text-xs">Default Model</dt>
+                    <dd className="font-medium">
+                      {summary.defaultModel.trim() || "-"}
+                    </dd>
+                  </div>
+                  <div className="grid gap-1">
+                    <dt className="text-muted-foreground text-xs">Concurrency</dt>
+                    <dd className="font-medium">{summary.maxConcurrentTasks}</dd>
+                  </div>
+                  <div className="grid gap-1">
+                    <dt className="text-muted-foreground text-xs">Log Retention</dt>
+                    <dd className="font-medium">
+                      {summary.logRetentionDays
+                        ? `${summary.logRetentionDays} days`
+                        : "Disabled"}
+                    </dd>
+                  </div>
+                  <div className="grid gap-1">
+                    <dt className="text-muted-foreground text-xs">Event Retention</dt>
+                    <dd className="font-medium">
+                      {summary.eventRetentionDays
+                        ? `${summary.eventRetentionDays} days`
+                        : "Disabled"}
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <div className="grid gap-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-36" />
                 </div>
-                <div className="grid gap-1">
-                  <dt className="text-muted-foreground text-xs">Default Model</dt>
-                  <dd className="font-medium">{draft.defaultModel || "-"}</dd>
-                </div>
-                <div className="grid gap-1">
-                  <dt className="text-muted-foreground text-xs">Concurrency</dt>
-                  <dd className="font-medium">{draft.maxConcurrentTasks || "-"}</dd>
-                </div>
-                <div className="grid gap-1">
-                  <dt className="text-muted-foreground text-xs">Log Retention</dt>
-                  <dd className="font-medium">
-                    {draft.logRetentionDays ? `${draft.logRetentionDays} days` : "Disabled"}
-                  </dd>
-                </div>
-                <div className="grid gap-1">
-                  <dt className="text-muted-foreground text-xs">Event Retention</dt>
-                  <dd className="font-medium">
-                    {draft.eventRetentionDays
-                      ? `${draft.eventRetentionDays} days`
-                      : "Disabled"}
-                  </dd>
-                </div>
-              </dl>
+              )}
             </Card>
 
             <Card className="p-4">
-              <p className="text-sm font-semibold">Implementation Note</p>
+              <p className="text-sm font-semibold">Runtime Strategy</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                这里先交付 modal 交互和设置编排方式，后续可以直接把表单字段接到
-                project settings API，而不需要再改页面结构。
+                当前默认走预授权模式，不以运行中审批为主路径。这里保存的是 project 级别基线。
               </p>
             </Card>
           </aside>
 
           <Card className="min-h-0 p-4">
-            <Tabs defaultValue="general" className="flex h-full min-h-0 flex-col gap-4">
-              <TabsList className="w-full justify-start">
-                <TabsTrigger value="general">General</TabsTrigger>
-                <TabsTrigger value="execution">Execution</TabsTrigger>
-                <TabsTrigger value="retention">Retention</TabsTrigger>
-              </TabsList>
+            {settingsQuery.isLoading && !draft ? (
+              <div className="grid gap-4">
+                <Skeleton className="h-10 w-72" />
+                <Skeleton className="h-28 w-full" />
+                <Skeleton className="h-28 w-full" />
+              </div>
+            ) : settingsQuery.isError && !draft ? (
+              <div className="grid gap-2">
+                <p className="text-sm font-medium">Failed to load settings</p>
+                <p className="text-muted-foreground text-sm">
+                  {getProjectActionError(settingsQuery.error)}
+                </p>
+              </div>
+            ) : draft ? (
+              <Tabs defaultValue="general" className="flex h-full min-h-0 flex-col gap-4">
+                <TabsList className="w-full justify-start">
+                  <TabsTrigger value="general">General</TabsTrigger>
+                  <TabsTrigger value="execution">Execution</TabsTrigger>
+                  <TabsTrigger value="retention">Retention</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="general" className="mt-0 flex-1 space-y-4">
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <SettingsField
-                    label="Default Executor"
-                    description="新任务默认使用的执行器。当前先按 codex 设计。"
-                    value={draft.defaultExecutor}
-                    onChange={(value) =>
-                      setDraft((current) => ({ ...current, defaultExecutor: value }))
-                    }
-                    placeholder="codex"
-                  />
+                <TabsContent value="general" className="mt-0 flex-1 space-y-4">
+                  <div className="grid gap-2">
+                    <p className="text-sm font-medium">Default Executor</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {EXECUTOR_OPTIONS.map((option) => {
+                        const isActive = draft.defaultExecutor === option.value
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => {
+                              setSaveError(null)
+                              setSaveSuccessMessage(null)
+                              setDraft((current) =>
+                                current
+                                  ? { ...current, defaultExecutor: option.value }
+                                  : current,
+                              )
+                            }}
+                            disabled={updateMutation.isPending}
+                            className={[
+                              "rounded-xl border px-3 py-3 text-left transition-colors",
+                              isActive
+                                ? "border-primary bg-primary/5"
+                                : "hover:border-muted-foreground/40",
+                            ].join(" ")}
+                          >
+                            <p className="text-sm font-medium">{option.label}</p>
+                            <p className="text-muted-foreground pt-1 text-xs">
+                              {option.description}
+                            </p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
                   <SettingsField
                     label="Default Model"
-                    description="新任务默认模型。后续可以和 executor 绑定。"
+                    description="新任务默认模型。留空则让 runtime 使用各自默认模型。"
                     value={draft.defaultModel}
-                    onChange={(value) =>
-                      setDraft((current) => ({ ...current, defaultModel: value }))
-                    }
+                    onChange={(value) => {
+                      setSaveError(null)
+                      setSaveSuccessMessage(null)
+                      setDraft((current) =>
+                        current ? { ...current, defaultModel: value } : current,
+                      )
+                    }}
                     placeholder="gpt-5-codex"
                   />
-                </div>
-              </TabsContent>
+                </TabsContent>
 
-              <TabsContent value="execution" className="mt-0 flex-1 space-y-4">
-                <div className="grid gap-4 lg:grid-cols-2">
+                <TabsContent value="execution" className="mt-0 flex-1 space-y-4">
+                  <div className="grid gap-2">
+                    <p className="text-sm font-medium">Default Execution Mode</p>
+                    <div className="grid gap-2">
+                      {EXECUTION_MODE_OPTIONS.map((option) => {
+                        const isActive = draft.defaultExecutionMode === option.value
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => {
+                              setSaveError(null)
+                              setSaveSuccessMessage(null)
+                              setDraft((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      defaultExecutionMode: option.value,
+                                    }
+                                  : current,
+                              )
+                            }}
+                            disabled={updateMutation.isPending}
+                            className={[
+                              "rounded-xl border px-3 py-3 text-left transition-colors",
+                              isActive
+                                ? "border-primary bg-primary/5"
+                                : "hover:border-muted-foreground/40",
+                            ].join(" ")}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-medium">{option.label}</p>
+                              <span className="text-muted-foreground text-[11px] uppercase tracking-wide">
+                                {option.value}
+                              </span>
+                            </div>
+                            <p className="text-muted-foreground pt-1 text-xs">
+                              {option.description}
+                            </p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
                   <SettingsField
                     label="Max Concurrent Tasks"
                     description="限制当前 project 同时并发执行的任务数量。"
                     value={draft.maxConcurrentTasks}
-                    onChange={(value) =>
-                      setDraft((current) => ({ ...current, maxConcurrentTasks: value }))
-                    }
+                    onChange={(value) => {
+                      setSaveError(null)
+                      setSaveSuccessMessage(null)
+                      setDraft((current) =>
+                        current ? { ...current, maxConcurrentTasks: value } : current,
+                      )
+                    }}
                     type="number"
                     placeholder="1"
                   />
-                </div>
+                </TabsContent>
 
-                <div className="bg-muted/30 rounded-lg border p-4">
-                  <p className="text-sm font-medium">Behavior Preview</p>
-                  <p className="text-muted-foreground mt-1 text-sm leading-6">
-                    当并发上限为 <span className="font-medium">{draft.maxConcurrentTasks}</span>{" "}
-                    时，新的 task 请求会根据调度策略进入队列。这个区域后续可以接入更细的运行策略配置。
-                  </p>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="retention" className="mt-0 flex-1 space-y-4">
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <SettingsField
-                    label="Log Retention Days"
-                    description="stdout / stderr 聚合内容保留天数，空值表示不限制。"
-                    value={draft.logRetentionDays}
-                    onChange={(value) =>
-                      setDraft((current) => ({ ...current, logRetentionDays: value }))
-                    }
-                    type="number"
-                    placeholder="30"
-                  />
-                  <SettingsField
-                    label="Event Retention Days"
-                    description="agent event 留存天数，空值表示不限制。"
-                    value={draft.eventRetentionDays}
-                    onChange={(value) =>
-                      setDraft((current) => ({ ...current, eventRetentionDays: value }))
-                    }
-                    type="number"
-                    placeholder="14"
-                  />
-                </div>
-
-                <div className="bg-muted/30 rounded-lg border p-4">
-                  <p className="text-sm font-medium">Retention Strategy</p>
-                  <p className="text-muted-foreground mt-1 text-sm leading-6">
-                    当前的数据模型已经切到 event-first。后续真正接接口时，这里的配置可以直接映射到
-                    `logRetentionDays` 和 `eventRetentionDays`。
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
+                <TabsContent value="retention" className="mt-0 flex-1 space-y-4">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <SettingsField
+                      label="Log Retention Days"
+                      description="stdout / stderr 聚合内容保留天数，空值表示不限制。"
+                      value={draft.logRetentionDays}
+                      onChange={(value) => {
+                        setSaveError(null)
+                        setSaveSuccessMessage(null)
+                        setDraft((current) =>
+                          current ? { ...current, logRetentionDays: value } : current,
+                        )
+                      }}
+                      type="number"
+                      placeholder="30"
+                    />
+                    <SettingsField
+                      label="Event Retention Days"
+                      description="agent event 留存天数，空值表示不限制。"
+                      value={draft.eventRetentionDays}
+                      onChange={(value) => {
+                        setSaveError(null)
+                        setSaveSuccessMessage(null)
+                        setDraft((current) =>
+                          current
+                            ? { ...current, eventRetentionDays: value }
+                            : current,
+                        )
+                      }}
+                      type="number"
+                      placeholder="7"
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+            ) : null}
           </Card>
         </div>
       </div>
 
       <div className="flex items-center justify-between border-t px-5 py-3">
-        <p className="text-muted-foreground text-xs">
-          {hasChanges ? "你已经修改了本地草稿，尚未持久化到后端。" : "当前为默认草稿配置。"}
-        </p>
+        <div className="grid gap-1">
+          <p className="text-muted-foreground text-xs">
+            {hasChanges ? "当前有未保存修改。" : "当前配置已与后端同步。"}
+          </p>
+          {saveError ? (
+            <p className="text-xs text-red-600">{saveError}</p>
+          ) : saveSuccessMessage ? (
+            <p className="text-xs text-emerald-600">{saveSuccessMessage}</p>
+          ) : null}
+        </div>
 
         <div className="flex items-center gap-2">
           <Button
             type="button"
             variant="ghost"
-            onClick={() => setDraft(INITIAL_DRAFT)}
-            disabled={!hasChanges}
+            onClick={handleReset}
+            disabled={!hasChanges || updateMutation.isPending}
           >
             <RotateCcwIcon className="size-4" />
             Reset
@@ -256,9 +489,13 @@ export function ProjectSettingsView({
             </Button>
           ) : null}
 
-          <Button type="button" disabled>
+          <Button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={!draft || !hasChanges || updateMutation.isPending}
+          >
             <SaveIcon className="size-4" />
-            Save API Pending
+            Save
           </Button>
         </div>
       </div>

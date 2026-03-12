@@ -9,6 +9,10 @@ export function getProjectByIdApiRoute(projectId: string) {
   return `${API_ROUTES.projects}/${encodeURIComponent(projectId)}`
 }
 
+export function getProjectSettingsApiRoute(projectId: string) {
+  return `${getProjectByIdApiRoute(projectId)}/settings`
+}
+
 export function getV1ProjectTasksApiRoute(projectId: string) {
   return `${API_ROUTES.v1ProjectTasks}/${encodeURIComponent(projectId)}/tasks`
 }

@@ -27,6 +27,7 @@ model ProjectSetting {
   projectId          String   @id
   defaultExecutor    String?  @default("codex")
   defaultModel       String?
+  defaultExecutionMode String? @default("safe")
   maxConcurrentTasks Int      @default(1)
   logRetentionDays   Int?     @default(30)
   eventRetentionDays Int?     @default(7)

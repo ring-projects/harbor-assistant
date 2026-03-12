@@ -12,6 +12,15 @@ export type UpdateProjectBody = {
   name?: string
 }
 
+export type ProjectSettingsBody = {
+  defaultExecutor?: "codex" | "claude-code"
+  defaultModel?: string | null
+  defaultExecutionMode?: "safe" | "connected" | "full-access"
+  maxConcurrentTasks?: number
+  logRetentionDays?: number | null
+  eventRetentionDays?: number | null
+}
+
 const projectEntitySchema = {
   type: "object",
   additionalProperties: false,
@@ -73,6 +82,64 @@ const projectsSuccessResponseSchema = {
   },
 } as const
 
+const projectSettingsEntitySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "projectId",
+    "defaultExecutor",
+    "defaultModel",
+    "defaultExecutionMode",
+    "maxConcurrentTasks",
+    "logRetentionDays",
+    "eventRetentionDays",
+    "createdAt",
+    "updatedAt",
+  ],
+  properties: {
+    projectId: { type: "string" },
+    defaultExecutor: {
+      type: ["string", "null"],
+      enum: ["codex", "claude-code", null],
+    },
+    defaultModel: { type: ["string", "null"] },
+    defaultExecutionMode: {
+      type: ["string", "null"],
+      enum: ["safe", "connected", "full-access", null],
+    },
+    maxConcurrentTasks: {
+      type: "integer",
+      minimum: 1,
+    },
+    logRetentionDays: {
+      type: ["integer", "null"],
+      minimum: 1,
+    },
+    eventRetentionDays: {
+      type: ["integer", "null"],
+      minimum: 1,
+    },
+    createdAt: {
+      type: "string",
+      format: "date-time",
+    },
+    updatedAt: {
+      type: "string",
+      format: "date-time",
+    },
+  },
+} as const
+
+const projectSettingsSuccessResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ok", "settings"],
+  properties: {
+    ok: { type: "boolean", const: true },
+    settings: projectSettingsEntitySchema,
+  },
+} as const
+
 export const projectIdParamsSchema = {
   type: "object",
   additionalProperties: false,
@@ -105,6 +172,44 @@ export const updateProjectBodySchema = {
   ],
 } as const
 
+export const projectSettingsBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    defaultExecutor: {
+      type: "string",
+      enum: ["codex", "claude-code"],
+    },
+    defaultModel: {
+      type: ["string", "null"],
+    },
+    defaultExecutionMode: {
+      type: "string",
+      enum: ["safe", "connected", "full-access"],
+    },
+    maxConcurrentTasks: {
+      type: "integer",
+      minimum: 1,
+    },
+    logRetentionDays: {
+      type: ["integer", "null"],
+      minimum: 1,
+    },
+    eventRetentionDays: {
+      type: ["integer", "null"],
+      minimum: 1,
+    },
+  },
+  anyOf: [
+    { required: ["defaultExecutor"] },
+    { required: ["defaultModel"] },
+    { required: ["defaultExecutionMode"] },
+    { required: ["maxConcurrentTasks"] },
+    { required: ["logRetentionDays"] },
+    { required: ["eventRetentionDays"] },
+  ],
+} as const
+
 export const listProjectsRouteSchema = {
   response: {
     200: projectsSuccessResponseSchema,
@@ -130,5 +235,20 @@ export const deleteProjectRouteSchema = {
   params: projectIdParamsSchema,
   response: {
     200: projectsSuccessResponseSchema,
+  },
+} as const
+
+export const getProjectSettingsRouteSchema = {
+  params: projectIdParamsSchema,
+  response: {
+    200: projectSettingsSuccessResponseSchema,
+  },
+} as const
+
+export const updateProjectSettingsRouteSchema = {
+  params: projectIdParamsSchema,
+  body: projectSettingsBodySchema,
+  response: {
+    200: projectSettingsSuccessResponseSchema,
   },
 } as const

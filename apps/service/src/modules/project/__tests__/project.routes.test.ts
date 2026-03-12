@@ -142,6 +142,91 @@ describe("project routes", () => {
     })
   })
 
+  it("returns persisted project settings", async () => {
+    const projectPath = await createTempProjectDir()
+    tempProjectDirs.push(projectPath)
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        path: projectPath,
+        name: "Settings Project",
+      },
+    })
+
+    expect(createResponse.statusCode).toBe(200)
+    const body = createResponse.json() as {
+      projects: Array<{ id: string }>
+    }
+    const projectId = body.projects[0]?.id
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${projectId}/settings`,
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      settings: {
+        projectId,
+        defaultExecutor: "codex",
+        defaultExecutionMode: "safe",
+        maxConcurrentTasks: 1,
+        logRetentionDays: 30,
+        eventRetentionDays: 7,
+      },
+    })
+  })
+
+  it("updates project settings", async () => {
+    const projectPath = await createTempProjectDir()
+    tempProjectDirs.push(projectPath)
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        path: projectPath,
+        name: "Settings Project",
+      },
+    })
+
+    expect(createResponse.statusCode).toBe(200)
+    const body = createResponse.json() as {
+      projects: Array<{ id: string }>
+    }
+    const projectId = body.projects[0]?.id
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/v1/projects/${projectId}/settings`,
+      payload: {
+        defaultExecutor: "claude-code",
+        defaultModel: "claude-sonnet-4-5",
+        defaultExecutionMode: "connected",
+        maxConcurrentTasks: 2,
+        logRetentionDays: null,
+        eventRetentionDays: 14,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      settings: {
+        projectId,
+        defaultExecutor: "claude-code",
+        defaultModel: "claude-sonnet-4-5",
+        defaultExecutionMode: "connected",
+        maxConcurrentTasks: 2,
+        logRetentionDays: null,
+        eventRetentionDays: 14,
+      },
+    })
+  })
+
   it("returns not found when updating a missing project", async () => {
     const response = await app.inject({
       method: "PUT",

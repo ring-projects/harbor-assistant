@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { AgentFactory } from "../../../lib/agents"
+import { RUNTIME_POLICY_PRESETS } from "../runtime-policy"
 import { createTaskAgentGateway } from "./agent.gateway"
 
 function buildAsyncEvents() {
@@ -65,8 +66,10 @@ describe("createTaskAgentGateway", () => {
       },
     })
 
+    const startSessionAndRun = vi.fn(() => buildAsyncEvents())
+
     vi.spyOn(AgentFactory, "getAgent").mockReturnValue({
-      startSessionAndRun: vi.fn(() => buildAsyncEvents()),
+      startSessionAndRun,
       resumeSessionAndRun: vi.fn(() => buildAsyncEvents()),
     } as never)
 
@@ -76,7 +79,19 @@ describe("createTaskAgentGateway", () => {
       projectPath: "/tmp/project-1",
       prompt: "Run tests",
       model: "gpt-5",
+      runtimePolicy: RUNTIME_POLICY_PRESETS.connected,
     })
+
+    expect(startSessionAndRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sandboxMode: "workspace-write",
+        approvalPolicy: "never",
+        networkAccessEnabled: true,
+        webSearchMode: "live",
+      }),
+      "Run tests",
+      undefined,
+    )
 
     expect(appendTaskAgentEvent).toHaveBeenCalledWith(
       expect.objectContaining({

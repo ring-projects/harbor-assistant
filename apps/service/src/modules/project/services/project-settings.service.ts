@@ -11,7 +11,12 @@ export function createProjectSettingsService(args: {
 
   async function getSettings(projectId: string) {
     try {
-      const settings = await projectSettingsRepository.getProjectSettings(projectId)
+      const settings =
+        await projectSettingsRepository.getProjectSettings(projectId) ??
+        await projectSettingsRepository.updateProjectSettings({
+          projectId,
+        })
+
       if (!settings) {
         throw createProjectError.settingsNotFound(projectId)
       }

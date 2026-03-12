@@ -1,21 +1,27 @@
 import type { FastifyInstance } from "fastify"
 
-import type { ProjectService } from "../services"
+import type { ProjectService, ProjectSettingsService } from "../services"
 import {
   createProjectRouteSchema,
   deleteProjectRouteSchema,
+  getProjectSettingsRouteSchema,
   listProjectsRouteSchema,
   type CreateProjectBody,
   type ProjectIdParams,
+  type ProjectSettingsBody,
   type UpdateProjectBody,
+  updateProjectSettingsRouteSchema,
   updateProjectRouteSchema,
 } from "../schemas"
 
 export async function registerProjectRoutes(
   app: FastifyInstance,
-  args: { projectService: ProjectService },
+  args: {
+    projectService: ProjectService
+    projectSettingsService: ProjectSettingsService
+  },
 ) {
-  const { projectService } = args
+  const { projectService, projectSettingsService } = args
 
   app.get(
     "/projects",
@@ -82,6 +88,48 @@ export async function registerProjectRoutes(
       return {
         ok: true,
         projects,
+      }
+    },
+  )
+
+  app.get<{ Params: ProjectIdParams }>(
+    "/projects/:id/settings",
+    {
+      schema: getProjectSettingsRouteSchema,
+    },
+    async (request) => {
+      const { id } = request.params
+      await projectService.getProject(id)
+      const settings = await projectSettingsService.getSettings(id)
+
+      return {
+        ok: true,
+        settings,
+      }
+    },
+  )
+
+  app.put<{ Params: ProjectIdParams; Body: ProjectSettingsBody }>(
+    "/projects/:id/settings",
+    {
+      schema: updateProjectSettingsRouteSchema,
+    },
+    async (request) => {
+      const { id } = request.params
+      await projectService.getProject(id)
+      const settings = await projectSettingsService.updateSettings({
+        projectId: id,
+        defaultExecutor: request.body.defaultExecutor,
+        defaultModel: request.body.defaultModel,
+        defaultExecutionMode: request.body.defaultExecutionMode,
+        maxConcurrentTasks: request.body.maxConcurrentTasks,
+        logRetentionDays: request.body.logRetentionDays,
+        eventRetentionDays: request.body.eventRetentionDays,
+      })
+
+      return {
+        ok: true,
+        settings,
       }
     },
   )

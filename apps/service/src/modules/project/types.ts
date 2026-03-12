@@ -27,6 +27,7 @@ export type ProjectSettings = {
   projectId: string
   defaultExecutor: string | null
   defaultModel: string | null
+  defaultExecutionMode: string | null
   maxConcurrentTasks: number
   logRetentionDays: number | null
   eventRetentionDays: number | null

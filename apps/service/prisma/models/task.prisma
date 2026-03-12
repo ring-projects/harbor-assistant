@@ -18,6 +18,8 @@ model Task {
   projectPath   String
   prompt        String
   executor      String
+  executionMode String?
+  runtimePolicy String?
   model         String?
   status        TaskStatus         @default(queued)
   threadId      String?

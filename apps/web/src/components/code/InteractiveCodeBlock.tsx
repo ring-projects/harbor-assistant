@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 import { getCodeMirrorLanguageExtension } from "./language-extension"
@@ -386,11 +387,11 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
             </Button>
           ) : (
             <div className="space-y-2">
-              <textarea
+              <Textarea
                 value={draftComment}
                 onChange={(event) => setDraftComment(event.target.value)}
                 placeholder="Add your note for this selection..."
-                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-20 w-full rounded-md border bg-transparent px-2 py-1.5 text-xs outline-none focus-visible:ring-[3px]"
+                className="min-h-20 rounded-md px-2 py-1.5 text-xs"
               />
               <div className="flex items-center gap-2">
                 <Button

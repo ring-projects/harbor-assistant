@@ -10,6 +10,7 @@ import {
   TERMINAL_TASK_STATUSES,
   type TaskDetail,
 } from "@/modules/tasks/contracts"
+import { formatExecutorLabel } from "@/modules/tasks/components/task-workbench/shared"
 import {
   useTaskDetailQuery,
   useTaskEventStream,
@@ -64,6 +65,27 @@ function helperText(detail: TaskDetail | null | undefined, taskId: string | null
   }
 
   return ""
+}
+
+function getRunningLabel(detail: TaskDetail | null | undefined) {
+  if (!detail) {
+    return "Agent is working..."
+  }
+
+  return `${formatExecutorLabel(detail.executor)} is working...`
+}
+
+function formatRuntimePolicySummary(detail: TaskDetail | null | undefined) {
+  if (!detail) {
+    return "在同一个 task 中持续对话，并查看执行反馈。"
+  }
+
+  const mode = detail.executionMode ? detail.executionMode : "default"
+  const sandbox = detail.runtimePolicy?.sandboxMode ?? "workspace-write"
+  const network = detail.runtimePolicy?.networkAccessEnabled ? "network on" : "network off"
+  const search = detail.runtimePolicy?.webSearchMode ?? "disabled"
+
+  return `${formatExecutorLabel(detail.executor)} · ${mode} · ${sandbox} · ${network} · search ${search}`
 }
 
 export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
@@ -136,7 +158,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
       nextBlocks.push({
         id: "assistant-typing",
         type: "typing",
-        label: "Codex is working...",
+        label: getRunningLabel(detail),
       })
     }
 
@@ -234,7 +256,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
           <div>
             <p className="text-sm font-semibold">Conversation</p>
             <p className="text-muted-foreground text-xs">
-              在同一个 task 中持续对话，并查看执行反馈。
+              {formatRuntimePolicySummary(detail)}
             </p>
           </div>
 

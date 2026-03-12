@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { useProjectSettingsQuery } from "@/modules/projects"
 import {
   useCreateTaskMutation,
   useProjectTaskListStream,
@@ -25,11 +26,44 @@ import {
 
 import {
   formatDateTime,
+  formatExecutorLabel,
+  formatExecutionModeLabel,
   getErrorMessage,
   getPromptSummary,
   STATUS_META,
   truncateTaskId,
 } from "./shared"
+
+const EXECUTOR_OPTIONS = [
+  {
+    value: "codex",
+    label: "Codex",
+    description: "OpenAI Codex runtime",
+  },
+  {
+    value: "claude-code",
+    label: "Claude Code",
+    description: "Anthropic Claude Code runtime",
+  },
+] as const
+
+const EXECUTION_MODE_OPTIONS = [
+  {
+    value: "safe",
+    label: "Safe",
+    description: "Write workspace, no shell network, cached search",
+  },
+  {
+    value: "connected",
+    label: "Connected",
+    description: "Write workspace, allow network, live search",
+  },
+  {
+    value: "full-access",
+    label: "Full Access",
+    description: "Minimal restrictions, highest risk",
+  },
+] as const
 
 type TaskListPanelProps = {
   projectId: string
@@ -42,8 +76,16 @@ export function TaskListPanel({
   selectedTaskId,
   onSelectTask,
 }: TaskListPanelProps) {
+  const projectSettingsQuery = useProjectSettingsQuery(projectId)
+  const defaultExecutor = projectSettingsQuery.data?.defaultExecutor ?? "codex"
+  const defaultExecutionMode =
+    projectSettingsQuery.data?.defaultExecutionMode ?? "safe"
   const [isCreateComposerOpen, setIsCreateComposerOpen] = useState(false)
   const [newTaskPrompt, setNewTaskPrompt] = useState("")
+  const [newTaskExecutor, setNewTaskExecutor] = useState<string>(defaultExecutor)
+  const [newTaskExecutionMode, setNewTaskExecutionMode] = useState<
+    "safe" | "connected" | "full-access"
+  >(defaultExecutionMode)
   const [createTaskError, setCreateTaskError] = useState<string | null>(null)
 
   const createTaskMutation = useCreateTaskMutation(projectId)
@@ -81,6 +123,13 @@ export function TaskListPanel({
     }
   }, [onSelectTask, resolvedSelectedTaskId, selectedTaskId])
 
+  function resetCreateComposer() {
+    setCreateTaskError(null)
+    setNewTaskPrompt("")
+    setNewTaskExecutor(defaultExecutor)
+    setNewTaskExecutionMode(defaultExecutionMode)
+  }
+
   async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -94,9 +143,11 @@ export function TaskListPanel({
       setCreateTaskError(null)
       const result = await createTaskMutation.mutateAsync({
         prompt,
+        executor: newTaskExecutor,
+        executionMode: newTaskExecutionMode,
       })
 
-      setNewTaskPrompt("")
+      resetCreateComposer()
       setIsCreateComposerOpen(false)
       onSelectTask(result.taskId)
     } catch (error) {
@@ -110,7 +161,9 @@ export function TaskListPanel({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">Task List</p>
-            <p className="text-muted-foreground text-xs">新建任务会开启一个新的 Codex thread</p>
+            <p className="text-muted-foreground text-xs">
+              新建任务会按所选执行器开启一个新的 agent session
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -119,7 +172,7 @@ export function TaskListPanel({
               variant="outline"
               size="sm"
               onClick={() => {
-                setCreateTaskError(null)
+                resetCreateComposer()
                 setIsCreateComposerOpen(true)
               }}
             >
@@ -134,8 +187,7 @@ export function TaskListPanel({
           onOpenChange={(open) => {
             setIsCreateComposerOpen(open)
             if (!open && !createTaskMutation.isPending) {
-              setCreateTaskError(null)
-              setNewTaskPrompt("")
+              resetCreateComposer()
             }
           }}
         >
@@ -143,11 +195,74 @@ export function TaskListPanel({
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
               <DialogDescription>
-                输入初始化 prompt，创建一个新的 Codex thread。
+                输入初始化 prompt，并选择要使用的执行器。
               </DialogDescription>
             </DialogHeader>
 
             <form className="grid gap-3" onSubmit={handleCreateTask}>
+              <div className="grid gap-2">
+                <p className="text-sm font-medium">Executor</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {EXECUTOR_OPTIONS.map((option) => {
+                    const isActive = newTaskExecutor === option.value
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setNewTaskExecutor(option.value)}
+                        disabled={createTaskMutation.isPending}
+                        className={cn(
+                          "rounded-xl border px-3 py-3 text-left transition-colors",
+                          isActive
+                            ? "border-primary bg-primary/5"
+                            : "hover:border-muted-foreground/40",
+                        )}
+                      >
+                        <p className="text-sm font-medium">{option.label}</p>
+                        <p className="text-muted-foreground pt-1 text-xs">
+                          {option.description}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <p className="text-sm font-medium">Execution Mode</p>
+                <div className="grid gap-2">
+                  {EXECUTION_MODE_OPTIONS.map((option) => {
+                    const isActive = newTaskExecutionMode === option.value
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setNewTaskExecutionMode(option.value)}
+                        disabled={createTaskMutation.isPending}
+                        className={cn(
+                          "rounded-xl border px-3 py-3 text-left transition-colors",
+                          isActive
+                            ? "border-primary bg-primary/5"
+                            : "hover:border-muted-foreground/40",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium">{option.label}</p>
+                          <span className="text-muted-foreground text-[11px] uppercase tracking-wide">
+                            {option.value}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground pt-1 text-xs">
+                          {option.description}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
               <Textarea
                 value={newTaskPrompt}
                 onChange={(event) => setNewTaskPrompt(event.target.value)}
@@ -172,6 +287,8 @@ export function TaskListPanel({
                     setIsCreateComposerOpen(false)
                     setCreateTaskError(null)
                     setNewTaskPrompt("")
+                    setNewTaskExecutor("codex")
+                    setNewTaskExecutionMode("safe")
                   }}
                   disabled={createTaskMutation.isPending}
                 >
@@ -240,6 +357,8 @@ export function TaskListPanel({
 
                     <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 pt-2 text-[11px]">
                       <span>创建：{formatDateTime(task.createdAt)}</span>
+                      <span>Executor：{formatExecutorLabel(task.executor)}</span>
+                      <span>Mode：{formatExecutionModeLabel(task.executionMode)}</span>
                       <span>Model：{task.model ?? "-"}</span>
                     </div>
                   </button>

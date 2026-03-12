@@ -4,6 +4,7 @@ import { SendHorizonalIcon } from "lucide-react"
 import type { KeyboardEvent } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
 type ChatComposerProps = {
   canSubmit: boolean
@@ -29,13 +30,12 @@ export function ChatComposer(props: ChatComposerProps) {
 
   return (
     <div className="grid gap-2 border-t pt-3">
-      <textarea
+      <Textarea
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={props.placeholder}
         disabled={props.inputDisabled || props.isSubmitting}
-        className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-[104px] w-full resize-none rounded-2xl border bg-transparent px-4 py-3 text-sm outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-60"
       />
 
       {props.errorMessage ? (

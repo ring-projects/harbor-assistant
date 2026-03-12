@@ -43,6 +43,15 @@ export class TaskApiClientError extends Error {
 export type CreateTaskInput = {
   prompt: string
   model?: string
+  executor?: string
+  executionMode?: "safe" | "connected" | "full-access" | "custom"
+  runtimePolicy?: {
+    sandboxMode?: "read-only" | "workspace-write" | "danger-full-access"
+    approvalPolicy?: "never" | "on-request" | "untrusted"
+    networkAccessEnabled?: boolean
+    webSearchMode?: "disabled" | "cached" | "live"
+    additionalDirectories?: string[]
+  }
 }
 
 export type FollowupTaskInput = {
@@ -103,6 +112,43 @@ function toStatus(value: unknown): TaskStatus | null {
   return STATUS_SET.has(value as TaskStatus) ? (value as TaskStatus) : null
 }
 
+function toExecutionMode(
+  value: unknown,
+): "safe" | "connected" | "full-access" | "custom" | null {
+  return value === "safe" ||
+    value === "connected" ||
+    value === "full-access" ||
+    value === "custom"
+    ? value
+    : null
+}
+
+function toSandboxMode(
+  value: unknown,
+): "read-only" | "workspace-write" | "danger-full-access" | null {
+  return value === "read-only" ||
+    value === "workspace-write" ||
+    value === "danger-full-access"
+    ? value
+    : null
+}
+
+function toApprovalPolicy(
+  value: unknown,
+): "never" | "on-request" | "untrusted" | null {
+  return value === "never" || value === "on-request" || value === "untrusted"
+    ? value
+    : null
+}
+
+function toWebSearchMode(
+  value: unknown,
+): "disabled" | "cached" | "live" | null {
+  return value === "disabled" || value === "cached" || value === "live"
+    ? value
+    : null
+}
+
 function toDateString(value: unknown) {
   if (typeof value !== "string") {
     return new Date().toISOString()
@@ -152,12 +198,29 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
     return null
   }
 
+  const runtimePolicySource = asRecord(source.runtimePolicy)
+
   const parsed = taskListItemSchema.safeParse({
     taskId,
     projectId,
     prompt: toStringOrEmpty(source.prompt),
     model: toStringOrNull(source.model),
     executor: toStringOrNull(source.executor) ?? "codex",
+    executionMode: toExecutionMode(source.executionMode),
+    runtimePolicy: runtimePolicySource
+      ? {
+          sandboxMode: toSandboxMode(runtimePolicySource.sandboxMode) ?? "workspace-write",
+          approvalPolicy:
+            toApprovalPolicy(runtimePolicySource.approvalPolicy) ?? "never",
+          networkAccessEnabled: runtimePolicySource.networkAccessEnabled === true,
+          webSearchMode: toWebSearchMode(runtimePolicySource.webSearchMode) ?? "disabled",
+          additionalDirectories: Array.isArray(runtimePolicySource.additionalDirectories)
+            ? (runtimePolicySource.additionalDirectories as unknown[]).filter(
+                (item): item is string => typeof item === "string",
+              )
+            : [],
+        }
+      : null,
     status,
     threadId: toStringOrNull(source.threadId),
     parentTaskId: toStringOrNull(source.parentTaskId),
@@ -281,7 +344,9 @@ export async function createTask(
       projectId,
       prompt: input.prompt,
       model: input.model,
-      executor: "codex",
+      executor: input.executor ?? "codex",
+      executionMode: input.executionMode,
+      runtimePolicy: input.runtimePolicy,
     }),
   })
 
