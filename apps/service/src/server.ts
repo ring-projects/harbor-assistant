@@ -1,7 +1,8 @@
 import { buildServiceApp } from "./app"
-import { config } from "./config"
+import { loadServiceConfig } from "./config"
 
 async function run() {
+  const config = await loadServiceConfig()
   const app = await buildServiceApp(config)
 
   const closeApp = async () => {

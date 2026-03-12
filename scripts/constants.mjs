@@ -1,17 +1,11 @@
-import { homedir } from "node:os"
-import path from "node:path"
+import {
+  DEFAULT_APP_CONFIG_CONTENT,
+  getHarborPaths,
+} from "./harbor-config.mjs"
 
-export const HARBOR_HOME_DIRECTORY = path.join(homedir(), ".harbor")
-export const HARBOR_DATA_DIRECTORY = path.join(HARBOR_HOME_DIRECTORY, "data")
-export const HARBOR_CONFIG_PATH = path.join(HARBOR_HOME_DIRECTORY, "app.yaml")
+const paths = getHarborPaths(process.env)
 
-export const DEFAULT_APP_CONFIG_CONTENT = `fileBrowser:
-  rootDirectory: "~"
-
-project:
-  dataFile: "~/.harbor/data/projects.sqlite"
-
-task:
-  dataFile: "~/.harbor/data/tasks.json"
-  databaseFile: "~/.harbor/data/tasks.sqlite"
-`
+export const HARBOR_HOME_DIRECTORY = paths.homeDirectory
+export const HARBOR_DATA_DIRECTORY = paths.dataDirectory
+export const HARBOR_CONFIG_PATH = paths.configPath
+export { DEFAULT_APP_CONFIG_CONTENT }

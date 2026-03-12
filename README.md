@@ -61,29 +61,41 @@ bun run dev:web
 
 ## Local Configuration
 
-### Service Environment Variables
+### Harbor App Configuration
 
-`apps/service` depends on environment variables such as `DATABASE_URL`. An example file is already included:
+Harbor now uses `~/.harbor/app.yaml` as the primary local configuration source. The file is created automatically by `bun run init:harbor`, and service startup will also auto-create it if missing.
 
-```bash
-cp apps/service/.env.example apps/service/.env
+Default config:
+
+```yaml
+service:
+  host: 127.0.0.1
+  port: 3400
+  name: harbor
+
+fileBrowser:
+  rootDirectory: "~"
+
+project:
+  dataFile: "data/projects.sqlite"
+
+task:
+  dataFile: "data/tasks.json"
+  databaseFile: "data/tasks.sqlite"
 ```
 
-Example values:
+In normal local usage, you should not need to create `apps/service/.env` or manually configure `DATABASE_URL`.
 
-```env
-HOST=0.0.0.0
-PORT=3400
-SERVICE_NAME=harbor
-NODE_ENV=development
-DATABASE_URL=file:/absolute/path/to/harbor.sqlite
-FILE_BROWSER_ROOT_DIRECTORY=/absolute/path/to/workspace-root
-```
+Advanced overrides are still available through environment variables:
 
-At minimum, you should update these values for your local machine:
-
-- `DATABASE_URL`: should point to a writable local SQLite file
-- `FILE_BROWSER_ROOT_DIRECTORY`: root directory that Harbor is allowed to expose in the file browser
+- `DATABASE_URL`
+- `FILE_BROWSER_ROOT_DIRECTORY`
+- `HOST`
+- `PORT`
+- `SERVICE_NAME`
+- `NODE_ENV`
+- `HARBOR_HOME`
+- `HARBOR_CONFIG_PATH`
 
 ### Web Environment Variables
 

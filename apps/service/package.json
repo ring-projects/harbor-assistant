@@ -10,10 +10,10 @@
     "test:watch": "vitest",
     "lint": "bun run typecheck",
     "typecheck": "bunx tsc --noEmit -p tsconfig.json",
-    "db:generate": "bunx --bun prisma generate",
-    "db:migrate:dev": "bunx --bun prisma migrate dev",
-    "db:migrate:deploy": "bunx --bun prisma migrate deploy",
-    "db:studio": "bunx --bun prisma studio"
+    "db:generate": "bun ../../scripts/run-service-prisma.mjs generate",
+    "db:migrate:dev": "bun ../../scripts/run-service-prisma.mjs migrate dev",
+    "db:migrate:deploy": "bun ../../scripts/run-service-prisma.mjs migrate deploy",
+    "db:studio": "bun ../../scripts/run-service-prisma.mjs studio"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",

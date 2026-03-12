@@ -1,15 +1,18 @@
-import { initializeHarborConfiguration } from "./configuration.mjs"
-import { HARBOR_CONFIG_PATH, HARBOR_HOME_DIRECTORY } from "./constants.mjs"
+import {
+  getHarborPaths,
+  initializeHarborConfiguration,
+} from "./harbor-config.mjs"
 import { getErrorCode } from "./utils.mjs"
 
 async function run() {
-  console.info(`[init:harbor] starting (home: ${HARBOR_HOME_DIRECTORY})`)
+  const paths = getHarborPaths(process.env)
+  console.info(`[init:harbor] starting (home: ${paths.homeDirectory})`)
 
   const result = await initializeHarborConfiguration()
   if (result.created) {
-    console.info(`[init:harbor] created default config: ${HARBOR_CONFIG_PATH}`)
+    console.info(`[init:harbor] created default config: ${paths.configPath}`)
   } else {
-    console.info(`[init:harbor] config already exists: ${HARBOR_CONFIG_PATH}`)
+    console.info(`[init:harbor] config already exists: ${paths.configPath}`)
   }
 
   console.info("[init:harbor] ready")
