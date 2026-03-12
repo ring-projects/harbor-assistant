@@ -15,98 +15,14 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import {
+  buildBreadcrumbSegments,
+  getDirectoryPickerErrorMessage,
+} from "./directory-picker-utils"
 import { useDirectoryEntriesQuery } from "./hooks/use-directory-entries-query"
 import { useDirectoryPickerStore } from "./hooks/use-directory-picker-store"
 import { DirectoryPickerProvider } from "./providers/directory-picker-provider"
 import type { DirectoryPickerProps } from "./types"
-
-type BreadcrumbSegment = {
-  label: string
-  path: string
-}
-
-function splitPathSegments(pathValue: string) {
-  if (pathValue === "/") {
-    return []
-  }
-
-  return normalizePathForCompare(pathValue).split("/").filter(Boolean)
-}
-
-function appendPathSegment(parentPath: string, segment: string) {
-  if (parentPath === "/") {
-    return `/${segment}`
-  }
-
-  return `${parentPath}/${segment}`
-}
-
-function normalizePathForCompare(path: string) {
-  if (path === "/") {
-    return "/"
-  }
-
-  return path.replace(/\/+$/, "")
-}
-
-function isSameOrChildPath(path: string, parentPath: string) {
-  const normalizedPath = normalizePathForCompare(path)
-  const normalizedParentPath = normalizePathForCompare(parentPath)
-
-  return (
-    normalizedPath === normalizedParentPath ||
-    normalizedPath.startsWith(`${normalizedParentPath}/`)
-  )
-}
-
-function buildBreadcrumbSegments(
-  currentPath: string,
-  rootPath: string | null,
-): BreadcrumbSegment[] {
-  if (!rootPath || !isSameOrChildPath(currentPath, rootPath)) {
-    return [{ label: "home", path: currentPath }]
-  }
-
-  const normalizedCurrent = normalizePathForCompare(currentPath)
-  const normalizedRoot = normalizePathForCompare(rootPath)
-  const relative = normalizedCurrent
-    .slice(normalizedRoot.length)
-    .replace(/^\/+/, "")
-  const rootParts = splitPathSegments(normalizedRoot)
-  const rootLeafName = rootParts.at(-1) ?? "workspace"
-
-  const segments: BreadcrumbSegment[] = [{ label: "home", path: normalizedRoot }]
-
-  if (rootLeafName.toLowerCase() !== "home") {
-    segments.push({
-      label: rootLeafName,
-      path: normalizedRoot,
-    })
-  }
-
-  if (!relative) {
-    return segments
-  }
-
-  let accumulator = normalizedRoot
-  for (const segment of relative.split("/").filter(Boolean)) {
-    accumulator = appendPathSegment(accumulator, segment)
-    segments.push({
-      label: segment,
-      path: accumulator,
-    })
-  }
-
-  return segments
-}
-
-function toErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-
-  return "Request failed."
-}
 
 function DirectoryPickerInner({
   className,
@@ -183,7 +99,7 @@ function DirectoryPickerInner({
     try {
       await onConfirm(selectedPath)
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      setActionError(getDirectoryPickerErrorMessage(error))
     } finally {
       setSubmitting(false)
     }
@@ -315,7 +231,9 @@ function DirectoryPickerInner({
 
             {!query.isLoading && query.isError ? (
               <div className="px-6 py-6 text-sm">
-                <p className="text-destructive">{toErrorMessage(query.error)}</p>
+                <p className="text-destructive">
+                  {getDirectoryPickerErrorMessage(query.error)}
+                </p>
                 <Button
                   type="button"
                   variant="outline"

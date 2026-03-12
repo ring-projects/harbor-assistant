@@ -201,6 +201,148 @@ function eventTone(event: TaskAgentEvent): "neutral" | "error" | "success" {
   return "neutral"
 }
 
+function isCommandEvent(event: TaskAgentEvent) {
+  return (
+    event.eventType === "command.started" ||
+    event.eventType === "command.output" ||
+    event.eventType === "command.completed"
+  )
+}
+
+function isExecutionEvent(event: TaskAgentEvent) {
+  return (
+    event.eventType === "web_search.started" ||
+    event.eventType === "web_search.completed" ||
+    event.eventType === "file_change" ||
+    event.eventType === "mcp_tool_call.started" ||
+    event.eventType === "mcp_tool_call.completed"
+  )
+}
+
+function toMessageBlock(event: TaskAgentEvent): ChatConversationBlock {
+  const payload = asRecord(event.payload)
+  const role = toStringOrNull(payload?.role)
+  const content = eventContent(event)
+
+  if (role === "user" || role === "assistant") {
+    return {
+      id: event.id,
+      type: "message",
+      role,
+      content,
+      timestamp: eventTimestamp(event),
+    }
+  }
+
+  return {
+    id: event.id,
+    type: "event",
+    label: toStringOrNull(payload?.source) ?? "message",
+    content,
+    timestamp: eventTimestamp(event),
+    tone: "neutral",
+  }
+}
+
+function toExecutionBlock(event: TaskAgentEvent): ChatConversationBlock {
+  return {
+    id: event.id,
+    type: "execution",
+    label: event.eventType,
+    content: eventContent(event),
+    timestamp: eventTimestamp(event),
+    tone: executionTone(event),
+    source: executionSource(event),
+    event,
+  }
+}
+
+function createCommandGroup(
+  event: TaskAgentEvent,
+  commandId: string,
+): Extract<ChatConversationBlock, { type: "command-group" }> {
+  const payload = asRecord(event.payload)
+
+  return {
+    id: event.id,
+    type: "command-group",
+    commandId,
+    command: toStringOrNull(payload?.command) ?? `Command ${commandId}`,
+    output: "",
+    startedAt: null,
+    completedAt: null,
+    timestamp: eventTimestamp(event),
+    status: "running",
+    exitCode: null,
+  }
+}
+
+function appendCommandEventToGroup(
+  group: Extract<ChatConversationBlock, { type: "command-group" }>,
+  event: TaskAgentEvent,
+) {
+  const payload = asRecord(event.payload)
+
+  if (event.eventType === "command.started") {
+    group.command = toStringOrNull(payload?.command) ?? group.command
+    group.startedAt = eventTimestamp(event)
+    group.timestamp = group.startedAt
+    group.status = "running"
+    return
+  }
+
+  if (event.eventType === "command.output") {
+    const nextOutput = toStringOrNull(payload?.output) ?? ""
+    if (nextOutput) {
+      group.output = `${group.output}${nextOutput}`
+    }
+    group.timestamp = eventTimestamp(event)
+    return
+  }
+
+  group.completedAt = eventTimestamp(event)
+  group.timestamp = group.completedAt
+  group.status = toStringOrNull(payload?.status) === "failed" ? "failed" : "success"
+  group.exitCode = typeof payload?.exitCode === "number" ? payload.exitCode : null
+}
+
+function pushCommandBlock(
+  event: TaskAgentEvent,
+  blocks: ChatConversationBlock[],
+  commandGroups: Map<
+    string,
+    Extract<ChatConversationBlock, { type: "command-group" }>
+  >,
+) {
+  const payload = asRecord(event.payload)
+  const commandId = toStringOrNull(payload?.commandId)
+
+  if (!commandId) {
+    blocks.push(toExecutionBlock(event))
+    return
+  }
+
+  let group = commandGroups.get(commandId)
+  if (!group) {
+    group = createCommandGroup(event, commandId)
+    commandGroups.set(commandId, group)
+    blocks.push(group)
+  }
+
+  appendCommandEventToGroup(group, event)
+}
+
+function toEventBlock(event: TaskAgentEvent): ChatConversationBlock {
+  return {
+    id: event.id,
+    type: "event",
+    label: event.eventType,
+    content: eventContent(event),
+    timestamp: eventTimestamp(event),
+    tone: eventTone(event),
+  }
+}
+
 export function toConversationBlocks(
   events: TaskAgentEvent[],
 ): ChatConversationBlock[] {
@@ -215,126 +357,22 @@ export function toConversationBlocks(
       continue
     }
 
-    const payload = asRecord(event.payload)
-
     if (event.eventType === "message") {
-      const role = toStringOrNull(payload?.role)
-      const content = eventContent(event)
-
-      if (role === "user" || role === "assistant") {
-        blocks.push({
-          id: event.id,
-          type: "message",
-          role,
-          content,
-          timestamp: eventTimestamp(event),
-        } satisfies ChatConversationBlock)
-        continue
-      }
-
-      blocks.push({
-        id: event.id,
-        type: "event",
-        label: toStringOrNull(payload?.source) ?? "message",
-        content,
-        timestamp: eventTimestamp(event),
-        tone: "neutral",
-      } satisfies ChatConversationBlock)
+      blocks.push(toMessageBlock(event))
       continue
     }
 
-    if (
-      event.eventType === "command.started" ||
-      event.eventType === "command.output" ||
-      event.eventType === "command.completed"
-    ) {
-      const commandId = toStringOrNull(payload?.commandId)
-
-      if (!commandId) {
-        blocks.push({
-          id: event.id,
-          type: "execution",
-          label: event.eventType,
-          content: eventContent(event),
-          timestamp: eventTimestamp(event),
-          tone: executionTone(event),
-          source: executionSource(event),
-          event,
-        } satisfies ChatConversationBlock)
-        continue
-      }
-
-      let group = commandGroups.get(commandId)
-      if (!group) {
-        group = {
-          id: event.id,
-          type: "command-group",
-          commandId,
-          command: toStringOrNull(payload?.command) ?? `Command ${commandId}`,
-          output: "",
-          startedAt: null,
-          completedAt: null,
-          timestamp: eventTimestamp(event),
-          status: "running",
-          exitCode: null,
-        }
-        commandGroups.set(commandId, group)
-        blocks.push(group)
-      }
-
-      if (event.eventType === "command.started") {
-        group.command = toStringOrNull(payload?.command) ?? group.command
-        group.startedAt = eventTimestamp(event)
-        group.timestamp = group.startedAt
-        group.status = "running"
-        continue
-      }
-
-      if (event.eventType === "command.output") {
-        const nextOutput = toStringOrNull(payload?.output) ?? ""
-        if (nextOutput) {
-          group.output = `${group.output}${nextOutput}`
-        }
-        group.timestamp = eventTimestamp(event)
-        continue
-      }
-
-      group.completedAt = eventTimestamp(event)
-      group.timestamp = group.completedAt
-      group.status = toStringOrNull(payload?.status) === "failed" ? "failed" : "success"
-      group.exitCode =
-        typeof payload?.exitCode === "number" ? payload.exitCode : null
+    if (isCommandEvent(event)) {
+      pushCommandBlock(event, blocks, commandGroups)
       continue
     }
 
-    if (
-      event.eventType === "web_search.started" ||
-      event.eventType === "web_search.completed" ||
-      event.eventType === "file_change" ||
-      event.eventType === "mcp_tool_call.started" ||
-      event.eventType === "mcp_tool_call.completed"
-    ) {
-      blocks.push({
-        id: event.id,
-        type: "execution",
-        label: event.eventType,
-        content: eventContent(event),
-        timestamp: eventTimestamp(event),
-        tone: executionTone(event),
-        source: executionSource(event),
-        event,
-      } satisfies ChatConversationBlock)
+    if (isExecutionEvent(event)) {
+      blocks.push(toExecutionBlock(event))
       continue
     }
 
-    blocks.push({
-      id: event.id,
-      type: "event",
-      label: event.eventType,
-      content: eventContent(event),
-      timestamp: eventTimestamp(event),
-      tone: eventTone(event),
-    } satisfies ChatConversationBlock)
+    blocks.push(toEventBlock(event))
   }
 
   return blocks

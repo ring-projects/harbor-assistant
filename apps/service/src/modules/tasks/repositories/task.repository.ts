@@ -133,29 +133,31 @@ function deriveTaskTitle(prompt: string) {
 }
 
 function parseCommand(command: string | null): string[] {
-  if (!command) {
-    return []
-  }
-
-  try {
-    const parsed = JSON.parse(command)
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : []
-  } catch {
-    return []
-  }
+  const parsed = safeParseJson(command)
+  return Array.isArray(parsed)
+    ? parsed.filter((item): item is string => typeof item === "string")
+    : []
 }
 
 function parseJsonObject(value: string): Record<string, unknown> {
-  try {
-    const parsed = JSON.parse(value)
-    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>
-    }
-  } catch {}
+  const parsed = safeParseJson(value)
+  if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+    return parsed as Record<string, unknown>
+  }
 
   return {}
+}
+
+function safeParseJson(value: string | null): unknown {
+  if (!value) {
+    return null
+  }
+
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
 }
 
 function toCodexTask(task: {

@@ -147,48 +147,21 @@ export function createTaskRunnerService(args: {
     agentType: AgentType
     runtimePolicy: RuntimePolicy
   }) {
-    const runningTask = getRunningTask(args.taskId)
-
-    try {
-      const result = await taskAgentGateway.startSessionAndRun({
-        taskId: args.taskId,
-        projectId: args.projectId,
-        projectPath: args.projectPath,
-        prompt: args.agentPrompt ?? args.prompt,
-        displayPrompt: args.displayPrompt ?? args.prompt,
-        model: args.model,
-        agentType: args.agentType,
-        runtimePolicy: args.runtimePolicy,
-        signal: runningTask?.controller.signal,
-      })
-
-      if (isBreakRequested(args.taskId)) {
-        clearRunningTask(args.taskId)
-        return
-      }
-
-      await finalizeTask({
-        taskId: args.taskId,
-        status: "completed",
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: 0,
-      })
-    } catch (error) {
-      if (isBreakRequested(args.taskId)) {
-        clearRunningTask(args.taskId)
-        return
-      }
-
-      await finalizeTask({
-        taskId: args.taskId,
-        status: "failed",
-        stdout: "",
-        stderr: "",
-        error: String(error),
-        failureCode: "AGENT_RUN_FAILED",
-      })
-    }
+    await runTaskExecution({
+      taskId: args.taskId,
+      run: (signal) =>
+        taskAgentGateway.startSessionAndRun({
+          taskId: args.taskId,
+          projectId: args.projectId,
+          projectPath: args.projectPath,
+          prompt: args.agentPrompt ?? args.prompt,
+          displayPrompt: args.displayPrompt ?? args.prompt,
+          model: args.model,
+          agentType: args.agentType,
+          runtimePolicy: args.runtimePolicy,
+          signal,
+        }),
+    })
   }
 
   async function executeResumedThreadTask(args: {
@@ -202,33 +175,56 @@ export function createTaskRunnerService(args: {
     agentType: AgentType
     runtimePolicy: RuntimePolicy
   }) {
-    const runningTask = getRunningTask(args.taskId)
     const existingTask = await loadTaskOrThrow(args.taskId)
 
+    await runTaskExecution({
+      taskId: args.taskId,
+      run: (signal) =>
+        taskAgentGateway.resumeSessionAndRun({
+          taskId: args.taskId,
+          sessionId: args.threadId,
+          projectId: args.projectId,
+          projectPath: args.projectPath,
+          prompt: args.prompt,
+          displayPrompt: args.displayPrompt ?? args.prompt,
+          model: args.model,
+          agentType: args.agentType,
+          runtimePolicy: args.runtimePolicy,
+          signal,
+        }),
+      mergeOutput: (result) => ({
+        stdout: `${existingTask.stdout}${result.stdout}`,
+        stderr: `${existingTask.stderr}${result.stderr}`,
+      }),
+    })
+  }
+
+  async function runTaskExecution(args: {
+    taskId: string
+    run: (
+      signal: AbortSignal | undefined,
+    ) => Promise<{ stdout: string; stderr: string }>
+    mergeOutput?: (result: { stdout: string; stderr: string }) => {
+      stdout: string
+      stderr: string
+    }
+  }) {
+    const signal = getRunningTask(args.taskId)?.controller.signal
+
     try {
-      const result = await taskAgentGateway.resumeSessionAndRun({
-        taskId: args.taskId,
-        sessionId: args.threadId,
-        projectId: args.projectId,
-        projectPath: args.projectPath,
-        prompt: args.prompt,
-        displayPrompt: args.displayPrompt ?? args.prompt,
-        model: args.model,
-        agentType: args.agentType,
-        runtimePolicy: args.runtimePolicy,
-        signal: runningTask?.controller.signal,
-      })
+      const result = await args.run(signal)
 
       if (isBreakRequested(args.taskId)) {
         clearRunningTask(args.taskId)
         return
       }
 
+      const output = args.mergeOutput?.(result) ?? result
       await finalizeTask({
         taskId: args.taskId,
         status: "completed",
-        stdout: `${existingTask.stdout}${result.stdout}`,
-        stderr: `${existingTask.stderr}${result.stderr}`,
+        stdout: output.stdout,
+        stderr: output.stderr,
         exitCode: 0,
       })
     } catch (error) {

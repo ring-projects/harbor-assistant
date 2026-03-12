@@ -79,7 +79,7 @@ describe("toConversationBlocks", () => {
     })
   })
 
-  it("maps command output into execution blocks", () => {
+  it("maps command output into command group blocks", () => {
     const [block] = toConversationBlocks([
       buildTaskAgentEvent({
         id: "output-1",
@@ -95,15 +95,14 @@ describe("toConversationBlocks", () => {
 
     expect(block).toMatchObject({
       id: "output-1",
-      type: "execution",
-      label: "command.output",
-      content: "bun test\nok",
-      source: "command-1",
-      tone: "neutral",
+      type: "command-group",
+      commandId: "command-1",
+      output: "bun test\nok",
+      status: "running",
     })
   })
 
-  it("maps command completion into execution blocks", () => {
+  it("maps command completion into command group blocks", () => {
     const [block] = toConversationBlocks([
       buildTaskAgentEvent({
         id: "completed-1",
@@ -120,16 +119,15 @@ describe("toConversationBlocks", () => {
 
     expect(block).toEqual({
       id: "completed-1",
-      type: "execution",
-      label: "command.completed",
-      content: "success (exit 0)",
-      source: "command-1",
+      type: "command-group",
+      commandId: "command-1",
+      command: "Command command-1",
+      output: "",
+      startedAt: null,
+      completedAt: "2026-03-11T00:00:00.000Z",
       timestamp: "2026-03-11T00:00:00.000Z",
-      tone: "success",
-      event: expect.objectContaining({
-        id: "completed-1",
-        eventType: "command.completed",
-      }),
+      status: "success",
+      exitCode: 0,
     })
   })
 
