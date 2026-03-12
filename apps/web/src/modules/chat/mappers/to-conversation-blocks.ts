@@ -204,9 +204,15 @@ function eventTone(event: TaskAgentEvent): "neutral" | "error" | "success" {
 export function toConversationBlocks(
   events: TaskAgentEvent[],
 ): ChatConversationBlock[] {
-  return events.flatMap((event) => {
+  const blocks: ChatConversationBlock[] = []
+  const commandGroups = new Map<
+    string,
+    Extract<ChatConversationBlock, { type: "command-group" }>
+  >()
+
+  for (const event of events) {
     if (HIDDEN_EVENT_TYPES.has(event.eventType)) {
-      return []
+      continue
     }
 
     const payload = asRecord(event.payload)
@@ -216,36 +222,99 @@ export function toConversationBlocks(
       const content = eventContent(event)
 
       if (role === "user" || role === "assistant") {
-        return {
+        blocks.push({
           id: event.id,
           type: "message",
           role,
           content,
           timestamp: eventTimestamp(event),
-        } satisfies ChatConversationBlock
+        } satisfies ChatConversationBlock)
+        continue
       }
 
-      return {
+      blocks.push({
         id: event.id,
         type: "event",
         label: toStringOrNull(payload?.source) ?? "message",
         content,
         timestamp: eventTimestamp(event),
         tone: "neutral",
-      } satisfies ChatConversationBlock
+      } satisfies ChatConversationBlock)
+      continue
     }
 
     if (
       event.eventType === "command.started" ||
       event.eventType === "command.output" ||
-      event.eventType === "command.completed" ||
+      event.eventType === "command.completed"
+    ) {
+      const commandId = toStringOrNull(payload?.commandId)
+
+      if (!commandId) {
+        blocks.push({
+          id: event.id,
+          type: "execution",
+          label: event.eventType,
+          content: eventContent(event),
+          timestamp: eventTimestamp(event),
+          tone: executionTone(event),
+          source: executionSource(event),
+          event,
+        } satisfies ChatConversationBlock)
+        continue
+      }
+
+      let group = commandGroups.get(commandId)
+      if (!group) {
+        group = {
+          id: event.id,
+          type: "command-group",
+          commandId,
+          command: toStringOrNull(payload?.command) ?? `Command ${commandId}`,
+          output: "",
+          startedAt: null,
+          completedAt: null,
+          timestamp: eventTimestamp(event),
+          status: "running",
+          exitCode: null,
+        }
+        commandGroups.set(commandId, group)
+        blocks.push(group)
+      }
+
+      if (event.eventType === "command.started") {
+        group.command = toStringOrNull(payload?.command) ?? group.command
+        group.startedAt = eventTimestamp(event)
+        group.timestamp = group.startedAt
+        group.status = "running"
+        continue
+      }
+
+      if (event.eventType === "command.output") {
+        const nextOutput = toStringOrNull(payload?.output) ?? ""
+        if (nextOutput) {
+          group.output = `${group.output}${nextOutput}`
+        }
+        group.timestamp = eventTimestamp(event)
+        continue
+      }
+
+      group.completedAt = eventTimestamp(event)
+      group.timestamp = group.completedAt
+      group.status = toStringOrNull(payload?.status) === "failed" ? "failed" : "success"
+      group.exitCode =
+        typeof payload?.exitCode === "number" ? payload.exitCode : null
+      continue
+    }
+
+    if (
       event.eventType === "web_search.started" ||
       event.eventType === "web_search.completed" ||
       event.eventType === "file_change" ||
       event.eventType === "mcp_tool_call.started" ||
       event.eventType === "mcp_tool_call.completed"
     ) {
-      return {
+      blocks.push({
         id: event.id,
         type: "execution",
         label: event.eventType,
@@ -254,16 +323,19 @@ export function toConversationBlocks(
         tone: executionTone(event),
         source: executionSource(event),
         event,
-      } satisfies ChatConversationBlock
+      } satisfies ChatConversationBlock)
+      continue
     }
 
-    return {
+    blocks.push({
       id: event.id,
       type: "event",
       label: event.eventType,
       content: eventContent(event),
       timestamp: eventTimestamp(event),
       tone: eventTone(event),
-    } satisfies ChatConversationBlock
-  })
+    } satisfies ChatConversationBlock)
+  }
+
+  return blocks
 }

@@ -31,6 +31,18 @@ export type ChatConversationBlock =
     }
   | {
       id: string
+      type: "command-group"
+      commandId: string
+      command: string
+      output: string
+      startedAt: string | null
+      completedAt: string | null
+      timestamp: string | null
+      status: "running" | "success" | "failed"
+      exitCode: number | null
+    }
+  | {
+      id: string
       type: "typing"
       label: string
     }

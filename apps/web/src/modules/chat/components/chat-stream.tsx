@@ -1,6 +1,7 @@
 "use client"
 
 import type { ChatConversationBlock } from "../types"
+import { ChatCommandGroup } from "./chat-command-group"
 import { ChatEvent } from "./chat-event"
 import { ChatExecutionBlock } from "./chat-execution-block"
 import { ChatMessage } from "./chat-message"
@@ -27,6 +28,10 @@ export function ChatStream({ blocks, onOpenExecution }: ChatStreamProps) {
               onOpen={onOpenExecution}
             />
           )
+        }
+
+        if (block.type === "command-group") {
+          return <ChatCommandGroup key={block.id} block={block} />
         }
 
         if (block.type === "typing") {
