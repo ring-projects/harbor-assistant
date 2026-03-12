@@ -55,7 +55,7 @@ const EXECUTION_MODE_OPTIONS = [
   },
   {
     value: "connected",
-    label: "Connected",
+    label: "Normal",
     description: "Write workspace, allow network, live search",
   },
   {
@@ -79,7 +79,9 @@ export function TaskListPanel({
   const projectSettingsQuery = useProjectSettingsQuery(projectId)
   const defaultExecutor = projectSettingsQuery.data?.defaultExecutor ?? "codex"
   const defaultExecutionMode =
-    projectSettingsQuery.data?.defaultExecutionMode ?? "safe"
+    projectSettingsQuery.data?.defaultExecutionMode === "full-access"
+      ? "full-access"
+      : "connected"
   const [isCreateComposerOpen, setIsCreateComposerOpen] = useState(false)
   const [newTaskPrompt, setNewTaskPrompt] = useState("")
   const [newTaskExecutor, setNewTaskExecutor] = useState<string>(defaultExecutor)
@@ -251,7 +253,7 @@ export function TaskListPanel({
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-medium">{option.label}</p>
                           <span className="text-muted-foreground text-[11px] uppercase tracking-wide">
-                            {option.value}
+                            {option.label}
                           </span>
                         </div>
                         <p className="text-muted-foreground pt-1 text-xs">

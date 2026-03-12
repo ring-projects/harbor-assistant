@@ -62,7 +62,7 @@ const EXECUTION_MODE_OPTIONS: Array<{
   },
   {
     value: "connected",
-    label: "Connected",
+    label: "Normal",
     description: "Write workspace, allow network, live search",
   },
   {
@@ -72,11 +72,24 @@ const EXECUTION_MODE_OPTIONS: Array<{
   },
 ]
 
+function formatExecutionModeLabel(value: ProjectExecutionMode | null) {
+  switch (value) {
+    case "safe":
+      return "Safe"
+    case "connected":
+      return "Normal"
+    case "full-access":
+      return "Full Access"
+    default:
+      return "-"
+  }
+}
+
 function toDraft(settings: ProjectSettings): SettingsDraft {
   return {
     defaultExecutor: settings.defaultExecutor ?? "codex",
     defaultModel: settings.defaultModel ?? "",
-    defaultExecutionMode: settings.defaultExecutionMode ?? "safe",
+    defaultExecutionMode: settings.defaultExecutionMode ?? "connected",
     maxConcurrentTasks: String(settings.maxConcurrentTasks),
     logRetentionDays:
       settings.logRetentionDays === null ? "" : String(settings.logRetentionDays),
@@ -237,7 +250,9 @@ export function ProjectSettingsView({
                   </div>
                   <div className="grid gap-1">
                     <dt className="text-muted-foreground text-xs">Execution Mode</dt>
-                    <dd className="font-medium">{summary.defaultExecutionMode}</dd>
+                    <dd className="font-medium">
+                      {formatExecutionModeLabel(summary.defaultExecutionMode)}
+                    </dd>
                   </div>
                   <div className="grid gap-1">
                     <dt className="text-muted-foreground text-xs">Default Model</dt>
@@ -392,7 +407,7 @@ export function ProjectSettingsView({
                             <div className="flex items-center justify-between gap-3">
                               <p className="text-sm font-medium">{option.label}</p>
                               <span className="text-muted-foreground text-[11px] uppercase tracking-wide">
-                                {option.value}
+                                {option.label}
                               </span>
                             </div>
                             <p className="text-muted-foreground pt-1 text-xs">

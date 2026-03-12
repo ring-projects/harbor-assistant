@@ -1,17 +1,33 @@
 "use client"
 
-import { ArrowDownIcon } from "lucide-react"
+import {
+  ArrowDownIcon,
+  BotIcon,
+  GlobeIcon,
+  SearchIcon,
+  ShieldIcon,
+  WifiIcon,
+} from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import {
   TERMINAL_TASK_STATUSES,
   type TaskDetail,
 } from "@/modules/tasks/contracts"
-import { formatExecutorLabel } from "@/modules/tasks/components/task-workbench/shared"
+import {
+  formatExecutionModeLabel,
+  formatExecutorLabel,
+} from "@/modules/tasks/components/task-workbench/shared"
 import {
   useTaskDetailQuery,
   useTaskEventStream,
@@ -76,17 +92,87 @@ function getRunningLabel(detail: TaskDetail | null | undefined) {
   return `${formatExecutorLabel(detail.executor)} is working...`
 }
 
-function formatRuntimePolicySummary(detail: TaskDetail | null | undefined) {
-  if (!detail) {
-    return "Continue the same task conversation and inspect execution feedback."
-  }
+function getRuntimePolicyItems(detail: TaskDetail | null | undefined) {
+  const sandbox = detail?.runtimePolicy?.sandboxMode ?? "workspace-write"
+  const networkEnabled = detail?.runtimePolicy?.networkAccessEnabled ?? false
+  const searchMode = detail?.runtimePolicy?.webSearchMode ?? "disabled"
 
-  const mode = detail.executionMode ? detail.executionMode : "default"
-  const sandbox = detail.runtimePolicy?.sandboxMode ?? "workspace-write"
-  const network = detail.runtimePolicy?.networkAccessEnabled ? "network on" : "network off"
-  const search = detail.runtimePolicy?.webSearchMode ?? "disabled"
+  return [
+    {
+      key: "mode",
+      label: "mode",
+      value: formatExecutionModeLabel(detail?.executionMode),
+      icon: WifiIcon,
+      className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+    },
+    {
+      key: "sandbox",
+      label: "sandbox",
+      value: sandbox,
+      icon: ShieldIcon,
+      className: "border-sky-500/30 bg-sky-500/10 text-sky-700",
+    },
+    {
+      key: "network",
+      label: "network",
+      value: networkEnabled ? "on" : "off",
+      icon: GlobeIcon,
+      className: networkEnabled
+        ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-700"
+        : "border-zinc-500/20 bg-zinc-500/10 text-zinc-500",
+    },
+    {
+      key: "search",
+      label: "search",
+      value: searchMode,
+      icon: SearchIcon,
+      className:
+        searchMode === "disabled"
+          ? "border-zinc-500/20 bg-zinc-500/10 text-zinc-500"
+          : "border-amber-500/30 bg-amber-500/10 text-amber-700",
+    },
+  ] as const
+}
 
-  return `${formatExecutorLabel(detail.executor)} · ${mode} · ${sandbox} · ${network} · search ${search}`
+function RuntimePolicySummary({ detail }: { detail: TaskDetail | null | undefined }) {
+  const executorLabel = detail ? formatExecutorLabel(detail.executor) : "Assistant"
+  const items = getRuntimePolicyItems(detail)
+
+  return (
+    <TooltipProvider>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+          <BotIcon className="size-3.5" />
+          <span>{executorLabel}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {items.map((item) => {
+            const Icon = item.icon
+
+            return (
+              <Tooltip key={item.key}>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "inline-flex size-6 items-center justify-center rounded-full border transition-colors",
+                      item.className,
+                    )}
+                    aria-label={`${item.label}: ${item.value}`}
+                  >
+                    <Icon className="size-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {item.label}: {item.value}
+                </TooltipContent>
+              </Tooltip>
+            )
+          })}
+        </div>
+      </div>
+    </TooltipProvider>
+  )
 }
 
 export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
@@ -164,7 +250,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
     }
 
     return nextBlocks
-  }, [detail?.status, events, visiblePendingPrompt])
+  }, [detail, events, visiblePendingPrompt])
 
   useEffect(() => {
     if (!stickToBottom) {
@@ -256,9 +342,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
         <div className="flex items-start justify-between gap-3 border-b pb-3">
           <div>
             <p className="text-sm font-semibold">Conversation</p>
-            <p className="text-muted-foreground text-xs">
-              {formatRuntimePolicySummary(detail)}
-            </p>
+            <RuntimePolicySummary detail={detail} />
           </div>
 
           <div className="flex items-center gap-2">

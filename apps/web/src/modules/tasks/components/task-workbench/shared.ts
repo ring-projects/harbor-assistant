@@ -95,7 +95,7 @@ export function formatExecutionModeLabel(executionMode: string | null | undefine
     case "safe":
       return "Safe"
     case "connected":
-      return "Connected"
+      return "Normal"
     case "full-access":
       return "Full Access"
     case "custom":
