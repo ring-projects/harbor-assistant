@@ -300,6 +300,7 @@ export class ClaudeCodeAdapter implements IAgent {
         workingDirectory: options.workingDirectory,
         fallbackSessionId: sessionId,
         prompt,
+        displayPrompt: options.displayPrompt,
         env: options.env,
         signal,
       },
@@ -322,6 +323,7 @@ export class ClaudeCodeAdapter implements IAgent {
         workingDirectory: options.workingDirectory,
         fallbackSessionId: sessionId,
         prompt,
+        displayPrompt: options.displayPrompt,
         env: options.env,
         signal,
       },
@@ -338,6 +340,7 @@ export class ClaudeCodeAdapter implements IAgent {
       workingDirectory: string
       fallbackSessionId: string
       prompt: string
+      displayPrompt?: string
       env?: Record<string, string>
       signal?: AbortSignal
     },
@@ -401,7 +404,7 @@ export class ClaudeCodeAdapter implements IAgent {
         pushEvent({
           type: "message",
           role: "user",
-          content: args.prompt,
+          content: args.displayPrompt ?? args.prompt,
           source: "user_prompt",
           timestamp: new Date(),
         })

@@ -10,6 +10,7 @@ export type SessionOptions = {
   workingDirectory: string
   model?: string
   env?: Record<string, string>
+  displayPrompt?: string
   sandboxMode?: "read-only" | "workspace-write" | "danger-full-access"
   approvalPolicy?: "never" | "on-request" | "untrusted"
   networkAccessEnabled?: boolean

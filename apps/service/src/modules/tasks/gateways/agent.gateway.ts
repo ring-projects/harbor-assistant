@@ -12,6 +12,7 @@ type RunTaskArgs = {
   projectId: string
   projectPath: string
   prompt: string
+  displayPrompt?: string
   model: string | null
   agentType?: AgentType
   runtimePolicy: RuntimePolicy
@@ -111,6 +112,7 @@ export function createTaskAgentGateway(args: {
         workingDirectory: args.projectPath,
         model: args.model ?? undefined,
         env: buildHarborSessionEnv(args),
+        displayPrompt: args.displayPrompt,
         ...runtimePolicyToSessionOptions(args.runtimePolicy),
       },
       args.prompt,
@@ -178,6 +180,7 @@ export function createTaskAgentGateway(args: {
         workingDirectory: args.projectPath,
         model: args.model ?? undefined,
         env: buildHarborSessionEnv(args),
+        displayPrompt: args.displayPrompt,
         ...runtimePolicyToSessionOptions(args.runtimePolicy),
       },
       args.prompt,

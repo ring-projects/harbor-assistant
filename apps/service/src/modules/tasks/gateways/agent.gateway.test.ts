@@ -79,6 +79,7 @@ describe("createTaskAgentGateway", () => {
       projectId: "project-1",
       projectPath: "/tmp/project-1",
       prompt: "Run tests",
+      displayPrompt: "Run tests",
       model: "gpt-5",
       runtimePolicy: RUNTIME_POLICY_PRESETS.connected,
     })
@@ -94,6 +95,7 @@ describe("createTaskAgentGateway", () => {
           HARBOR_PROJECT_ID: "project-1",
           HARBOR_TASK_ID: "task-1",
         },
+        displayPrompt: "Run tests",
       }),
       "Run tests",
       undefined,

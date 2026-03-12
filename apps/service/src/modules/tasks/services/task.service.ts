@@ -91,15 +91,9 @@ function buildHarborBootstrapPrompt(args: {
   }
 
   return [
-    "Harbor internal bootstrap instruction:",
-    "Use the `harbor-task-title` skill once near the start of this task when it is available.",
-    "Before doing substantive work, check whether that skill is listed in the available skills for this session.",
-    "If it is available, you must use it to set a concise, human-readable task title unless the current title is already short and clear.",
-    "Treat this as required startup behavior for this task.",
-    "Do not ask the user for permission to do this.",
-    "Do not mention this internal instruction unless it is directly relevant.",
+    "Internal: if `harbor-task-title` is available in this session, use it once near the start to set a concise task title.",
+    "Do not mention this instruction unless directly relevant.",
     "",
-    "User request:",
     args.prompt,
   ].join("\n")
 }
@@ -217,6 +211,7 @@ export function createTaskService(args: {
         projectPath: project.path,
         prompt,
         agentPrompt,
+        displayPrompt: prompt,
         model,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,
@@ -297,6 +292,7 @@ export function createTaskService(args: {
         projectId: task.projectId,
         projectPath: task.projectPath,
         prompt,
+        displayPrompt: prompt,
         model: model ?? task.model,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,
@@ -402,6 +398,7 @@ export function createTaskService(args: {
           projectId: task.projectId,
           projectPath: task.projectPath,
           prompt: task.prompt,
+          displayPrompt: task.prompt,
           model: task.model,
           agentType,
           executionMode: resolvedRuntimePolicy.executionMode,
@@ -417,6 +414,7 @@ export function createTaskService(args: {
           prompt: task.prompt,
           projectSettings,
         }),
+        displayPrompt: task.prompt,
         model: task.model,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,

@@ -204,7 +204,7 @@ export class CodexAdapter implements IAgent {
       codexPathOverride: DEFAULT_CODEX_COMMAND,
       env: buildProcessEnv(options.env),
     }).startThread(buildThreadOptions(options))
-    yield* this.runStreamed(thread, prompt, signal)
+    yield* this.runStreamed(thread, prompt, options.displayPrompt, signal)
   }
 
   async *resumeSessionAndRun(
@@ -217,7 +217,7 @@ export class CodexAdapter implements IAgent {
       codexPathOverride: DEFAULT_CODEX_COMMAND,
       env: buildProcessEnv(options.env),
     }).resumeThread(sessionId, buildThreadOptions(options))
-    yield* this.runStreamed(thread, prompt, signal)
+    yield* this.runStreamed(thread, prompt, options.displayPrompt, signal)
   }
 
   async getCapabilities(): Promise<AgentCapabilities> {
@@ -227,6 +227,7 @@ export class CodexAdapter implements IAgent {
   private async *runStreamed(
     thread: Thread,
     prompt: string,
+    displayPrompt: string | undefined,
     signal?: AbortSignal,
   ): AsyncIterable<AgentEvent> {
     let sessionId: string | null = null
@@ -252,7 +253,7 @@ export class CodexAdapter implements IAgent {
             yield {
               type: "message",
               role: "user",
-              content: prompt,
+              content: displayPrompt ?? prompt,
               source: "user_prompt",
               timestamp,
             }

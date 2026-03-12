@@ -117,8 +117,9 @@ describe("task follow-up", () => {
         projectId: project.id,
         projectPath: project.path,
         prompt: "Use Claude",
+        displayPrompt: "Use Claude",
         agentPrompt: expect.stringContaining(
-          "Use the `harbor-task-title` skill once near the start of this task when it is available.",
+          "Internal: if `harbor-task-title` is available in this session, use it once near the start to set a concise task title.",
         ),
         agentType: "claude-code",
         executionMode: "connected",
@@ -327,7 +328,8 @@ describe("task follow-up", () => {
       expect.objectContaining({
         projectId: project.id,
         prompt: "Use project defaults",
-        agentPrompt: expect.stringContaining("User request:\nUse project defaults"),
+        displayPrompt: "Use project defaults",
+        agentPrompt: expect.stringContaining("Use project defaults"),
         model: "claude-sonnet-4-5",
         agentType: "claude-code",
         executionMode: "full-access",
@@ -394,7 +396,8 @@ describe("task follow-up", () => {
 
     expect(createAndRunTask).toHaveBeenCalledWith(
       expect.objectContaining({
-        agentPrompt: expect.stringContaining("User request:\nUse Harbor skills"),
+        displayPrompt: "Use Harbor skills",
+        agentPrompt: expect.stringContaining("Use Harbor skills"),
         runtimePolicy: {
           sandboxMode: "workspace-write",
           approvalPolicy: "never",
@@ -455,7 +458,8 @@ describe("task follow-up", () => {
       expect.objectContaining({
         projectId: failedTask.projectId,
         parentTaskId: failedTask.id,
-        agentPrompt: expect.stringContaining("User request:\nInitial prompt"),
+        displayPrompt: "Initial prompt",
+        agentPrompt: expect.stringContaining("Initial prompt"),
         runtimePolicy: {
           ...RUNTIME_POLICY_PRESETS.connected,
           additionalDirectories: ["/tmp/harbor-skills"],
