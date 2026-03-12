@@ -4,6 +4,7 @@ import {
   createProjectRepository,
   createProjectSettingsRepository,
 } from "../../project"
+import { createProjectGitWatcher } from "../../git"
 import { createTaskAgentGateway } from "../gateways"
 import { createTaskRepository } from "../repositories"
 import {
@@ -19,6 +20,9 @@ export async function registerTaskModuleRoutes(app: FastifyInstance) {
   const projectSettingsRepository = createProjectSettingsRepository(app.prisma)
   const taskRepository = createTaskRepository(app.prisma)
   const taskEventBus = createTaskEventBus()
+  const projectGitWatcher = createProjectGitWatcher({
+    projectRepository,
+  })
 
   const taskAgentGateway = createTaskAgentGateway({
     taskRepository,
@@ -43,5 +47,6 @@ export async function registerTaskModuleRoutes(app: FastifyInstance) {
     app,
     taskService,
     taskEventBus,
+    projectGitWatcher,
   })
 }

@@ -18,12 +18,16 @@ export type { GitCommandResult, GitRepository } from "./repositories"
 
 export { createGitService } from "./services"
 export { parseUnifiedDiff, readProjectGitDiff } from "./services"
+export { createProjectGitWatcher } from "./services"
 export type {
   CheckoutGitBranchInput,
   CreateGitBranchInput,
   GetGitDiffInput,
   GetGitRepositorySummaryInput,
   GitService,
+  ProjectGitChangeEvent,
+  ProjectGitWatcher,
+  ProjectGitWatcherListener,
   ListGitBranchesInput,
 } from "./services"
 

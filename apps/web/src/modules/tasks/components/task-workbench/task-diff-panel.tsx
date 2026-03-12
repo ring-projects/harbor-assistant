@@ -9,6 +9,7 @@ import {
   type GitDiffFile,
   type GitDiffFileStatus,
   useProjectGitDiffQuery,
+  useProjectGitStream,
 } from "@/modules/git"
 
 import { getErrorMessage } from "./shared"
@@ -148,6 +149,7 @@ function DiffFileContent({ file }: { file: GitDiffFile }) {
 }
 
 export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
+  useProjectGitStream(projectId)
   const diffQuery = useProjectGitDiffQuery(projectId)
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
   const files = useMemo(() => diffQuery.data?.files ?? [], [diffQuery.data?.files])

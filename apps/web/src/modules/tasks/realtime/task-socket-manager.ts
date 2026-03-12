@@ -47,6 +47,11 @@ type TaskEventsItemPayload = {
   event: TaskAgentEvent
 }
 
+type ProjectGitChangedPayload = {
+  projectId: string
+  changedAt: string
+}
+
 type SubscriptionErrorPayload = {
   scope: string
   code: string
@@ -250,11 +255,12 @@ function mergeAgentEvent(
   }
 }
 
-class TaskSocketManager {
+export class TaskSocketManager {
   private socket: Socket | null = null
   private queryClient: QueryClient | null = null
   private initialized = false
   private projectRefs = new Map<string, number>()
+  private projectGitRefs = new Map<string, number>()
   private taskRefs = new Map<string, number>()
   private taskEventsRefs = new Map<string, number>()
 
@@ -324,6 +330,36 @@ class TaskSocketManager {
     }
   }
 
+  subscribeProjectGit(projectId: string) {
+    const normalizedProjectId = projectId.trim()
+    if (!normalizedProjectId) {
+      return () => {}
+    }
+
+    this.ensureSocket()
+    const current = this.projectGitRefs.get(normalizedProjectId) ?? 0
+    this.projectGitRefs.set(normalizedProjectId, current + 1)
+
+    if (current === 0) {
+      this.socket?.emit("subscribe:project-git", {
+        projectId: normalizedProjectId,
+      })
+    }
+
+    return () => {
+      const next = (this.projectGitRefs.get(normalizedProjectId) ?? 1) - 1
+      if (next <= 0) {
+        this.projectGitRefs.delete(normalizedProjectId)
+        this.socket?.emit("unsubscribe:project-git", {
+          projectId: normalizedProjectId,
+        })
+        return
+      }
+
+      this.projectGitRefs.set(normalizedProjectId, next)
+    }
+  }
+
   subscribeTaskEvents(taskId: string) {
     const normalizedTaskId = taskId.trim()
     if (!normalizedTaskId) {
@@ -387,6 +423,9 @@ class TaskSocketManager {
     this.socket.on("connect", () => {
       for (const projectId of this.projectRefs.keys()) {
         this.socket?.emit("subscribe:project", { projectId, limit: 200 })
+      }
+      for (const projectId of this.projectGitRefs.keys()) {
+        this.socket?.emit("subscribe:project-git", { projectId })
       }
       for (const taskId of this.taskRefs.keys()) {
         this.socket?.emit("subscribe:task", { taskId })
@@ -482,6 +521,16 @@ class TaskSocketManager {
         taskQueryKeys.events(payload.taskId),
         (current) => mergeAgentEvent(current, payload.event),
       )
+    })
+
+    this.socket.on("project:git_changed", (payload: ProjectGitChangedPayload) => {
+      if (!this.queryClient || !payload.projectId?.trim()) {
+        return
+      }
+
+      void this.queryClient.invalidateQueries({
+        queryKey: gitQueryKeys.byProject(payload.projectId),
+      })
     })
 
     this.socket.on("subscription:error", (_payload: SubscriptionErrorPayload) => {})

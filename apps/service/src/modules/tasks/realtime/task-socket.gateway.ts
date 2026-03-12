@@ -3,6 +3,7 @@ import type { Server as HttpServer } from "node:http"
 import { Server, type Socket } from "socket.io"
 
 import { toAppError } from "../../../lib/errors/error-response"
+import type { ProjectGitChangeEvent, ProjectGitWatcher } from "../../git"
 import type { TaskEventBus, TaskService, TaskStreamEvent } from "../services"
 import { projectRoom, taskEventsRoom, taskRoom } from "./task-room"
 
@@ -19,6 +20,10 @@ type SubscribeTaskEventsPayload = {
   taskId?: string
   afterSequence?: number
   limit?: number
+}
+
+type SubscribeProjectGitPayload = {
+  projectId?: string
 }
 
 function normalizeLimit(value: number | undefined, fallback: number) {
@@ -65,6 +70,16 @@ function emitStreamEvent(socket: Socket, event: TaskStreamEvent) {
       })
       return
   }
+}
+
+function emitProjectGitChanged(
+  socket: Pick<Socket, "emit">,
+  event: ProjectGitChangeEvent,
+) {
+  socket.emit("project:git_changed", {
+    projectId: event.projectId,
+    changedAt: event.changedAt,
+  })
 }
 
 async function handleProjectSubscription(args: {
@@ -203,6 +218,45 @@ async function handleTaskEventsSubscription(args: {
   }
 }
 
+export async function handleProjectGitSubscription(args: {
+  socket: Pick<Socket, "emit">
+  projectGitWatcher: Pick<ProjectGitWatcher, "subscribe">
+  payload: SubscribeProjectGitPayload
+  unsubscribeProjectGitById: Map<string, () => void>
+}) {
+  const projectId = args.payload.projectId?.trim() ?? ""
+  if (!projectId) {
+    args.socket.emit("subscription:error", {
+      scope: "project-git",
+      code: "INVALID_PROJECT_ID",
+      message: "projectId is required.",
+    })
+    return
+  }
+
+  try {
+    if (!args.unsubscribeProjectGitById.has(projectId)) {
+      const unsubscribe = await args.projectGitWatcher.subscribe(projectId, (event) => {
+        emitProjectGitChanged(args.socket, event)
+      })
+
+      args.unsubscribeProjectGitById.set(projectId, () => {
+        void unsubscribe()
+      })
+    }
+
+    args.socket.emit("project-git:ready", { projectId })
+  } catch (error) {
+    const appError = toAppError(error)
+    args.socket.emit("subscription:error", {
+      scope: "project-git",
+      projectId,
+      code: appError.code,
+      message: appError.message,
+    })
+  }
+}
+
 export function createTaskSocketGateway(args: {
   app: FastifyInstance
   taskService: Pick<
@@ -210,6 +264,7 @@ export function createTaskSocketGateway(args: {
     "getTaskDetail" | "getTaskEvents" | "listProjectTasks"
   >
   taskEventBus: Pick<TaskEventBus, "subscribe" | "subscribeProject">
+  projectGitWatcher: Pick<ProjectGitWatcher, "close" | "subscribe">
 }) {
   const io = new Server(args.app.server as HttpServer, {
     path: "/socket.io",
@@ -221,6 +276,7 @@ export function createTaskSocketGateway(args: {
 
   io.on("connection", (socket) => {
     const unsubscribeProjectById = new Map<string, () => void>()
+    const unsubscribeProjectGitById = new Map<string, () => void>()
     const unsubscribeTaskById = new Map<string, () => void>()
     const unsubscribeTaskEventsById = new Map<string, () => void>()
 
@@ -254,6 +310,26 @@ export function createTaskSocketGateway(args: {
       unsubscribeProjectById.get(projectId)?.()
       unsubscribeProjectById.delete(projectId)
       socket.emit("project:unsubscribed", { projectId })
+    })
+
+    socket.on("subscribe:project-git", (payload: SubscribeProjectGitPayload = {}) => {
+      void handleProjectGitSubscription({
+        socket,
+        projectGitWatcher: args.projectGitWatcher,
+        payload,
+        unsubscribeProjectGitById,
+      })
+    })
+
+    socket.on("unsubscribe:project-git", (payload: SubscribeProjectGitPayload = {}) => {
+      const projectId = payload.projectId?.trim() ?? ""
+      if (!projectId) {
+        return
+      }
+
+      unsubscribeProjectGitById.get(projectId)?.()
+      unsubscribeProjectGitById.delete(projectId)
+      socket.emit("project-git:unsubscribed", { projectId })
     })
 
     socket.on("subscribe:task", (payload: SubscribeTaskPayload = {}) => {
@@ -330,16 +406,21 @@ export function createTaskSocketGateway(args: {
       for (const unsubscribe of unsubscribeTaskById.values()) {
         unsubscribe()
       }
+      for (const unsubscribe of unsubscribeProjectGitById.values()) {
+        unsubscribe()
+      }
       for (const unsubscribe of unsubscribeTaskEventsById.values()) {
         unsubscribe()
       }
       unsubscribeProjectById.clear()
+      unsubscribeProjectGitById.clear()
       unsubscribeTaskById.clear()
       unsubscribeTaskEventsById.clear()
     })
   })
 
   args.app.addHook("onClose", async () => {
+    await args.projectGitWatcher.close()
     await io.close()
   })
 
