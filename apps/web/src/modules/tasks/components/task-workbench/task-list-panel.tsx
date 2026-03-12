@@ -31,7 +31,6 @@ import {
   getErrorMessage,
   getPromptSummary,
   STATUS_META,
-  truncateTaskId,
 } from "./shared"
 
 const EXECUTOR_OPTIONS = [
@@ -162,7 +161,7 @@ export function TaskListPanel({
           <div>
             <p className="text-sm font-semibold">Task List</p>
             <p className="text-muted-foreground text-xs">
-              新建任务会按所选执行器开启一个新的 agent session
+              Create and revisit tasks for the selected executor.
             </p>
           </div>
 
@@ -341,8 +340,7 @@ export function TaskListPanel({
                         : "hover:border-muted-foreground/40",
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-mono text-xs">{truncateTaskId(task.taskId)}</p>
+                    <div className="flex items-center justify-end gap-2">
                       <span
                         className={cn(
                           "inline-flex rounded-full border px-2 py-0.5 text-[11px]",

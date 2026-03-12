@@ -1,7 +1,7 @@
 "use client"
 
 import { SendHorizonalIcon } from "lucide-react"
-import type { KeyboardEvent } from "react"
+import { useRef, type CompositionEvent, type KeyboardEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -19,8 +19,31 @@ type ChatComposerProps = {
 }
 
 export function ChatComposer(props: ChatComposerProps) {
+  const isComposingRef = useRef(false)
+
+  function handleCompositionStart() {
+    isComposingRef.current = true
+  }
+
+  function handleCompositionEnd(_event: CompositionEvent<HTMLTextAreaElement>) {
+    isComposingRef.current = false
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    const nativeEvent = event.nativeEvent as KeyboardEvent<HTMLTextAreaElement>["nativeEvent"] & {
+      isComposing?: boolean
+      keyCode?: number
+    }
+    const isImeConfirming =
+      isComposingRef.current ||
+      nativeEvent.isComposing === true ||
+      nativeEvent.keyCode === 229
+
     if (event.key === "Enter" && !event.shiftKey) {
+      if (isImeConfirming) {
+        return
+      }
+
       event.preventDefault()
       if (props.canSubmit && !props.isSubmitting) {
         props.onSubmit()
@@ -33,6 +56,8 @@ export function ChatComposer(props: ChatComposerProps) {
       <Textarea
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
         onKeyDown={handleKeyDown}
         placeholder={props.placeholder}
         disabled={props.inputDisabled || props.isSubmitting}

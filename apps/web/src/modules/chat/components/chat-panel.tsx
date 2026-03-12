@@ -24,7 +24,7 @@ import type { ChatConversationBlock } from "../types"
 import { ChatComposer } from "./chat-composer"
 import { ChatExecutionDrawer } from "./chat-execution-drawer"
 import { ChatStream } from "./chat-stream"
-import { CHAT_STATUS_META, truncateThreadId } from "./shared"
+import { CHAT_STATUS_META } from "./shared"
 
 type ChatPanelProps = {
   projectId: string
@@ -283,12 +283,6 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                 )}
               >
                 {CHAT_STATUS_META[detail.status].label}
-              </span>
-            ) : null}
-
-            {detail?.threadId ? (
-              <span className="text-muted-foreground rounded-full border px-2 py-0.5 font-mono text-[11px]">
-                {truncateThreadId(detail.threadId)}
               </span>
             ) : null}
           </div>

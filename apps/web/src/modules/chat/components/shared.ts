@@ -47,11 +47,3 @@ export function formatChatTimestamp(value: string | null) {
     minute: "2-digit",
   })
 }
-
-export function truncateThreadId(threadId: string) {
-  if (threadId.length <= 16) {
-    return threadId
-  }
-
-  return `${threadId.slice(0, 8)}...${threadId.slice(-4)}`
-}

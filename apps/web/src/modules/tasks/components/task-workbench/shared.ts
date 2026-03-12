@@ -48,18 +48,6 @@ export function formatDateTime(value: string | null) {
   })
 }
 
-export function truncateTaskId(taskId: string | null | undefined) {
-  if (!taskId) {
-    return "-"
-  }
-
-  if (taskId.length <= 14) {
-    return taskId
-  }
-
-  return `${taskId.slice(0, 8)}...${taskId.slice(-4)}`
-}
-
 export function getPromptSummary(prompt: string) {
   const summary = prompt.split("\n").find((line) => line.trim().length > 0) ?? prompt
   if (!summary) {
