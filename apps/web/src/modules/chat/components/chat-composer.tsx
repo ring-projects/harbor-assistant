@@ -78,7 +78,7 @@ export function ChatComposer(props: ChatComposerProps) {
           disabled={!props.canSubmit || props.isSubmitting}
         >
           <SendHorizonalIcon className="size-4" />
-          {props.isSubmitting ? "发送中..." : "发送"}
+          {props.isSubmitting ? "Sending..." : "Send"}
         </Button>
       </div>
     </div>

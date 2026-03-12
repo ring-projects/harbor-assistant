@@ -206,7 +206,7 @@ export function ProjectSettingsView({
             </span>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
-            定义 project 级别的默认执行器、运行模式与保留策略。
+            Define project-level defaults for executor selection, execution mode, and retention policies.
           </p>
         </div>
 
@@ -224,7 +224,7 @@ export function ProjectSettingsView({
             <Card className="p-4">
               <p className="text-sm font-semibold">Settings Scope</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                新 task 默认会继承这里的 executor 和 execution mode，除非创建时显式覆盖。
+                New tasks inherit the default executor and execution mode from here unless they are explicitly overridden at creation time.
               </p>
 
               <Separator className="my-4" />
@@ -278,7 +278,7 @@ export function ProjectSettingsView({
             <Card className="p-4">
               <p className="text-sm font-semibold">Runtime Strategy</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                当前默认走预授权模式，不以运行中审批为主路径。这里保存的是 project 级别基线。
+                The current default uses a pre-authorized runtime flow instead of in-run approval as the primary path. These values are the project-level baseline.
               </p>
             </Card>
           </aside>
@@ -345,7 +345,7 @@ export function ProjectSettingsView({
 
                   <SettingsField
                     label="Default Model"
-                    description="新任务默认模型。留空则让 runtime 使用各自默认模型。"
+                    description="Default model for new tasks. Leave empty to let each runtime use its own default."
                     value={draft.defaultModel}
                     onChange={(value) => {
                       setSaveError(null)
@@ -406,7 +406,7 @@ export function ProjectSettingsView({
 
                   <SettingsField
                     label="Max Concurrent Tasks"
-                    description="限制当前 project 同时并发执行的任务数量。"
+                    description="Limit how many tasks can run concurrently for the current project."
                     value={draft.maxConcurrentTasks}
                     onChange={(value) => {
                       setSaveError(null)
@@ -424,7 +424,7 @@ export function ProjectSettingsView({
                   <div className="grid gap-4 lg:grid-cols-2">
                     <SettingsField
                       label="Log Retention Days"
-                      description="stdout / stderr 聚合内容保留天数，空值表示不限制。"
+                      description="How many days to retain aggregated stdout and stderr content. Leave empty for no limit."
                       value={draft.logRetentionDays}
                       onChange={(value) => {
                         setSaveError(null)
@@ -438,7 +438,7 @@ export function ProjectSettingsView({
                     />
                     <SettingsField
                       label="Event Retention Days"
-                      description="agent event 留存天数，空值表示不限制。"
+                      description="How many days to retain agent events. Leave empty for no limit."
                       value={draft.eventRetentionDays}
                       onChange={(value) => {
                         setSaveError(null)
@@ -463,7 +463,7 @@ export function ProjectSettingsView({
       <div className="flex items-center justify-between border-t px-5 py-3">
         <div className="grid gap-1">
           <p className="text-muted-foreground text-xs">
-            {hasChanges ? "当前有未保存修改。" : "当前配置已与后端同步。"}
+            {hasChanges ? "You have unsaved changes." : "Settings are synced with the backend."}
           </p>
           {saveError ? (
             <p className="text-xs text-red-600">{saveError}</p>

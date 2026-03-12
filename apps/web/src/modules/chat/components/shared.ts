@@ -1,5 +1,6 @@
 "use client"
 
+import { formatTimeShort } from "@/lib/date-time"
 import type { TaskStatus } from "@/modules/tasks/contracts"
 
 export const CHAT_STATUS_META: Record<
@@ -32,18 +33,5 @@ export const CHAT_STATUS_META: Record<
 }
 
 export function formatChatTimestamp(value: string | null) {
-  if (!value) {
-    return "-"
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return "-"
-  }
-
-  return parsed.toLocaleTimeString("zh-CN", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+  return formatTimeShort(value)
 }

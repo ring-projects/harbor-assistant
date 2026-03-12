@@ -37,7 +37,7 @@ function getErrorMessage(error: unknown) {
     return error.message
   }
 
-  return "加载失败，请重试。"
+  return "Failed to load. Please try again."
 }
 
 function canFollowup(detail: TaskDetail | null | undefined) {
@@ -50,19 +50,19 @@ function canFollowup(detail: TaskDetail | null | undefined) {
 
 function helperText(detail: TaskDetail | null | undefined, taskId: string | null) {
   if (!taskId) {
-    return "先从左侧选择一个 task。"
+    return "Select a task from the left to begin."
   }
 
   if (!detail) {
-    return "加载当前会话信息..."
+    return "Loading task session details..."
   }
 
   if (!detail.threadId) {
-    return "等待 thread 初始化完成后，才能继续对话。"
+    return "Wait for the thread to initialize before continuing the conversation."
   }
 
   if (!TERMINAL_TASK_STATUSES.includes(detail.status)) {
-    return "当前 task 正在运行，等待回复完成后再继续。"
+    return "This task is still running. Wait for the current reply to finish."
   }
 
   return ""
@@ -78,7 +78,7 @@ function getRunningLabel(detail: TaskDetail | null | undefined) {
 
 function formatRuntimePolicySummary(detail: TaskDetail | null | undefined) {
   if (!detail) {
-    return "在同一个 task 中持续对话，并查看执行反馈。"
+    return "Continue the same task conversation and inspect execution feedback."
   }
 
   const mode = detail.executionMode ? detail.executionMode : "default"
@@ -292,7 +292,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
 
         {!taskId ? (
           <div className="text-muted-foreground flex min-h-0 items-center justify-center rounded-xl border border-dashed text-sm">
-            请选择左侧 task 开始查看对话。
+            Select a task from the left to view the conversation.
           </div>
         ) : null}
 
@@ -321,7 +321,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
               >
                 {blocks.length === 0 ? (
                   <div className="text-muted-foreground flex min-h-full items-center justify-center text-sm">
-                    当前会话还没有可显示的消息。
+                    No messages are available for this conversation yet.
                   </div>
                 ) : (
                   <ChatStream blocks={blocks} onOpenExecution={openExecutionDrawer} />
@@ -347,7 +347,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                     }}
                   >
                     <ArrowDownIcon className="size-4" />
-                    回到底部
+                    Jump to latest
                   </Button>
                 </div>
               ) : null}
@@ -366,7 +366,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                 helperText={
                   isBreaking ? "Stopping current turn..." : helperText(detail, taskId)
                 }
-                placeholder={taskId ? "继续这段对话…" : "请先选择 task"}
+                placeholder={taskId ? "Continue this conversation..." : "Select a task first"}
                 value={draft}
                 errorMessage={
                   breakTurnMutation.isError

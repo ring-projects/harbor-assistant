@@ -61,7 +61,7 @@ export function ChatExecutionBlock({ block, onOpen }: ChatExecutionBlockProps) {
             {preview}
           </pre>
           <p className="text-muted-foreground mt-2 text-[11px]">
-            在右侧抽屉中查看完整内容
+            Open the drawer on the right to view the full output
           </p>
         </div>
       </button>
