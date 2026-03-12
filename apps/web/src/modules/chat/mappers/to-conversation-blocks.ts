@@ -50,6 +50,70 @@ function formatCommandCompleted(payload: Record<string, unknown> | null) {
   return exitCode ? `${status} (exit ${exitCode})` : status
 }
 
+function stringifyPretty(value: unknown) {
+  if (typeof value === "string") {
+    return value
+  }
+
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function formatFileChanges(payload: Record<string, unknown> | null) {
+  const status = toStringOrNull(payload?.status) ?? "unknown"
+  const changes = Array.isArray(payload?.changes) ? payload.changes : []
+  const lines = changes
+    .map((item) => {
+      const source = asRecord(item)
+      if (!source) {
+        return null
+      }
+
+      const kind = toStringOrNull(source.kind) ?? "update"
+      const path = toStringOrNull(source.path)
+      if (!path) {
+        return null
+      }
+
+      return `${kind} ${path}`
+    })
+    .filter((line): line is string => Boolean(line))
+
+  return [status, ...lines].join("\n")
+}
+
+function formatMcpToolCall(payload: Record<string, unknown> | null) {
+  const server = toStringOrNull(payload?.server) ?? "mcp"
+  const tool = toStringOrNull(payload?.tool) ?? "tool"
+  const status = toStringOrNull(payload?.status)
+  const args = payload?.arguments
+  const result = payload?.result
+  const error = toStringOrNull(payload?.error)
+
+  const sections = [`${server}.${tool}`]
+
+  if (status) {
+    sections.push(`status: ${status}`)
+  }
+
+  if (args !== undefined) {
+    sections.push(`arguments:\n${stringifyPretty(args)}`)
+  }
+
+  if (result !== undefined) {
+    sections.push(`result:\n${stringifyPretty(result)}`)
+  }
+
+  if (error) {
+    sections.push(`error:\n${error}`)
+  }
+
+  return sections.join("\n\n")
+}
+
 function eventContent(event: TaskAgentEvent) {
   const payload = asRecord(event.payload)
 
@@ -62,6 +126,14 @@ function eventContent(event: TaskAgentEvent) {
       return toStringOrNull(payload?.output) ?? "(empty)"
     case "command.completed":
       return formatCommandCompleted(payload)
+    case "web_search.started":
+    case "web_search.completed":
+      return toStringOrNull(payload?.query) ?? "(empty)"
+    case "file_change":
+      return formatFileChanges(payload) || "(empty)"
+    case "mcp_tool_call.started":
+    case "mcp_tool_call.completed":
+      return formatMcpToolCall(payload)
     case "reasoning":
       return toStringOrNull(payload?.content) ?? "(empty)"
     case "todo_list":
@@ -79,11 +151,33 @@ function eventContent(event: TaskAgentEvent) {
 
 function executionSource(event: TaskAgentEvent) {
   const payload = asRecord(event.payload)
-  return toStringOrNull(payload?.commandId)
+  switch (event.eventType) {
+    case "command.started":
+    case "command.output":
+    case "command.completed":
+      return toStringOrNull(payload?.commandId)
+    case "web_search.started":
+    case "web_search.completed":
+      return toStringOrNull(payload?.searchId)
+    case "file_change":
+      return toStringOrNull(payload?.changeId)
+    case "mcp_tool_call.started":
+    case "mcp_tool_call.completed": {
+      const server = toStringOrNull(payload?.server)
+      const tool = toStringOrNull(payload?.tool)
+      return server && tool ? `${server}.${tool}` : toStringOrNull(payload?.callId)
+    }
+    default:
+      return null
+  }
 }
 
 function executionTone(event: TaskAgentEvent): "neutral" | "error" | "success" {
-  if (event.eventType === "command.completed") {
+  if (
+    event.eventType === "command.completed" ||
+    event.eventType === "file_change" ||
+    event.eventType === "mcp_tool_call.completed"
+  ) {
     const payload = asRecord(event.payload)
     const status = toStringOrNull(payload?.status)
     return status === "failed" ? "error" : "success"
@@ -132,7 +226,13 @@ export function toConversationBlocks(
 
     if (
       event.eventType === "command.started" ||
-      event.eventType === "command.output"
+      event.eventType === "command.output" ||
+      event.eventType === "command.completed" ||
+      event.eventType === "web_search.started" ||
+      event.eventType === "web_search.completed" ||
+      event.eventType === "file_change" ||
+      event.eventType === "mcp_tool_call.started" ||
+      event.eventType === "mcp_tool_call.completed"
     ) {
       return {
         id: event.id,

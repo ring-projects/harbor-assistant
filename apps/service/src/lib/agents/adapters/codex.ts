@@ -1,6 +1,5 @@
 import {
   Codex,
-  type CommandExecutionItem,
   type Thread,
   type ThreadEvent,
   type ThreadItem,
@@ -55,7 +54,7 @@ function formatTodoList(item: Extract<ThreadItem, { type: "todo_list" }>) {
 /**
  * Convert Codex ThreadItem to AgentEvent
  */
-function convertThreadItemToEvent(
+export function convertThreadItemToEvent(
   eventType: ThreadEvent["type"],
   item: ThreadItem,
 ): AgentEvent | null {
@@ -103,6 +102,68 @@ function convertThreadItemToEvent(
         return {
           type: "error",
           message: item.message,
+          timestamp,
+        }
+      }
+      return null
+
+    case "web_search":
+      if (eventType === "item.started") {
+        return {
+          type: "web_search.started",
+          searchId: item.id,
+          query: item.query,
+          timestamp,
+        }
+      }
+
+      if (eventType === "item.completed") {
+        return {
+          type: "web_search.completed",
+          searchId: item.id,
+          query: item.query,
+          timestamp,
+        }
+      }
+      return null
+
+    case "file_change":
+      if (eventType === "item.completed") {
+        return {
+          type: "file_change",
+          changeId: item.id,
+          status: item.status === "completed" ? "success" : "failed",
+          changes: item.changes.map((change) => ({
+            path: change.path,
+            kind: change.kind,
+          })),
+          timestamp,
+        }
+      }
+      return null
+
+    case "mcp_tool_call":
+      if (eventType === "item.started") {
+        return {
+          type: "mcp_tool_call.started",
+          callId: item.id,
+          server: item.server,
+          tool: item.tool,
+          arguments: item.arguments,
+          timestamp,
+        }
+      }
+
+      if (eventType === "item.completed") {
+        return {
+          type: "mcp_tool_call.completed",
+          callId: item.id,
+          server: item.server,
+          tool: item.tool,
+          arguments: item.arguments,
+          result: item.result,
+          error: item.error?.message,
+          status: item.status === "completed" ? "success" : "failed",
           timestamp,
         }
       }

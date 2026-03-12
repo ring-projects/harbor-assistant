@@ -110,6 +110,11 @@ All agent adapters emit unified `AgentEvent` types:
 - `command.started` - Command execution started
 - `command.output` - Command output
 - `command.completed` - Command execution completed
+- `web_search.started` - Web search started
+- `web_search.completed` - Web search completed
+- `file_change` - File patch/change set applied
+- `mcp_tool_call.started` - MCP tool call started
+- `mcp_tool_call.completed` - MCP tool call completed
 - `reasoning` - Reasoning process
 - `todo_list` - TODO list
 - `error` - Error

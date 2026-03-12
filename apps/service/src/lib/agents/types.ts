@@ -67,6 +67,47 @@ export type AgentEvent =
       timestamp: Date
     }
   | {
+      type: "web_search.started"
+      searchId: string
+      query: string
+      timestamp: Date
+    }
+  | {
+      type: "web_search.completed"
+      searchId: string
+      query: string
+      timestamp: Date
+    }
+  | {
+      type: "file_change"
+      changeId: string
+      status: "success" | "failed"
+      changes: Array<{
+        path: string
+        kind: "add" | "delete" | "update"
+      }>
+      timestamp: Date
+    }
+  | {
+      type: "mcp_tool_call.started"
+      callId: string
+      server: string
+      tool: string
+      arguments: unknown
+      timestamp: Date
+    }
+  | {
+      type: "mcp_tool_call.completed"
+      callId: string
+      server: string
+      tool: string
+      status: "success" | "failed"
+      arguments: unknown
+      result?: unknown
+      error?: string
+      timestamp: Date
+    }
+  | {
       type: "reasoning"
       content: string
       timestamp: Date

@@ -72,7 +72,7 @@ describe("toConversationBlocks", () => {
     })
   })
 
-  it("maps command completion into event blocks", () => {
+  it("maps command completion into execution blocks", () => {
     const [block] = toConversationBlocks([
       buildTaskAgentEvent({
         id: "completed-1",
@@ -89,11 +89,92 @@ describe("toConversationBlocks", () => {
 
     expect(block).toEqual({
       id: "completed-1",
-      type: "event",
+      type: "execution",
       label: "command.completed",
       content: "success (exit 0)",
+      source: "command-1",
       timestamp: "2026-03-11T00:00:00.000Z",
+      tone: "success",
+      event: expect.objectContaining({
+        id: "completed-1",
+        eventType: "command.completed",
+      }),
+    })
+  })
+
+  it("maps web search into execution blocks", () => {
+    const [block] = toConversationBlocks([
+      buildTaskAgentEvent({
+        id: "search-1",
+        eventType: "web_search.started",
+        payload: {
+          type: "web_search.started",
+          searchId: "search-1",
+          query: "codex sdk events",
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+    ])
+
+    expect(block).toMatchObject({
+      id: "search-1",
+      type: "execution",
+      label: "web_search.started",
+      content: "codex sdk events",
+      source: "search-1",
       tone: "neutral",
+    })
+  })
+
+  it("maps file changes and MCP tool calls into execution blocks", () => {
+    const blocks = toConversationBlocks([
+      buildTaskAgentEvent({
+        id: "file-change-1",
+        eventType: "file_change",
+        payload: {
+          type: "file_change",
+          changeId: "patch-1",
+          status: "success",
+          changes: [
+            {
+              path: "src/app.ts",
+              kind: "update",
+            },
+          ],
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+      buildTaskAgentEvent({
+        id: "mcp-1",
+        eventType: "mcp_tool_call.completed",
+        payload: {
+          type: "mcp_tool_call.completed",
+          callId: "mcp-1",
+          server: "context7",
+          tool: "query-docs",
+          status: "failed",
+          arguments: {
+            libraryId: "/openai/codex",
+          },
+          error: "tool failed",
+          timestamp: "2026-03-11T00:00:01.000Z",
+        },
+      }),
+    ])
+
+    expect(blocks[0]).toMatchObject({
+      id: "file-change-1",
+      type: "execution",
+      label: "file_change",
+      source: "patch-1",
+      tone: "success",
+    })
+    expect(blocks[1]).toMatchObject({
+      id: "mcp-1",
+      type: "execution",
+      label: "mcp_tool_call.completed",
+      source: "context7.query-docs",
+      tone: "error",
     })
   })
 
