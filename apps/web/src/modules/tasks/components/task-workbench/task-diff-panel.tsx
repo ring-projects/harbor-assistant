@@ -1,9 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Diff, Hunk, parseDiff, type DiffType } from "react-diff-view"
+import { Diff, Hunk, parseDiff, type DiffType, type ViewType } from "react-diff-view"
 
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
   type GitDiffFile,
@@ -55,7 +56,8 @@ const DIFF_STATUS_META: Record<
   },
 }
 
-function DiffFileContent({ file }: { file: GitDiffFile }) {
+function DiffFileContent(args: { file: GitDiffFile; viewType: ViewType }) {
+  const { file, viewType } = args
   const parsedFile = useMemo(() => {
     if (!file.patch.trim()) {
       return null
@@ -96,7 +98,7 @@ function DiffFileContent({ file }: { file: GitDiffFile }) {
     <div className="overflow-auto rounded-md border bg-background">
       <div className="min-w-[680px]">
         <Diff
-          viewType="split"
+          viewType={viewType}
           diffType={parsedFile.type as DiffType}
           hunks={parsedFile.hunks}
           gutterType="default"
@@ -113,6 +115,7 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
   useProjectGitStream(projectId)
   const diffQuery = useProjectGitDiffQuery(projectId)
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
+  const [viewType, setViewType] = useState<ViewType>("unified")
   const files = useMemo(() => diffQuery.data?.files ?? [], [diffQuery.data?.files])
   const resolvedSelectedFilePath = useMemo(() => {
     if (files.length === 0) {
@@ -149,16 +152,38 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">Diff</p>
-            <p className="text-muted-foreground text-xs">Git diff preview for the current project workspace</p>
+            <p className="text-muted-foreground text-xs">
+              Git diff preview for the current project workspace
+            </p>
           </div>
 
-          {files.length > 0 ? (
-            <div className="text-muted-foreground flex items-center gap-3 text-[11px]">
-              <span>{files.length} files</span>
-              <span className="text-emerald-700">+{totalAdditions}</span>
-              <span className="text-rose-700">-{totalDeletions}</span>
-            </div>
-          ) : null}
+          <div className="flex items-center gap-3">
+            {files.length > 0 ? (
+              <div className="text-muted-foreground flex items-center gap-3 text-[11px]">
+                <span>{files.length} files</span>
+                <span className="text-emerald-700">+{totalAdditions}</span>
+                <span className="text-rose-700">-{totalDeletions}</span>
+              </div>
+            ) : null}
+
+            <Tabs
+              value={viewType}
+              onValueChange={(value) => {
+                if (value === "split" || value === "unified") {
+                  setViewType(value)
+                }
+              }}
+            >
+              <TabsList className="h-8">
+                <TabsTrigger value="unified" className="px-3 text-[11px]">
+                  Unified
+                </TabsTrigger>
+                <TabsTrigger value="split" className="px-3 text-[11px]">
+                  Split
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
         {diffQuery.isLoading ? (
@@ -253,7 +278,7 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
                   </div>
 
                   <div className="min-h-0 flex-1">
-                    <DiffFileContent file={selectedFile} />
+                    <DiffFileContent file={selectedFile} viewType={viewType} />
                   </div>
                 </div>
               </div>
