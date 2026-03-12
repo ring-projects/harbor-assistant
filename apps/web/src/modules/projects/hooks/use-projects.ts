@@ -59,10 +59,12 @@ class ProjectApiClientError extends Error {
   }
 }
 
-async function parseProjectApiResponse(response: Response) {
+async function parseProjectApiResponse<T extends { ok: boolean; error?: ProjectApiResult["error"] }>(
+  response: Response,
+) {
   const payload = (await response
     .json()
-    .catch(() => null)) as ProjectApiResult | null
+    .catch(() => null)) as T | null
 
   if (!payload) {
     throw new ProjectApiClientError("Server returned invalid JSON response.", {
@@ -88,7 +90,7 @@ async function fetchProjects() {
     method: "GET",
     cache: "no-store",
   })
-  const payload = await parseProjectApiResponse(response)
+  const payload = await parseProjectApiResponse<ProjectApiResult>(response)
   return payload.projects
 }
 
@@ -100,7 +102,7 @@ async function createProject(input: CreateProjectInput) {
     },
     body: JSON.stringify(input),
   })
-  const payload = await parseProjectApiResponse(response)
+  const payload = await parseProjectApiResponse<ProjectApiResult>(response)
   return payload.projects
 }
 
@@ -115,7 +117,7 @@ async function updateProject(input: UpdateProjectInput) {
       name: input.name,
     }),
   })
-  const payload = await parseProjectApiResponse(response)
+  const payload = await parseProjectApiResponse<ProjectApiResult>(response)
   return payload.projects
 }
 
@@ -123,7 +125,7 @@ async function deleteProject(projectId: string) {
   const response = await fetch(getProjectByIdApiRoute(projectId), {
     method: "DELETE",
   })
-  const payload = await parseProjectApiResponse(response)
+  const payload = await parseProjectApiResponse<ProjectApiResult>(response)
   return payload.projects
 }
 
@@ -132,9 +134,7 @@ async function fetchProjectSettings(projectId: string) {
     method: "GET",
     cache: "no-store",
   })
-  const payload = (await parseProjectApiResponse(
-    response,
-  )) as ProjectSettingsApiResult
+  const payload = await parseProjectApiResponse<ProjectSettingsApiResult>(response)
   return payload.settings
 }
 
@@ -153,9 +153,7 @@ async function updateProjectSettings(input: UpdateProjectSettingsInput) {
       eventRetentionDays: input.eventRetentionDays,
     }),
   })
-  const payload = (await parseProjectApiResponse(
-    response,
-  )) as ProjectSettingsApiResult
+  const payload = await parseProjectApiResponse<ProjectSettingsApiResult>(response)
   return payload.settings
 }
 
