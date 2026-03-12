@@ -111,6 +111,7 @@ export function createTaskRunnerService(args: {
     projectId: string
     projectPath: string
     prompt: string
+    agentPrompt?: string
     model: string | null
     agentType: AgentType
     runtimePolicy: RuntimePolicy
@@ -122,7 +123,7 @@ export function createTaskRunnerService(args: {
         taskId: args.taskId,
         projectId: args.projectId,
         projectPath: args.projectPath,
-        prompt: args.prompt,
+        prompt: args.agentPrompt ?? args.prompt,
         model: args.model,
         agentType: args.agentType,
         runtimePolicy: args.runtimePolicy,
@@ -217,6 +218,7 @@ export function createTaskRunnerService(args: {
     projectId: string
     projectPath: string
     prompt: string
+    agentPrompt?: string
     model: string | null
     agentType: AgentType
     executionMode: RuntimeExecutionMode
@@ -256,6 +258,7 @@ export function createTaskRunnerService(args: {
       projectId: input.projectId,
       projectPath: input.projectPath,
       prompt: input.prompt,
+      agentPrompt: input.agentPrompt,
       model: input.model,
       agentType: input.agentType,
       runtimePolicy: input.runtimePolicy,

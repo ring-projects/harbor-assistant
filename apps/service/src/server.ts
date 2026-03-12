@@ -1,8 +1,17 @@
 import { buildServiceApp } from "./app"
 import { loadServiceConfig } from "./config"
+import { ensureServiceDatabaseInitialized } from "./lib/database-init"
 
 async function run() {
   const config = await loadServiceConfig()
+  const databaseInit = await ensureServiceDatabaseInitialized({
+    databaseUrl: config.database,
+  })
+  if (databaseInit.action !== "ready" && databaseInit.action !== "skipped-non-sqlite") {
+    console.info(
+      `[harbor:db-init] ${databaseInit.action} (${databaseInit.sqliteFilePath})`,
+    )
+  }
   const app = await buildServiceApp(config)
 
   const closeApp = async () => {

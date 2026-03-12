@@ -85,7 +85,7 @@ export const DEFAULT_APP_CONFIG = {
   },
   task: {
     dataFile: "data/tasks.json",
-    databaseFile: "data/tasks.sqlite",
+    databaseFile: "data/harbor.sqlite",
   },
 }
 

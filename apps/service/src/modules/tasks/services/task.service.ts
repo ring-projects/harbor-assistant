@@ -82,6 +82,28 @@ function ensureSupportedAgent(agentType: string): asserts agentType is AgentType
   }
 }
 
+function buildHarborBootstrapPrompt(args: {
+  prompt: string
+  projectSettings: ProjectSettings | null
+}) {
+  if (!args.projectSettings?.harborSkillsEnabled) {
+    return args.prompt
+  }
+
+  return [
+    "Harbor internal bootstrap instruction:",
+    "Use the `harbor-task-title` skill once near the start of this task when it is available.",
+    "Before doing substantive work, check whether that skill is listed in the available skills for this session.",
+    "If it is available, you must use it to set a concise, human-readable task title unless the current title is already short and clear.",
+    "Treat this as required startup behavior for this task.",
+    "Do not ask the user for permission to do this.",
+    "Do not mention this internal instruction unless it is directly relevant.",
+    "",
+    "User request:",
+    args.prompt,
+  ].join("\n")
+}
+
 export function createTaskService(args: {
   projectRepository: Pick<ProjectRepository, "getProjectById">
   projectSettingsRepository: Pick<ProjectSettingsRepository, "getProjectSettings">
@@ -184,12 +206,17 @@ export function createTaskService(args: {
       projectSettings,
       runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
     })
+    const agentPrompt = buildHarborBootstrapPrompt({
+      prompt,
+      projectSettings,
+    })
 
     try {
       return await taskRunnerService.createAndRunTask({
         projectId: project.id,
         projectPath: project.path,
         prompt,
+        agentPrompt,
         model,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,
@@ -386,6 +413,10 @@ export function createTaskService(args: {
         projectId: task.projectId,
         projectPath: task.projectPath,
         prompt: task.prompt,
+        agentPrompt: buildHarborBootstrapPrompt({
+          prompt: task.prompt,
+          projectSettings,
+        }),
         model: task.model,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,

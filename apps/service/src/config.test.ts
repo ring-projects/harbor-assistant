@@ -31,13 +31,13 @@ describe("loadServiceConfig", () => {
 
     expect(config.harborHomeDirectory).toBe(homeDirectory)
     expect(config.database).toBe(
-      `file:${path.join(homeDirectory, "data", "tasks.sqlite")}`,
+      `file:${path.join(homeDirectory, "data", "harbor.sqlite")}`,
     )
     expect(config.fileBrowserRootDirectory).toBe(homedir())
 
     const configPath = path.join(homeDirectory, "app.yaml")
     const content = await readFile(configPath, "utf8")
-    expect(content).toContain("databaseFile: data/tasks.sqlite")
+    expect(content).toContain("databaseFile: data/harbor.sqlite")
   })
 
   it("prefers Harbor app config values and still allows env overrides", async () => {

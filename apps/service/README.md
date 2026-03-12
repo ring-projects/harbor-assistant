@@ -33,6 +33,12 @@ bun run --cwd apps/service db:migrate:deploy
 
 默认情况下，service 和 Prisma 命令都会从 `~/.harbor/app.yaml` 读取 Harbor 本地配置；首次启动时如果配置文件不存在，会自动创建默认配置。
 
+对于本地 SQLite datasource，service 启动时还会自动检查数据库文件和 schema：
+
+- 如果 sqlite 文件不存在，会自动执行一次 `prisma migrate deploy`
+- 如果 sqlite 文件存在但 schema 尚未初始化，也会自动执行一次 `prisma migrate deploy`
+- 如果你通过 `DATABASE_URL` 切到非 sqlite 数据源，service 不会自动迁移
+
 当前默认配置示例：
 
 ```yaml
@@ -49,12 +55,12 @@ project:
 
 task:
   dataFile: "data/tasks.json"
-  databaseFile: "data/tasks.sqlite"
+  databaseFile: "data/harbor.sqlite"
 ```
 
 实际 Prisma datasource 默认会解析为：
 
-- `file:/Users/<your-user>/.harbor/data/tasks.sqlite`
+- `file:/Users/<your-user>/.harbor/data/harbor.sqlite`
 
 如果你需要清空本地 SQLite 数据库并按最新 schema 重建：
 
