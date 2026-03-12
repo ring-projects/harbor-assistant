@@ -56,6 +56,16 @@ export async function registerTaskModuleRoutes(
     taskEventBus,
   })
 
+  const recoveredTasks = await taskRunnerService.recoverInterruptedTasks()
+  if (recoveredTasks.length > 0) {
+    app.log.warn(
+      {
+        recoveredTaskIds: recoveredTasks.map((task) => task.id),
+      },
+      "Recovered interrupted tasks after Harbor service restart",
+    )
+  }
+
   await registerTaskRoutes(app, {
     taskService,
   })

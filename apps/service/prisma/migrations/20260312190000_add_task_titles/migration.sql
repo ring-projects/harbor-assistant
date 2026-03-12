@@ -1,15 +1,4 @@
-ALTER TABLE "tasks"
-ADD COLUMN "title" TEXT NOT NULL DEFAULT '';
-
-ALTER TABLE "tasks"
-ADD COLUMN "titleSource" TEXT NOT NULL DEFAULT 'prompt';
-
-ALTER TABLE "tasks"
-ADD COLUMN "titleUpdatedAt" DATETIME;
-
-UPDATE "tasks"
-SET
-  "title" = "prompt",
-  "titleSource" = 'prompt',
-  "titleUpdatedAt" = COALESCE("createdAt", CURRENT_TIMESTAMP)
-WHERE "title" = '';
+-- No-op migration.
+-- The preceding 20260312092020_update migration already recreates the tasks table
+-- with title, titleSource, and titleUpdatedAt included and populated. Reapplying
+-- ALTER TABLE statements here breaks fresh database initialization.

@@ -297,13 +297,13 @@ function DirectoryPickerInner({
       </div>
 
       <div
-        className="min-h-0"
+        className="min-h-0 flex-1"
         role="listbox"
         tabIndex={0}
         onKeyDown={handleKeyDown}
         aria-label="Directory list"
       >
-        <ScrollArea className="max-h-[52svh]">
+        <ScrollArea className="h-full min-h-0" viewportClassName="h-full min-h-0">
           <div className="py-0">
             {query.isLoading ? (
               <div className="space-y-3 px-6 py-4">

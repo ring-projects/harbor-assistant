@@ -26,6 +26,7 @@ function isTerminalStatus(status: CodexTask["status"]) {
 export function createTaskRunnerService(args: {
   taskRepository: Pick<
     TaskRepository,
+    | "listTasksByStatuses"
     | "getTaskById"
     | "updateTaskState"
     | "createTask"
@@ -104,6 +105,35 @@ export function createTaskRunnerService(args: {
     }
 
     return task
+  }
+
+  async function recoverInterruptedTasks() {
+    const interruptedTasks = await taskRepository.listTasksByStatuses({
+      statuses: ["queued", "running"],
+    })
+
+    const recoveredTasks: CodexTask[] = []
+
+    for (const task of interruptedTasks) {
+      clearRunningTask(task.id)
+
+      const error = task.status === "queued"
+        ? "Task was interrupted because Harbor service restarted before execution began."
+        : "Task was interrupted because Harbor service restarted during execution."
+
+      const recoveredTask = await taskRepository.updateTaskState({
+        taskId: task.id,
+        status: "failed",
+        finishedAt: nowIsoString(),
+        exitCode: null,
+        error,
+      })
+
+      publishTaskState(recoveredTask)
+      recoveredTasks.push(recoveredTask)
+    }
+
+    return recoveredTasks
   }
 
   async function executeNewThreadTask(args: {
@@ -367,6 +397,7 @@ export function createTaskRunnerService(args: {
     createAndRunTask,
     followupTask,
     breakTaskTurn,
+    recoverInterruptedTasks,
   }
 }
 

@@ -14,6 +14,18 @@ import type {
 import { DEFAULT_CODEX_COMMAND, MAX_CAPTURED_OUTPUT_LENGTH } from "../constants"
 import { inspectCodexCapabilities } from "../capabilities/codex"
 
+type CodexClient = {
+  startThread: (options: ReturnType<typeof buildThreadOptions>) => Thread
+  resumeThread: (
+    sessionId: string,
+    options: ReturnType<typeof buildThreadOptions>,
+  ) => Thread
+}
+
+type CreateCodexClient = (args: {
+  env: Record<string, string>
+}) => CodexClient
+
 /**
  * Limit output length
  */
@@ -191,6 +203,14 @@ export function convertThreadItemToEvent(
  * Codex agent adapter
  */
 export class CodexAdapter implements IAgent {
+  constructor(
+    private readonly createCodexClient: CreateCodexClient = ({ env }) =>
+      new Codex({
+        codexPathOverride: DEFAULT_CODEX_COMMAND,
+        env,
+      }),
+  ) {}
+
   getType(): string {
     return "codex"
   }
@@ -200,8 +220,7 @@ export class CodexAdapter implements IAgent {
     prompt: string,
     signal?: AbortSignal,
   ): AsyncIterable<AgentEvent> {
-    const thread = new Codex({
-      codexPathOverride: DEFAULT_CODEX_COMMAND,
+    const thread = this.createCodexClient({
       env: buildProcessEnv(options.env),
     }).startThread(buildThreadOptions(options))
     yield* this.runStreamed(thread, prompt, options.displayPrompt, signal)
@@ -213,8 +232,7 @@ export class CodexAdapter implements IAgent {
     prompt: string,
     signal?: AbortSignal,
   ): AsyncIterable<AgentEvent> {
-    const thread = new Codex({
-      codexPathOverride: DEFAULT_CODEX_COMMAND,
+    const thread = this.createCodexClient({
       env: buildProcessEnv(options.env),
     }).resumeThread(sessionId, buildThreadOptions(options))
     yield* this.runStreamed(thread, prompt, options.displayPrompt, signal)

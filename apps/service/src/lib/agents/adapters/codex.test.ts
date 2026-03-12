@@ -90,16 +90,16 @@ function buildCodexEvents() {
 
 describe("CodexAdapter", () => {
   it("maps web search, file change, and MCP tool items into agent events", async () => {
-    const adapter = new CodexAdapter()
-    const startThread = () => ({
-      runStreamed: async () => ({
-        events: buildCodexEvents(),
-      }),
-    })
-
-    ;(adapter as unknown as { codex: { startThread: typeof startThread } }).codex = {
-      startThread,
-    }
+    const adapter = new CodexAdapter(() => ({
+      startThread: () => ({
+        runStreamed: async () => ({
+          events: buildCodexEvents(),
+        }),
+      }) as never,
+      resumeThread: () => {
+        throw new Error("resumeThread should not be called in this test")
+      },
+    }))
 
     const events = []
     for await (const event of adapter.startSessionAndRun(

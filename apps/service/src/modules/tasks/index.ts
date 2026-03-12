@@ -33,6 +33,7 @@ export type {
   CreateTaskInput as CreateTaskRecordInput,
   ListTaskAgentEventsInput as ListTaskAgentEventsRepositoryInput,
   ListTasksByProjectInput as ListTasksByProjectRepositoryInput,
+  ListTasksByStatusesInput as ListTasksByStatusesRepositoryInput,
   SetTaskThreadIdInput,
   TaskDbClient,
   TaskRepository,

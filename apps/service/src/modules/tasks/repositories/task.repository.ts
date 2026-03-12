@@ -29,6 +29,11 @@ export type ListTasksByProjectInput = {
   limit?: number
 }
 
+export type ListTasksByStatusesInput = {
+  statuses: TaskStatus[]
+  limit?: number
+}
+
 export type CreateTaskInput = {
   projectId: string
   projectPath: string
@@ -260,6 +265,41 @@ async function appendTaskAgentEventInTransaction(args: {
 }
 
 export function createTaskRepository(prisma: TaskDbClient) {
+  async function listTasksByStatuses(
+    args: ListTasksByStatusesInput,
+  ): Promise<CodexTask[]> {
+    const statuses = args.statuses
+      .map((status) => status.trim())
+      .filter((status): status is TaskStatus => Boolean(status))
+
+    if (statuses.length === 0) {
+      return []
+    }
+
+    try {
+      const take =
+        typeof args.limit === "number" && Number.isFinite(args.limit)
+          ? Math.max(1, Math.trunc(args.limit))
+          : 500
+
+      const tasks = await prisma.task.findMany({
+        where: {
+          status: {
+            in: statuses.map((status) => toPrismaTaskStatus(status)),
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+        take,
+      })
+
+      return tasks.map((task) => toCodexTask(task))
+    } catch (error) {
+      throw createTaskError.storeReadError("list tasks by statuses", error)
+    }
+  }
+
   async function listTasksByProject(
     args: ListTasksByProjectInput,
   ): Promise<CodexTask[]> {
@@ -592,6 +632,7 @@ export function createTaskRepository(prisma: TaskDbClient) {
   }
 
   return {
+    listTasksByStatuses,
     listTasksByProject,
     getTaskById,
     createTask,

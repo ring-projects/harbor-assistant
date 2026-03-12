@@ -2,6 +2,7 @@ export { createTaskRepository } from "./task.repository"
 export type {
   AppendTaskAgentEventInput,
   CreateTaskInput,
+  ListTasksByStatusesInput,
   ListTaskAgentEventsInput,
   ListTasksByProjectInput,
   SetTaskThreadIdInput,

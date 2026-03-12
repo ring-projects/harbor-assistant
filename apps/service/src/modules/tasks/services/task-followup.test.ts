@@ -102,6 +102,7 @@ describe("task follow-up", () => {
         createAndRunTask,
         followupTask: vi.fn(),
         breakTaskTurn: vi.fn(),
+        recoverInterruptedTasks: vi.fn(),
       },
     })
 
@@ -168,6 +169,7 @@ describe("task follow-up", () => {
     const taskRunnerService = createTaskRunnerService({
       taskRepository: {
         createTask,
+        listTasksByStatuses: vi.fn(async () => []),
         getTaskById,
         updateTaskState,
       },
@@ -225,6 +227,100 @@ describe("task follow-up", () => {
     )
   })
 
+  it("recovers queued and running tasks after service restart", async () => {
+    const queuedTask = buildTask({
+      id: "task-queued",
+      status: "queued",
+      startedAt: null,
+      finishedAt: null,
+      exitCode: null,
+      error: null,
+    })
+    const runningTask = buildTask({
+      id: "task-running",
+      status: "running",
+      startedAt: "2026-03-10T00:05:00.000Z",
+      finishedAt: null,
+      exitCode: null,
+      error: null,
+    })
+    const recoveredQueuedTask = buildTask({
+      ...queuedTask,
+      status: "failed",
+      finishedAt: "2026-03-10T00:10:00.000Z",
+      error:
+        "Task was interrupted because Harbor service restarted before execution began.",
+    })
+    const recoveredRunningTask = buildTask({
+      ...runningTask,
+      status: "failed",
+      finishedAt: "2026-03-10T00:10:01.000Z",
+      error:
+        "Task was interrupted because Harbor service restarted during execution.",
+    })
+
+    const listTasksByStatuses = vi.fn(async () => [queuedTask, runningTask])
+    const updateTaskState = vi
+      .fn()
+      .mockResolvedValueOnce(recoveredQueuedTask)
+      .mockResolvedValueOnce(recoveredRunningTask)
+    const publish = vi.fn()
+
+    const taskRunnerService = createTaskRunnerService({
+      taskRepository: {
+        createTask: vi.fn(),
+        listTasksByStatuses,
+        getTaskById: vi.fn(),
+        updateTaskState,
+      },
+      taskAgentGateway: {
+        startSessionAndRun: vi.fn(),
+        resumeSessionAndRun: vi.fn(),
+      },
+      taskEventBus: {
+        publish,
+      },
+    })
+
+    const recoveredTasks = await taskRunnerService.recoverInterruptedTasks()
+
+    expect(listTasksByStatuses).toHaveBeenCalledWith({
+      statuses: ["queued", "running"],
+    })
+    expect(updateTaskState).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        taskId: "task-queued",
+        status: "failed",
+        exitCode: null,
+        error:
+          "Task was interrupted because Harbor service restarted before execution began.",
+      }),
+    )
+    expect(updateTaskState).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        taskId: "task-running",
+        status: "failed",
+        exitCode: null,
+        error:
+          "Task was interrupted because Harbor service restarted during execution.",
+      }),
+    )
+    expect(recoveredTasks).toEqual([recoveredQueuedTask, recoveredRunningTask])
+    expect(publish).toHaveBeenCalledWith({
+      type: "task_upsert",
+      projectId: recoveredQueuedTask.projectId,
+      task: recoveredQueuedTask,
+    })
+    expect(publish).toHaveBeenCalledWith({
+      type: "task_end",
+      taskId: recoveredRunningTask.id,
+      status: "failed",
+      cursor: 0,
+    })
+  })
+
   it("rejects follow-up while the task is still active", async () => {
     const runningTask = buildTask({
       status: "running",
@@ -252,6 +348,7 @@ describe("task follow-up", () => {
         createAndRunTask: vi.fn(),
         followupTask,
         breakTaskTurn: vi.fn(),
+        recoverInterruptedTasks: vi.fn(),
       },
     })
 
@@ -316,6 +413,7 @@ describe("task follow-up", () => {
         createAndRunTask,
         followupTask: vi.fn(),
         breakTaskTurn: vi.fn(),
+        recoverInterruptedTasks: vi.fn(),
       },
     })
 
@@ -378,6 +476,7 @@ describe("task follow-up", () => {
         createAndRunTask,
         followupTask: vi.fn(),
         breakTaskTurn: vi.fn(),
+        recoverInterruptedTasks: vi.fn(),
       },
     })
 
@@ -447,6 +546,7 @@ describe("task follow-up", () => {
         createAndRunTask,
         followupTask: vi.fn(),
         breakTaskTurn: vi.fn(),
+        recoverInterruptedTasks: vi.fn(),
       },
     })
 
@@ -521,6 +621,7 @@ describe("task follow-up", () => {
     const taskRunnerService = createTaskRunnerService({
       taskRepository: {
         createTask,
+        listTasksByStatuses: vi.fn(async () => []),
         getTaskById,
         updateTaskState,
       },
