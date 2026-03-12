@@ -26,6 +26,19 @@ function appendWithLimit(base: string, nextChunk: string): string {
   return combined.slice(combined.length - MAX_CAPTURED_OUTPUT_LENGTH)
 }
 
+function buildProcessEnv(overrides?: Record<string, string>) {
+  const merged = {
+    ...process.env,
+    ...(overrides ?? {}),
+  }
+
+  return Object.fromEntries(
+    Object.entries(merged).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  )
+}
+
 /**
  * Build Codex thread options
  */
@@ -178,14 +191,6 @@ export function convertThreadItemToEvent(
  * Codex agent adapter
  */
 export class CodexAdapter implements IAgent {
-  private readonly codex: Codex
-
-  constructor() {
-    this.codex = new Codex({
-      codexPathOverride: DEFAULT_CODEX_COMMAND,
-    })
-  }
-
   getType(): string {
     return "codex"
   }
@@ -195,7 +200,10 @@ export class CodexAdapter implements IAgent {
     prompt: string,
     signal?: AbortSignal,
   ): AsyncIterable<AgentEvent> {
-    const thread = this.codex.startThread(buildThreadOptions(options))
+    const thread = new Codex({
+      codexPathOverride: DEFAULT_CODEX_COMMAND,
+      env: buildProcessEnv(options.env),
+    }).startThread(buildThreadOptions(options))
     yield* this.runStreamed(thread, prompt, signal)
   }
 
@@ -205,7 +213,10 @@ export class CodexAdapter implements IAgent {
     prompt: string,
     signal?: AbortSignal,
   ): AsyncIterable<AgentEvent> {
-    const thread = this.codex.resumeThread(sessionId, buildThreadOptions(options))
+    const thread = new Codex({
+      codexPathOverride: DEFAULT_CODEX_COMMAND,
+      env: buildProcessEnv(options.env),
+    }).resumeThread(sessionId, buildThreadOptions(options))
     yield* this.runStreamed(thread, prompt, signal)
   }
 

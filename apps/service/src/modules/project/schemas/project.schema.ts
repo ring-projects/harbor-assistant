@@ -19,6 +19,8 @@ export type ProjectSettingsBody = {
   maxConcurrentTasks?: number
   logRetentionDays?: number | null
   eventRetentionDays?: number | null
+  harborSkillsEnabled?: boolean
+  harborSkillProfile?: string | null
 }
 
 const projectEntitySchema = {
@@ -93,6 +95,8 @@ const projectSettingsEntitySchema = {
     "maxConcurrentTasks",
     "logRetentionDays",
     "eventRetentionDays",
+    "harborSkillsEnabled",
+    "harborSkillProfile",
     "createdAt",
     "updatedAt",
   ],
@@ -118,6 +122,12 @@ const projectSettingsEntitySchema = {
     eventRetentionDays: {
       type: ["integer", "null"],
       minimum: 1,
+    },
+    harborSkillsEnabled: {
+      type: "boolean",
+    },
+    harborSkillProfile: {
+      type: ["string", "null"],
     },
     createdAt: {
       type: "string",
@@ -199,6 +209,12 @@ export const projectSettingsBodySchema = {
       type: ["integer", "null"],
       minimum: 1,
     },
+    harborSkillsEnabled: {
+      type: "boolean",
+    },
+    harborSkillProfile: {
+      type: ["string", "null"],
+    },
   },
   anyOf: [
     { required: ["defaultExecutor"] },
@@ -207,6 +223,8 @@ export const projectSettingsBodySchema = {
     { required: ["maxConcurrentTasks"] },
     { required: ["logRetentionDays"] },
     { required: ["eventRetentionDays"] },
+    { required: ["harborSkillsEnabled"] },
+    { required: ["harborSkillProfile"] },
   ],
 } as const
 

@@ -94,6 +94,8 @@ describe("task routes", () => {
         projectId: project.id,
         projectPath: "/tmp/project-one",
         prompt: "Run tests",
+        title: "Run tests",
+        titleSource: "prompt",
         executor: "codex",
         status: "completed",
       },
@@ -157,6 +159,8 @@ describe("task routes", () => {
         projectId: project.id,
         projectPath: "/tmp/project-two",
         prompt: "Run tests",
+        title: "Run tests",
+        titleSource: "prompt",
         executor: "codex",
         status: "running",
         threadId: "thread-1",
@@ -176,6 +180,48 @@ describe("task routes", () => {
         id: task.id,
         status: "cancelled",
         error: "Current turn stopped by user request.",
+      },
+    })
+  })
+
+  it("updates a task title through the task title route", async () => {
+    const project = await prisma.project.create({
+      data: {
+        name: "Project Three",
+        slug: "project-three",
+        rootPath: "/tmp/project-three",
+        normalizedPath: "/tmp/project-three",
+      },
+    })
+
+    const task = await prisma.task.create({
+      data: {
+        projectId: project.id,
+        projectPath: "/tmp/project-three",
+        prompt: "Investigate runtime policy drift",
+        title: "Investigate runtime policy drift",
+        titleSource: "prompt",
+        executor: "codex",
+        status: "queued",
+      },
+    })
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/v1/tasks/${task.id}/title`,
+      payload: {
+        title: "Debug runtime policy drift",
+        source: "agent",
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: task.id,
+        title: "Debug runtime policy drift",
+        titleSource: "agent",
       },
     })
   })

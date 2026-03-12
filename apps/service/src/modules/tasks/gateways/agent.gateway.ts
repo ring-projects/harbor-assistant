@@ -39,8 +39,21 @@ export function createTaskAgentGateway(args: {
     "appendTaskAgentEvent" | "setTaskThreadId"
   >
   taskEventBus: Pick<TaskEventBus, "publish">
+  harborApiBaseUrl?: string
 }) {
   const { taskRepository, taskEventBus } = args
+
+  function buildHarborSessionEnv(input: RunTaskArgs) {
+    if (!args.harborApiBaseUrl) {
+      return undefined
+    }
+
+    return {
+      HARBOR_SERVICE_BASE_URL: args.harborApiBaseUrl,
+      HARBOR_PROJECT_ID: input.projectId,
+      HARBOR_TASK_ID: input.taskId,
+    }
+  }
 
   function serializeAgentEvent(event: AgentEvent): Record<string, unknown> {
     return JSON.parse(JSON.stringify(event)) as Record<string, unknown>
@@ -97,6 +110,7 @@ export function createTaskAgentGateway(args: {
       {
         workingDirectory: args.projectPath,
         model: args.model ?? undefined,
+        env: buildHarborSessionEnv(args),
         ...runtimePolicyToSessionOptions(args.runtimePolicy),
       },
       args.prompt,
@@ -163,6 +177,7 @@ export function createTaskAgentGateway(args: {
       {
         workingDirectory: args.projectPath,
         model: args.model ?? undefined,
+        env: buildHarborSessionEnv(args),
         ...runtimePolicyToSessionOptions(args.runtimePolicy),
       },
       args.prompt,

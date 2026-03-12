@@ -64,6 +64,7 @@ describe("createTaskAgentGateway", () => {
       taskEventBus: {
         publish: vi.fn(),
       },
+      harborApiBaseUrl: "http://127.0.0.1:3400/v1",
     })
 
     const startSessionAndRun = vi.fn(() => buildAsyncEvents())
@@ -88,6 +89,11 @@ describe("createTaskAgentGateway", () => {
         approvalPolicy: "never",
         networkAccessEnabled: true,
         webSearchMode: "live",
+        env: {
+          HARBOR_SERVICE_BASE_URL: "http://127.0.0.1:3400/v1",
+          HARBOR_PROJECT_ID: "project-1",
+          HARBOR_TASK_ID: "task-1",
+        },
       }),
       "Run tests",
       undefined,

@@ -1,4 +1,9 @@
-import type { ProjectRepository, ProjectSettingsRepository } from "../../project"
+import type {
+  ProjectRepository,
+  ProjectSettings,
+  ProjectSettingsRepository,
+  ProjectSkillBridgeService,
+} from "../../project"
 import { AgentFactory, type AgentType } from "../../../lib/agents"
 import { createTaskError, TaskError } from "../errors"
 import type { TaskRepository } from "../repositories"
@@ -34,6 +39,12 @@ export type FollowupTaskInput = {
 export type BreakTaskTurnInput = {
   taskId: string
   reason?: string
+}
+
+export type UpdateTaskTitleInput = {
+  taskId: string
+  title: string
+  source?: "agent" | "user"
 }
 
 export type ListProjectTasksInput = {
@@ -74,21 +85,67 @@ function ensureSupportedAgent(agentType: string): asserts agentType is AgentType
 export function createTaskService(args: {
   projectRepository: Pick<ProjectRepository, "getProjectById">
   projectSettingsRepository: Pick<ProjectSettingsRepository, "getProjectSettings">
+  projectSkillBridgeService?: Pick<
+    ProjectSkillBridgeService,
+    "ensureProjectSkillBridge" | "getProjectSkillAccessDirectories"
+  >
   taskRepository: Pick<
     TaskRepository,
     | "getTaskById"
     | "hasActiveTaskInThread"
     | "listTaskAgentEvents"
     | "listTasksByProject"
+    | "updateTaskTitle"
   >
   taskRunnerService: TaskRunnerService
+  taskEventBus?: {
+    publish: (event: {
+      type: "task_upsert"
+      projectId: string
+      task: CodexTask
+    }) => void
+  }
 }) {
   const {
     projectRepository,
     projectSettingsRepository,
+    projectSkillBridgeService,
     taskRepository,
     taskRunnerService,
+    taskEventBus,
   } = args
+
+  async function applyProjectSkillRuntimePolicy(args: {
+    projectId: string
+    projectSettings: ProjectSettings | null
+    runtimePolicy: ReturnType<typeof resolveRuntimePolicy>["runtimePolicy"]
+  }) {
+    if (!args.projectSettings?.harborSkillsEnabled) {
+      return args.runtimePolicy
+    }
+
+    if (projectSkillBridgeService) {
+      await projectSkillBridgeService.ensureProjectSkillBridge({
+        projectId: args.projectId,
+        profile: args.projectSettings.harborSkillProfile,
+      })
+    }
+
+    const additionalDirectories = [
+      ...args.runtimePolicy.additionalDirectories,
+      ...(projectSkillBridgeService?.getProjectSkillAccessDirectories(args.projectId) ?? []),
+    ]
+
+    const { runtimePolicy } = resolveRuntimePolicy({
+      executionMode: "custom",
+      runtimePolicy: {
+        ...args.runtimePolicy,
+        additionalDirectories,
+      },
+    })
+
+    return runtimePolicy
+  }
 
   async function createTaskAndRun(input: CreateTaskInput) {
     const projectId = input.projectId.trim()
@@ -122,6 +179,11 @@ export function createTaskService(args: {
       executionMode: input.executionMode ?? projectSettings?.defaultExecutionMode,
       runtimePolicy: input.runtimePolicy,
     })
+    const runtimePolicy = await applyProjectSkillRuntimePolicy({
+      projectId: project.id,
+      projectSettings,
+      runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
+    })
 
     try {
       return await taskRunnerService.createAndRunTask({
@@ -131,7 +193,7 @@ export function createTaskService(args: {
         model,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,
-        runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
+        runtimePolicy,
         parentTaskId: null,
       })
     } catch (error) {
@@ -190,9 +252,16 @@ export function createTaskService(args: {
     try {
       const agentType = normalizeAgentType(task.executor)
       ensureSupportedAgent(agentType)
+      const projectSettings =
+        await projectSettingsRepository.getProjectSettings(task.projectId)
       const resolvedRuntimePolicy = resolveRuntimePolicy({
         executionMode: input.executionMode ?? task.executionMode,
         runtimePolicy: input.runtimePolicy ?? task.runtimePolicy,
+      })
+      const runtimePolicy = await applyProjectSkillRuntimePolicy({
+        projectId: task.projectId,
+        projectSettings,
+        runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
       })
 
       return await taskRunnerService.followupTask({
@@ -204,7 +273,7 @@ export function createTaskService(args: {
         model: model ?? task.model,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,
-        runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
+        runtimePolicy,
       })
     } catch (error) {
       if (error instanceof TaskError) {
@@ -276,9 +345,16 @@ export function createTaskService(args: {
     try {
       const agentType = normalizeAgentType(task.executor)
       ensureSupportedAgent(agentType)
+      const projectSettings =
+        await projectSettingsRepository.getProjectSettings(task.projectId)
       const resolvedRuntimePolicy = resolveRuntimePolicy({
         executionMode: task.executionMode,
         runtimePolicy: task.runtimePolicy,
+      })
+      const runtimePolicy = await applyProjectSkillRuntimePolicy({
+        projectId: task.projectId,
+        projectSettings,
+        runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
       })
 
       if (task.threadId) {
@@ -302,7 +378,7 @@ export function createTaskService(args: {
           model: task.model,
           agentType,
           executionMode: resolvedRuntimePolicy.executionMode,
-          runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
+          runtimePolicy,
         })
       }
 
@@ -313,7 +389,7 @@ export function createTaskService(args: {
         model: task.model,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,
-        runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
+        runtimePolicy,
         parentTaskId: task.id,
       })
     } catch (error) {
@@ -323,6 +399,42 @@ export function createTaskService(args: {
 
       throw createTaskError.taskRetryFailed(
         `Failed to retry task: ${String(error)}`,
+        error,
+      )
+    }
+  }
+
+  async function updateTaskTitle(input: UpdateTaskTitleInput) {
+    const taskId = input.taskId.trim()
+    const title = input.title.trim()
+    if (!taskId) {
+      throw createTaskError.invalidTaskId()
+    }
+    if (!title) {
+      throw createTaskError.invalidTaskTitle()
+    }
+
+    try {
+      const task = await taskRepository.updateTaskTitle({
+        taskId,
+        title,
+        titleSource: input.source ?? "agent",
+      })
+
+      taskEventBus?.publish({
+        type: "task_upsert",
+        projectId: task.projectId,
+        task,
+      })
+
+      return task
+    } catch (error) {
+      if (error instanceof TaskError) {
+        throw error
+      }
+
+      throw createTaskError.internalError(
+        "Failed to update task title.",
         error,
       )
     }
@@ -380,6 +492,7 @@ export function createTaskService(args: {
     followupTask,
     breakTaskTurn,
     retryTask,
+    updateTaskTitle,
     getTaskDetail,
     getTaskEvents,
     listProjectTasks,

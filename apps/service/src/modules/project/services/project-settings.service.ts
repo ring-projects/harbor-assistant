@@ -3,11 +3,16 @@ import type {
   ProjectSettingsRepository,
   UpdateProjectSettingsInput,
 } from "../repositories"
+import type { ProjectSkillBridgeService } from "./project-skill-bridge.service"
 
 export function createProjectSettingsService(args: {
   projectSettingsRepository: ProjectSettingsRepository
+  projectSkillBridgeService?: Pick<
+    ProjectSkillBridgeService,
+    "ensureProjectSkillBridge" | "removeProjectSkillBridge"
+  >
 }) {
-  const { projectSettingsRepository } = args
+  const { projectSettingsRepository, projectSkillBridgeService } = args
 
   async function getSettings(projectId: string) {
     try {
@@ -34,7 +39,20 @@ export function createProjectSettingsService(args: {
 
   async function updateSettings(input: UpdateProjectSettingsInput) {
     try {
-      return await projectSettingsRepository.updateProjectSettings(input)
+      const settings = await projectSettingsRepository.updateProjectSettings(input)
+
+      if (projectSkillBridgeService) {
+        if (settings.harborSkillsEnabled) {
+          await projectSkillBridgeService.ensureProjectSkillBridge({
+            projectId: settings.projectId,
+            profile: settings.harborSkillProfile,
+          })
+        } else {
+          await projectSkillBridgeService.removeProjectSkillBridge(settings.projectId)
+        }
+      }
+
+      return settings
     } catch (error) {
       if (error instanceof ProjectError) {
         throw error

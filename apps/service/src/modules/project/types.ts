@@ -31,6 +31,8 @@ export type ProjectSettings = {
   maxConcurrentTasks: number
   logRetentionDays: number | null
   eventRetentionDays: number | null
+  harborSkillsEnabled: boolean
+  harborSkillProfile: string | null
   createdAt: Date
   updatedAt: Date
 }

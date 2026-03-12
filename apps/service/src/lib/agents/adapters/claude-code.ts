@@ -300,6 +300,7 @@ export class ClaudeCodeAdapter implements IAgent {
         workingDirectory: options.workingDirectory,
         fallbackSessionId: sessionId,
         prompt,
+        env: options.env,
         signal,
       },
     )
@@ -321,6 +322,7 @@ export class ClaudeCodeAdapter implements IAgent {
         workingDirectory: options.workingDirectory,
         fallbackSessionId: sessionId,
         prompt,
+        env: options.env,
         signal,
       },
     )
@@ -336,6 +338,7 @@ export class ClaudeCodeAdapter implements IAgent {
       workingDirectory: string
       fallbackSessionId: string
       prompt: string
+      env?: Record<string, string>
       signal?: AbortSignal
     },
   ): AsyncIterable<AgentEvent> {
@@ -345,6 +348,7 @@ export class ClaudeCodeAdapter implements IAgent {
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
+        ...(args.env ?? {}),
         NO_COLOR: "1",
       },
     })

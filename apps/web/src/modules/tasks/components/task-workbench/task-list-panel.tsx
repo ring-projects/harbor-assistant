@@ -29,6 +29,7 @@ import {
   formatExecutorLabel,
   formatExecutionModeLabel,
   getErrorMessage,
+  getTaskDisplayTitle,
   getPromptSummary,
   STATUS_META,
 } from "./shared"
@@ -134,7 +135,7 @@ export function TaskListPanel({
 
     const prompt = newTaskPrompt.trim()
     if (!prompt) {
-      setCreateTaskError("请输入初始化 prompt。")
+      setCreateTaskError("Enter an initial prompt.")
       return
     }
 
@@ -194,7 +195,7 @@ export function TaskListPanel({
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
               <DialogDescription>
-                输入初始化 prompt，并选择要使用的执行器。
+                Enter an initial prompt and choose the executor to use.
               </DialogDescription>
             </DialogHeader>
 
@@ -265,7 +266,7 @@ export function TaskListPanel({
               <Textarea
                 value={newTaskPrompt}
                 onChange={(event) => setNewTaskPrompt(event.target.value)}
-                placeholder="输入初始化 prompt"
+                placeholder="Enter an initial prompt"
                 disabled={createTaskMutation.isPending}
                 autoFocus
                 rows={6}
@@ -291,14 +292,14 @@ export function TaskListPanel({
                   }}
                   disabled={createTaskMutation.isPending}
                 >
-                  取消
+                  Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={createTaskMutation.isPending || newTaskPrompt.trim().length === 0}
                 >
                   <PlusIcon className="size-4" />
-                  {createTaskMutation.isPending ? "创建中..." : "创建"}
+                  {createTaskMutation.isPending ? "Creating..." : "Create"}
                 </Button>
               </DialogFooter>
             </form>
@@ -320,7 +321,7 @@ export function TaskListPanel({
 
           {!listQuery.isLoading && !listQuery.isError && allTasks.length === 0 ? (
             <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
-              当前还没有任务。
+              No tasks yet.
             </div>
           ) : null}
 
@@ -351,13 +352,21 @@ export function TaskListPanel({
                       </span>
                     </div>
 
-                    <p className="pt-2 text-sm">{getPromptSummary(task.prompt)}</p>
+                    <p className="pt-2 text-sm font-medium">
+                      {getTaskDisplayTitle({
+                        title: task.title,
+                        prompt: task.prompt,
+                      })}
+                    </p>
+                    <p className="text-muted-foreground pt-1 text-xs">
+                      {getPromptSummary(task.prompt)}
+                    </p>
 
                     <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 pt-2 text-[11px]">
-                      <span>创建：{formatDateTime(task.createdAt)}</span>
-                      <span>Executor：{formatExecutorLabel(task.executor)}</span>
-                      <span>Mode：{formatExecutionModeLabel(task.executionMode)}</span>
-                      <span>Model：{task.model ?? "-"}</span>
+                      <span>Created: {formatDateTime(task.createdAt)}</span>
+                      <span>Executor: {formatExecutorLabel(task.executor)}</span>
+                      <span>Mode: {formatExecutionModeLabel(task.executionMode)}</span>
+                      <span>Model: {task.model ?? "-"}</span>
                     </div>
                   </button>
                 )

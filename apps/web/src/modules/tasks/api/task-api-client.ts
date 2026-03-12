@@ -204,6 +204,12 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
     taskId,
     projectId,
     prompt: toStringOrEmpty(source.prompt),
+    title: toStringOrEmpty(source.title),
+    titleSource:
+      source.titleSource === "agent" || source.titleSource === "user"
+        ? source.titleSource
+        : "prompt",
+    titleUpdatedAt: toOptionalDateString(source.titleUpdatedAt),
     model: toStringOrNull(source.model),
     executor: toStringOrNull(source.executor) ?? "codex",
     executionMode: toExecutionMode(source.executionMode),

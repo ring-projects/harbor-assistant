@@ -13,6 +13,11 @@ export type CreateTaskBody = {
   }
 }
 
+export type UpdateTaskTitleBody = {
+  title: string
+  source?: "agent" | "user"
+}
+
 export type BreakTaskTurnBody = {
   reason?: string
 }
@@ -47,6 +52,9 @@ const taskEntitySchema = {
     "projectId",
     "projectPath",
     "prompt",
+    "title",
+    "titleSource",
+    "titleUpdatedAt",
     "executor",
     "executionMode",
     "runtimePolicy",
@@ -68,6 +76,12 @@ const taskEntitySchema = {
     projectId: { type: "string" },
     projectPath: { type: "string" },
     prompt: { type: "string" },
+    title: { type: "string" },
+    titleSource: {
+      type: "string",
+      enum: ["prompt", "agent", "user"],
+    },
+    titleUpdatedAt: { type: ["string", "null"], format: "date-time" },
     executor: { type: "string" },
     executionMode: { type: ["string", "null"] },
     runtimePolicy: {
@@ -261,6 +275,23 @@ export const breakTaskTurnBodySchema = {
   },
 } as const
 
+export const updateTaskTitleBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title"],
+  properties: {
+    title: {
+      type: "string",
+      minLength: 1,
+      maxLength: 120,
+    },
+    source: {
+      type: "string",
+      enum: ["agent", "user"],
+    },
+  },
+} as const
+
 export const followupTaskBodySchema = {
   type: "object",
   additionalProperties: false,
@@ -305,6 +336,14 @@ export const getTaskRouteSchema = {
 export const postBreakTaskTurnRouteSchema = {
   params: taskIdParamsSchema,
   body: breakTaskTurnBodySchema,
+  response: {
+    200: taskSuccessResponseSchema,
+  },
+} as const
+
+export const updateTaskTitleRouteSchema = {
+  params: taskIdParamsSchema,
+  body: updateTaskTitleBodySchema,
   response: {
     200: taskSuccessResponseSchema,
   },

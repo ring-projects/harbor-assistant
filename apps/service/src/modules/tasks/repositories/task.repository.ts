@@ -11,6 +11,7 @@ import type {
   TaskAgentEventType,
   CodexTask,
   TaskStatus,
+  TaskTitleSource,
 } from "../types"
 import type {
   RuntimeExecutionMode,
@@ -38,6 +39,12 @@ export type CreateTaskInput = {
   model: string | null
   threadId?: string | null
   parentTaskId?: string | null
+}
+
+export type UpdateTaskTitleInput = {
+  taskId: string
+  title: string
+  titleSource: TaskTitleSource
 }
 
 export type UpdateTaskStateInput = {
@@ -107,6 +114,19 @@ function serializeCommand(command: string[] | undefined) {
   return JSON.stringify(command)
 }
 
+function deriveTaskTitle(prompt: string) {
+  const firstLine = prompt
+    .split(/\r?\n/)
+    .find((line) => line.trim().length > 0)
+    ?.trim() ?? prompt.trim()
+
+  if (!firstLine) {
+    return "Untitled task"
+  }
+
+  return firstLine.length > 96 ? `${firstLine.slice(0, 96)}...` : firstLine
+}
+
 function parseCommand(command: string | null): string[] {
   if (!command) {
     return []
@@ -138,6 +158,9 @@ function toCodexTask(task: {
   projectId: string
   projectPath: string
   prompt: string
+  title: string
+  titleSource: TaskTitleSource
+  titleUpdatedAt: Date | null
   executor: string
   executionMode: string | null
   runtimePolicy: string | null
@@ -159,6 +182,9 @@ function toCodexTask(task: {
     projectId: task.projectId,
     projectPath: task.projectPath,
     prompt: task.prompt,
+    title: task.title,
+    titleSource: task.titleSource,
+    titleUpdatedAt: toIsoString(task.titleUpdatedAt),
     executor: task.executor,
     executionMode: (task.executionMode as RuntimeExecutionMode | null) ?? null,
     runtimePolicy: parseRuntimePolicy(task.runtimePolicy),
@@ -301,6 +327,9 @@ export function createTaskRepository(prisma: TaskDbClient) {
             projectId,
             projectPath: input.projectPath,
             prompt,
+            title: deriveTaskTitle(prompt),
+            titleSource: "prompt",
+            titleUpdatedAt: new Date(),
             model: input.model,
             executor,
             executionMode: input.executionMode ?? null,
@@ -315,6 +344,48 @@ export function createTaskRepository(prisma: TaskDbClient) {
       })
     } catch (error) {
       throw createTaskError.storeWriteError("create task", error)
+    }
+  }
+
+  async function updateTaskTitle(input: UpdateTaskTitleInput): Promise<CodexTask> {
+    const taskId = input.taskId.trim()
+    const title = input.title.trim()
+    if (!taskId || !title) {
+      throw createTaskError.storeWriteError(
+        "update task title",
+        new Error("taskId and title are required."),
+      )
+    }
+
+    try {
+      const existingTask = await prisma.task.findUnique({
+        where: {
+          id: taskId,
+        },
+      })
+
+      if (!existingTask) {
+        throw createTaskError.taskNotFound(taskId)
+      }
+
+      const task = await prisma.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          title,
+          titleSource: input.titleSource,
+          titleUpdatedAt: new Date(),
+        },
+      })
+
+      return toCodexTask(task)
+    } catch (error) {
+      if (error instanceof TaskError) {
+        throw error
+      }
+
+      throw createTaskError.storeWriteError("update task title", error)
     }
   }
 
@@ -524,6 +595,7 @@ export function createTaskRepository(prisma: TaskDbClient) {
     listTasksByProject,
     getTaskById,
     createTask,
+    updateTaskTitle,
     setTaskThreadId,
     hasActiveTaskInThread,
     updateTaskState,

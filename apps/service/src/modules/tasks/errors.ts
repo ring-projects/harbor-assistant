@@ -19,6 +19,11 @@ export const createTaskError = {
       details,
     }),
 
+  invalidTaskTitle: (message = "Task title cannot be empty.", details?: unknown) =>
+    new TaskError(ERROR_CODES.INVALID_TASK_TITLE, 400, message, {
+      details,
+    }),
+
   invalidPrompt: (message = "Prompt cannot be empty.", details?: unknown) =>
     new TaskError(ERROR_CODES.INVALID_PROMPT, 400, message, {
       details,

@@ -6,6 +6,12 @@ enum TaskStatus {
   cancelled
 }
 
+enum TaskTitleSource {
+  prompt
+  agent
+  user
+}
+
 enum TaskMessageRole {
   user
   assistant
@@ -17,6 +23,9 @@ model Task {
   projectId     String
   projectPath   String
   prompt        String
+  title         String
+  titleSource   TaskTitleSource    @default(prompt)
+  titleUpdatedAt DateTime?
   executor      String
   executionMode String?
   runtimePolicy String?

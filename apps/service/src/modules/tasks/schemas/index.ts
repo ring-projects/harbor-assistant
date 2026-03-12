@@ -8,6 +8,7 @@ export {
   getTaskRouteSchema,
   postBreakTaskTurnRouteSchema,
   postRetryTaskRouteSchema,
+  updateTaskTitleRouteSchema,
   type BreakTaskTurnBody,
   type CreateTaskBody,
   type FollowupTaskBody,
@@ -15,4 +16,5 @@ export {
   type GetTaskEventsQuery,
   type ProjectIdParams,
   type TaskIdParams,
+  type UpdateTaskTitleBody,
 } from "./tasks.schema"

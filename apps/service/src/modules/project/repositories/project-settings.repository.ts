@@ -11,6 +11,8 @@ export type UpdateProjectSettingsInput = {
   maxConcurrentTasks?: number
   logRetentionDays?: number | null
   eventRetentionDays?: number | null
+  harborSkillsEnabled?: boolean
+  harborSkillProfile?: string | null
 }
 
 export function createProjectSettingsRepository(prisma: ProjectDbClient) {
@@ -36,6 +38,8 @@ export function createProjectSettingsRepository(prisma: ProjectDbClient) {
           maxConcurrentTasks: input.maxConcurrentTasks ?? 1,
           logRetentionDays: input.logRetentionDays ?? 30,
           eventRetentionDays: input.eventRetentionDays ?? 7,
+          harborSkillsEnabled: input.harborSkillsEnabled ?? true,
+          harborSkillProfile: input.harborSkillProfile ?? "default",
         },
         update: {
           defaultExecutor: input.defaultExecutor,
@@ -44,6 +48,8 @@ export function createProjectSettingsRepository(prisma: ProjectDbClient) {
           maxConcurrentTasks: input.maxConcurrentTasks,
           logRetentionDays: input.logRetentionDays,
           eventRetentionDays: input.eventRetentionDays,
+          harborSkillsEnabled: input.harborSkillsEnabled,
+          harborSkillProfile: input.harborSkillProfile,
         },
       })
     } catch (error) {

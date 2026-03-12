@@ -18,7 +18,8 @@ modules/project/
 ├── services/
 │   ├── index.ts
 │   ├── project.service.ts
-│   └── project-settings.service.ts
+│   ├── project-settings.service.ts
+│   └── project-skill-bridge.service.ts
 └── types.ts
 ```
 
@@ -57,6 +58,9 @@ Repository 层不处理 HTTP，不拼响应。
   - 项目查询、创建、更新、删除
 - `project-settings.service.ts`
   - 项目设置业务逻辑
+- `project-skill-bridge.service.ts`
+  - 管理 Harbor project-local skill bridge
+  - 负责 `.codex/skills/harbor-*` symlink、自愈和 `.git/info/exclude`
 
 Service 层只抛结构化错误，不自己返回 HTTP 错误响应。
 
@@ -97,7 +101,7 @@ Service 层只抛结构化错误，不自己返回 HTTP 错误响应。
 - `ProjectError` / `createProjectError`
 - repository / service factory
 - `registerProjectModuleRoutes`
-- `createProjectModule({ prisma })`
+- `createProjectModule({ prisma, harborHomeDirectory })`
 
 已经删除的遗留形态：
 
@@ -114,9 +118,9 @@ Service 层只抛结构化错误，不自己返回 HTTP 错误响应。
 
 ## 5. 仍然需要注意的点
 
-- 目前 `project.settings` 还没有完整的 REST 路由面。
 - JSON Schema 已经拆分，但还可以继续补更细的字段约束，例如更明确的长度或格式限制。
-- 还没有成体系的 route / service 测试。
+- Harbor skill bridge 目前先覆盖 project 设置和 task runtime，后续如果需要状态可观测性，可以再补桥接状态查询接口。
+- 目前的测试已经覆盖核心 route / service 路径，但还可以继续补更多异常分支和并发场景。
 
 ## 6. 后续演进建议
 

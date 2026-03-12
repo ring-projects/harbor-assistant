@@ -68,6 +68,15 @@ function toStringOrEmpty(value: unknown) {
   return typeof value === "string" ? value : ""
 }
 
+function toOptionalDateString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
+}
+
 function toIntegerOrNull(value: unknown): number | null {
   if (typeof value === "number" && Number.isInteger(value)) {
     return value
@@ -159,6 +168,12 @@ function normalizeTask(input: Record<string, unknown>): TaskListItem | null {
     taskId,
     projectId,
     prompt: toStringOrEmpty(input.prompt),
+    title: toStringOrEmpty(input.title),
+    titleSource:
+      input.titleSource === "agent" || input.titleSource === "user"
+        ? input.titleSource
+        : "prompt",
+    titleUpdatedAt: toOptionalDateString(input.titleUpdatedAt),
     model: toStringOrNull(input.model),
     executor: toStringOrNull(input.executor) ?? "codex",
     executionMode: toExecutionMode(input.executionMode),

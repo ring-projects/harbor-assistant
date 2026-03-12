@@ -8,4 +8,5 @@ export type {
   TaskDbClient,
   TaskRepository,
   UpdateTaskStateInput,
+  UpdateTaskTitleInput,
 } from "./task.repository"

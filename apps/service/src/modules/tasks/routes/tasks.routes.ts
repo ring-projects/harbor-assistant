@@ -13,8 +13,10 @@ import {
   postRetryTaskRouteSchema,
   type ProjectIdParams,
   type TaskIdParams,
+  type UpdateTaskTitleBody,
   createTaskRouteSchema,
   followupTaskRouteSchema,
+  updateTaskTitleRouteSchema,
 } from "../schemas"
 import type { TaskService } from "../services"
 
@@ -101,6 +103,26 @@ export async function registerTaskRoutes(
       const task = await taskService.breakTaskTurn({
         taskId,
         reason: request.body.reason,
+      })
+
+      return {
+        ok: true,
+        task,
+      }
+    },
+  )
+
+  app.put<{ Params: TaskIdParams; Body: UpdateTaskTitleBody }>(
+    "/tasks/:taskId/title",
+    {
+      schema: updateTaskTitleRouteSchema,
+    },
+    async (request) => {
+      const { taskId } = request.params
+      const task = await taskService.updateTaskTitle({
+        taskId,
+        title: request.body.title,
+        source: request.body.source,
       })
 
       return {

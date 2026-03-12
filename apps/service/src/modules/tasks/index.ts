@@ -65,6 +65,7 @@ export { registerTaskModuleRoutes } from "./routes"
 import {
   createProjectRepository,
   createProjectSettingsRepository,
+  createProjectSkillBridgeService,
 } from "../project"
 import { createTaskAgentGateway } from "./gateways"
 import { createTaskRepository } from "./repositories"
@@ -75,14 +76,23 @@ import {
   createTaskService,
 } from "./services"
 
-export function createTaskModule(args: { prisma: TaskDbClient }) {
+export function createTaskModule(args: {
+  prisma: TaskDbClient
+  harborHomeDirectory: string
+  harborApiBaseUrl?: string
+}) {
   const projectRepository = createProjectRepository(args.prisma)
   const projectSettingsRepository = createProjectSettingsRepository(args.prisma)
+  const projectSkillBridgeService = createProjectSkillBridgeService({
+    harborHomeDirectory: args.harborHomeDirectory,
+    projectRepository,
+  })
   const taskRepository = createTaskRepository(args.prisma)
   const taskEventBus = createTaskEventBus()
   const taskAgentGateway = createTaskAgentGateway({
     taskRepository,
     taskEventBus,
+    harborApiBaseUrl: args.harborApiBaseUrl,
   })
   const taskRunnerService = createTaskRunnerService({
     taskRepository,
@@ -92,14 +102,17 @@ export function createTaskModule(args: { prisma: TaskDbClient }) {
   const taskService = createTaskService({
     projectRepository,
     projectSettingsRepository,
+    projectSkillBridgeService,
     taskRepository,
     taskRunnerService,
+    taskEventBus,
   })
 
   return {
     repositories: {
       projectRepository,
       projectSettingsRepository,
+      projectSkillBridgeService,
       taskRepository,
     },
     services: {

@@ -1,5 +1,6 @@
 "use client"
 
+import { formatDateTime as formatDateTimeValue } from "@/lib/date-time"
 import type {
   TaskStatus,
 } from "@/modules/tasks/contracts"
@@ -34,18 +35,7 @@ export const STATUS_META: Record<
 }
 
 export function formatDateTime(value: string | null) {
-  if (!value) {
-    return "-"
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return "-"
-  }
-
-  return parsed.toLocaleString("zh-CN", {
-    hour12: false,
-  })
+  return formatDateTimeValue(value)
 }
 
 export function getPromptSummary(prompt: string) {
@@ -57,12 +47,24 @@ export function getPromptSummary(prompt: string) {
   return summary.length > 100 ? `${summary.slice(0, 100)}...` : summary
 }
 
+export function getTaskDisplayTitle(args: {
+  title: string | null | undefined
+  prompt: string
+}) {
+  const normalizedTitle = args.title?.trim()
+  if (normalizedTitle) {
+    return normalizedTitle
+  }
+
+  return getPromptSummary(args.prompt)
+}
+
 export function getErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) {
     return error.message
   }
 
-  return "加载失败，请重试。"
+  return "Failed to load. Please try again."
 }
 
 export function formatExecutorLabel(executor: string | null | undefined) {

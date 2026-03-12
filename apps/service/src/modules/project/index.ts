@@ -28,10 +28,12 @@ export type {
 export {
   createProjectService,
   createProjectSettingsService,
+  createProjectSkillBridgeService,
 } from "./services"
 export type {
   ProjectService,
   ProjectSettingsService,
+  ProjectSkillBridgeService,
 } from "./services"
 
 export { registerProjectModuleRoutes } from "./routes"
@@ -44,17 +46,28 @@ import type { ProjectDbClient } from "./repositories"
 import {
   createProjectService,
   createProjectSettingsService,
+  createProjectSkillBridgeService,
 } from "./services"
 
-export function createProjectModule(args: { prisma: ProjectDbClient }) {
+export function createProjectModule(args: {
+  prisma: ProjectDbClient
+  harborHomeDirectory: string
+}) {
   const projectRepository = createProjectRepository(args.prisma)
   const projectSettingsRepository = createProjectSettingsRepository(args.prisma)
+  const projectSkillBridgeService = createProjectSkillBridgeService({
+    harborHomeDirectory: args.harborHomeDirectory,
+    projectRepository,
+  })
 
   const projectService = createProjectService({
     projectRepository,
+    projectSettingsRepository,
+    projectSkillBridgeService,
   })
   const projectSettingsService = createProjectSettingsService({
     projectSettingsRepository,
+    projectSkillBridgeService,
   })
 
   return {
@@ -65,6 +78,7 @@ export function createProjectModule(args: { prisma: ProjectDbClient }) {
     services: {
       projectService,
       projectSettingsService,
+      projectSkillBridgeService,
     },
   }
 }

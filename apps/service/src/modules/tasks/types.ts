@@ -12,12 +12,16 @@ export type TaskStatus =
   | "cancelled"
 
 export type TaskMessageRole = "user" | "assistant" | "system"
+export type TaskTitleSource = "prompt" | "agent" | "user"
 
 export type CodexTask = {
   id: string
   projectId: string
   projectPath: string
   prompt: string
+  title: string
+  titleSource: TaskTitleSource
+  titleUpdatedAt: string | null
   executor: string
   executionMode: RuntimeExecutionMode | null
   runtimePolicy: RuntimePolicy | null

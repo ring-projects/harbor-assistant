@@ -125,6 +125,8 @@ export async function registerProjectRoutes(
         maxConcurrentTasks: request.body.maxConcurrentTasks,
         logRetentionDays: request.body.logRetentionDays,
         eventRetentionDays: request.body.eventRetentionDays,
+        harborSkillsEnabled: request.body.harborSkillsEnabled,
+        harborSkillProfile: request.body.harborSkillProfile,
       })
 
       return {

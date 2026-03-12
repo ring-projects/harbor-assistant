@@ -1,4 +1,4 @@
-import { mkdtemp, realpath, rm } from "node:fs/promises"
+import { lstat, mkdtemp, mkdir, readFile, readlink, realpath, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
@@ -6,7 +6,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 import type { FastifyInstance } from "fastify"
 import type { PrismaClient } from "@prisma/client"
 
-import { createProjectTestApp } from "../../../../test/helpers/project-test-app"
+import {
+  createProjectTestAppWithOptions,
+} from "../../../../test/helpers/project-test-app"
 import { createTestDatabase, type TestDatabase } from "../../../../test/helpers/test-database"
 
 async function createTempProjectDir() {
@@ -18,11 +20,15 @@ describe("project routes", () => {
   let prisma: PrismaClient
   let app: FastifyInstance
   const tempProjectDirs: string[] = []
+  let harborHomeDirectory: string
 
   beforeAll(async () => {
     database = await createTestDatabase()
     prisma = database.prisma
-    app = await createProjectTestApp(prisma)
+    harborHomeDirectory = await createTempProjectDir()
+    app = await createProjectTestAppWithOptions(prisma, {
+      harborHomeDirectory,
+    })
   })
 
   afterEach(async () => {
@@ -34,6 +40,9 @@ describe("project routes", () => {
         rm(dir, { recursive: true, force: true }),
       ),
     )
+
+    await rm(harborHomeDirectory, { recursive: true, force: true })
+    await mkdir(harborHomeDirectory, { recursive: true })
   })
 
   afterAll(async () => {
@@ -176,6 +185,8 @@ describe("project routes", () => {
         maxConcurrentTasks: 1,
         logRetentionDays: 30,
         eventRetentionDays: 7,
+        harborSkillsEnabled: true,
+        harborSkillProfile: "default",
       },
     })
   })
@@ -209,6 +220,8 @@ describe("project routes", () => {
         maxConcurrentTasks: 2,
         logRetentionDays: null,
         eventRetentionDays: 14,
+        harborSkillsEnabled: false,
+        harborSkillProfile: "team-a",
       },
     })
 
@@ -223,8 +236,113 @@ describe("project routes", () => {
         maxConcurrentTasks: 2,
         logRetentionDays: null,
         eventRetentionDays: 14,
+        harborSkillsEnabled: false,
+        harborSkillProfile: "team-a",
       },
     })
+  })
+
+  it("creates Harbor skill bridge files for new projects when default skills are enabled", async () => {
+    const projectPath = await createTempProjectDir()
+    tempProjectDirs.push(projectPath)
+
+    await mkdir(path.join(projectPath, ".git", "info"), { recursive: true })
+    await mkdir(
+      path.join(
+        harborHomeDirectory,
+        "skills",
+        "profiles",
+        "default",
+        "fix-tests",
+      ),
+      { recursive: true },
+    )
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        path: projectPath,
+        name: "Bridge Project",
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json() as {
+      projects: Array<{ id: string }>
+    }
+    const projectId = body.projects[0]?.id
+
+    expect(
+      await readlink(
+        path.join(projectPath, ".codex", "skills", "harbor-fix-tests"),
+      ),
+    ).toBe(
+      path.join(harborHomeDirectory, "projects", projectId, "skills", "fix-tests"),
+    )
+
+    const excludeContent = await readFile(
+      path.join(projectPath, ".git", "info", "exclude"),
+      "utf8",
+    )
+    expect(excludeContent).toContain(".codex/skills/harbor-*")
+  })
+
+  it("removes Harbor bridge files when project settings disable Harbor skills", async () => {
+    const projectPath = await createTempProjectDir()
+    tempProjectDirs.push(projectPath)
+
+    await mkdir(path.join(projectPath, ".git", "info"), { recursive: true })
+    await mkdir(
+      path.join(
+        harborHomeDirectory,
+        "skills",
+        "profiles",
+        "default",
+        "review-diff",
+      ),
+      { recursive: true },
+    )
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        path: projectPath,
+        name: "Disable Harbor Skills",
+      },
+    })
+
+    expect(createResponse.statusCode).toBe(200)
+    const body = createResponse.json() as {
+      projects: Array<{ id: string }>
+    }
+    const projectId = body.projects[0]?.id
+    const bridgePath = path.join(
+      projectPath,
+      ".codex",
+      "skills",
+      "harbor-review-diff",
+    )
+
+    expect(await lstat(bridgePath)).toBeTruthy()
+
+    const updateResponse = await app.inject({
+      method: "PUT",
+      url: `/v1/projects/${projectId}/settings`,
+      payload: {
+        harborSkillsEnabled: false,
+      },
+    })
+
+    expect(updateResponse.statusCode).toBe(200)
+    await expect(lstat(bridgePath)).rejects.toThrow()
+
+    const excludeContent = await readFile(
+      path.join(projectPath, ".git", "info", "exclude"),
+      "utf8",
+    )
+    expect(excludeContent).not.toContain(".codex/skills/harbor-*")
   })
 
   it("returns not found when updating a missing project", async () => {

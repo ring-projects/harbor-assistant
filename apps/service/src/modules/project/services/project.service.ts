@@ -6,11 +6,22 @@ import type {
   ProjectRepository,
   UpdateProjectInput,
 } from "../repositories"
+import type { ProjectSettingsRepository } from "../repositories"
+import type { ProjectSkillBridgeService } from "./project-skill-bridge.service"
 
 export function createProjectService(args: {
   projectRepository: ProjectRepository
+  projectSettingsRepository?: Pick<ProjectSettingsRepository, "getProjectSettings">
+  projectSkillBridgeService?: Pick<
+    ProjectSkillBridgeService,
+    "ensureProjectSkillBridge" | "removeProjectSkillBridgeAtProjectPath"
+  >
 }) {
-  const { projectRepository } = args
+  const {
+    projectRepository,
+    projectSettingsRepository,
+    projectSkillBridgeService,
+  } = args
 
   async function listProjects(options?: ListProjectsOptions): Promise<Project[]> {
     try {
@@ -51,7 +62,16 @@ export function createProjectService(args: {
     }
 
     try {
-      return await projectRepository.addProject(input)
+      const project = await projectRepository.addProject(input)
+      const settings = await projectSettingsRepository?.getProjectSettings(project.id)
+      if (settings?.harborSkillsEnabled && projectSkillBridgeService) {
+        await projectSkillBridgeService.ensureProjectSkillBridge({
+          projectId: project.id,
+          profile: settings.harborSkillProfile,
+        })
+      }
+
+      return project
     } catch (error) {
       if (error instanceof ProjectError) {
         throw error
@@ -66,10 +86,30 @@ export function createProjectService(args: {
     }
 
     try {
+      const existingProject = await projectRepository.getProjectById(input.id)
       const project = await projectRepository.updateProject(input)
       if (!project) {
         throw createProjectError.projectNotFound(input.id)
       }
+
+      if (
+        existingProject &&
+        existingProject.path !== project.path &&
+        projectSkillBridgeService
+      ) {
+        await projectSkillBridgeService.removeProjectSkillBridgeAtProjectPath(
+          existingProject.path,
+        )
+      }
+
+      const settings = await projectSettingsRepository?.getProjectSettings(project.id)
+      if (settings?.harborSkillsEnabled && projectSkillBridgeService) {
+        await projectSkillBridgeService.ensureProjectSkillBridge({
+          projectId: project.id,
+          profile: settings.harborSkillProfile,
+        })
+      }
+
       return project
     } catch (error) {
       if (error instanceof ProjectError) {
@@ -93,9 +133,16 @@ export function createProjectService(args: {
     }
 
     try {
+      const existingProject = await projectRepository.getProjectById(id)
       const deleted = await projectRepository.deleteProject(id)
       if (!deleted) {
         throw createProjectError.projectNotFound(id)
+      }
+
+      if (existingProject && projectSkillBridgeService) {
+        await projectSkillBridgeService.removeProjectSkillBridgeAtProjectPath(
+          existingProject.path,
+        )
       }
     } catch (error) {
       if (error instanceof ProjectError) {
