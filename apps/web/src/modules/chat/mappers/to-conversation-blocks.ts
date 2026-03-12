@@ -2,6 +2,13 @@ import type { TaskAgentEvent } from "@/modules/tasks/contracts"
 
 import type { ChatConversationBlock } from "../types"
 
+const HIDDEN_EVENT_TYPES = new Set<TaskAgentEvent["eventType"]>([
+  "session.started",
+  "session.completed",
+  "turn.started",
+  "turn.completed",
+])
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return null
@@ -197,7 +204,11 @@ function eventTone(event: TaskAgentEvent): "neutral" | "error" | "success" {
 export function toConversationBlocks(
   events: TaskAgentEvent[],
 ): ChatConversationBlock[] {
-  return events.map((event) => {
+  return events.flatMap((event) => {
+    if (HIDDEN_EVENT_TYPES.has(event.eventType)) {
+      return []
+    }
+
     const payload = asRecord(event.payload)
 
     if (event.eventType === "message") {

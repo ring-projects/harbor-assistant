@@ -25,6 +25,37 @@ function buildTaskAgentEvent(
 }
 
 describe("toConversationBlocks", () => {
+  it("hides lifecycle events from the chat stream", () => {
+    const blocks = toConversationBlocks([
+      buildTaskAgentEvent({
+        id: "turn-started-1",
+        eventType: "turn.started",
+        payload: {
+          type: "turn.started",
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+      buildTaskAgentEvent({
+        id: "turn-completed-1",
+        eventType: "turn.completed",
+        payload: {
+          type: "turn.completed",
+          timestamp: "2026-03-11T00:00:01.000Z",
+        },
+      }),
+      buildTaskAgentEvent({
+        id: "session-completed-1",
+        eventType: "session.completed",
+        payload: {
+          type: "session.completed",
+          timestamp: "2026-03-11T00:00:02.000Z",
+        },
+      }),
+    ])
+
+    expect(blocks).toEqual([])
+  })
+
   it("maps chat messages into message blocks", () => {
     const [block] = toConversationBlocks([
       buildTaskAgentEvent({
