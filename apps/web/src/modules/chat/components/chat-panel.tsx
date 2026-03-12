@@ -4,6 +4,7 @@ import { ArrowDownIcon } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import {
@@ -285,6 +286,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                 {CHAT_STATUS_META[detail.status].label}
               </span>
             ) : null}
+
           </div>
         </div>
 
@@ -310,11 +312,12 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
 
         {taskId && !isLoading && !isError ? (
           <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden">
-            <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border bg-muted/20">
-              <div
-                ref={scrollerRef}
-                onScroll={handleScroll}
-                className="h-full min-h-0 overflow-y-auto overflow-x-hidden px-4 py-4"
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+              <ScrollArea
+                viewportRef={scrollerRef}
+                onViewportScroll={handleScroll}
+                className="h-full min-h-0"
+                viewportClassName="h-full min-h-0 px-4 py-4"
               >
                 {blocks.length === 0 ? (
                   <div className="text-muted-foreground flex min-h-full items-center justify-center text-sm">
@@ -323,7 +326,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                 ) : (
                   <ChatStream blocks={blocks} onOpenExecution={openExecutionDrawer} />
                 )}
-              </div>
+              </ScrollArea>
 
               {!stickToBottom && blocks.length > 0 ? (
                 <div className="absolute right-4 bottom-4">
