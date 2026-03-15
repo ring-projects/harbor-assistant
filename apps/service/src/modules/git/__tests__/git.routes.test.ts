@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { promisify } from "node:util"
@@ -230,6 +230,95 @@ describe("git routes", () => {
         files: [
           expect.objectContaining({
             path: "README.md",
+          }),
+        ],
+      },
+    })
+  })
+
+  it("skips untracked directories when building git diff", async () => {
+    const gitProject = await createGitProject()
+    tempDirs.push(gitProject.projectPath)
+
+    const nestedRepoPath = path.join(gitProject.projectPath, "nested-repo")
+    await mkdir(nestedRepoPath)
+    await execGit(nestedRepoPath, ["init"])
+
+    const createProjectResponse = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        path: gitProject.projectPath,
+      },
+    })
+
+    const projectId = (createProjectResponse.json() as {
+      projects: Array<{ id: string }>
+    }).projects[0]?.id
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${projectId}/git/diff`,
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      diff: {
+        projectId,
+        files: [],
+      },
+    })
+  })
+
+  it("returns synthetic patches for untracked files", async () => {
+    const gitProject = await createGitProject()
+    tempDirs.push(gitProject.projectPath)
+
+    await writeFile(
+      path.join(gitProject.projectPath, "notes.txt"),
+      "first line\nsecond line\n",
+      "utf8",
+    )
+
+    const createProjectResponse = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        path: gitProject.projectPath,
+      },
+    })
+
+    const projectId = (createProjectResponse.json() as {
+      projects: Array<{ id: string }>
+    }).projects[0]?.id
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${projectId}/git/diff`,
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      diff: {
+        projectId,
+        files: [
+          expect.objectContaining({
+            path: "notes.txt",
+            status: "added",
+            additions: 2,
+            deletions: 0,
+          }),
+        ],
+      },
+    })
+
+    expect(response.json()).toMatchObject({
+      diff: {
+        files: [
+          expect.objectContaining({
+            patch: expect.stringContaining("+++ b/notes.txt"),
           }),
         ],
       },

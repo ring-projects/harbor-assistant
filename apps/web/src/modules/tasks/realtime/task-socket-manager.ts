@@ -7,13 +7,13 @@ import { gitQueryKeys } from "@/modules/git"
 import { getTaskSocketBaseUrl } from "@/modules/tasks/api"
 import type {
   TaskAgentEvent,
-  TaskAgentEventStream,
-  TaskDetail,
   TaskListItem,
   TaskStatus,
 } from "@/modules/tasks/contracts"
-
-import { taskQueryKeys } from "../hooks/use-task-queries"
+import {
+  selectLastSequence,
+  useTasksSessionStore,
+} from "@/modules/tasks/store"
 
 type ProjectTaskUpsertPayload = {
   projectId: string
@@ -204,72 +204,6 @@ function normalizeTask(input: Record<string, unknown>): TaskListItem | null {
   }
 }
 
-function upsertTask(
-  current: TaskListItem[] | undefined,
-  incoming: TaskListItem,
-): TaskListItem[] {
-  const next = current ? [...current] : []
-  const index = next.findIndex((task) => task.taskId === incoming.taskId)
-
-  if (index >= 0) {
-    next[index] = incoming
-  } else {
-    next.push(incoming)
-  }
-
-  next.sort(
-    (left, right) =>
-      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-  )
-
-  return next
-}
-
-function patchTaskStatus<T extends TaskDetail | TaskListItem>(task: T, status: TaskStatus): T {
-  const nextTask = {
-    ...task,
-    status,
-  }
-
-  if (status === "running" && !task.startedAt) {
-    nextTask.startedAt = new Date().toISOString()
-    nextTask.finishedAt = null
-    nextTask.exitCode = null
-    nextTask.error = null
-  }
-
-  if (status === "completed" || status === "failed" || status === "cancelled") {
-    nextTask.finishedAt = task.finishedAt ?? new Date().toISOString()
-  }
-
-  return nextTask
-}
-
-function mergeAgentEvent(
-  current: TaskAgentEventStream | null | undefined,
-  event: TaskAgentEvent,
-): TaskAgentEventStream {
-  const base: TaskAgentEventStream = current ?? {
-    taskId: event.taskId,
-    items: [],
-    nextSequence: 0,
-  }
-
-  if (base.items.some((currentEvent) => currentEvent.id === event.id)) {
-    return base
-  }
-
-  const items = [...base.items, event].sort(
-    (left, right) => left.sequence - right.sequence,
-  )
-
-  return {
-    taskId: base.taskId || event.taskId,
-    items,
-    nextSequence: Math.max(base.nextSequence, event.sequence),
-  }
-}
-
 export class TaskSocketManager {
   private socket: Socket | null = null
   private queryClient: QueryClient | null = null
@@ -387,11 +321,7 @@ export class TaskSocketManager {
 
     if (current === 0) {
       const afterSequence =
-        this.queryClient
-          ?.getQueryData<TaskAgentEventStream | null>(
-            taskQueryKeys.events(normalizedTaskId),
-          )
-          ?.items.at(-1)?.sequence ?? 0
+        selectLastSequence(useTasksSessionStore.getState(), normalizedTaskId)
 
       this.socket?.emit("subscribe:task-events", {
         taskId: normalizedTaskId,
@@ -446,10 +376,7 @@ export class TaskSocketManager {
         this.socket?.emit("subscribe:task", { taskId })
       }
       for (const taskId of this.taskEventsRefs.keys()) {
-        const afterSequence =
-          this.queryClient
-            ?.getQueryData<TaskAgentEventStream | null>(taskQueryKeys.events(taskId))
-            ?.items.at(-1)?.sequence ?? 0
+        const afterSequence = selectLastSequence(useTasksSessionStore.getState(), taskId)
 
         this.socket?.emit("subscribe:task-events", {
           taskId,
@@ -461,59 +388,36 @@ export class TaskSocketManager {
 
     this.socket.on("project:task_upsert", (payload: ProjectTaskUpsertPayload) => {
       const task = normalizeTask(payload.task)
-      if (!task || !this.queryClient) {
+      if (!task) {
         return
       }
 
-      this.queryClient.setQueryData<TaskListItem[] | undefined>(
-        taskQueryKeys.list(payload.projectId),
-        (current) => upsertTask(current, task),
-      )
-
-      this.queryClient.setQueryData<TaskDetail | null>(
-        taskQueryKeys.detail(task.taskId),
-        (current) => current ?? task,
-      )
+      useTasksSessionStore.getState().applyTaskUpsert(task)
     })
 
     this.socket.on("task:ready", (payload: TaskReadyPayload) => {
       const task = normalizeTask(payload.task)
-      if (!task || !this.queryClient) {
+      if (!task) {
         return
       }
 
-      this.queryClient.setQueryData(taskQueryKeys.detail(payload.taskId), task)
-      this.queryClient.setQueryData<TaskListItem[] | undefined>(
-        taskQueryKeys.list(task.projectId),
-        (current) => upsertTask(current, task),
-      )
+      useTasksSessionStore.getState().applyTaskUpsert(task)
     })
 
     this.socket.on("task:status", (payload: TaskStatusPayload) => {
-      if (!this.queryClient) {
-        return
-      }
-
-      this.queryClient.setQueryData<TaskDetail | null>(
-        taskQueryKeys.detail(payload.taskId),
-        (current) => (current ? patchTaskStatus(current, payload.status) : current),
-      )
+      useTasksSessionStore.getState().applyTaskStatus(payload.taskId, payload.status)
     })
 
     this.socket.on("task:end", (payload: TaskEndPayload) => {
+      useTasksSessionStore.getState().applyTaskEnd(payload.taskId, payload.status)
+
+      const currentTask = useTasksSessionStore
+        .getState()
+        .tasksById[payload.taskId]
+
       if (!this.queryClient) {
         return
       }
-
-      const currentTask = this.queryClient.getQueryData<TaskDetail | null>(
-        taskQueryKeys.detail(payload.taskId),
-      )
-
-      this.queryClient.setQueryData<TaskDetail | null>(
-        taskQueryKeys.detail(payload.taskId),
-        (current) => (current ? patchTaskStatus(current, payload.status) : current),
-      )
-
       if (currentTask?.projectId) {
         void this.queryClient.invalidateQueries({
           queryKey: gitQueryKeys.byProject(currentTask.projectId),
@@ -528,14 +432,7 @@ export class TaskSocketManager {
     this.socket.on("task-events:ready", (_payload: TaskEventsReadyPayload) => {})
 
     this.socket.on("task-events:item", (payload: TaskEventsItemPayload) => {
-      if (!this.queryClient) {
-        return
-      }
-
-      this.queryClient.setQueryData<TaskAgentEventStream | null>(
-        taskQueryKeys.events(payload.taskId),
-        (current) => mergeAgentEvent(current, payload.event),
-      )
+      useTasksSessionStore.getState().applyAgentEvent(payload.taskId, payload.event)
     })
 
     this.socket.on("project:git_changed", (payload: ProjectGitChangedPayload) => {

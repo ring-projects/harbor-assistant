@@ -8,7 +8,7 @@ import {
   ShieldIcon,
   WifiIcon,
 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -35,8 +35,15 @@ import {
   useBreakTaskTurnMutation,
   useTaskFollowupMutation,
 } from "@/modules/tasks/hooks/use-task-queries"
+import {
+  selectChatUi,
+  selectConversationBlocks,
+  selectLastSequence,
+  selectSelectedExecutionBlock,
+  selectTaskDetail,
+  useTasksSessionStore,
+} from "@/modules/tasks/store"
 
-import { toConversationBlocks } from "../mappers/to-conversation-blocks"
 import type { ChatConversationBlock } from "../types"
 import { ChatComposer } from "./chat-composer"
 import { ChatExecutionDrawer } from "./chat-execution-drawer"
@@ -189,57 +196,22 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
   const breakTurnMutation = useBreakTaskTurnMutation(projectId)
   const followupMutation = useTaskFollowupMutation(projectId)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
-  const [drafts, setDrafts] = useState<Record<string, string>>({})
-  const [stickToBottom, setStickToBottom] = useState(true)
-  const [pendingPrompt, setPendingPrompt] = useState<{
-    taskId: string
-    content: string
-    baselineSequence: number
-  } | null>(null)
-  const [selectedExecutionBlock, setSelectedExecutionBlock] = useState<
-    Extract<ChatConversationBlock, { type: "execution" }> | null
-  >(null)
-  const [isExecutionDrawerOpen, setIsExecutionDrawerOpen] = useState(false)
-
-  const detail = detailQuery.data
-  const events = useMemo(() => eventsQuery.data?.items ?? [], [eventsQuery.data?.items])
-  const draft = taskId ? (drafts[taskId] ?? "") : ""
+  const detail = useTasksSessionStore((state) => selectTaskDetail(state, taskId))
+  const blocksFromStore = useTasksSessionStore((state) =>
+    selectConversationBlocks(state, taskId)
+  )
+  const chatUi = useTasksSessionStore((state) => selectChatUi(state, taskId))
+  const lastSequence = useTasksSessionStore((state) => selectLastSequence(state, taskId))
+  const selectedExecutionBlock = useTasksSessionStore((state) =>
+    selectSelectedExecutionBlock(state, taskId)
+  )
   const isBreaking = breakTurnMutation.isPending
   const isReady = canFollowup(detail)
   const isLoading = Boolean(taskId) && (detailQuery.isLoading || eventsQuery.isLoading)
   const isError = Boolean(taskId) && (detailQuery.isError || eventsQuery.isError)
-  const lastSequence = events.at(-1)?.sequence ?? 0
-  const visiblePendingPrompt = useMemo(() => {
-    if (!pendingPrompt || pendingPrompt.taskId !== taskId) {
-      return null
-    }
-
-    const matchedUserMessage = events.some(
-      (event) =>
-        event.sequence > pendingPrompt.baselineSequence &&
-        event.eventType === "message" &&
-        event.payload.role === "user" &&
-        typeof event.payload.content === "string" &&
-        event.payload.content.trim() === pendingPrompt.content.trim(),
-    )
-
-    return matchedUserMessage ? null : pendingPrompt
-  }, [events, pendingPrompt, taskId])
 
   const blocks = useMemo(() => {
-    const mapped = toConversationBlocks(events)
-    const nextBlocks: ChatConversationBlock[] = [...mapped]
-
-    if (visiblePendingPrompt) {
-      nextBlocks.push({
-        id: `pending-${visiblePendingPrompt.baselineSequence}`,
-        type: "message",
-        role: "user",
-        content: visiblePendingPrompt.content,
-        timestamp: null,
-        pending: true,
-      })
-    }
+    const nextBlocks: ChatConversationBlock[] = [...blocksFromStore]
 
     if (detail?.status === "running") {
       nextBlocks.push({
@@ -250,10 +222,10 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
     }
 
     return nextBlocks
-  }, [detail, events, visiblePendingPrompt])
+  }, [blocksFromStore, detail])
 
   useEffect(() => {
-    if (!stickToBottom) {
+    if (!chatUi.stickToBottom) {
       return
     }
 
@@ -266,44 +238,49 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
       top: node.scrollHeight,
       behavior: "smooth",
     })
-  }, [blocks, stickToBottom])
+  }, [blocks, chatUi.stickToBottom])
 
   function updateDraft(value: string) {
     if (!taskId) {
       return
     }
 
-    setDrafts((current) => ({
-      ...current,
-      [taskId]: value,
-    }))
+    useTasksSessionStore.getState().setDraft(taskId, value)
   }
 
   function handleScroll() {
+    if (!taskId) {
+      return
+    }
+
     const node = scrollerRef.current
     if (!node) {
       return
     }
 
     const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight
-    setStickToBottom(distanceFromBottom < 48)
+    useTasksSessionStore.getState().setStickToBottom(taskId, distanceFromBottom < 48)
   }
 
   function openExecutionDrawer(
     block: Extract<ChatConversationBlock, { type: "execution" }>,
   ) {
-    setSelectedExecutionBlock(block)
-    setIsExecutionDrawerOpen(true)
-  }
-
-  async function submitFollowup() {
-    if (!taskId || !isReady || !draft.trim() || isBreaking) {
+    if (!taskId) {
       return
     }
 
-    const nextPrompt = draft.trim()
-    setPendingPrompt({
-      taskId,
+    useTasksSessionStore
+      .getState()
+      .setSelectedExecutionBlockId(taskId, block.id)
+  }
+
+  async function submitFollowup() {
+    if (!taskId || !isReady || !chatUi.draft.trim() || isBreaking) {
+      return
+    }
+
+    const nextPrompt = chatUi.draft.trim()
+    useTasksSessionStore.getState().setPendingPrompt(taskId, {
       content: nextPrompt,
       baselineSequence: lastSequence,
     })
@@ -314,12 +291,9 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
         prompt: nextPrompt,
       })
 
-      setDrafts((current) => ({
-        ...current,
-        [taskId]: "",
-      }))
+      useTasksSessionStore.getState().setDraft(taskId, "")
     } catch {
-      setPendingPrompt(null)
+      useTasksSessionStore.getState().setPendingPrompt(taskId, null)
     }
   }
 
@@ -412,7 +386,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                 )}
               </ScrollArea>
 
-              {!stickToBottom && blocks.length > 0 ? (
+              {!chatUi.stickToBottom && blocks.length > 0 ? (
                 <div className="absolute right-4 bottom-4">
                   <Button
                     type="button"
@@ -427,7 +401,9 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                         top: node.scrollHeight,
                         behavior: "smooth",
                       })
-                      setStickToBottom(true)
+                      if (taskId) {
+                        useTasksSessionStore.getState().setStickToBottom(taskId, true)
+                      }
                     }}
                   >
                     <ArrowDownIcon className="size-4" />
@@ -439,7 +415,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
 
             <form className="min-h-0" onSubmit={handleSubmit}>
               <ChatComposer
-                canSubmit={Boolean(taskId) && isReady && draft.trim().length > 0 && !isBreaking}
+                canSubmit={Boolean(taskId) && isReady && chatUi.draft.trim().length > 0 && !isBreaking}
                 inputDisabled={
                   !taskId ||
                   !detail?.threadId ||
@@ -451,7 +427,7 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                   isBreaking ? "Stopping current turn..." : helperText(detail, taskId)
                 }
                 placeholder={taskId ? "Continue this conversation..." : "Select a task first"}
-                value={draft}
+                value={chatUi.draft}
                 errorMessage={
                   breakTurnMutation.isError
                     ? getErrorMessage(breakTurnMutation.error)
@@ -471,11 +447,12 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
 
       <ChatExecutionDrawer
         block={selectedExecutionBlock}
-        open={isExecutionDrawerOpen}
+        open={selectedExecutionBlock !== null}
         onOpenChange={(open) => {
-          setIsExecutionDrawerOpen(open)
-          if (!open) {
-            setSelectedExecutionBlock(null)
+          if (!open && taskId) {
+            useTasksSessionStore
+              .getState()
+              .setSelectedExecutionBlockId(taskId, null)
           }
         }}
       />

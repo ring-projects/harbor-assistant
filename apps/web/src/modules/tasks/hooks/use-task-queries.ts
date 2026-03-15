@@ -1,6 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect } from "react"
 
 import { gitQueryKeys } from "@/modules/git"
 import {
@@ -13,6 +14,7 @@ import {
   retryTask,
   type CreateTaskInput,
 } from "@/modules/tasks/api"
+import { useTasksSessionStore } from "@/modules/tasks/store"
 export { useTaskEventStream } from "./use-task-event-stream"
 export { useProjectTaskListStream } from "./use-project-task-list-stream"
 
@@ -35,7 +37,7 @@ export const taskQueryKeys = {
 export function useTaskListQuery(args: {
   projectId: string
 }) {
-  return useQuery({
+  const query = useQuery({
     queryKey: taskQueryKeys.list(args.projectId),
     queryFn: async () => {
       const result = await readProjectTasks({
@@ -46,10 +48,20 @@ export function useTaskListQuery(args: {
     },
     staleTime: 5_000,
   })
+
+  useEffect(() => {
+    if (!query.data) {
+      return
+    }
+
+    useTasksSessionStore.getState().hydrateProjectTasks(args.projectId, query.data)
+  }, [args.projectId, query.data])
+
+  return query
 }
 
 export function useTaskDetailQuery(taskId: string | null) {
-  return useQuery({
+  const query = useQuery({
     queryKey: taskQueryKeys.detail(taskId ?? "none"),
     queryFn: async () => {
       if (!taskId) {
@@ -60,13 +72,23 @@ export function useTaskDetailQuery(taskId: string | null) {
     },
     enabled: Boolean(taskId),
   })
+
+  useEffect(() => {
+    if (!query.data) {
+      return
+    }
+
+    useTasksSessionStore.getState().hydrateTaskDetail(query.data)
+  }, [query.data])
+
+  return query
 }
 
 export function useTaskEventsQuery(args: {
   taskId: string | null
   enabled: boolean
 }) {
-  return useQuery({
+  const query = useQuery({
     queryKey: taskQueryKeys.events(args.taskId ?? "none"),
     queryFn: async () => {
       if (!args.taskId) {
@@ -80,6 +102,16 @@ export function useTaskEventsQuery(args: {
     },
     enabled: args.enabled && Boolean(args.taskId),
   })
+
+  useEffect(() => {
+    if (!args.taskId || !query.data) {
+      return
+    }
+
+    useTasksSessionStore.getState().hydrateTaskEvents(args.taskId, query.data)
+  }, [args.taskId, query.data])
+
+  return query
 }
 
 export function useCreateTaskMutation(projectId: string) {
@@ -96,7 +128,7 @@ export function useCreateTaskMutation(projectId: string) {
       })
 
       if (result.task) {
-        queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
+        useTasksSessionStore.getState().applyTaskUpsert(result.task)
       }
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.events(result.taskId),
@@ -119,7 +151,7 @@ export function useBreakTaskTurnMutation(projectId: string) {
       })
 
       if (task) {
-        queryClient.setQueryData(taskQueryKeys.detail(task.taskId), task)
+        useTasksSessionStore.getState().applyTaskUpsert(task)
         void queryClient.invalidateQueries({
           queryKey: taskQueryKeys.events(task.taskId),
         })
@@ -142,7 +174,7 @@ export function useRetryTaskMutation(projectId: string) {
       })
 
       if (result.task) {
-        queryClient.setQueryData(taskQueryKeys.detail(result.taskId), result.task)
+        useTasksSessionStore.getState().applyTaskUpsert(result.task)
       }
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.events(result.taskId),
@@ -169,7 +201,7 @@ export function useTaskFollowupMutation(projectId: string) {
       })
 
       if (result.task) {
-        queryClient.setQueryData(taskQueryKeys.detail(variables.taskId), result.task)
+        useTasksSessionStore.getState().applyTaskUpsert(result.task)
       }
 
       void queryClient.invalidateQueries({

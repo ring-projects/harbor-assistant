@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises"
+import { lstat, readFile } from "node:fs/promises"
 import path from "node:path"
 
 import { runGitCommand } from "../repositories"
@@ -130,7 +130,30 @@ async function buildSyntheticUntrackedPatches(
     }
 
     const absolutePath = path.join(projectPath, entry.path)
-    const buffer = await readFile(absolutePath)
+    const stats = await lstat(absolutePath).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        return null
+      }
+
+      throw error
+    })
+
+    if (!stats || stats.isDirectory() || !stats.isFile()) {
+      continue
+    }
+
+    const buffer = await readFile(absolutePath).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        return null
+      }
+
+      throw error
+    })
+
+    if (!buffer) {
+      continue
+    }
+
     if (buffer.byteLength > MAX_FILE_BYTES || isBinaryBuffer(buffer)) {
       patches.push(
         [

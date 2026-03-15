@@ -23,6 +23,10 @@ import {
   useProjectTaskListStream,
   useTaskListQuery,
 } from "@/modules/tasks/hooks/use-task-queries"
+import {
+  selectProjectTasks,
+  useTasksSessionStore,
+} from "@/modules/tasks/store"
 
 import {
   formatDateTime,
@@ -99,13 +103,7 @@ export function TaskListPanel({
     enabled: true,
   })
 
-  const allTasks = useMemo(() => {
-    const tasks = listQuery.data ?? []
-    return [...tasks].sort(
-      (left, right) =>
-        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-    )
-  }, [listQuery.data])
+  const allTasks = useTasksSessionStore((state) => selectProjectTasks(state, projectId))
 
   const resolvedSelectedTaskId = useMemo(() => {
     if (allTasks.length === 0) {
@@ -163,9 +161,6 @@ export function TaskListPanel({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">Task List</p>
-            <p className="text-muted-foreground text-xs">
-              Create and revisit tasks for the selected executor.
-            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -196,9 +191,6 @@ export function TaskListPanel({
           <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
-              <DialogDescription>
-                Enter an initial prompt and choose the executor to use.
-              </DialogDescription>
             </DialogHeader>
 
             <form className="grid gap-3" onSubmit={handleCreateTask}>
