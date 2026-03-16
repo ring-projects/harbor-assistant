@@ -352,10 +352,6 @@ export function TaskListPanel({
                         prompt: task.prompt,
                       })}
                     </p>
-                    <p className="text-muted-foreground pt-1 text-xs">
-                      {getPromptSummary(task.prompt)}
-                    </p>
-
                     <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 pt-2 text-[11px]">
                       <span>Created: {formatDateTime(task.createdAt)}</span>
                       <span>Executor: {formatExecutorLabel(task.executor)}</span>

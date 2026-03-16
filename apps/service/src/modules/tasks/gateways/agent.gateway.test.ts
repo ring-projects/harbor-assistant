@@ -113,4 +113,69 @@ describe("createTaskAgentGateway", () => {
       }),
     )
   })
+
+  it("surfaces startup failures before session start and persists an error event", async () => {
+    const appendTaskAgentEvent = vi.fn(async (input) => ({
+      id: `event-${input.eventType}`,
+      taskId: input.taskId,
+      sequence: 1,
+      eventType: input.eventType,
+      payload: input.payload,
+      createdAt: input.createdAt ?? "2026-03-11T00:00:00.000Z",
+    }))
+    const publish = vi.fn()
+
+    const gateway = createTaskAgentGateway({
+      taskRepository: {
+        appendTaskAgentEvent,
+        setTaskThreadId: vi.fn(async () => {}),
+      },
+      taskEventBus: {
+        publish,
+      },
+    })
+
+    const startupError = new Error("spawn ENOENT")
+    const startSessionAndRun = vi.fn(
+      () =>
+        (async function* () {
+          throw startupError
+        })(),
+    )
+
+    vi.spyOn(AgentFactory, "getAgent").mockReturnValue({
+      startSessionAndRun,
+      resumeSessionAndRun: vi.fn(),
+    } as never)
+
+    await expect(
+      gateway.startSessionAndRun({
+        taskId: "task-1",
+        projectId: "project-1",
+        projectPath: "/tmp/project-1",
+        prompt: "Run tests",
+        displayPrompt: "Run tests",
+        model: "gpt-5",
+        runtimePolicy: RUNTIME_POLICY_PRESETS.connected,
+      }),
+    ).rejects.toThrow("spawn ENOENT")
+
+    expect(appendTaskAgentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        eventType: "error",
+        payload: expect.objectContaining({
+          type: "error",
+          message: "Error: spawn ENOENT",
+        }),
+      }),
+    )
+
+    expect(publish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "agent_event",
+        taskId: "task-1",
+      }),
+    )
+  })
 })

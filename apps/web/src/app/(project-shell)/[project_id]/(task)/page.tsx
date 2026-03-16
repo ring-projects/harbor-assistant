@@ -1,4 +1,5 @@
-import { ProjectTaskWorkspace } from "./project-task-workspace"
+import { listProjectsFromService } from "@/lib/projects-service"
+import { ProjectTaskClient } from "./project-task-client"
 
 type ProjectTaskPageProps = {
   params: Promise<{
@@ -10,10 +11,12 @@ export default async function ProjectTaskRoutePage(
   props: ProjectTaskPageProps,
 ) {
   const { project_id: projectId } = await props.params
+  const initialProjects = await listProjectsFromService()
 
   return (
-    <div className="h-full min-h-0 overflow-hidden">
-      <ProjectTaskWorkspace projectId={projectId} />
-    </div>
+    <ProjectTaskClient
+      projectId={projectId}
+      initialProjects={initialProjects}
+    />
   )
 }

@@ -82,11 +82,19 @@ function ensureSupportedAgent(agentType: string): asserts agentType is AgentType
   }
 }
 
+function shouldApplyHarborSkills(
+  agentType: AgentType,
+  projectSettings: ProjectSettings | null,
+) {
+  return projectSettings?.harborSkillsEnabled === true && agentType !== "codex"
+}
+
 function buildHarborBootstrapPrompt(args: {
+  agentType: AgentType
   prompt: string
   projectSettings: ProjectSettings | null
 }) {
-  if (!args.projectSettings?.harborSkillsEnabled) {
+  if (!shouldApplyHarborSkills(args.agentType, args.projectSettings)) {
     return args.prompt
   }
 
@@ -132,18 +140,21 @@ export function createTaskService(args: {
   } = args
 
   async function applyProjectSkillRuntimePolicy(args: {
+    agentType: AgentType
     projectId: string
     projectSettings: ProjectSettings | null
     runtimePolicy: ReturnType<typeof resolveRuntimePolicy>["runtimePolicy"]
   }) {
-    if (!args.projectSettings?.harborSkillsEnabled) {
+    if (!shouldApplyHarborSkills(args.agentType, args.projectSettings)) {
       return args.runtimePolicy
     }
+
+    const projectSettings = args.projectSettings!
 
     if (projectSkillBridgeService) {
       await projectSkillBridgeService.ensureProjectSkillBridge({
         projectId: args.projectId,
-        profile: args.projectSettings.harborSkillProfile,
+        profile: projectSettings.harborSkillProfile,
       })
     }
 
@@ -196,11 +207,13 @@ export function createTaskService(args: {
       runtimePolicy: input.runtimePolicy,
     })
     const runtimePolicy = await applyProjectSkillRuntimePolicy({
+      agentType,
       projectId: project.id,
       projectSettings,
       runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
     })
     const agentPrompt = buildHarborBootstrapPrompt({
+      agentType,
       prompt,
       projectSettings,
     })
@@ -281,6 +294,7 @@ export function createTaskService(args: {
         runtimePolicy: input.runtimePolicy ?? task.runtimePolicy,
       })
       const runtimePolicy = await applyProjectSkillRuntimePolicy({
+        agentType,
         projectId: task.projectId,
         projectSettings,
         runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
@@ -375,6 +389,7 @@ export function createTaskService(args: {
         runtimePolicy: task.runtimePolicy,
       })
       const runtimePolicy = await applyProjectSkillRuntimePolicy({
+        agentType,
         projectId: task.projectId,
         projectSettings,
         runtimePolicy: resolvedRuntimePolicy.runtimePolicy,
@@ -411,6 +426,7 @@ export function createTaskService(args: {
         projectPath: task.projectPath,
         prompt: task.prompt,
         agentPrompt: buildHarborBootstrapPrompt({
+          agentType,
           prompt: task.prompt,
           projectSettings,
         }),

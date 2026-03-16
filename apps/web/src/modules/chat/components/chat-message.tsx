@@ -1,10 +1,10 @@
 "use client"
 
-import type { ComponentProps } from "react"
+import { isValidElement, type ComponentProps, type ReactNode } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
-import { HighlightedCodeText } from "@/components/code"
+import { ShikiCodeBlock } from "@/components/code"
 import { cn } from "@/lib/utils"
 
 import type { ChatConversationBlock } from "../types"
@@ -13,6 +13,11 @@ import styles from "./chat-message.module.css"
 
 type ChatMessageProps = {
   block: Extract<ChatConversationBlock, { type: "message" }>
+}
+
+type MarkdownCodeElementProps = {
+  className?: string
+  children?: ReactNode
 }
 
 export function ChatMessage({ block }: ChatMessageProps) {
@@ -52,28 +57,37 @@ export function ChatMessage({ block }: ChatMessageProps) {
                       />
                     )
                   },
+                  pre: function ChatMessagePre({
+                    children,
+                    ...props
+                  }: ComponentProps<"pre">) {
+                    if (isValidElement(children) && children.type === "code") {
+                      const codeProps = children.props as MarkdownCodeElementProps
+                      const className =
+                        typeof codeProps.className === "string"
+                          ? codeProps.className
+                          : undefined
+                      const languageMatch = /language-([\w-]+)/.exec(className ?? "")
+                      const code = String(codeProps.children ?? "")
+
+                      return (
+                        <ShikiCodeBlock
+                          code={code}
+                          language={languageMatch?.[1] ?? null}
+                        />
+                      )
+                    }
+
+                    return <pre {...props}>{children}</pre>
+                  },
                   code: function ChatMessageCode({
                     className,
                     children,
                     ...props
                   }) {
-                    const languageMatch = /language-([\w-]+)/.exec(className ?? "")
-                    const code = String(children).replace(/\n$/, "")
-
-                    if (!languageMatch) {
-                      return (
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      )
-                    }
-
                     return (
-                      <code className={cn("block whitespace-pre", className)} {...props}>
-                        <HighlightedCodeText
-                          code={code}
-                          language={languageMatch[1] ?? null}
-                        />
+                      <code className={className} {...props}>
+                        {children}
                       </code>
                     )
                   },

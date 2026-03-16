@@ -10,7 +10,7 @@ export default async function ProjectSettingsPage(props: ProjectSettingsPageProp
   const { project_id: projectId } = await props.params
 
   return (
-    <div className="h-svh min-h-0 overflow-hidden">
+    <div className="h-full min-h-0 overflow-hidden">
       <ProjectSettingsView projectId={projectId} />
     </div>
   )

@@ -164,6 +164,8 @@ export function createProjectRepository(prisma: ProjectDbClient) {
               maxConcurrentTasks: 1,
               logRetentionDays: 30,
               eventRetentionDays: 7,
+              harborSkillsEnabled: false,
+              harborSkillProfile: "default",
             },
           },
         },

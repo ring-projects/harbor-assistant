@@ -38,7 +38,7 @@ export function createProjectSettingsRepository(prisma: ProjectDbClient) {
           maxConcurrentTasks: input.maxConcurrentTasks ?? 1,
           logRetentionDays: input.logRetentionDays ?? 30,
           eventRetentionDays: input.eventRetentionDays ?? 7,
-          harborSkillsEnabled: input.harborSkillsEnabled ?? true,
+          harborSkillsEnabled: input.harborSkillsEnabled ?? false,
           harborSkillProfile: input.harborSkillProfile ?? "default",
         },
         update: {

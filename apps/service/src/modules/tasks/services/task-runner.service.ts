@@ -33,8 +33,9 @@ export function createTaskRunnerService(args: {
   >
   taskAgentGateway: TaskAgentGateway
   taskEventBus: Pick<TaskEventBus, "publish">
+  logger?: Pick<Console, "error" | "warn">
 }) {
-  const { taskRepository, taskAgentGateway, taskEventBus } = args
+  const { taskRepository, taskAgentGateway, taskEventBus, logger } = args
   const runningCodexTasks = new Map<string, RunningCodexTask>()
 
   function getRunningTask(taskId: string) {
@@ -232,6 +233,11 @@ export function createTaskRunnerService(args: {
         clearRunningTask(args.taskId)
         return
       }
+
+      logger?.error?.({
+        taskId: args.taskId,
+        error,
+      }, "Task execution failed")
 
       await finalizeTask({
         taskId: args.taskId,

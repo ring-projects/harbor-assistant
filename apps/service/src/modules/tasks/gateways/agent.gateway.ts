@@ -60,6 +60,26 @@ export function createTaskAgentGateway(args: {
     return JSON.parse(JSON.stringify(event)) as Record<string, unknown>
   }
 
+  async function publishSyntheticErrorEvent(taskId: string, message: string) {
+    const timestamp = new Date()
+    const rawEvent = await taskRepository.appendTaskAgentEvent({
+      taskId,
+      eventType: "error",
+      payload: serializeAgentEvent({
+        type: "error",
+        message,
+        timestamp,
+      }),
+      createdAt: timestamp.toISOString(),
+    })
+
+    taskEventBus.publish({
+      type: "agent_event",
+      taskId,
+      event: rawEvent,
+    })
+  }
+
   async function handleAgentEvent(args: {
     event: AgentEvent
     taskId: string
@@ -106,6 +126,7 @@ export function createTaskAgentGateway(args: {
     let sessionId: string | null = null
     let stdout = ""
     let terminalError: string | null = null
+    let sawTerminalErrorEvent = false
 
     const events = agent.startSessionAndRun(
       {
@@ -140,6 +161,7 @@ export function createTaskAgentGateway(args: {
         stdout = result.stdout
 
         if (event.type === "turn.failed" || event.type === "error") {
+          sawTerminalErrorEvent = true
           terminalError =
             event.type === "turn.failed" ? event.error : event.message
         }
@@ -148,12 +170,18 @@ export function createTaskAgentGateway(args: {
       terminalError = String(error)
     }
 
-    if (!sessionId) {
-      throw new Error("Agent did not provide a session id.")
+    if (terminalError) {
+      if (!sawTerminalErrorEvent) {
+        await publishSyntheticErrorEvent(args.taskId, terminalError)
+      }
+
+      throw new Error(terminalError)
     }
 
-    if (terminalError) {
-      throw new Error(terminalError)
+    if (!sessionId) {
+      const message = "Agent did not provide a session id."
+      await publishSyntheticErrorEvent(args.taskId, message)
+      throw new Error(message)
     }
 
     return {
@@ -173,6 +201,7 @@ export function createTaskAgentGateway(args: {
 
     let stdout = ""
     let terminalError: string | null = null
+    let sawTerminalErrorEvent = false
 
     const events = agent.resumeSessionAndRun(
       args.sessionId,
@@ -199,6 +228,7 @@ export function createTaskAgentGateway(args: {
         stdout = result.stdout
 
         if (event.type === "turn.failed" || event.type === "error") {
+          sawTerminalErrorEvent = true
           terminalError =
             event.type === "turn.failed" ? event.error : event.message
         }
@@ -208,6 +238,10 @@ export function createTaskAgentGateway(args: {
     }
 
     if (terminalError) {
+      if (!sawTerminalErrorEvent) {
+        await publishSyntheticErrorEvent(args.taskId, terminalError)
+      }
+
       throw new Error(terminalError)
     }
 

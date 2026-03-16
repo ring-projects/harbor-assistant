@@ -154,7 +154,7 @@ describe("task creation", () => {
     )
   })
 
-  it("merges Harbor skill access directories into an explicit custom runtime policy", async () => {
+  it("does not apply Harbor skills to Codex tasks even when project settings enable them", async () => {
     const project = {
       id: "project-1",
       name: "Project One",
@@ -201,6 +201,7 @@ describe("task creation", () => {
     await taskService.createTaskAndRun({
       projectId: project.id,
       prompt: "Use Harbor skills",
+      agentType: "codex",
       executionMode: "custom",
       runtimePolicy: {
         sandboxMode: "workspace-write",
@@ -214,7 +215,7 @@ describe("task creation", () => {
     expect(createAndRunTask).toHaveBeenCalledWith(
       expect.objectContaining({
         displayPrompt: "Use Harbor skills",
-        agentPrompt: expect.stringContaining("Use Harbor skills"),
+        agentPrompt: "Use Harbor skills",
         runtimePolicy: {
           sandboxMode: "workspace-write",
           approvalPolicy: "never",
@@ -227,13 +228,10 @@ describe("task creation", () => {
         },
       }),
     )
-    expect(ensureProjectSkillBridge).toHaveBeenCalledWith({
-      projectId: project.id,
-      profile: "default",
-    })
+    expect(ensureProjectSkillBridge).not.toHaveBeenCalled()
   })
 
-  it("re-applies Harbor skill runtime access when retrying a failed task", async () => {
+  it("does not re-apply Harbor skill runtime access when retrying a failed Codex task", async () => {
     const failedTask = buildTask({
       status: "failed",
       threadId: null,
@@ -277,16 +275,10 @@ describe("task creation", () => {
         projectId: failedTask.projectId,
         parentTaskId: failedTask.id,
         displayPrompt: "Initial prompt",
-        agentPrompt: expect.stringContaining("Initial prompt"),
-        runtimePolicy: {
-          ...RUNTIME_POLICY_PRESETS.connected,
-          additionalDirectories: ["/tmp/harbor-skills"],
-        },
+        agentPrompt: "Initial prompt",
+        runtimePolicy: RUNTIME_POLICY_PRESETS.connected,
       }),
     )
-    expect(ensureProjectSkillBridge).toHaveBeenCalledWith({
-      projectId: failedTask.projectId,
-      profile: "default",
-    })
+    expect(ensureProjectSkillBridge).not.toHaveBeenCalled()
   })
 })

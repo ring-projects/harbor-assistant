@@ -185,7 +185,7 @@ describe("project routes", () => {
         maxConcurrentTasks: 1,
         logRetentionDays: 30,
         eventRetentionDays: 7,
-        harborSkillsEnabled: true,
+        harborSkillsEnabled: false,
         harborSkillProfile: "default",
       },
     })
@@ -273,6 +273,16 @@ describe("project routes", () => {
     }
     const projectId = body.projects[0]?.id
 
+    const enableResponse = await app.inject({
+      method: "PUT",
+      url: `/v1/projects/${projectId}/settings`,
+      payload: {
+        harborSkillsEnabled: true,
+      },
+    })
+
+    expect(enableResponse.statusCode).toBe(200)
+
     expect(
       await readlink(
         path.join(projectPath, ".codex", "skills", "harbor-fix-tests"),
@@ -324,6 +334,16 @@ describe("project routes", () => {
       "skills",
       "harbor-review-diff",
     )
+
+    const enableResponse = await app.inject({
+      method: "PUT",
+      url: `/v1/projects/${projectId}/settings`,
+      payload: {
+        harborSkillsEnabled: true,
+      },
+    })
+
+    expect(enableResponse.statusCode).toBe(200)
 
     expect(await lstat(bridgePath)).toBeTruthy()
 

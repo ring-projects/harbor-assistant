@@ -1,23 +1,9 @@
-import { Sidebar, SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { listProjectsFromService } from "@/lib/projects-service"
-import { ProjectsList } from "@/modules/projects/components"
-
 type ProjectShellLayoutProps = {
   children: React.ReactNode
 }
 
-export default async function ProjectShellLayout({
+export default function ProjectShellLayout({
   children,
 }: ProjectShellLayoutProps) {
-  const initialProjects = await listProjectsFromService()
-
-  return (
-    <SidebarProvider defaultOpen className="bg-background min-h-svh">
-      <Sidebar variant="sidebar" collapsible="offcanvas">
-        <ProjectsList initialProjects={initialProjects} />
-      </Sidebar>
-
-      <SidebarInset className="h-svh min-h-0 overflow-hidden">{children}</SidebarInset>
-    </SidebarProvider>
-  )
+  return <div className="bg-background h-svh overflow-hidden">{children}</div>
 }

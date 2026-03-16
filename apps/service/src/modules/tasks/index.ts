@@ -81,6 +81,7 @@ export function createTaskModule(args: {
   prisma: TaskDbClient
   harborHomeDirectory: string
   harborApiBaseUrl?: string
+  logger?: Pick<Console, "error" | "warn">
 }) {
   const projectRepository = createProjectRepository(args.prisma)
   const projectSettingsRepository = createProjectSettingsRepository(args.prisma)
@@ -99,6 +100,7 @@ export function createTaskModule(args: {
     taskRepository,
     taskAgentGateway,
     taskEventBus,
+    logger: args.logger,
   })
   const taskService = createTaskService({
     projectRepository,

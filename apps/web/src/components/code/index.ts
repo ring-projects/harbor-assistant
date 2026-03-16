@@ -1,4 +1,5 @@
 export { InteractiveCodeBlock } from "./InteractiveCodeBlock"
 export { HighlightedCodeText } from "./highlight-inline"
+export { ShikiCodeBlock } from "./ShikiCodeBlock"
 export { getCodeMirrorLanguage } from "./language-extension"
 export { inferLanguageFromFilePath, normalizeCodeLanguage } from "./utils"

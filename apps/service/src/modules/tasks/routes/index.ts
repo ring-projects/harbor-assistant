@@ -46,6 +46,7 @@ export async function registerTaskModuleRoutes(
     taskRepository,
     taskAgentGateway,
     taskEventBus,
+    logger: app.log,
   })
   const taskService = createTaskService({
     projectRepository,
