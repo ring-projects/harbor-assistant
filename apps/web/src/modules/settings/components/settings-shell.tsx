@@ -1,10 +1,9 @@
 "use client"
 
-import { Settings2Icon, SlidersHorizontalIcon, XIcon } from "lucide-react"
+import { Settings2Icon, XIcon } from "lucide-react"
 import { useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useUiStore } from "@/stores/ui.store"
 
 import { GeneralSettingsView } from "./general-settings-view"
@@ -16,14 +15,10 @@ type SettingsShellProps = {
 
 export function SettingsShell({ projectId }: SettingsShellProps) {
   const settingsOpen = useUiStore((state) => state.settingsOpen)
-  const settingsScope = useUiStore((state) => state.settingsScope)
   const settingsProjectId = useUiStore((state) => state.settingsProjectId)
   const closeSettings = useUiStore((state) => state.closeSettings)
-  const setSettingsScope = useUiStore((state) => state.setSettingsScope)
-
-  const open =
-    settingsOpen &&
-    (settingsScope === "general" || settingsProjectId === projectId)
+  const open = settingsOpen
+  const isProjectSettings = settingsProjectId !== null
 
   useEffect(() => {
     if (!open) {
@@ -47,14 +42,9 @@ export function SettingsShell({ projectId }: SettingsShellProps) {
   return (
     <div className="absolute inset-0 z-20 bg-background/75 p-3 backdrop-blur-sm">
       <div className="bg-background h-full overflow-hidden rounded-xl border shadow-2xl">
-        <Tabs
-          value={settingsScope}
-          onValueChange={(value) => setSettingsScope(value as "general" | "project")}
-          orientation="vertical"
-          className="h-full min-h-0 gap-0 lg:grid lg:grid-cols-[240px_minmax(0,1fr)]"
-        >
-          <aside className="bg-muted/20 border-b p-3 lg:border-r lg:border-b-0">
-            <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="bg-muted/20 border-b px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="bg-background rounded-lg border p-2 shadow-sm">
@@ -63,7 +53,9 @@ export function SettingsShell({ projectId }: SettingsShellProps) {
                   <div>
                     <p className="text-sm font-semibold">Settings</p>
                     <p className="text-muted-foreground text-xs">
-                      One place for Harbor defaults and project overrides
+                      {isProjectSettings
+                        ? `Current project settings for ${settingsProjectId}`
+                        : "Harbor-wide defaults and preferences"}
                     </p>
                   </div>
                 </div>
@@ -79,36 +71,21 @@ export function SettingsShell({ projectId }: SettingsShellProps) {
                 <span className="sr-only">Close settings</span>
               </Button>
             </div>
-
-            <TabsList
-              variant="line"
-              className="grid w-full gap-1 rounded-xl border bg-background p-1"
-            >
-              <TabsTrigger value="general" className="justify-start px-3 py-2">
-                <SlidersHorizontalIcon className="size-4" />
-                General
-              </TabsTrigger>
-              <TabsTrigger value="project" className="justify-start px-3 py-2">
-                <Settings2Icon className="size-4" />
-                Current Project
-              </TabsTrigger>
-            </TabsList>
-
             <div className="text-muted-foreground mt-3 rounded-xl border bg-background px-3 py-2 text-xs leading-5">
-              {settingsScope === "general"
-                ? "General defines Harbor-wide defaults. Project settings can inherit these values."
-                : `Current Project applies only to ${projectId}. Use this area for repository-specific overrides.`}
+              {isProjectSettings
+                ? `Current Project applies only to ${settingsProjectId}. Use this area for repository-specific overrides.`
+                : "General defines Harbor-wide defaults. Project settings can inherit these values."}
             </div>
-          </aside>
+          </div>
 
-          <TabsContent value="general" className="min-h-0 overflow-hidden">
-            <GeneralSettingsView />
-          </TabsContent>
-
-          <TabsContent value="project" className="min-h-0 overflow-hidden">
-            <ProjectSettingsView projectId={projectId} mode="modal" />
-          </TabsContent>
-        </Tabs>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {isProjectSettings ? (
+              <ProjectSettingsView projectId={settingsProjectId ?? projectId} mode="modal" />
+            ) : (
+              <GeneralSettingsView />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

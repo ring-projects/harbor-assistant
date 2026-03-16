@@ -20,14 +20,10 @@ export function ProjectTaskClient({
   initialProjects,
 }: ProjectTaskClientProps) {
   const settingsOpen = useUiStore((state) => state.settingsOpen)
-  const settingsScope = useUiStore((state) => state.settingsScope)
   const settingsProjectId = useUiStore((state) => state.settingsProjectId)
   const openSettings = useUiStore((state) => state.openSettings)
   const closeSettings = useUiStore((state) => state.closeSettings)
-  const isSettingsOpen =
-    settingsOpen &&
-    settingsScope === "project" &&
-    settingsProjectId === projectId
+  const isSettingsOpen = settingsOpen && settingsProjectId === projectId
 
   function handleSettingsClick() {
     if (isSettingsOpen) {
@@ -35,10 +31,7 @@ export function ProjectTaskClient({
       return
     }
 
-    openSettings({
-      scope: "project",
-      projectId,
-    })
+    openSettings(projectId)
   }
 
   return (
