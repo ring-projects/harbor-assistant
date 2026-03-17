@@ -30,13 +30,13 @@ If you only want to boot the frontend and backend locally, missing Codex authent
 Install dependencies first:
 
 ```bash
-bun install
+pnpm install
 ```
 
 The recommended way to start the app is:
 
 ```bash
-bun run dev:all
+pnpm run dev:all
 ```
 
 This command first runs `init:harbor`, which creates local Harbor configuration:
@@ -53,17 +53,17 @@ If you want to run them separately:
 
 ```bash
 # terminal 1
-bun run dev:service
+pnpm run dev:service
 
 # terminal 2
-bun run dev:web
+pnpm run dev:web
 ```
 
 ## Local Configuration
 
 ### Harbor App Configuration
 
-Harbor now uses `~/.harbor/app.yaml` as the primary local configuration source. The file is created automatically by `bun run init:harbor`, and service startup will also auto-create it if missing.
+Harbor now uses `~/.harbor/app.yaml` as the primary local configuration source. The file is created automatically by `pnpm run init:harbor`, and service startup will also auto-create it if missing.
 
 Default config:
 
@@ -114,13 +114,13 @@ EXECUTOR_SERVICE_BASE_URL=http://127.0.0.1:3400
 ## Common Commands
 
 ```bash
-bun run dev:all
-bun run dev:web
-bun run dev:service
-bun run typecheck
-bun run lint
-bun run build:web
-bun run start:web
+pnpm run dev:all
+pnpm run dev:web
+pnpm run dev:service
+pnpm run typecheck
+pnpm run lint
+pnpm run build:web
+pnpm run start:web
 ```
 
 ## Database
@@ -128,7 +128,7 @@ bun run start:web
 The current Prisma schema lives in `apps/service`. Common commands:
 
 ```bash
-bun run db:generate
-bun run db:migrate:dev
-bun run db:migrate:deploy
+pnpm run db:generate
+pnpm run db:migrate:dev
+pnpm run db:migrate:deploy
 ```

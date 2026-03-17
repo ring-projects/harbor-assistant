@@ -2,51 +2,37 @@
   "name": "harbor-assistant",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "bun@1.3.5",
+  "packageManager": "pnpm@10.20.0",
   "engines": {
-    "bun": ">=1.3.5"
+    "node": ">=24.11.1",
+    "pnpm": ">=10.20.0"
   },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
-    "init:harbor": "bun scripts/init.mjs",
-    "dev": "bun run dev:web",
-    "dev:all": "bun run init:harbor && bun run --filter '@harbor/*' dev",
-    "dev:web": "bun run init:harbor && bun run --cwd apps/web dev",
-    "test:web": "bun run --cwd apps/web test",
-    "build:web": "bun run --cwd apps/web build",
-    "start:web": "bun run --cwd apps/web start",
-    "lint": "bun run lint:web && bun run lint:service",
-    "lint:web": "bun run --cwd apps/web lint",
-    "lint:service": "bun run --cwd apps/service lint",
-    "typecheck": "bun run typecheck:web && bun run typecheck:service",
-    "typecheck:web": "bun run --cwd apps/web typecheck",
-    "typecheck:service": "bun run --cwd apps/service typecheck",
-    "db:generate": "bun run --cwd apps/service db:generate",
-    "db:migrate:dev": "bun run --cwd apps/service db:migrate:dev",
-    "db:migrate:deploy": "bun run --cwd apps/service db:migrate:deploy",
-    "db:studio": "bun run --cwd apps/service db:studio",
-    "dev:service": "bun run --cwd apps/service dev",
-    "start:service": "bun run --cwd apps/service start",
-    "format": "bunx prettier --write .",
-    "format:check": "bunx prettier --check ."
+    "init:harbor": "node scripts/init.mjs",
+    "dev": "pnpm run dev:web",
+    "dev:all": "pnpm run init:harbor && pnpm -r --filter '@harbor/*' dev",
+    "dev:web": "pnpm run init:harbor && pnpm --dir apps/web dev",
+    "test:web": "pnpm --dir apps/web test",
+    "build:web": "pnpm --dir apps/web build",
+    "start:web": "pnpm --dir apps/web start",
+    "lint": "pnpm run lint:web && pnpm run lint:service",
+    "lint:web": "pnpm --dir apps/web lint",
+    "lint:service": "pnpm --dir apps/service lint",
+    "typecheck": "pnpm run typecheck:web && pnpm run typecheck:service",
+    "typecheck:web": "pnpm --dir apps/web typecheck",
+    "typecheck:service": "pnpm --dir apps/service typecheck",
+    "db:generate": "pnpm --dir apps/service db:generate",
+    "db:migrate:dev": "pnpm --dir apps/service db:migrate:dev",
+    "db:migrate:deploy": "pnpm --dir apps/service db:migrate:deploy",
+    "db:studio": "pnpm --dir apps/service db:studio",
+    "dev:service": "pnpm --dir apps/service dev",
+    "start:service": "pnpm --dir apps/service start",
+    "format": "pnpm exec prettier --write .",
+    "format:check": "pnpm exec prettier --check ."
   },
   "devDependencies": {
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "yaml": "^2.8.2"
-  },
-  "ignoreScripts": [
-    "sharp",
-    "unrs-resolver"
-  ],
-  "trustedDependencies": [
-    "@prisma/client",
-    "@prisma/engines",
-    "prisma",
-    "sharp",
-    "unrs-resolver"
-  ]
+  }
 }

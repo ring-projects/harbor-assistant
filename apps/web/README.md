@@ -5,19 +5,19 @@
 ## 开发
 
 ```bash
-bun run dev
+pnpm run dev
 ```
 
 通常从仓库根目录启动：
 
 ```bash
-bun run dev:web
+pnpm run dev:web
 ```
 
 如果需要同时启动前后端（推荐）：
 
 ```bash
-bun run dev:all
+pnpm run dev:all
 ```
 
 ## 连接后端 service

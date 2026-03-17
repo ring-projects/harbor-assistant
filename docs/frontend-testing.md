@@ -12,14 +12,14 @@ The web app uses:
 Run tests with:
 
 ```bash
-bun run test:web
+pnpm run test:web
 ```
 
 Inside `apps/web`:
 
 ```bash
-bun run test
-bun run test:watch
+pnpm test
+pnpm test:watch
 ```
 
 ## What To Test

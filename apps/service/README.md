@@ -5,19 +5,19 @@
 ## 启动
 
 ```bash
-bun run dev:service
+pnpm run dev:service
 ```
 
 或在工作区内：
 
 ```bash
-bun run dev
+pnpm run dev
 ```
 
 从仓库根目录一条命令同时启动前后端：
 
 ```bash
-bun run dev:all
+pnpm run dev:all
 ```
 
 ## 健康检查
@@ -27,8 +27,8 @@ bun run dev:all
 ## Prisma 初始化
 
 ```bash
-bun run --cwd apps/service db:generate
-bun run --cwd apps/service db:migrate:deploy
+pnpm --dir apps/service db:generate
+pnpm --dir apps/service db:migrate:deploy
 ```
 
 默认情况下，service 和 Prisma 命令都会从 `~/.harbor/app.yaml` 读取 Harbor 本地配置；首次启动时如果配置文件不存在，会自动创建默认配置。
@@ -70,7 +70,7 @@ task:
 4. 重新执行迁移：
 
 ```bash
-bun run --cwd apps/service db:migrate:dev
+pnpm --dir apps/service db:migrate:dev
 ```
 
 ## 高级覆盖

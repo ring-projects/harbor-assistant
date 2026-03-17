@@ -25,8 +25,8 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const databaseUrl = `file:${databasePath}`
 
   await execFileAsync(
-    "bunx",
-    ["prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"],
+    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
+    ["exec", "prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"],
     {
       cwd: serviceRoot,
       env: {

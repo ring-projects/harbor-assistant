@@ -18,8 +18,8 @@ function getServiceRootDirectory() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 }
 
-function getBunxCommand() {
-  return process.platform === "win32" ? "bunx.cmd" : "bunx"
+function getPnpmCommand() {
+  return process.platform === "win32" ? "pnpm.cmd" : "pnpm"
 }
 
 function getSqliteFilePath(databaseUrl: string) {
@@ -66,8 +66,8 @@ async function runPrismaMigrateDeploy(args: {
 }) {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(
-      getBunxCommand(),
-      ["--bun", "prisma", "migrate", "deploy"],
+      getPnpmCommand(),
+      ["exec", "prisma", "migrate", "deploy"],
       {
         cwd: args.serviceRootDirectory,
         stdio: "inherit",

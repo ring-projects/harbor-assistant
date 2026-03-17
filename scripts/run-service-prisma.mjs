@@ -9,8 +9,8 @@ const serviceRoot = path.resolve(
   "../apps/service",
 )
 
-function getBunxCommand() {
-  return process.platform === "win32" ? "bunx.cmd" : "bunx"
+function getPnpmCommand() {
+  return process.platform === "win32" ? "pnpm.cmd" : "pnpm"
 }
 
 async function run() {
@@ -26,8 +26,8 @@ async function run() {
   })
 
   const child = spawn(
-    getBunxCommand(),
-    ["--bun", "prisma", ...prismaArgs],
+    getPnpmCommand(),
+    ["exec", "prisma", ...prismaArgs],
     {
       cwd: serviceRoot,
       stdio: "inherit",
