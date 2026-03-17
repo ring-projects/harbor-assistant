@@ -1,9 +1,15 @@
 "use client"
 import { useRouter } from "next/navigation"
 import { useMemo } from "react"
-import { CheckIcon, ChevronsUpDownIcon, FolderOpenIcon, PlusIcon } from "lucide-react"
+import {
+  CheckIcon,
+  ChevronsUpDownIcon,
+  FolderOpenIcon,
+  PlusIcon,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { HarborLogo } from "@/components/logo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,13 +43,13 @@ export function ProjectSwitcher({
   const projectsQuery = useReadProjectsQuery({
     initialData: initialProjects,
   })
+  const projectItems = projectsQuery.data ?? []
 
   const activeProject = useMemo(
-    () => projectsQuery.data?.find((project) => project.id === activeProjectId) ?? null,
-    [activeProjectId, projectsQuery.data],
+    () =>
+      projectItems?.find((project) => project.id === activeProjectId) ?? null,
+    [activeProjectId, projectItems],
   )
-
-  const projectItems = projectsQuery.data ?? []
 
   return (
     <DropdownMenu>
@@ -52,23 +58,11 @@ export function ProjectSwitcher({
           type="button"
           variant="ghost"
           className={cn(
-            "min-w-0 max-w-[22rem] justify-between gap-3 border-0 px-0 shadow-none",
+            "max-w-[22rem] min-w-0 justify-between gap-3",
             className,
           )}
         >
-          <span className="flex min-w-0 items-center gap-3">
-            <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg border">
-              <FolderOpenIcon className="text-muted-foreground size-4" />
-            </span>
-            <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">
-                {activeProject?.name ?? "Select project"}
-              </span>
-              <span className="text-muted-foreground truncate text-xs">
-                {activeProject?.path ?? "Choose a Harbor project"}
-              </span>
-            </span>
-          </span>
+          <HarborLogo className="w-24" />
           <ChevronsUpDownIcon className="text-muted-foreground ml-auto size-4 shrink-0" />
         </Button>
       </DropdownMenuTrigger>
@@ -79,8 +73,6 @@ export function ProjectSwitcher({
         side={isMobile ? "bottom" : "bottom"}
         sideOffset={6}
       >
-        <DropdownMenuLabel>Switch Project</DropdownMenuLabel>
-
         {projectItems.length ? (
           projectItems.map((project) => {
             const isActive = project.id === activeProjectId
@@ -94,10 +86,6 @@ export function ProjectSwitcher({
                   router.push(`/${encodeURIComponent(project.id)}`)
                 }}
               >
-                <div className="bg-muted flex size-6 items-center justify-center rounded-md border">
-                  <FolderOpenIcon className="text-muted-foreground size-3.5 shrink-0" />
-                </div>
-
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{project.name}</div>
                   <div className="text-muted-foreground truncate text-xs">
@@ -112,21 +100,17 @@ export function ProjectSwitcher({
             )
           })
         ) : (
-          <div className="text-muted-foreground px-2 py-3 text-sm">
-            No projects found.
+          <div className="text-accent-foreground p-2 text-sm font-bold">
+            No projects found
           </div>
         )}
-
-        <DropdownMenuSeparator />
 
         <DropdownMenuItem
           className="gap-2 p-2"
           onSelect={() => openAddProjectModal()}
         >
-          <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-            <PlusIcon className="size-4" />
-          </div>
-          <div className="font-medium text-muted-foreground">Add project</div>
+          <PlusIcon className="size-4" />
+          <div className="text-muted-foreground font-medium">Add project</div>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
