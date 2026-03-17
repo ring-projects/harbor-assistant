@@ -6,6 +6,7 @@ afterEach(() => {
   useUiStore.setState({
     settingsOpen: false,
     settingsProjectId: null,
+    addProjectModalOpen: false,
   })
 })
 
@@ -31,5 +32,13 @@ describe("useUiStore", () => {
 
     expect(useUiStore.getState().settingsOpen).toBe(false)
     expect(useUiStore.getState().settingsProjectId).toBe("demo-project")
+  })
+
+  it("opens and closes the add project modal", () => {
+    useUiStore.getState().openAddProjectModal()
+    expect(useUiStore.getState().addProjectModalOpen).toBe(true)
+
+    useUiStore.getState().closeAddProjectModal()
+    expect(useUiStore.getState().addProjectModalOpen).toBe(false)
   })
 })

@@ -3,6 +3,7 @@ import { Geist_Mono, Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 
 import { QueryProvider } from "@/components/providers/query-provider"
+import { AddProjectModal } from "@/modules/projects/modal"
 
 const inter = Inter({
   variable: "--font-inter",
@@ -52,6 +53,7 @@ export default function RootLayout({
       >
         <QueryProvider>
           <main>{children}</main>
+          <AddProjectModal />
         </QueryProvider>
       </body>
     </html>

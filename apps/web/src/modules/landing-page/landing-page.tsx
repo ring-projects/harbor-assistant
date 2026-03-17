@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
@@ -8,11 +8,17 @@ import { cn } from "@/lib/utils"
 import { LandingHeader } from "@/modules/landing-page/components/landing-header"
 import { CreateProject } from "@/modules/projects/components"
 import type { Project } from "@/modules/projects/types"
+import { useAppStore } from "@/stores/app.store"
 
 export function LandingPage() {
   const router = useRouter()
+  const clearActiveProjectId = useAppStore((state) => state.clearActiveProjectId)
   const [isCreateMode, setIsCreateMode] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+
+  useEffect(() => {
+    clearActiveProjectId()
+  }, [clearActiveProjectId])
 
   function handleCreateClick() {
     setCreateError(null)

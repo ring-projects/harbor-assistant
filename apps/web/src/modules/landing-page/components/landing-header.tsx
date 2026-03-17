@@ -1,4 +1,4 @@
-import { ThemeToggle } from "@/components/theme-toggle"
+import { ThemeToggle } from "@/modules/app"
 import { HarborLogo } from "@/components/logo"
 import { cn } from "@/lib/utils"
 

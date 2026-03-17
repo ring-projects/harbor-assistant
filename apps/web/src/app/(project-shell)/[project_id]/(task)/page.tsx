@@ -1,5 +1,5 @@
 import { listProjectsFromService } from "@/lib/projects-service"
-import { ProjectTaskClient } from "./project-task-client"
+import { ProjectClient } from "./project-client"
 
 type ProjectTaskPageProps = {
   params: Promise<{
@@ -14,7 +14,7 @@ export default async function ProjectTaskRoutePage(
   const initialProjects = await listProjectsFromService()
 
   return (
-    <ProjectTaskClient
+    <ProjectClient
       projectId={projectId}
       initialProjects={initialProjects}
     />

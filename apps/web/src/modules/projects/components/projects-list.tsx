@@ -2,8 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
-import { useState } from "react"
+import { useParams } from "next/navigation"
 import { FolderOpenIcon, PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -19,8 +18,8 @@ import {
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import { useReadProjectsQuery } from "@/modules/projects/hooks"
-import { AddProjectModal } from "@/modules/projects/modal"
 import type { Project } from "@/modules/projects/types"
+import { useUiStore } from "@/stores/ui.store"
 
 type ProjectsListProps = {
   activeProjectId?: string
@@ -34,8 +33,7 @@ export function ProjectsList({
   initialProjects,
 }: ProjectsListProps) {
   const params = useParams<{ project_id?: string | string[] }>()
-  const router = useRouter()
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const openAddProjectModal = useUiStore((state) => state.openAddProjectModal)
   const projectsQuery = useReadProjectsQuery({
     initialData: initialProjects,
   })
@@ -43,15 +41,6 @@ export function ProjectsList({
   const resolvedActiveProjectId =
     activeProjectId ??
     (Array.isArray(routeProjectId) ? routeProjectId[0] : routeProjectId)
-
-  function handleProjectCreated(projects: Project[]) {
-    const nextProject = projects[0]
-    if (!nextProject) {
-      return
-    }
-
-    router.push(`/${nextProject.id}`)
-  }
 
   return (
     <>
@@ -72,7 +61,7 @@ export function ProjectsList({
             size="icon"
             className="size-6"
             aria-label="Add project"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => openAddProjectModal()}
           >
             <PlusIcon className="size-4" />
           </Button>
@@ -125,11 +114,6 @@ export function ProjectsList({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <AddProjectModal
-        open={isAddModalOpen}
-        onOpenChange={setIsAddModalOpen}
-        onCreated={handleProjectCreated}
-      />
     </>
   )
 }
