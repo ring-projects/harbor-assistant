@@ -16,3 +16,12 @@ export async function GET(_request: Request, context: RouteContext) {
     method: "GET",
   })
 }
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { taskId } = await context.params
+
+  return proxyToService({
+    path: `/v1/tasks/${encodeURIComponent(taskId)}`,
+    method: "DELETE",
+  })
+}

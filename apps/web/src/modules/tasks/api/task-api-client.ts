@@ -64,6 +64,11 @@ export type CreateTaskResult = {
   task?: TaskDetail
 }
 
+export type DeleteTaskResult = {
+  taskId: string
+  projectId: string
+}
+
 export type TaskListResult = {
   tasks: TaskListItem[]
   nextCursor: string | null
@@ -230,6 +235,7 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
     status,
     threadId: toStringOrNull(source.threadId),
     parentTaskId: toStringOrNull(source.parentTaskId),
+    archivedAt: toOptionalDateString(source.archivedAt),
     createdAt: toDateString(source.createdAt),
     startedAt: toOptionalDateString(source.startedAt),
     finishedAt: toOptionalDateString(source.finishedAt),
@@ -381,9 +387,15 @@ export async function createTask(
 
 export async function readProjectTasks(args: {
   projectId: string
+  includeArchived?: boolean
 }): Promise<TaskListResult> {
+  const searchParams = new URLSearchParams()
+  if (args.includeArchived) {
+    searchParams.set("includeArchived", "true")
+  }
+
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/projects/${encodeURIComponent(args.projectId)}/tasks`,
+    `${EXECUTOR_API_BASE}/projects/${encodeURIComponent(args.projectId)}/tasks${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
     {
       method: "GET",
       cache: "no-store",
@@ -522,6 +534,61 @@ export async function retryTask(taskId: string): Promise<CreateTaskResult> {
   return {
     taskId: nextTaskId,
     task: task ?? undefined,
+  }
+}
+
+export async function archiveTask(taskId: string): Promise<TaskDetail> {
+  const response = await fetch(
+    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/archive`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({}),
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to archive task.")
+
+  const task = extractSingleTask(payload)
+  if (!task) {
+    throw new TaskApiClientError("Archive succeeded but task payload is invalid.", {
+      code: ERROR_CODES.TASK_ARCHIVE_FAILED,
+      status: response.status,
+    })
+  }
+
+  return task
+}
+
+export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {
+  const response = await fetch(
+    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}`,
+    {
+      method: "DELETE",
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to delete task.")
+
+  const nextTaskId =
+    toStringOrNull(payload?.taskId) ??
+    toStringOrNull(payload?.id)
+  const projectId = toStringOrNull(payload?.projectId)
+
+  if (!nextTaskId || !projectId) {
+    throw new TaskApiClientError("Delete succeeded but payload is invalid.", {
+      code: ERROR_CODES.TASK_DELETE_FAILED,
+      status: response.status,
+    })
+  }
+
+  return {
+    taskId: nextTaskId,
+    projectId,
   }
 }
 

@@ -29,6 +29,7 @@ export type CodexTask = {
   status: TaskStatus
   threadId: string | null
   parentTaskId: string | null
+  archivedAt: string | null
   createdAt: string
   startedAt: string | null
   finishedAt: string | null

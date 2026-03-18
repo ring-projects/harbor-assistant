@@ -47,9 +47,18 @@ export type UpdateTaskTitleInput = {
   source?: "agent" | "user"
 }
 
+export type ArchiveTaskInput = {
+  taskId: string
+}
+
+export type DeleteTaskInput = {
+  taskId: string
+}
+
 export type ListProjectTasksInput = {
   projectId: string
   limit?: number
+  includeArchived?: boolean
 }
 
 export type GetTaskEventsInput = {
@@ -64,6 +73,10 @@ function isTerminalTask(task: CodexTask) {
     task.status === "failed" ||
     task.status === "cancelled"
   )
+}
+
+function isArchivedTask(task: CodexTask) {
+  return Boolean(task.archivedAt)
 }
 
 function normalizeAgentType(agentType: string | undefined): AgentType | string {
@@ -119,6 +132,8 @@ export function createTaskService(args: {
     | "hasActiveTaskInThread"
     | "listTaskAgentEvents"
     | "listTasksByProject"
+    | "archiveTask"
+    | "deleteTask"
     | "updateTaskTitle"
   >
   taskRunnerService: TaskRunnerService
@@ -127,6 +142,10 @@ export function createTaskService(args: {
       type: "task_upsert"
       projectId: string
       task: CodexTask
+    } | {
+      type: "task_deleted"
+      projectId: string
+      taskId: string
     }) => void
   }
 }) {
@@ -273,6 +292,12 @@ export function createTaskService(args: {
       )
     }
 
+    if (isArchivedTask(task)) {
+      throw createTaskError.invalidTaskFollowupState(
+        "Archived tasks cannot be used for follow-up.",
+      )
+    }
+
     if (
       await taskRepository.hasActiveTaskInThread({
         threadId: task.threadId,
@@ -353,6 +378,16 @@ export function createTaskService(args: {
       }
     }
 
+    if (isArchivedTask(task)) {
+      throw createTaskError.invalidTaskBreakState(
+        "Archived tasks cannot break the current turn.",
+        {
+          taskId,
+          status: task.status,
+        },
+      )
+    }
+
     throw createTaskError.invalidTaskBreakState(
       `Only running tasks can break the current turn. Current status: ${task.status}`,
       {
@@ -376,6 +411,12 @@ export function createTaskService(args: {
     if (task.status !== "failed" && task.status !== "cancelled") {
       throw createTaskError.invalidTaskRetryState(
         `Only failed/cancelled tasks can be retried. Current status: ${task.status}`,
+      )
+    }
+
+    if (isArchivedTask(task)) {
+      throw createTaskError.invalidTaskRetryState(
+        "Archived tasks cannot be retried.",
       )
     }
 
@@ -485,6 +526,100 @@ export function createTaskService(args: {
     }
   }
 
+  async function archiveTask(input: ArchiveTaskInput) {
+    const taskId = input.taskId.trim()
+    if (!taskId) {
+      throw createTaskError.invalidTaskId()
+    }
+
+    const task = await taskRepository.getTaskById(taskId)
+    if (!task) {
+      throw createTaskError.taskNotFound(taskId)
+    }
+
+    if (!isTerminalTask(task)) {
+      throw createTaskError.invalidTaskArchiveState(
+        `Only terminal tasks can be archived. Current status: ${task.status}`,
+        {
+          taskId,
+          status: task.status,
+        },
+      )
+    }
+
+    if (isArchivedTask(task)) {
+      return task
+    }
+
+    try {
+      const archivedTask = await taskRepository.archiveTask({
+        taskId,
+      })
+
+      taskEventBus?.publish({
+        type: "task_upsert",
+        projectId: archivedTask.projectId,
+        task: archivedTask,
+      })
+
+      return archivedTask
+    } catch (error) {
+      if (error instanceof TaskError) {
+        throw error
+      }
+
+      throw createTaskError.taskArchiveFailed(
+        `Failed to archive task: ${String(error)}`,
+        error,
+      )
+    }
+  }
+
+  async function deleteTask(input: DeleteTaskInput) {
+    const taskId = input.taskId.trim()
+    if (!taskId) {
+      throw createTaskError.invalidTaskId()
+    }
+
+    const task = await taskRepository.getTaskById(taskId)
+    if (!task) {
+      throw createTaskError.taskNotFound(taskId)
+    }
+
+    if (!isTerminalTask(task)) {
+      throw createTaskError.invalidTaskDeleteState(
+        `Only terminal tasks can be deleted. Current status: ${task.status}`,
+        {
+          taskId,
+          status: task.status,
+        },
+      )
+    }
+
+    try {
+      const deletedTask = await taskRepository.deleteTask({
+        taskId,
+      })
+
+      taskEventBus?.publish({
+        type: "task_deleted",
+        projectId: deletedTask.projectId,
+        taskId: deletedTask.taskId,
+      })
+
+      return deletedTask
+    } catch (error) {
+      if (error instanceof TaskError) {
+        throw error
+      }
+
+      throw createTaskError.taskDeleteFailed(
+        `Failed to delete task: ${String(error)}`,
+        error,
+      )
+    }
+  }
+
   async function getTaskDetail(taskId: string) {
     const normalizedTaskId = taskId.trim()
     if (!normalizedTaskId) {
@@ -513,6 +648,7 @@ export function createTaskService(args: {
     return taskRepository.listTasksByProject({
       projectId,
       limit: input.limit,
+      includeArchived: input.includeArchived,
     })
   }
 
@@ -537,6 +673,8 @@ export function createTaskService(args: {
     followupTask,
     breakTaskTurn,
     retryTask,
+    archiveTask,
+    deleteTask,
     updateTaskTitle,
     getTaskDetail,
     getTaskEvents,

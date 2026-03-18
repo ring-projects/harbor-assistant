@@ -69,6 +69,16 @@ export const createTaskError = {
       details,
     }),
 
+  invalidTaskArchiveState: (message: string, details?: unknown) =>
+    new TaskError(ERROR_CODES.INVALID_TASK_ARCHIVE_STATE, 409, message, {
+      details,
+    }),
+
+  invalidTaskDeleteState: (message: string, details?: unknown) =>
+    new TaskError(ERROR_CODES.INVALID_TASK_DELETE_STATE, 409, message, {
+      details,
+    }),
+
   taskBreakFailed: (message = "Failed to break current turn.", cause?: unknown) =>
     new TaskError(ERROR_CODES.TASK_BREAK_FAILED, 500, message, {
       details: { cause: String(cause) },
@@ -89,6 +99,18 @@ export const createTaskError = {
 
   taskStartFailed: (message = "Failed to start agent task.", cause?: unknown) =>
     new TaskError(ERROR_CODES.TASK_START_FAILED, 500, message, {
+      details: { cause: String(cause) },
+      cause,
+    }),
+
+  taskArchiveFailed: (message = "Failed to archive task.", cause?: unknown) =>
+    new TaskError(ERROR_CODES.TASK_ARCHIVE_FAILED, 500, message, {
+      details: { cause: String(cause) },
+      cause,
+    }),
+
+  taskDeleteFailed: (message = "Failed to delete task.", cause?: unknown) =>
+    new TaskError(ERROR_CODES.TASK_DELETE_FAILED, 500, message, {
       details: { cause: String(cause) },
       cause,
     }),

@@ -17,6 +17,7 @@ export function buildTask(overrides: Partial<CodexTask> = {}): CodexTask {
     status: "completed",
     threadId: "thread-1",
     parentTaskId: null,
+    archivedAt: null,
     createdAt: "2026-03-10T00:00:00.000Z",
     startedAt: "2026-03-10T00:00:01.000Z",
     finishedAt: "2026-03-10T00:00:02.000Z",

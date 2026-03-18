@@ -225,4 +225,119 @@ describe("task routes", () => {
       },
     })
   })
+
+  it("archives a completed task through the archive route", async () => {
+    const project = await prisma.project.create({
+      data: {
+        name: "Project Archive",
+        slug: "project-archive",
+        rootPath: "/tmp/project-archive",
+        normalizedPath: "/tmp/project-archive",
+      },
+    })
+
+    const task = await prisma.task.create({
+      data: {
+        projectId: project.id,
+        projectPath: "/tmp/project-archive",
+        prompt: "Archive me",
+        title: "Archive me",
+        titleSource: "prompt",
+        executor: "codex",
+        status: "completed",
+      },
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/tasks/${task.id}/archive`,
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: task.id,
+        archivedAt: expect.any(String),
+      },
+    })
+
+    const archivedTask = await prisma.task.findUnique({
+      where: {
+        id: task.id,
+      },
+    })
+
+    expect(archivedTask?.archivedAt).not.toBeNull()
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${project.id}/tasks`,
+    })
+
+    expect(listResponse.statusCode).toBe(200)
+    expect(listResponse.json()).toMatchObject({
+      ok: true,
+      tasks: [],
+    })
+
+    const archivedListResponse = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${project.id}/tasks?includeArchived=true`,
+    })
+
+    expect(archivedListResponse.statusCode).toBe(200)
+    expect(archivedListResponse.json()).toMatchObject({
+      ok: true,
+      tasks: [
+        expect.objectContaining({
+          id: task.id,
+          archivedAt: expect.any(String),
+        }),
+      ],
+    })
+  })
+
+  it("deletes a terminal task through the delete route", async () => {
+    const project = await prisma.project.create({
+      data: {
+        name: "Project Delete",
+        slug: "project-delete",
+        rootPath: "/tmp/project-delete",
+        normalizedPath: "/tmp/project-delete",
+      },
+    })
+
+    const task = await prisma.task.create({
+      data: {
+        projectId: project.id,
+        projectPath: "/tmp/project-delete",
+        prompt: "Delete me",
+        title: "Delete me",
+        titleSource: "prompt",
+        executor: "codex",
+        status: "failed",
+      },
+    })
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/v1/tasks/${task.id}`,
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      taskId: task.id,
+      projectId: project.id,
+    })
+
+    const deletedTask = await prisma.task.findUnique({
+      where: {
+        id: task.id,
+      },
+    })
+
+    expect(deletedTask).toBeNull()
+  })
 })

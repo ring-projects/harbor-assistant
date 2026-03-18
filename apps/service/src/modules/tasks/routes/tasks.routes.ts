@@ -9,7 +9,9 @@ import {
   getTaskEventsRouteSchema,
   getProjectTasksRouteSchema,
   getTaskRouteSchema,
+  deleteTaskRouteSchema,
   postBreakTaskTurnRouteSchema,
+  postArchiveTaskRouteSchema,
   postRetryTaskRouteSchema,
   type ProjectIdParams,
   type TaskIdParams,
@@ -133,6 +135,39 @@ export async function registerTaskRoutes(
   )
 
   app.post<{ Params: TaskIdParams }>(
+    "/tasks/:taskId/archive",
+    {
+      schema: postArchiveTaskRouteSchema,
+    },
+    async (request) => {
+      const { taskId } = request.params
+      const task = await taskService.archiveTask({ taskId })
+
+      return {
+        ok: true,
+        task,
+      }
+    },
+  )
+
+  app.delete<{ Params: TaskIdParams }>(
+    "/tasks/:taskId",
+    {
+      schema: deleteTaskRouteSchema,
+    },
+    async (request) => {
+      const { taskId } = request.params
+      const deletedTask = await taskService.deleteTask({ taskId })
+
+      return {
+        ok: true,
+        taskId: deletedTask.taskId,
+        projectId: deletedTask.projectId,
+      }
+    },
+  )
+
+  app.post<{ Params: TaskIdParams }>(
     "/tasks/:taskId/retry",
     {
       schema: postRetryTaskRouteSchema,
@@ -206,6 +241,7 @@ export async function registerTaskRoutes(
       const tasks = await taskService.listProjectTasks({
         projectId,
         limit: normalizeOptionalLimit(request.query.limit),
+        includeArchived: request.query.includeArchived === true,
       })
 
       return {

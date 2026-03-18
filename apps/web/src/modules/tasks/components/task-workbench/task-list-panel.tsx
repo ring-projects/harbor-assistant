@@ -1,7 +1,10 @@
 "use client"
 
 import {
+  ArchiveIcon,
+  MoreHorizontalIcon,
   PlusIcon,
+  Trash2Icon,
 } from "lucide-react"
 import { useEffect, useMemo, useState, type FormEvent } from "react"
 
@@ -14,12 +17,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { useProjectSettingsQuery } from "@/modules/projects"
 import {
+  useArchiveTaskMutation,
   useCreateTaskMutation,
+  useDeleteTaskMutation,
   useProjectTaskListStream,
   useTaskListQuery,
 } from "@/modules/tasks/hooks/use-task-queries"
@@ -93,8 +104,18 @@ export function TaskListPanel({
     "safe" | "connected" | "full-access"
   >(defaultExecutionMode)
   const [createTaskError, setCreateTaskError] = useState<string | null>(null)
+  const [taskActionError, setTaskActionError] = useState<string | null>(null)
+  const [taskPendingDelete, setTaskPendingDelete] = useState<
+    | {
+        taskId: string
+        title: string
+      }
+    | null
+  >(null)
 
+  const archiveTaskMutation = useArchiveTaskMutation(projectId)
   const createTaskMutation = useCreateTaskMutation(projectId)
+  const deleteTaskMutation = useDeleteTaskMutation(projectId)
   const listQuery = useTaskListQuery({
     projectId,
   })
@@ -104,6 +125,16 @@ export function TaskListPanel({
   })
 
   const allTasks = useTasksSessionStore((state) => selectProjectTasks(state, projectId))
+  const [showArchivedTasks, setShowArchivedTasks] = useState(false)
+
+  const activeTasks = useMemo(
+    () => allTasks.filter((task) => task.archivedAt === null),
+    [allTasks],
+  )
+  const archivedTasks = useMemo(
+    () => allTasks.filter((task) => task.archivedAt !== null),
+    [allTasks],
+  )
 
   const resolvedSelectedTaskId = useMemo(() => {
     if (allTasks.length === 0) {
@@ -114,8 +145,8 @@ export function TaskListPanel({
       return selectedTaskId
     }
 
-    return allTasks[0].taskId
-  }, [allTasks, selectedTaskId])
+    return activeTasks[0]?.taskId ?? allTasks[0]?.taskId ?? null
+  }, [activeTasks, allTasks, selectedTaskId])
 
   useEffect(() => {
     if (resolvedSelectedTaskId !== selectedTaskId) {
@@ -155,6 +186,29 @@ export function TaskListPanel({
     }
   }
 
+  async function handleArchiveTask(taskId: string) {
+    try {
+      setTaskActionError(null)
+      await archiveTaskMutation.mutateAsync(taskId)
+    } catch (error) {
+      setTaskActionError(getErrorMessage(error))
+    }
+  }
+
+  async function handleDeleteTask() {
+    if (!taskPendingDelete) {
+      return
+    }
+
+    try {
+      setTaskActionError(null)
+      await deleteTaskMutation.mutateAsync(taskPendingDelete.taskId)
+      setTaskPendingDelete(null)
+    } catch (error) {
+      setTaskActionError(getErrorMessage(error))
+    }
+  }
+
   return (
     <section className="bg-background min-h-0 p-3">
       <div className="flex h-full min-h-0 flex-col gap-3">
@@ -164,6 +218,14 @@ export function TaskListPanel({
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowArchivedTasks((current) => !current)}
+            >
+              {showArchivedTasks ? "Hide Archived" : `Show Archived (${archivedTasks.length})`}
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -300,6 +362,53 @@ export function TaskListPanel({
           </DialogContent>
         </Dialog>
 
+        <Dialog
+          open={Boolean(taskPendingDelete)}
+          onOpenChange={(open) => {
+            if (!open && !deleteTaskMutation.isPending) {
+              setTaskPendingDelete(null)
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Task</DialogTitle>
+              <DialogDescription>
+                Delete &quot;{taskPendingDelete?.title ?? "this task"}&quot; permanently?
+                This also removes its event history from Harbor.
+              </DialogDescription>
+            </DialogHeader>
+
+            {taskActionError ? (
+              <div className="rounded-md border border-rose-300 bg-rose-50 p-2 text-xs text-rose-700">
+                {taskActionError}
+              </div>
+            ) : null}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setTaskPendingDelete(null)}
+                disabled={deleteTaskMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void handleDeleteTask()
+                }}
+                disabled={deleteTaskMutation.isPending}
+              >
+                <Trash2Icon className="size-4" />
+                {deleteTaskMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
           {listQuery.isLoading ? (
             Array.from({ length: 8 }).map((_, index) => (
@@ -313,55 +422,193 @@ export function TaskListPanel({
             </div>
           ) : null}
 
-          {!listQuery.isLoading && !listQuery.isError && allTasks.length === 0 ? (
+          {!listQuery.isLoading && !listQuery.isError && activeTasks.length === 0 ? (
             <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
               No tasks yet.
             </div>
           ) : null}
 
+          {taskActionError ? (
+            <div className="rounded-md border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
+              {taskActionError}
+            </div>
+          ) : null}
+
           {!listQuery.isLoading && !listQuery.isError
-            ? allTasks.map((task) => {
+            ? activeTasks.map((task) => {
                 const isActive = task.taskId === resolvedSelectedTaskId
+                const canManageTask =
+                  task.status === "completed" ||
+                  task.status === "failed" ||
+                  task.status === "cancelled"
+                const taskTitle = getTaskDisplayTitle({
+                  title: task.title,
+                  prompt: task.prompt,
+                })
 
                 return (
-                  <button
+                  <div
                     key={task.taskId}
-                    type="button"
-                    onClick={() => onSelectTask(task.taskId)}
                     className={cn(
-                      "w-full rounded-md border p-3 text-left transition-colors",
+                      "w-full rounded-md border transition-colors",
                       isActive
                         ? "border-primary bg-primary/5"
                         : "hover:border-muted-foreground/40",
                     )}
                   >
-                    <div className="flex items-center justify-end gap-2">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full border px-2 py-0.5 text-[11px]",
-                          STATUS_META[task.status].badgeClassName,
-                        )}
+                    <div className="flex items-start gap-2 p-3">
+                      <button
+                        type="button"
+                        onClick={() => onSelectTask(task.taskId)}
+                        className="min-w-0 flex-1 text-left"
                       >
-                        {STATUS_META[task.status].label}
-                      </span>
-                    </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full border px-2 py-0.5 text-[11px]",
+                              STATUS_META[task.status].badgeClassName,
+                            )}
+                          >
+                            {STATUS_META[task.status].label}
+                          </span>
+                        </div>
 
-                    <p className="pt-2 text-sm font-medium">
-                      {getTaskDisplayTitle({
-                        title: task.title,
-                        prompt: task.prompt,
-                      })}
-                    </p>
-                    <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 pt-2 text-[11px]">
-                      <span>Created: {formatDateTime(task.createdAt)}</span>
-                      <span>Executor: {formatExecutorLabel(task.executor)}</span>
-                      <span>Mode: {formatExecutionModeLabel(task.executionMode)}</span>
-                      <span>Model: {task.model ?? "-"}</span>
+                        <p className="pt-2 text-sm font-medium">
+                          {taskTitle}
+                        </p>
+                        <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 pt-2 text-[11px]">
+                          <span>Created: {formatDateTime(task.createdAt)}</span>
+                          <span>Executor: {formatExecutorLabel(task.executor)}</span>
+                          <span>Mode: {formatExecutionModeLabel(task.executionMode)}</span>
+                          <span>Model: {task.model ?? "-"}</span>
+                        </div>
+                      </button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            aria-label={`Task actions for ${taskTitle}`}
+                          >
+                            <MoreHorizontalIcon className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            disabled={!canManageTask || archiveTaskMutation.isPending}
+                            onClick={() => {
+                              void handleArchiveTask(task.taskId)
+                            }}
+                          >
+                            <ArchiveIcon className="mr-2 size-4" />
+                            Archive
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={!canManageTask || deleteTaskMutation.isPending}
+                            onClick={() => {
+                              setTaskActionError(null)
+                              setTaskPendingDelete({
+                                taskId: task.taskId,
+                                title: taskTitle,
+                              })
+                            }}
+                          >
+                            <Trash2Icon className="mr-2 size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </button>
+                  </div>
                 )
               })
             : null}
+
+          {!listQuery.isLoading && !listQuery.isError && showArchivedTasks && archivedTasks.length > 0 ? (
+            <div className="space-y-2 pt-3">
+              <div className="text-muted-foreground px-1 text-[11px] font-medium uppercase tracking-wide">
+                Archived
+              </div>
+              {archivedTasks.map((task) => {
+                const isActive = task.taskId === resolvedSelectedTaskId
+                const canManageTask =
+                  task.status === "completed" ||
+                  task.status === "failed" ||
+                  task.status === "cancelled"
+                const taskTitle = getTaskDisplayTitle({
+                  title: task.title,
+                  prompt: task.prompt,
+                })
+
+                return (
+                  <div
+                    key={task.taskId}
+                    className={cn(
+                      "w-full rounded-md border border-dashed transition-colors",
+                      isActive
+                        ? "border-primary bg-primary/5"
+                        : "hover:border-muted-foreground/40",
+                    )}
+                  >
+                    <div className="flex items-start gap-2 p-3">
+                      <button
+                        type="button"
+                        onClick={() => onSelectTask(task.taskId)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-muted-foreground inline-flex rounded-full border px-2 py-0.5 text-[11px]">
+                            Archived
+                          </span>
+                        </div>
+
+                        <p className="pt-2 text-sm font-medium">
+                          {taskTitle}
+                        </p>
+                        <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 pt-2 text-[11px]">
+                          <span>Created: {formatDateTime(task.createdAt)}</span>
+                          <span>Archived: {formatDateTime(task.archivedAt)}</span>
+                          <span>Status: {STATUS_META[task.status].label}</span>
+                        </div>
+                      </button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            aria-label={`Task actions for ${taskTitle}`}
+                          >
+                            <MoreHorizontalIcon className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            disabled={!canManageTask || deleteTaskMutation.isPending}
+                            onClick={() => {
+                              setTaskActionError(null)
+                              setTaskPendingDelete({
+                                taskId: task.taskId,
+                                title: taskTitle,
+                              })
+                            }}
+                          >
+                            <Trash2Icon className="mr-2 size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

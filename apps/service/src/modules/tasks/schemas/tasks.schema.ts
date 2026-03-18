@@ -27,6 +27,12 @@ export type FollowupTaskBody = {
   model?: string
 }
 
+export type DeleteTaskResponse = {
+  ok: true
+  taskId: string
+  projectId: string
+}
+
 export type TaskIdParams = {
   taskId: string
 }
@@ -42,6 +48,7 @@ export type GetTaskEventsQuery = {
 
 export type GetProjectTasksQuery = {
   limit?: number
+  includeArchived?: boolean
 }
 
 const taskEntitySchema = {
@@ -62,6 +69,7 @@ const taskEntitySchema = {
     "status",
     "threadId",
     "parentTaskId",
+    "archivedAt",
     "createdAt",
     "startedAt",
     "finishedAt",
@@ -121,6 +129,7 @@ const taskEntitySchema = {
     },
     threadId: { type: ["string", "null"] },
     parentTaskId: { type: ["string", "null"] },
+    archivedAt: { type: ["string", "null"], format: "date-time" },
     createdAt: { type: "string", format: "date-time" },
     startedAt: { type: ["string", "null"], format: "date-time" },
     finishedAt: { type: ["string", "null"], format: "date-time" },
@@ -197,6 +206,17 @@ const taskEventsSuccessResponseSchema = {
     ok: { type: "boolean", const: true },
     task: taskEntitySchema,
     events: taskAgentEventStreamSchema,
+  },
+} as const
+
+const taskDeleteSuccessResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ok", "taskId", "projectId"],
+  properties: {
+    ok: { type: "boolean", const: true },
+    taskId: { type: "string" },
+    projectId: { type: "string" },
   },
 } as const
 
@@ -316,6 +336,7 @@ const limitOnlyQuerySchema = {
   additionalProperties: false,
   properties: {
     limit: positiveIntegerQueryParamSchema,
+    includeArchived: { type: "boolean" },
   },
 } as const
 
@@ -353,6 +374,20 @@ export const postRetryTaskRouteSchema = {
   params: taskIdParamsSchema,
   response: {
     200: taskSuccessResponseSchema,
+  },
+} as const
+
+export const postArchiveTaskRouteSchema = {
+  params: taskIdParamsSchema,
+  response: {
+    200: taskSuccessResponseSchema,
+  },
+} as const
+
+export const deleteTaskRouteSchema = {
+  params: taskIdParamsSchema,
+  response: {
+    200: taskDeleteSuccessResponseSchema,
   },
 } as const
 

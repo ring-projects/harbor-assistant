@@ -26,6 +26,11 @@ export type TaskStreamEvent =
       projectId: string
       task: CodexTask
     }
+  | {
+      type: "task_deleted"
+      projectId: string
+      taskId: string
+    }
 
 type TaskStreamListener = (event: TaskStreamEvent) => void
 

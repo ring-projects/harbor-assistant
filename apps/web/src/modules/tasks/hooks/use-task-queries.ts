@@ -5,8 +5,10 @@ import { useEffect } from "react"
 
 import { gitQueryKeys } from "@/modules/git"
 import {
+  archiveTask,
   breakTaskTurn,
   createTask,
+  deleteTask,
   followupTask,
   readProjectTasks,
   readTaskDetail,
@@ -42,6 +44,7 @@ export function useTaskListQuery(args: {
     queryFn: async () => {
       const result = await readProjectTasks({
         projectId: args.projectId,
+        includeArchived: true,
       })
 
       return result.tasks
@@ -179,6 +182,42 @@ export function useRetryTaskMutation(projectId: string) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.events(result.taskId),
       })
+    },
+  })
+}
+
+export function useArchiveTaskMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (taskId: string) => archiveTask(taskId),
+    onSuccess(task) {
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.byProject(projectId),
+      })
+
+      useTasksSessionStore.getState().applyTaskUpsert(task)
+    },
+  })
+}
+
+export function useDeleteTaskMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (taskId: string) => deleteTask(taskId),
+    onSuccess(result) {
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.byProject(projectId),
+      })
+      void queryClient.removeQueries({
+        queryKey: taskQueryKeys.detail(result.taskId),
+      })
+      void queryClient.removeQueries({
+        queryKey: taskQueryKeys.events(result.taskId),
+      })
+
+      useTasksSessionStore.getState().deleteTask(result.projectId, result.taskId)
     },
   })
 }

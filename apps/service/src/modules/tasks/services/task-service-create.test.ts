@@ -39,6 +39,8 @@ describe("task creation", () => {
         getProjectSkillAccessDirectories: vi.fn(() => ["/tmp/harbor-skills"]),
       },
       taskRepository: {
+        archiveTask: vi.fn(),
+        deleteTask: vi.fn(),
         getTaskById: vi.fn(),
         hasActiveTaskInThread: vi.fn(),
         listTaskAgentEvents: vi.fn(),
@@ -121,6 +123,8 @@ describe("task creation", () => {
         ),
       },
       taskRepository: {
+        archiveTask: vi.fn(),
+        deleteTask: vi.fn(),
         getTaskById: vi.fn(),
         hasActiveTaskInThread: vi.fn(),
         listTaskAgentEvents: vi.fn(),
@@ -184,6 +188,8 @@ describe("task creation", () => {
         getProjectSkillAccessDirectories: vi.fn(() => ["/tmp/harbor-skills"]),
       },
       taskRepository: {
+        archiveTask: vi.fn(),
+        deleteTask: vi.fn(),
         getTaskById: vi.fn(),
         hasActiveTaskInThread: vi.fn(),
         listTaskAgentEvents: vi.fn(),
@@ -252,6 +258,8 @@ describe("task creation", () => {
         getProjectSkillAccessDirectories: vi.fn(() => ["/tmp/harbor-skills"]),
       },
       taskRepository: {
+        archiveTask: vi.fn(),
+        deleteTask: vi.fn(),
         getTaskById: vi.fn(async () => failedTask),
         hasActiveTaskInThread: vi.fn(async () => false),
         listTaskAgentEvents: vi.fn(),

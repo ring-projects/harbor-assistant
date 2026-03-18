@@ -95,6 +95,14 @@ function sortTaskIdsByCreatedAt(
   })
 }
 
+function removeTaskId(taskIds: string[] | undefined, taskId: string) {
+  if (!taskIds || taskIds.length === 0) {
+    return []
+  }
+
+  return taskIds.filter((currentTaskId) => currentTaskId !== taskId)
+}
+
 function reconcilePendingPrompt(
   chatUi: ChatUiState | undefined,
   stream: TaskAgentEventStream | undefined,
@@ -159,9 +167,8 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
         tasksById[task.taskId] = mergeTaskRecord(tasksById[task.taskId], task)
       }
 
-      const existingTaskIds = state.taskIdsByProject[normalizedProjectId] ?? []
       const nextTaskIds = sortTaskIdsByCreatedAt(
-        [...existingTaskIds, ...tasks.map((task) => task.taskId)],
+        tasks.map((task) => task.taskId),
         tasksById,
       )
 
@@ -234,6 +241,37 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
         taskIdsByProject: {
           ...state.taskIdsByProject,
           [normalizedProjectId]: nextTaskIds,
+        },
+      }
+    })
+  },
+
+  deleteTask(projectId, taskId) {
+    const normalizedProjectId = projectId.trim()
+    const normalizedTaskId = taskId.trim()
+    if (!normalizedProjectId || !normalizedTaskId) {
+      return
+    }
+
+    set((state) => {
+      const tasksById = { ...state.tasksById }
+      const eventStreamsByTaskId = { ...state.eventStreamsByTaskId }
+      const chatUiByTaskId = { ...state.chatUiByTaskId }
+
+      delete tasksById[normalizedTaskId]
+      delete eventStreamsByTaskId[normalizedTaskId]
+      delete chatUiByTaskId[normalizedTaskId]
+
+      return {
+        tasksById,
+        eventStreamsByTaskId,
+        chatUiByTaskId,
+        taskIdsByProject: {
+          ...state.taskIdsByProject,
+          [normalizedProjectId]: removeTaskId(
+            state.taskIdsByProject[normalizedProjectId],
+            normalizedTaskId,
+          ),
         },
       }
     })

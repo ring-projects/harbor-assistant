@@ -20,6 +20,11 @@ type ProjectTaskUpsertPayload = {
   task: Record<string, unknown>
 }
 
+type ProjectTaskDeletedPayload = {
+  projectId: string
+  taskId: string
+}
+
 type TaskReadyPayload = {
   taskId: string
   task: Record<string, unknown>
@@ -193,6 +198,7 @@ function normalizeTask(input: Record<string, unknown>): TaskListItem | null {
     status,
     threadId: toStringOrNull(input.threadId),
     parentTaskId: toStringOrNull(input.parentTaskId),
+    archivedAt: toOptionalDateString(input.archivedAt),
     createdAt: toStringOrNull(input.createdAt) ?? new Date().toISOString(),
     startedAt: toStringOrNull(input.startedAt),
     finishedAt: toStringOrNull(input.finishedAt),
@@ -393,6 +399,10 @@ export class TaskSocketManager {
       }
 
       useTasksSessionStore.getState().applyTaskUpsert(task)
+    })
+
+    this.socket.on("project:task_deleted", (payload: ProjectTaskDeletedPayload) => {
+      useTasksSessionStore.getState().deleteTask(payload.projectId, payload.taskId)
     })
 
     this.socket.on("task:ready", (payload: TaskReadyPayload) => {

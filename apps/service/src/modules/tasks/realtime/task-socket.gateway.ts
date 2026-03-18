@@ -82,6 +82,19 @@ function emitProjectGitChanged(
   })
 }
 
+function emitProjectTaskDeleted(
+  socket: Pick<Socket, "emit">,
+  event: {
+    projectId: string
+    taskId: string
+  },
+) {
+  socket.emit("project:task_deleted", {
+    projectId: event.projectId,
+    taskId: event.taskId,
+  })
+}
+
 async function handleProjectSubscription(args: {
   socket: Socket
   taskService: Pick<TaskService, "listProjectTasks">
@@ -288,6 +301,11 @@ export function createTaskSocketGateway(args: {
           args.taskEventBus.subscribeProject(projectId, (event) => {
             if (event.type === "task_upsert") {
               emitStreamEvent(socket, event)
+              return
+            }
+
+            if (event.type === "task_deleted") {
+              emitProjectTaskDeleted(socket, event)
             }
           }),
         )
@@ -340,6 +358,14 @@ export function createTaskSocketGateway(args: {
           args.taskEventBus.subscribe(taskId, (event) => {
             if (event.type === "task_status" || event.type === "task_end") {
               emitStreamEvent(socket, event)
+              return
+            }
+
+            if (event.type === "task_deleted") {
+              socket.emit("task:deleted", {
+                taskId: event.taskId,
+                projectId: event.projectId,
+              })
             }
           }),
         )
@@ -372,6 +398,14 @@ export function createTaskSocketGateway(args: {
           args.taskEventBus.subscribe(taskId, (event) => {
             if (event.type === "agent_event" || event.type === "task_end") {
               emitStreamEvent(socket, event)
+              return
+            }
+
+            if (event.type === "task_deleted") {
+              socket.emit("task:deleted", {
+                taskId: event.taskId,
+                projectId: event.projectId,
+              })
             }
           }),
         )

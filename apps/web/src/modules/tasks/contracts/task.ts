@@ -86,6 +86,7 @@ export const taskListItemSchema = z.object({
   status: taskStatusSchema,
   threadId: z.string().nullable().default(null),
   parentTaskId: z.string().nullable().default(null),
+  archivedAt: z.string().nullable().default(null),
   createdAt: z.string().min(1),
   startedAt: z.string().nullable().default(null),
   finishedAt: z.string().nullable().default(null),

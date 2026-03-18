@@ -27,6 +27,7 @@ export type TaskDbClient = PrismaClient
 export type ListTasksByProjectInput = {
   projectId: string
   limit?: number
+  includeArchived?: boolean
 }
 
 export type ListTasksByStatusesInput = {
@@ -50,6 +51,14 @@ export type UpdateTaskTitleInput = {
   taskId: string
   title: string
   titleSource: TaskTitleSource
+}
+
+export type ArchiveTaskInput = {
+  taskId: string
+}
+
+export type DeleteTaskInput = {
+  taskId: string
 }
 
 export type UpdateTaskStateInput = {
@@ -175,6 +184,7 @@ function toCodexTask(task: {
   status: PrismaTaskStatus
   threadId: string | null
   parentTaskId: string | null
+  archivedAt: Date | null
   createdAt: Date
   startedAt: Date | null
   finishedAt: Date | null
@@ -199,6 +209,7 @@ function toCodexTask(task: {
     status: toDomainTaskStatus(task.status),
     threadId: task.threadId,
     parentTaskId: task.parentTaskId,
+    archivedAt: toIsoString(task.archivedAt),
     createdAt: task.createdAt.toISOString(),
     startedAt: toIsoString(task.startedAt),
     finishedAt: toIsoString(task.finishedAt),
@@ -319,6 +330,7 @@ export function createTaskRepository(prisma: TaskDbClient) {
       const tasks = await prisma.task.findMany({
         where: {
           projectId,
+          ...(args.includeArchived ? {} : { archivedAt: null }),
         },
         orderBy: {
           createdAt: "desc",
@@ -428,6 +440,95 @@ export function createTaskRepository(prisma: TaskDbClient) {
       }
 
       throw createTaskError.storeWriteError("update task title", error)
+    }
+  }
+
+  async function archiveTask(input: ArchiveTaskInput): Promise<CodexTask> {
+    const taskId = input.taskId.trim()
+    if (!taskId) {
+      throw createTaskError.storeWriteError(
+        "archive task",
+        new Error("taskId is required."),
+      )
+    }
+
+    try {
+      const existingTask = await prisma.task.findUnique({
+        where: {
+          id: taskId,
+        },
+      })
+
+      if (!existingTask) {
+        throw createTaskError.taskNotFound(taskId)
+      }
+
+      if (existingTask.archivedAt) {
+        return toCodexTask(existingTask)
+      }
+
+      const task = await prisma.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          archivedAt: new Date(),
+        },
+      })
+
+      return toCodexTask(task)
+    } catch (error) {
+      if (error instanceof TaskError) {
+        throw error
+      }
+
+      throw createTaskError.storeWriteError("archive task", error)
+    }
+  }
+
+  async function deleteTask(input: DeleteTaskInput): Promise<{
+    taskId: string
+    projectId: string
+  }> {
+    const taskId = input.taskId.trim()
+    if (!taskId) {
+      throw createTaskError.storeWriteError(
+        "delete task",
+        new Error("taskId is required."),
+      )
+    }
+
+    try {
+      const existingTask = await prisma.task.findUnique({
+        where: {
+          id: taskId,
+        },
+        select: {
+          id: true,
+          projectId: true,
+        },
+      })
+
+      if (!existingTask) {
+        throw createTaskError.taskNotFound(taskId)
+      }
+
+      await prisma.task.delete({
+        where: {
+          id: taskId,
+        },
+      })
+
+      return {
+        taskId: existingTask.id,
+        projectId: existingTask.projectId,
+      }
+    } catch (error) {
+      if (error instanceof TaskError) {
+        throw error
+      }
+
+      throw createTaskError.storeWriteError("delete task", error)
     }
   }
 
@@ -639,6 +740,8 @@ export function createTaskRepository(prisma: TaskDbClient) {
     getTaskById,
     createTask,
     updateTaskTitle,
+    archiveTask,
+    deleteTask,
     setTaskThreadId,
     hasActiveTaskInThread,
     updateTaskState,

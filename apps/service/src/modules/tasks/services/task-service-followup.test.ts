@@ -22,6 +22,8 @@ describe("task follow-up", () => {
         getProjectSettings: vi.fn(async () => null),
       },
       taskRepository: {
+        archiveTask: vi.fn(),
+        deleteTask: vi.fn(),
         getTaskById,
         hasActiveTaskInThread,
         listTaskAgentEvents: vi.fn(),

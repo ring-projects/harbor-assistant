@@ -29,6 +29,10 @@ export function getV1TaskBreakApiRoute(taskId: string) {
   return `${getV1TaskByIdApiRoute(taskId)}/break`
 }
 
+export function getV1TaskArchiveApiRoute(taskId: string) {
+  return `${getV1TaskByIdApiRoute(taskId)}/archive`
+}
+
 export function getV1TaskRetryApiRoute(taskId: string) {
   return `${getV1TaskByIdApiRoute(taskId)}/retry`
 }

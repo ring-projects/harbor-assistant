@@ -37,6 +37,7 @@ function buildTask(
     status: "queued",
     threadId: null,
     parentTaskId: null,
+    archivedAt: null,
     createdAt: "2026-03-13T00:00:00.000Z",
     startedAt: null,
     finishedAt: null,
@@ -229,5 +230,72 @@ describe("tasks session store", () => {
     const second = selectConversationBlocks(store.getState(), "task-1")
 
     expect(second).toBe(first)
+  })
+
+  it("replaces the visible project task list from query snapshots", () => {
+    const store = createTasksStore()
+
+    store.getState().hydrateProjectTasks("project-1", [
+      buildTask({
+        taskId: "task-1",
+      }),
+      buildTask({
+        taskId: "task-2",
+      }),
+    ])
+
+    store.getState().hydrateProjectTasks("project-1", [
+      buildTask({
+        taskId: "task-2",
+      }),
+    ])
+
+    expect(selectProjectTasks(store.getState(), "project-1").map((task) => task.taskId)).toEqual([
+      "task-2",
+    ])
+  })
+
+  it("keeps archived tasks in project state for archived views", () => {
+    const store = createTasksStore()
+
+    store.getState().hydrateProjectTasks("project-1", [
+      buildTask({
+        taskId: "task-1",
+      }),
+    ])
+
+    store.getState().applyTaskUpsert(buildTask({
+      taskId: "task-1",
+      archivedAt: "2026-03-18T08:00:00.000Z",
+    }))
+
+    expect(selectProjectTasks(store.getState(), "project-1").map((task) => task.taskId)).toEqual([
+      "task-1",
+    ])
+    expect(store.getState().tasksById["task-1"]?.archivedAt).toBe(
+      "2026-03-18T08:00:00.000Z",
+    )
+  })
+
+  it("deletes a task from state and event caches", () => {
+    const store = createTasksStore()
+
+    store.getState().hydrateProjectTasks("project-1", [
+      buildTask({
+        taskId: "task-1",
+      }),
+    ])
+    store.getState().hydrateTaskEvents("task-1", buildStream({
+      items: [buildMessageEvent()],
+      nextSequence: 1,
+    }))
+    store.getState().setDraft("task-1", "draft")
+
+    store.getState().deleteTask("project-1", "task-1")
+
+    expect(selectProjectTasks(store.getState(), "project-1")).toEqual([])
+    expect(store.getState().tasksById["task-1"]).toBeUndefined()
+    expect(store.getState().eventStreamsByTaskId["task-1"]).toBeUndefined()
+    expect(store.getState().chatUiByTaskId["task-1"]).toBeUndefined()
   })
 })

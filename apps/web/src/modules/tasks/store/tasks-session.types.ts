@@ -33,6 +33,7 @@ export type TasksSessionActions = {
   hydrateTaskDetail: (task: TaskDetail) => void
   hydrateTaskEvents: (taskId: string, stream: TaskAgentEventStream) => void
   applyTaskUpsert: (task: TaskRecord) => void
+  deleteTask: (projectId: string, taskId: string) => void
   applyTaskStatus: (taskId: string, status: TaskStatus) => void
   applyTaskEnd: (taskId: string, status: TaskStatus) => void
   applyAgentEvent: (taskId: string, event: TaskAgentEvent) => void
