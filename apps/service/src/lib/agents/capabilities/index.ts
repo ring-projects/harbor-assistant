@@ -5,9 +5,13 @@ import { inspectClaudeCodeCapabilities } from "./claude-code"
 /**
  * Inspect all agent capabilities
  */
-export async function inspectAllAgentCapabilities(): Promise<AgentCapabilityResult> {
+export async function inspectAllAgentCapabilities(args?: {
+  harborHomeDirectory?: string
+}): Promise<AgentCapabilityResult> {
   const [codexCapabilities, claudeCodeCapabilities] = await Promise.all([
-    inspectCodexCapabilities(),
+    inspectCodexCapabilities({
+      harborHomeDirectory: args?.harborHomeDirectory,
+    }),
     inspectClaudeCodeCapabilities(),
   ])
 

@@ -169,27 +169,42 @@ export function createTaskService(args: {
     inspectAgentCapabilities = inspectAllAgentCapabilities,
   } = args
 
-  async function validateAgentModel(agentType: AgentType, model: string | null) {
+  async function inspectAgentCapabilitiesSafely() {
+    try {
+      return await inspectAgentCapabilities()
+    } catch {
+      return null
+    }
+  }
+
+  function getAgentDefaultModel(
+    capabilityResult: AgentCapabilityResult | null,
+    agentType: AgentType,
+  ) {
+    return (
+      capabilityResult?.agents[agentType]?.models.find((item) => item.isDefault)?.id ??
+      null
+    )
+  }
+
+  function validateAgentModel(
+    agentType: AgentType,
+    model: string | null,
+    capabilityResult: AgentCapabilityResult | null,
+  ) {
     if (!model) {
       return
     }
 
-    try {
-      const capabilityResult = await inspectAgentCapabilities()
-      const availableModels =
-        capabilityResult.agents[agentType]?.models.map((item) => item.id) ?? []
+    const availableModels =
+      capabilityResult?.agents[agentType]?.models.map((item) => item.id) ?? []
 
-      if (availableModels.length === 0) {
-        return
-      }
+    if (availableModels.length === 0) {
+      return
+    }
 
-      if (!availableModels.includes(model)) {
-        throw createTaskError.invalidTaskModel(model, agentType, availableModels)
-      }
-    } catch (error) {
-      if (error instanceof TaskError) {
-        throw error
-      }
+    if (!availableModels.includes(model)) {
+      throw createTaskError.invalidTaskModel(model, agentType, availableModels)
     }
   }
 
@@ -255,12 +270,14 @@ export function createTaskService(args: {
       requestedAgentType ?? projectSettings?.defaultExecutor ?? undefined,
     )
     ensureSupportedAgent(agentType)
+    const capabilityResult = await inspectAgentCapabilitiesSafely()
     const model =
       requestedModel ??
       (requestedModelSource === "runtime-default"
         ? null
-        : projectSettings?.defaultModel ?? null)
-    await validateAgentModel(agentType, model)
+        : projectSettings?.defaultModel ??
+          getAgentDefaultModel(capabilityResult, agentType))
+    validateAgentModel(agentType, model, capabilityResult)
 
     const resolvedRuntimePolicy = resolveRuntimePolicy({
       executionMode: input.executionMode ?? projectSettings?.defaultExecutionMode,
@@ -354,10 +371,13 @@ export function createTaskService(args: {
     try {
       const agentType = normalizeAgentType(task.executor)
       ensureSupportedAgent(agentType)
+      const capabilityResult = await inspectAgentCapabilitiesSafely()
       const nextModel =
         requestedModel ??
-        (requestedModelSource === "runtime-default" ? null : task.model)
-      await validateAgentModel(agentType, nextModel)
+        (requestedModelSource === "runtime-default"
+          ? null
+          : task.model ?? getAgentDefaultModel(capabilityResult, agentType))
+      validateAgentModel(agentType, nextModel, capabilityResult)
       const projectSettings =
         await projectSettingsRepository.getProjectSettings(task.projectId)
       const resolvedRuntimePolicy = resolveRuntimePolicy({

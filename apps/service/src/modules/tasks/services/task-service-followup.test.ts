@@ -172,4 +172,75 @@ describe("task follow-up", () => {
 
     expect(followupTask).not.toHaveBeenCalled()
   })
+
+  it("falls back to the agent default model for follow-up when the task model is empty", async () => {
+    const completedTask = buildTask({
+      status: "completed",
+      model: null,
+      threadId: "thread-1",
+      executor: "codex",
+    })
+    const followupTask = vi.fn(async () => buildTask({ model: "gpt-5.4" }))
+
+    const taskService = createTaskService({
+      projectRepository: {
+        getProjectById: vi.fn(),
+      },
+      projectSettingsRepository: {
+        getProjectSettings: vi.fn(async () => buildProjectSettings()),
+      },
+      taskRepository: {
+        archiveTask: vi.fn(),
+        deleteTask: vi.fn(),
+        getTaskById: vi.fn(async () => completedTask),
+        hasActiveTaskInThread: vi.fn(async () => false),
+        listTaskAgentEvents: vi.fn(),
+        listTasksByProject: vi.fn(),
+        updateTaskTitle: vi.fn(),
+      },
+      taskRunnerService: {
+        createAndRunTask: vi.fn(),
+        followupTask,
+        breakTaskTurn: vi.fn(),
+        recoverInterruptedTasks: vi.fn(),
+      },
+      inspectAgentCapabilities: vi.fn(async () => ({
+        checkedAt: new Date("2026-03-18T00:00:00.000Z"),
+        availableAgents: ["codex" as const],
+        agents: {
+          codex: {
+            installed: true,
+            version: "codex-cli 0.64.0",
+            models: [
+              {
+                id: "gpt-5.4",
+                displayName: "GPT-5.4",
+                isDefault: true,
+              },
+            ],
+            supportsResume: true,
+            supportsStreaming: true,
+          },
+          "claude-code": {
+            installed: true,
+            version: "claude-code 1.0.0",
+            models: [],
+            supportsResume: true,
+            supportsStreaming: true,
+          },
+        },
+      })),
+    })
+
+    await taskService.followupTask({
+      taskId: completedTask.id,
+      prompt: "Continue with Harbor default model",
+    })
+
+    expect(followupTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gpt-5.4",
+      }),
+    )
+  })
 })

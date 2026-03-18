@@ -17,7 +17,9 @@ export async function registerV1Routes(
   app: FastifyInstance,
   config: ServiceConfig,
 ) {
-  await registerAgentRoutes(app)
+  await registerAgentRoutes(app, {
+    harborHomeDirectory: config.harborHomeDirectory,
+  })
   await registerProjectModuleRoutes(app, {
     harborHomeDirectory: config.harborHomeDirectory,
   })

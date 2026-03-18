@@ -76,6 +76,7 @@ import {
   createTaskRunnerService,
   createTaskService,
 } from "./services"
+import { inspectAllAgentCapabilities } from "../../lib/agents"
 
 export function createTaskModule(args: {
   prisma: TaskDbClient
@@ -109,6 +110,10 @@ export function createTaskModule(args: {
     taskRepository,
     taskRunnerService,
     taskEventBus,
+    inspectAgentCapabilities: () =>
+      inspectAllAgentCapabilities({
+        harborHomeDirectory: args.harborHomeDirectory,
+      }),
   })
 
   return {

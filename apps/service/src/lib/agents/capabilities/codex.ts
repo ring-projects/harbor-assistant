@@ -10,6 +10,10 @@ import type { AgentCapabilities, AgentModel } from "../types"
 import { resolveCommandVersion } from "../utils/command"
 import { CODEX_CONFIG_PATH } from "../constants"
 import { buildChildProcessEnv } from "../../process-env"
+import {
+  mergeAgentModelsWithCustomConfig,
+  readCustomAgentModelsConfig,
+} from "./custom-models"
 
 const PLATFORM_VERSION_SUFFIX_BY_TARGET: Record<string, string> = {
   "x86_64-unknown-linux-musl": "linux-x64",
@@ -466,7 +470,9 @@ async function resolveCodexModels(codexCommand: string): Promise<AgentModel[]> {
 /**
  * Inspect Codex agent capabilities
  */
-export async function inspectCodexCapabilities(): Promise<AgentCapabilities> {
+export async function inspectCodexCapabilities(args?: {
+  harborHomeDirectory?: string
+}): Promise<AgentCapabilities> {
   const bundledRuntime = resolveBundledCodexRuntime()
 
   if (!bundledRuntime) {
@@ -479,12 +485,18 @@ export async function inspectCodexCapabilities(): Promise<AgentCapabilities> {
     }
   }
 
+  const customConfig = await readCustomAgentModelsConfig()
+
   return {
     installed: true,
     version:
       bundledRuntime.version ??
       await resolveCommandVersion(bundledRuntime.command),
-    models: await resolveCodexModels(bundledRuntime.command),
+    models: mergeAgentModelsWithCustomConfig({
+      agentType: "codex",
+      models: await resolveCodexModels(bundledRuntime.command),
+      customConfig,
+    }),
     supportsResume: true,
     supportsStreaming: true,
   }

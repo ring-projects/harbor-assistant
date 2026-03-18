@@ -75,7 +75,10 @@ const agentCapabilitiesSchema = {
   },
 } as const
 
-export async function registerAgentRoutes(app: FastifyInstance) {
+export async function registerAgentRoutes(
+  app: FastifyInstance,
+  args?: { harborHomeDirectory?: string },
+) {
   app.addSchema(agentCapabilitiesSchema)
 
   app.get(
@@ -84,7 +87,9 @@ export async function registerAgentRoutes(app: FastifyInstance) {
       schema: getAgentCapabilitiesRouteSchema,
     },
     async () => {
-      const capabilities = await inspectAllAgentCapabilities()
+      const capabilities = await inspectAllAgentCapabilities({
+        harborHomeDirectory: args?.harborHomeDirectory,
+      })
 
       return {
         ok: true,

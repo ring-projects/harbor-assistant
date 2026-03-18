@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify"
 
+import { inspectAllAgentCapabilities } from "../../../lib/agents"
 import {
   createProjectRepository,
   createProjectSettingsRepository,
@@ -55,6 +56,10 @@ export async function registerTaskModuleRoutes(
     taskRepository,
     taskRunnerService,
     taskEventBus,
+    inspectAgentCapabilities: () =>
+      inspectAllAgentCapabilities({
+        harborHomeDirectory: args?.harborHomeDirectory,
+      }),
   })
 
   const recoveredTasks = await taskRunnerService.recoverInterruptedTasks()
