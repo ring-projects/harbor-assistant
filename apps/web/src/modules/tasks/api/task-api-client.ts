@@ -43,6 +43,7 @@ export class TaskApiClientError extends Error {
 export type CreateTaskInput = {
   prompt: string
   model?: string
+  modelSource?: "project-default" | "runtime-default"
   executor?: string
   executionMode?: "safe" | "connected" | "full-access" | "custom"
   runtimePolicy?: {
@@ -57,6 +58,7 @@ export type CreateTaskInput = {
 export type FollowupTaskInput = {
   prompt: string
   model?: string
+  modelSource?: "task-default" | "runtime-default"
 }
 
 export type CreateTaskResult = {
@@ -356,6 +358,7 @@ export async function createTask(
       projectId,
       prompt: input.prompt,
       model: input.model,
+      modelSource: input.modelSource,
       executor: input.executor ?? "codex",
       executionMode: input.executionMode,
       runtimePolicy: input.runtimePolicy,
@@ -606,6 +609,7 @@ export async function followupTask(
       body: JSON.stringify({
         prompt: input.prompt,
         model: input.model,
+        modelSource: input.modelSource,
       }),
     },
   )

@@ -4,7 +4,12 @@ import type {
   ProjectSettingsRepository,
   ProjectSkillBridgeService,
 } from "../../project"
-import { AgentFactory, type AgentType } from "../../../lib/agents"
+import {
+  AgentFactory,
+  inspectAllAgentCapabilities,
+  type AgentCapabilityResult,
+  type AgentType,
+} from "../../../lib/agents"
 import { createTaskError, TaskError } from "../errors"
 import type { TaskRepository } from "../repositories"
 import type { CodexTask } from "../types"
@@ -19,6 +24,7 @@ export type CreateTaskInput = {
   projectId: string
   prompt: string
   model?: string | null
+  modelSource?: "project-default" | "runtime-default"
   agentType?: string
   executionMode?: string | null
   runtimePolicy?: RuntimePolicyInput | null
@@ -32,6 +38,7 @@ export type FollowupTaskInput = {
   taskId: string
   prompt: string
   model?: string | null
+  modelSource?: "task-default" | "runtime-default"
   executionMode?: RuntimeExecutionMode | null
   runtimePolicy?: RuntimePolicyInput | null
 }
@@ -66,6 +73,8 @@ export type GetTaskEventsInput = {
   afterSequence?: number
   limit?: number
 }
+
+type InspectAgentCapabilities = () => Promise<AgentCapabilityResult>
 
 function isTerminalTask(task: CodexTask) {
   return (
@@ -148,6 +157,7 @@ export function createTaskService(args: {
       taskId: string
     }) => void
   }
+  inspectAgentCapabilities?: InspectAgentCapabilities
 }) {
   const {
     projectRepository,
@@ -156,7 +166,32 @@ export function createTaskService(args: {
     taskRepository,
     taskRunnerService,
     taskEventBus,
+    inspectAgentCapabilities = inspectAllAgentCapabilities,
   } = args
+
+  async function validateAgentModel(agentType: AgentType, model: string | null) {
+    if (!model) {
+      return
+    }
+
+    try {
+      const capabilityResult = await inspectAgentCapabilities()
+      const availableModels =
+        capabilityResult.agents[agentType]?.models.map((item) => item.id) ?? []
+
+      if (availableModels.length === 0) {
+        return
+      }
+
+      if (!availableModels.includes(model)) {
+        throw createTaskError.invalidTaskModel(model, agentType, availableModels)
+      }
+    } catch (error) {
+      if (error instanceof TaskError) {
+        throw error
+      }
+    }
+  }
 
   async function applyProjectSkillRuntimePolicy(args: {
     agentType: AgentType
@@ -197,6 +232,7 @@ export function createTaskService(args: {
     const projectId = input.projectId.trim()
     const prompt = input.prompt.trim()
     const requestedModel = input.model?.trim() || null
+    const requestedModelSource = input.modelSource
     const requestedAgentType = input.agentType
 
     if (!projectId) {
@@ -215,11 +251,16 @@ export function createTaskService(args: {
     const projectSettings =
       await projectSettingsRepository.getProjectSettings(project.id)
 
-    const model = requestedModel ?? projectSettings?.defaultModel ?? null
     const agentType = normalizeAgentType(
       requestedAgentType ?? projectSettings?.defaultExecutor ?? undefined,
     )
     ensureSupportedAgent(agentType)
+    const model =
+      requestedModel ??
+      (requestedModelSource === "runtime-default"
+        ? null
+        : projectSettings?.defaultModel ?? null)
+    await validateAgentModel(agentType, model)
 
     const resolvedRuntimePolicy = resolveRuntimePolicy({
       executionMode: input.executionMode ?? projectSettings?.defaultExecutionMode,
@@ -265,7 +306,8 @@ export function createTaskService(args: {
   async function followupTask(input: FollowupTaskInput) {
     const taskId = input.taskId.trim()
     const prompt = input.prompt.trim()
-    const model = input.model?.trim() || null
+    const requestedModel = input.model?.trim() || null
+    const requestedModelSource = input.modelSource
 
     if (!taskId) {
       throw createTaskError.invalidTaskId()
@@ -312,6 +354,10 @@ export function createTaskService(args: {
     try {
       const agentType = normalizeAgentType(task.executor)
       ensureSupportedAgent(agentType)
+      const nextModel =
+        requestedModel ??
+        (requestedModelSource === "runtime-default" ? null : task.model)
+      await validateAgentModel(agentType, nextModel)
       const projectSettings =
         await projectSettingsRepository.getProjectSettings(task.projectId)
       const resolvedRuntimePolicy = resolveRuntimePolicy({
@@ -332,7 +378,7 @@ export function createTaskService(args: {
         projectPath: task.projectPath,
         prompt,
         displayPrompt: prompt,
-        model: model ?? task.model,
+        model: nextModel,
         agentType,
         executionMode: resolvedRuntimePolicy.executionMode,
         runtimePolicy,

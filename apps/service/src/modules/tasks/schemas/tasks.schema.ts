@@ -2,6 +2,7 @@ export type CreateTaskBody = {
   projectId: string
   prompt: string
   model?: string
+  modelSource?: "project-default" | "runtime-default"
   executor?: string
   executionMode?: "safe" | "connected" | "full-access" | "custom"
   runtimePolicy?: {
@@ -25,6 +26,7 @@ export type BreakTaskTurnBody = {
 export type FollowupTaskBody = {
   prompt: string
   model?: string
+  modelSource?: "task-default" | "runtime-default"
 }
 
 export type DeleteTaskResponse = {
@@ -257,6 +259,10 @@ export const createTaskBodySchema = {
     prompt: { type: "string" },
     model: { type: "string" },
     executor: { type: "string" },
+    modelSource: {
+      type: "string",
+      enum: ["project-default", "runtime-default"],
+    },
     executionMode: {
       type: "string",
       enum: ["safe", "connected", "full-access", "custom"],
@@ -319,6 +325,10 @@ export const followupTaskBodySchema = {
   properties: {
     prompt: { type: "string" },
     model: { type: "string" },
+    modelSource: {
+      type: "string",
+      enum: ["task-default", "runtime-default"],
+    },
   },
 } as const
 

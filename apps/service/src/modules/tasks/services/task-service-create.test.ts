@@ -158,6 +158,168 @@ describe("task creation", () => {
     )
   })
 
+  it("allows runtime default to bypass the project default model", async () => {
+    const project = {
+      id: "project-1",
+      name: "Project One",
+      slug: "project-one",
+      path: "/tmp/project-1",
+      rootPath: "/tmp/project-1",
+      normalizedPath: "/tmp/project-1",
+      description: null,
+      status: "active" as const,
+      createdAt: new Date("2026-03-10T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-10T00:00:00.000Z"),
+      archivedAt: null,
+      lastOpenedAt: null,
+    }
+    const createAndRunTask = vi.fn(async () =>
+      buildTask({
+        executor: "codex",
+        model: null,
+        executionMode: "connected",
+        runtimePolicy: RUNTIME_POLICY_PRESETS.connected,
+      }),
+    )
+
+    const taskService = createTaskService({
+      projectRepository: {
+        getProjectById: vi.fn(async () => project),
+      },
+      projectSettingsRepository: {
+        getProjectSettings: vi.fn(async () =>
+          buildProjectSettings({
+            defaultExecutor: "codex",
+            defaultModel: "gpt-5",
+            defaultExecutionMode: "connected",
+          }),
+        ),
+      },
+      taskRepository: {
+        archiveTask: vi.fn(),
+        deleteTask: vi.fn(),
+        getTaskById: vi.fn(),
+        hasActiveTaskInThread: vi.fn(),
+        listTaskAgentEvents: vi.fn(),
+        listTasksByProject: vi.fn(),
+        updateTaskTitle: vi.fn(),
+      },
+      taskRunnerService: {
+        createAndRunTask,
+        followupTask: vi.fn(),
+        breakTaskTurn: vi.fn(),
+        recoverInterruptedTasks: vi.fn(),
+      },
+    })
+
+    await taskService.createTaskAndRun({
+      projectId: project.id,
+      prompt: "Use runtime default",
+      modelSource: "runtime-default",
+    })
+
+    expect(createAndRunTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: null,
+        agentType: "codex",
+        executionMode: "connected",
+      }),
+    )
+  })
+
+  it("rejects unsupported models when the executor model list is known", async () => {
+    const project = {
+      id: "project-1",
+      name: "Project One",
+      slug: "project-one",
+      path: "/tmp/project-1",
+      rootPath: "/tmp/project-1",
+      normalizedPath: "/tmp/project-1",
+      description: null,
+      status: "active" as const,
+      createdAt: new Date("2026-03-10T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-10T00:00:00.000Z"),
+      archivedAt: null,
+      lastOpenedAt: null,
+    }
+    const createAndRunTask = vi.fn(async () => buildTask({ status: "running" }))
+
+    const taskService = createTaskService({
+      projectRepository: {
+        getProjectById: vi.fn(async () => project),
+      },
+      projectSettingsRepository: {
+        getProjectSettings: vi.fn(async () =>
+          buildProjectSettings({
+            defaultExecutor: "codex",
+            defaultModel: null,
+            defaultExecutionMode: "safe",
+          }),
+        ),
+      },
+      taskRepository: {
+        archiveTask: vi.fn(),
+        deleteTask: vi.fn(),
+        getTaskById: vi.fn(),
+        hasActiveTaskInThread: vi.fn(),
+        listTaskAgentEvents: vi.fn(),
+        listTasksByProject: vi.fn(),
+        updateTaskTitle: vi.fn(),
+      },
+      taskRunnerService: {
+        createAndRunTask,
+        followupTask: vi.fn(),
+        breakTaskTurn: vi.fn(),
+        recoverInterruptedTasks: vi.fn(),
+      },
+      inspectAgentCapabilities: vi.fn(async () => ({
+        checkedAt: new Date("2026-03-18T00:00:00.000Z"),
+        availableAgents: ["codex" as const],
+        agents: {
+          codex: {
+            installed: true,
+            version: "codex-cli 0.64.0",
+            models: [
+              {
+                id: "gpt-5",
+                displayName: "GPT-5",
+                isDefault: true,
+              },
+            ],
+            supportsResume: true,
+            supportsStreaming: true,
+          },
+          "claude-code": {
+            installed: true,
+            version: "claude-code 1.0.0",
+            models: [],
+            supportsResume: true,
+            supportsStreaming: true,
+          },
+        },
+      })),
+    })
+
+    await expect(
+      taskService.createTaskAndRun({
+        projectId: project.id,
+        prompt: "Use unavailable model",
+        model: "gpt-4.1",
+        agentType: "codex",
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_TASK_MODEL",
+      statusCode: 400,
+      details: {
+        model: "gpt-4.1",
+        executor: "codex",
+        availableModels: ["gpt-5"],
+      },
+    })
+
+    expect(createAndRunTask).not.toHaveBeenCalled()
+  })
+
   it("does not apply Harbor skills to Codex tasks even when project settings enable them", async () => {
     const project = {
       id: "project-1",

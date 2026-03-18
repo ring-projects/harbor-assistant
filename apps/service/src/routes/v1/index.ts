@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify"
 
+import { registerAgentRoutes } from "./agent.routes"
 import { registerFileSystemModuleRoutes } from "../../modules/filesystem"
 import { registerGitModuleRoutes } from "../../modules/git"
 import { registerProjectModuleRoutes } from "../../modules/project"
@@ -16,6 +17,7 @@ export async function registerV1Routes(
   app: FastifyInstance,
   config: ServiceConfig,
 ) {
+  await registerAgentRoutes(app)
   await registerProjectModuleRoutes(app, {
     harborHomeDirectory: config.harborHomeDirectory,
   })

@@ -67,6 +67,7 @@ export async function registerTaskRoutes(
         projectId: input.projectId,
         prompt: input.prompt,
         model: input.model,
+        modelSource: input.modelSource,
         agentType: input.executor,
         executionMode: input.executionMode,
         runtimePolicy: input.runtimePolicy,
@@ -196,6 +197,7 @@ export async function registerTaskRoutes(
         taskId,
         prompt: input.prompt,
         model: input.model,
+        modelSource: input.modelSource,
       })
 
       return {

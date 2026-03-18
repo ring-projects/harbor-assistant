@@ -21,6 +21,10 @@ export function getV1ProjectGitDiffApiRoute(projectId: string) {
   return `${API_ROUTES.v1ProjectTasks}/${encodeURIComponent(projectId)}/git/diff`
 }
 
+export function getV1AgentCapabilitiesApiRoute() {
+  return "/api/v1/agents/capabilities"
+}
+
 export function getV1TaskByIdApiRoute(taskId: string) {
   return `${API_ROUTES.v1Tasks}/${encodeURIComponent(taskId)}`
 }

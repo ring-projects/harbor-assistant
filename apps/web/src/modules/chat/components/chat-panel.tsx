@@ -8,7 +8,7 @@ import {
   ShieldIcon,
   WifiIcon,
 } from "lucide-react"
-import { useEffect, useMemo, useRef, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -32,6 +32,7 @@ import {
   useTaskDetailQuery,
   useTaskEventStream,
   useTaskEventsQuery,
+  useAgentCapabilitiesQuery,
   useBreakTaskTurnMutation,
   useTaskFollowupMutation,
 } from "@/modules/tasks/hooks/use-task-queries"
@@ -54,6 +55,8 @@ type ChatPanelProps = {
   projectId: string
   taskId: string | null
 }
+
+type FollowupModelMode = "task-default" | "runtime-default" | "custom"
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -97,6 +100,10 @@ function getRunningLabel(detail: TaskDetail | null | undefined) {
   }
 
   return `${formatExecutorLabel(detail.executor)} is working...`
+}
+
+function formatModelSummary(model: string | null | undefined) {
+  return model?.trim() || "Runtime Default"
 }
 
 function getRuntimePolicyItems(detail: TaskDetail | null | undefined) {
@@ -196,6 +203,9 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
   const breakTurnMutation = useBreakTaskTurnMutation(projectId)
   const followupMutation = useTaskFollowupMutation(projectId)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
+  const [followupModelMode, setFollowupModelMode] =
+    useState<FollowupModelMode>("task-default")
+  const [followupModel, setFollowupModel] = useState<string | null>(null)
   const detail = useTasksSessionStore((state) => selectTaskDetail(state, taskId))
   const blocksFromStore = useTasksSessionStore((state) =>
     selectConversationBlocks(state, taskId)
@@ -205,10 +215,24 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
   const selectedExecutionBlock = useTasksSessionStore((state) =>
     selectSelectedExecutionBlock(state, taskId)
   )
+  const agentCapabilitiesQuery = useAgentCapabilitiesQuery({
+    enabled: Boolean(taskId && detail?.executor),
+  })
   const isBreaking = breakTurnMutation.isPending
   const isReady = canFollowup(detail)
   const isLoading = Boolean(taskId) && (detailQuery.isLoading || eventsQuery.isLoading)
   const isError = Boolean(taskId) && (detailQuery.isError || eventsQuery.isError)
+  const selectedExecutorCapabilities =
+    detail?.executor === "claude-code"
+      ? agentCapabilitiesQuery.data?.agents["claude-code"] ?? null
+      : detail?.executor
+        ? agentCapabilitiesQuery.data?.agents.codex ?? null
+        : null
+  const selectedExecutorModels = selectedExecutorCapabilities?.models ?? []
+  const selectedExecutorModelIds = useMemo(
+    () => new Set(selectedExecutorModels.map((model) => model.id)),
+    [selectedExecutorModels],
+  )
 
   const blocks = useMemo(() => {
     const nextBlocks: ChatConversationBlock[] = [...blocksFromStore]
@@ -239,6 +263,29 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
       behavior: "smooth",
     })
   }, [blocks, chatUi.stickToBottom])
+
+  useEffect(() => {
+    setFollowupModelMode("task-default")
+    setFollowupModel(null)
+  }, [taskId])
+
+  useEffect(() => {
+    if (followupModelMode !== "custom" || !followupModel) {
+      return
+    }
+
+    if (selectedExecutorModels.length === 0 || selectedExecutorModelIds.has(followupModel)) {
+      return
+    }
+
+    setFollowupModelMode("task-default")
+    setFollowupModel(null)
+  }, [
+    followupModel,
+    followupModelMode,
+    selectedExecutorModelIds,
+    selectedExecutorModels.length,
+  ])
 
   function updateDraft(value: string) {
     if (!taskId) {
@@ -289,6 +336,9 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
       await followupMutation.mutateAsync({
         taskId,
         prompt: nextPrompt,
+        model: followupModelMode === "custom" ? followupModel ?? undefined : undefined,
+        modelSource:
+          followupModelMode === "custom" ? undefined : followupModelMode,
       })
 
       useTasksSessionStore.getState().setDraft(taskId, "")
@@ -428,6 +478,63 @@ export function ChatPanel({ projectId, taskId }: ChatPanelProps) {
                 }
                 placeholder={taskId ? "Continue this conversation..." : "Select a task first"}
                 value={chatUi.draft}
+                toolbar={
+                  taskId && detail ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="text-muted-foreground text-[11px]" htmlFor="followup-model">
+                        Model
+                      </label>
+                      <select
+                        id="followup-model"
+                        value={
+                          followupModelMode === "custom" && followupModel
+                            ? `custom:${followupModel}`
+                            : followupModelMode
+                        }
+                        disabled={followupMutation.isPending || isBreaking}
+                        onChange={(event) => {
+                          const nextValue = event.target.value
+
+                          if (nextValue === "task-default" || nextValue === "runtime-default") {
+                            setFollowupModelMode(nextValue)
+                            setFollowupModel(null)
+                            return
+                          }
+
+                          if (nextValue.startsWith("custom:")) {
+                            setFollowupModelMode("custom")
+                            setFollowupModel(nextValue.slice("custom:".length) || null)
+                          }
+                        }}
+                        className="bg-background border-input min-w-56 rounded-md border px-3 py-1.5 text-sm"
+                      >
+                        <option value="task-default">
+                          {`Current Task Setting (${formatModelSummary(detail.model)})`}
+                        </option>
+                        <option value="runtime-default">Runtime Default</option>
+                        {selectedExecutorModels.map((model) => (
+                          <option key={model.id} value={`custom:${model.id}`}>
+                            {model.isDefault
+                              ? `${model.displayName} (${model.id}, default)`
+                              : `${model.displayName} (${model.id})`}
+                          </option>
+                        ))}
+                      </select>
+
+                      {agentCapabilitiesQuery.isLoading ? (
+                        <span className="text-muted-foreground text-[11px]">
+                          Loading model options...
+                        </span>
+                      ) : null}
+
+                      {agentCapabilitiesQuery.isError ? (
+                        <span className="text-muted-foreground text-[11px]">
+                          Model list unavailable. You can still use the current task setting.
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null
+                }
                 errorMessage={
                   breakTurnMutation.isError
                     ? getErrorMessage(breakTurnMutation.error)

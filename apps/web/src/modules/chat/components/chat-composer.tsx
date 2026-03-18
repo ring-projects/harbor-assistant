@@ -1,7 +1,7 @@
 "use client"
 
 import { SendHorizonalIcon } from "lucide-react"
-import { useRef, type CompositionEvent, type KeyboardEvent } from "react"
+import { useRef, type CompositionEvent, type KeyboardEvent, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -14,6 +14,7 @@ type ChatComposerProps = {
   placeholder: string
   value: string
   errorMessage: string | null
+  toolbar?: ReactNode
   onChange: (value: string) => void
   onSubmit: () => void
 }
@@ -53,6 +54,8 @@ export function ChatComposer(props: ChatComposerProps) {
 
   return (
     <div className="grid gap-2 border-t pt-3">
+      {props.toolbar ? <div>{props.toolbar}</div> : null}
+
       <Textarea
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}

@@ -24,6 +24,24 @@ export const createTaskError = {
       details,
     }),
 
+  invalidTaskModel: (
+    model: string,
+    executor: string,
+    availableModels?: string[],
+  ) =>
+    new TaskError(
+      ERROR_CODES.INVALID_TASK_MODEL,
+      400,
+      `Model "${model}" is not available for executor "${executor}".`,
+      {
+        details: {
+          model,
+          executor,
+          availableModels: availableModels ?? [],
+        },
+      },
+    ),
+
   invalidPrompt: (message = "Prompt cannot be empty.", details?: unknown) =>
     new TaskError(ERROR_CODES.INVALID_PROMPT, 400, message, {
       details,

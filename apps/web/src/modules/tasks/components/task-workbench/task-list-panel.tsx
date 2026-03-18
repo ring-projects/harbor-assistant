@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { useProjectSettingsQuery } from "@/modules/projects"
 import {
+  useAgentCapabilitiesQuery,
   useArchiveTaskMutation,
   useCreateTaskMutation,
   useDeleteTaskMutation,
@@ -86,6 +87,8 @@ type TaskListPanelProps = {
   onSelectTask: (taskId: string | null) => void
 }
 
+type ModelSelectionMode = "project-default" | "runtime-default" | "custom"
+
 export function TaskListPanel({
   projectId,
   selectedTaskId,
@@ -93,6 +96,7 @@ export function TaskListPanel({
 }: TaskListPanelProps) {
   const projectSettingsQuery = useProjectSettingsQuery(projectId)
   const defaultExecutor = projectSettingsQuery.data?.defaultExecutor ?? "codex"
+  const defaultModel = projectSettingsQuery.data?.defaultModel?.trim() || null
   const defaultExecutionMode =
     projectSettingsQuery.data?.defaultExecutionMode === "full-access"
       ? "full-access"
@@ -100,6 +104,9 @@ export function TaskListPanel({
   const [isCreateComposerOpen, setIsCreateComposerOpen] = useState(false)
   const [newTaskPrompt, setNewTaskPrompt] = useState("")
   const [newTaskExecutor, setNewTaskExecutor] = useState<string>(defaultExecutor)
+  const [newTaskModelMode, setNewTaskModelMode] =
+    useState<ModelSelectionMode>("runtime-default")
+  const [newTaskModel, setNewTaskModel] = useState<string | null>(null)
   const [newTaskExecutionMode, setNewTaskExecutionMode] = useState<
     "safe" | "connected" | "full-access"
   >(defaultExecutionMode)
@@ -114,6 +121,9 @@ export function TaskListPanel({
   >(null)
 
   const archiveTaskMutation = useArchiveTaskMutation(projectId)
+  const agentCapabilitiesQuery = useAgentCapabilitiesQuery({
+    enabled: isCreateComposerOpen,
+  })
   const createTaskMutation = useCreateTaskMutation(projectId)
   const deleteTaskMutation = useDeleteTaskMutation(projectId)
   const listQuery = useTaskListQuery({
@@ -135,6 +145,19 @@ export function TaskListPanel({
     () => allTasks.filter((task) => task.archivedAt !== null),
     [allTasks],
   )
+  const selectedExecutorCapabilities =
+    newTaskExecutor === "claude-code"
+      ? agentCapabilitiesQuery.data?.agents["claude-code"] ?? null
+      : agentCapabilitiesQuery.data?.agents.codex ?? null
+  const selectedExecutorModels = selectedExecutorCapabilities?.models ?? []
+  const selectedExecutorModelIds = useMemo(
+    () => new Set(selectedExecutorModels.map((model) => model.id)),
+    [selectedExecutorModels],
+  )
+  const isProjectDefaultCompatible =
+    !defaultModel ||
+    selectedExecutorModels.length === 0 ||
+    selectedExecutorModelIds.has(defaultModel)
 
   const resolvedSelectedTaskId = useMemo(() => {
     if (allTasks.length === 0) {
@@ -158,8 +181,44 @@ export function TaskListPanel({
     setCreateTaskError(null)
     setNewTaskPrompt("")
     setNewTaskExecutor(defaultExecutor)
+    setNewTaskModelMode(defaultModel ? "project-default" : "runtime-default")
+    setNewTaskModel(null)
     setNewTaskExecutionMode(defaultExecutionMode)
   }
+
+  useEffect(() => {
+    if (newTaskModelMode !== "project-default") {
+      return
+    }
+
+    if (!defaultModel || !isProjectDefaultCompatible) {
+      setNewTaskModelMode("runtime-default")
+    }
+  }, [defaultModel, isProjectDefaultCompatible, newTaskModelMode])
+
+  useEffect(() => {
+    if (newTaskModelMode !== "custom" || !newTaskModel) {
+      return
+    }
+
+    if (selectedExecutorModels.length === 0 || selectedExecutorModelIds.has(newTaskModel)) {
+      return
+    }
+
+    setNewTaskModel(null)
+    setNewTaskModelMode(
+      defaultModel && isProjectDefaultCompatible
+        ? "project-default"
+        : "runtime-default",
+    )
+  }, [
+    defaultModel,
+    isProjectDefaultCompatible,
+    newTaskModel,
+    newTaskModelMode,
+    selectedExecutorModelIds,
+    selectedExecutorModels.length,
+  ])
 
   async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -174,6 +233,9 @@ export function TaskListPanel({
       setCreateTaskError(null)
       const result = await createTaskMutation.mutateAsync({
         prompt,
+        model: newTaskModelMode === "custom" ? newTaskModel ?? undefined : undefined,
+        modelSource:
+          newTaskModelMode === "custom" ? undefined : newTaskModelMode,
         executor: newTaskExecutor,
         executionMode: newTaskExecutionMode,
       })
@@ -319,6 +381,135 @@ export function TaskListPanel({
                 </div>
               </div>
 
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Model</p>
+                  {selectedExecutorCapabilities?.version ? (
+                    <span className="text-muted-foreground text-[11px]">
+                      {selectedExecutorCapabilities.version}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTaskModelMode("project-default")
+                      setNewTaskModel(null)
+                    }}
+                    disabled={
+                      createTaskMutation.isPending ||
+                      !defaultModel ||
+                      !isProjectDefaultCompatible
+                    }
+                    className={cn(
+                      "rounded-xl border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                      newTaskModelMode === "project-default"
+                        ? "border-primary bg-primary/5"
+                        : "hover:border-muted-foreground/40",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">Project Default</p>
+                      {defaultModel ? (
+                        <span className="text-muted-foreground text-[11px] uppercase tracking-wide">
+                          {defaultModel}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-muted-foreground pt-1 text-xs">
+                      {!defaultModel
+                        ? "No project default model is configured."
+                        : !isProjectDefaultCompatible
+                          ? `Project default model is not available for ${formatExecutorLabel(newTaskExecutor)}.`
+                          : "Use the model configured in project settings."}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTaskModelMode("runtime-default")
+                      setNewTaskModel(null)
+                    }}
+                    disabled={createTaskMutation.isPending}
+                    className={cn(
+                      "rounded-xl border px-3 py-3 text-left transition-colors",
+                      newTaskModelMode === "runtime-default"
+                        ? "border-primary bg-primary/5"
+                        : "hover:border-muted-foreground/40",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">Runtime Default</p>
+                      <span className="text-muted-foreground text-[11px] uppercase tracking-wide">
+                        Auto
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground pt-1 text-xs">
+                      Let {formatExecutorLabel(newTaskExecutor)} choose its own default model.
+                    </p>
+                  </button>
+
+                  {selectedExecutorModels.map((model) => {
+                    const isActive =
+                      newTaskModelMode === "custom" && newTaskModel === model.id
+
+                    return (
+                      <button
+                        key={`${newTaskExecutor}:${model.id}`}
+                        type="button"
+                        onClick={() => {
+                          setNewTaskModelMode("custom")
+                          setNewTaskModel(model.id)
+                        }}
+                        disabled={createTaskMutation.isPending}
+                        className={cn(
+                          "rounded-xl border px-3 py-3 text-left transition-colors",
+                          isActive
+                            ? "border-primary bg-primary/5"
+                            : "hover:border-muted-foreground/40",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium">{model.displayName}</p>
+                          {model.isDefault ? (
+                            <span className="text-muted-foreground text-[11px] uppercase tracking-wide">
+                              Default
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="text-muted-foreground pt-1 text-xs">{model.id}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {agentCapabilitiesQuery.isLoading ? (
+                  <p className="text-muted-foreground text-xs">
+                    Loading available models for {formatExecutorLabel(newTaskExecutor)}...
+                  </p>
+                ) : null}
+
+                {isCreateComposerOpen &&
+                !agentCapabilitiesQuery.isLoading &&
+                !agentCapabilitiesQuery.isError &&
+                selectedExecutorModels.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    No explicit model list was detected for {formatExecutorLabel(newTaskExecutor)}.
+                    You can still create the task with the default options above.
+                  </p>
+                ) : null}
+
+                {agentCapabilitiesQuery.isError ? (
+                  <p className="text-muted-foreground text-xs">
+                    Failed to load model options. Task creation still works with the default
+                    choices.
+                  </p>
+                ) : null}
+              </div>
+
               <Textarea
                 value={newTaskPrompt}
                 onChange={(event) => setNewTaskPrompt(event.target.value)}
@@ -343,8 +534,10 @@ export function TaskListPanel({
                     setIsCreateComposerOpen(false)
                     setCreateTaskError(null)
                     setNewTaskPrompt("")
-                    setNewTaskExecutor("codex")
-                    setNewTaskExecutionMode("safe")
+                    setNewTaskExecutor(defaultExecutor)
+                    setNewTaskModelMode(defaultModel ? "project-default" : "runtime-default")
+                    setNewTaskModel(null)
+                    setNewTaskExecutionMode(defaultExecutionMode)
                   }}
                   disabled={createTaskMutation.isPending}
                 >

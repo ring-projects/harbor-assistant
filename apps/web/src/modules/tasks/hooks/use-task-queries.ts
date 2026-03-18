@@ -10,6 +10,7 @@ import {
   createTask,
   deleteTask,
   followupTask,
+  readAgentCapabilities,
   readProjectTasks,
   readTaskDetail,
   readTaskEvents,
@@ -33,6 +34,9 @@ export const taskQueryKeys = {
   },
   events(taskId: string) {
     return [...this.all, "events", taskId] as const
+  },
+  agentCapabilities() {
+    return [...this.all, "agent-capabilities"] as const
   },
 }
 
@@ -115,6 +119,15 @@ export function useTaskEventsQuery(args: {
   }, [args.taskId, query.data])
 
   return query
+}
+
+export function useAgentCapabilitiesQuery(args?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: taskQueryKeys.agentCapabilities(),
+    queryFn: readAgentCapabilities,
+    enabled: args?.enabled ?? true,
+    staleTime: 30_000,
+  })
 }
 
 export function useCreateTaskMutation(projectId: string) {
@@ -226,10 +239,16 @@ export function useTaskFollowupMutation(projectId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: { taskId: string; prompt: string; model?: string }) =>
+    mutationFn: (input: {
+      taskId: string
+      prompt: string
+      model?: string
+      modelSource?: "task-default" | "runtime-default"
+    }) =>
       followupTask(input.taskId, {
         prompt: input.prompt,
         model: input.model,
+        modelSource: input.modelSource,
       }),
     onSuccess(result, variables) {
       void queryClient.invalidateQueries({
