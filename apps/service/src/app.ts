@@ -26,16 +26,6 @@ export async function buildServiceApp(
       }
     : {
         level: "debug",
-        transport: config.nodeEnv === "development"
-          ? {
-              target: "pino-pretty",
-              options: {
-                colorize: true,
-                ignore: "pid,hostname",
-                translateTime: "SYS:standard",
-              },
-            }
-          : undefined,
         redact,
       }
 

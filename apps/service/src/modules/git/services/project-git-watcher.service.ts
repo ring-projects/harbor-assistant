@@ -1,5 +1,5 @@
 import path from "node:path"
-import { watch, type FSWatcher } from "chokidar"
+import { watch as watchNative, type FSWatcher as NativeFsWatcher } from "node:fs"
 
 import type { ProjectRepository } from "../../project"
 import { createGitError } from "../errors"
@@ -19,51 +19,76 @@ export type ProjectGitWatcher = {
   close: () => Promise<void>
 }
 
+type ProjectPathWatcher = {
+  close: () => Promise<void>
+  onChange: (listener: () => void) => void
+}
+
 type ProjectGitWatcherEntry = {
   projectId: string
-  watcher: FSWatcher
+  watcher: ProjectPathWatcher
   listeners: Set<ProjectGitWatcherListener>
   debounceTimer: ReturnType<typeof setTimeout> | null
 }
 
-type WatchFactory = typeof watch
+type WatchFactory = (projectPath: string) => ProjectPathWatcher
 
 const WATCHER_DEBOUNCE_MS = 250
-const WATCHER_EVENT_NAMES = [
-  "add",
-  "addDir",
-  "change",
-  "unlink",
-  "unlinkDir",
-] as const
 
 function normalizeFsPath(value: string) {
   return path.resolve(value)
 }
 
-function createIgnoredMatcher(projectPath: string) {
+function shouldIgnorePath(projectPath: string, watchPath: string) {
   const projectRoot = normalizeFsPath(projectPath)
   const allowedGitPaths = new Set([
     normalizeFsPath(path.join(projectRoot, ".git", "HEAD")),
     normalizeFsPath(path.join(projectRoot, ".git", "index")),
   ])
 
-  return (watchPath: string) => {
-    const normalizedPath = normalizeFsPath(watchPath)
-    if (allowedGitPaths.has(normalizedPath)) {
-      return false
-    }
-
-    const relativePath = path.relative(projectRoot, normalizedPath)
-    if (!relativePath || relativePath === ".") {
-      return false
-    }
-
-    const normalizedRelativePath = relativePath.replaceAll("\\", "/")
-    const segments = normalizedRelativePath.split("/")
-
-    return segments.includes(".git") || segments.includes("node_modules")
+  const normalizedPath = normalizeFsPath(watchPath)
+  if (allowedGitPaths.has(normalizedPath)) {
+    return false
   }
+
+  const relativePath = path.relative(projectRoot, normalizedPath)
+  if (!relativePath || relativePath === ".") {
+    return false
+  }
+
+  const normalizedRelativePath = relativePath.replaceAll("\\", "/")
+  const segments = normalizedRelativePath.split("/")
+
+  return segments.includes(".git") || segments.includes("node_modules")
+}
+
+function createNativeRecursiveProjectWatcher(projectPath: string): ProjectPathWatcher {
+  const watcher: NativeFsWatcher = watchNative(projectPath, {
+    persistent: true,
+    recursive: true,
+  })
+
+  return {
+    close: async () => {
+      watcher.close()
+    },
+    onChange: (listener) => {
+      watcher.on("change", (_eventType, filename) => {
+        if (
+          typeof filename === "string" &&
+          shouldIgnorePath(projectPath, path.resolve(projectPath, filename))
+        ) {
+          return
+        }
+
+        listener()
+      })
+    },
+  }
+}
+
+function createProjectWatcher(projectPath: string): ProjectPathWatcher {
+  return createNativeRecursiveProjectWatcher(projectPath)
 }
 
 async function closeWatcherEntry(entry: ProjectGitWatcherEntry) {
@@ -79,7 +104,7 @@ export function createProjectGitWatcher(args: {
   projectRepository: Pick<ProjectRepository, "getProjectById">
   watchFactory?: WatchFactory
 }): ProjectGitWatcher {
-  const watchFactory = args.watchFactory ?? watch
+  const watchFactory = args.watchFactory ?? createProjectWatcher
   const entryByProjectId = new Map<string, ProjectGitWatcherEntry>()
   const pendingEntryByProjectId = new Map<string, Promise<ProjectGitWatcherEntry>>()
 
@@ -108,23 +133,7 @@ export function createProjectGitWatcher(args: {
       throw createGitError.projectNotFound(projectId)
     }
 
-    const watcher = watchFactory(
-      [
-        project.path,
-        path.join(project.path, ".git", "HEAD"),
-        path.join(project.path, ".git", "index"),
-      ],
-      {
-        ignoreInitial: true,
-        persistent: true,
-        awaitWriteFinish: {
-          stabilityThreshold: 150,
-          pollInterval: 25,
-        },
-        ignored: createIgnoredMatcher(project.path),
-      },
-    )
-
+    const watcher = watchFactory(project.path)
     const entry: ProjectGitWatcherEntry = {
       projectId,
       watcher,
@@ -132,11 +141,9 @@ export function createProjectGitWatcher(args: {
       debounceTimer: null,
     }
 
-    for (const eventName of WATCHER_EVENT_NAMES) {
-      watcher.on(eventName, () => {
-        scheduleProjectChange(entry)
-      })
-    }
+    watcher.onChange(() => {
+      scheduleProjectChange(entry)
+    })
 
     return entry
   }

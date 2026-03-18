@@ -1,9 +1,5 @@
-import {
-  Codex,
-  type Thread,
-  type ThreadEvent,
-  type ThreadItem,
-} from "@openai/codex-sdk"
+import { spawn } from "node:child_process"
+import { createInterface } from "node:readline"
 
 import type { IAgent } from "../interface"
 import type {
@@ -11,20 +7,120 @@ import type {
   AgentEvent,
   SessionOptions,
 } from "../types"
-import { DEFAULT_CODEX_COMMAND, MAX_CAPTURED_OUTPUT_LENGTH } from "../constants"
-import { inspectCodexCapabilities } from "../capabilities/codex"
+import { MAX_CAPTURED_OUTPUT_LENGTH } from "../constants"
+import {
+  buildCodexChildEnv,
+  inspectCodexCapabilities,
+  resolveBundledCodexRuntime,
+} from "../capabilities/codex"
+import { logChildProcessSpawnFailure } from "../../process-env"
 
-type CodexClient = {
+type ThreadTodoItem = {
+  text: string
+  completed: boolean
+}
+
+type ThreadItem =
+  | {
+      id: string
+      type: "agent_message"
+      text: string
+    }
+  | {
+      id: string
+      type: "reasoning"
+      text: string
+    }
+  | {
+      id: string
+      type: "todo_list"
+      items: ThreadTodoItem[]
+    }
+  | {
+      id: string
+      type: "error"
+      message: string
+    }
+  | {
+      id: string
+      type: "web_search"
+      query: string
+    }
+  | {
+      id: string
+      type: "file_change"
+      status: "completed" | "failed" | "in_progress"
+      changes: Array<{
+        path: string
+        kind: "add" | "delete" | "update"
+      }>
+    }
+  | {
+      id: string
+      type: "mcp_tool_call"
+      server: string
+      tool: string
+      arguments: unknown
+      result?: unknown
+      error?: {
+        message?: string
+      }
+      status: "completed" | "failed" | "in_progress"
+    }
+  | {
+      id: string
+      type: "command_execution"
+      command: string
+      aggregated_output?: string
+      exit_code?: number
+      status: "completed" | "failed" | "in_progress"
+    }
+
+type ThreadEvent =
+  | {
+      type: "thread.started"
+      thread_id: string
+    }
+  | {
+      type: "turn.started"
+    }
+  | {
+      type: "item.started" | "item.updated" | "item.completed"
+      item: ThreadItem
+    }
+  | {
+      type: "turn.completed"
+      usage?: unknown
+    }
+  | {
+      type: "turn.failed"
+      error: {
+        message: string
+      }
+    }
+  | {
+      type: "error"
+      message: string
+    }
+
+type Thread = {
+  runStreamed: (
+    prompt: string,
+    options?: {
+      signal?: AbortSignal
+    },
+  ) => Promise<{ events: AsyncIterable<ThreadEvent> }>
+}
+
+type CreateCodexClient = (args: {
+  env: Record<string, string>
+}) => {
   startThread: (options: ReturnType<typeof buildThreadOptions>) => Thread
   resumeThread: (
     sessionId: string,
     options: ReturnType<typeof buildThreadOptions>,
   ) => Thread
 }
-
-type CreateCodexClient = (args: {
-  env: Record<string, string>
-}) => CodexClient
 
 /**
  * Limit output length
@@ -39,16 +135,7 @@ function appendWithLimit(base: string, nextChunk: string): string {
 }
 
 function buildProcessEnv(overrides?: Record<string, string>) {
-  const merged = {
-    ...process.env,
-    ...(overrides ?? {}),
-  }
-
-  return Object.fromEntries(
-    Object.entries(merged).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string",
-    ),
-  )
+  return buildCodexChildEnv(overrides)
 }
 
 /**
@@ -67,13 +154,222 @@ function buildThreadOptions(options: SessionOptions) {
   }
 }
 
-/**
- * Format TODO list
- */
-function formatTodoList(item: Extract<ThreadItem, { type: "todo_list" }>) {
-  return item.items
-    .map((entry) => `${entry.completed ? "[x]" : "[ ]"} ${entry.text}`)
-    .join("\n")
+function buildCodexCliArgs(args: {
+  prompt: string
+  env: Record<string, string>
+  threadId?: string
+  options: ReturnType<typeof buildThreadOptions>
+}) {
+  const runtime = resolveBundledCodexRuntime()
+  if (!runtime) {
+    throw new Error("Bundled Codex runtime is not available.")
+  }
+
+  const commandArgs = ["exec", "--experimental-json"]
+  const options = args.options
+
+  if (options.model) {
+    commandArgs.push("--model", options.model)
+  }
+
+  if (options.sandboxMode) {
+    commandArgs.push("--sandbox", options.sandboxMode)
+  }
+
+  if (options.workingDirectory) {
+    commandArgs.push("--cd", options.workingDirectory)
+  }
+
+  if (options.additionalDirectories?.length) {
+    for (const directory of options.additionalDirectories) {
+      commandArgs.push("--add-dir", directory)
+    }
+  }
+
+  if (options.skipGitRepoCheck) {
+    commandArgs.push("--skip-git-repo-check")
+  }
+
+  commandArgs.push(
+    "--config",
+    `sandbox_workspace_write.network_access=${options.networkAccessEnabled ?? false}`,
+  )
+
+  if (options.webSearchMode) {
+    commandArgs.push("--config", `web_search="${options.webSearchMode}"`)
+  }
+
+  if (options.approvalPolicy) {
+    commandArgs.push("--config", `approval_policy="${options.approvalPolicy}"`)
+  }
+
+  if (args.threadId) {
+    commandArgs.push("resume", args.threadId)
+  }
+
+  return {
+    command: runtime.command,
+    commandArgs,
+    prompt: args.prompt,
+    env: args.env,
+  }
+}
+
+class CliBackedThread implements Thread {
+  constructor(
+    private readonly threadId: string | null,
+    private readonly options: ReturnType<typeof buildThreadOptions>,
+    private readonly env: Record<string, string>,
+  ) {}
+
+  async runStreamed(
+    prompt: string,
+    options?: {
+      signal?: AbortSignal
+    },
+  ) {
+    const childEnv = buildProcessEnv(this.env)
+
+    return {
+      events: (async function* (
+        threadId: string | null,
+        threadOptions: ReturnType<typeof buildThreadOptions>,
+        env: Record<string, string>,
+        input: string,
+        signal?: AbortSignal,
+      ) {
+        const runtime = buildCodexCliArgs({
+          prompt: input,
+          env,
+          threadId: threadId ?? undefined,
+          options: threadOptions,
+        })
+
+        let child
+        try {
+          child = spawn(runtime.command, runtime.commandArgs, {
+            env: runtime.env,
+            cwd: threadOptions.workingDirectory,
+            stdio: ["pipe", "pipe", "pipe"],
+            windowsHide: true,
+          })
+        } catch (error) {
+          logChildProcessSpawnFailure({
+            scope: "codex.runStreamed",
+            command: runtime.command,
+            args: runtime.commandArgs,
+            cwd: threadOptions.workingDirectory,
+            error,
+          })
+          throw error
+        }
+
+        const stdout = child.stdout
+        const stderr = child.stderr
+        const stdin = child.stdin
+
+        if (!stdout || !stderr || !stdin) {
+          child.kill("SIGTERM")
+          throw new Error("Codex process did not expose stdio streams.")
+        }
+
+        const readline = createInterface({
+          input: stdout,
+          crlfDelay: Infinity,
+        })
+
+        const stderrChunks: Buffer[] = []
+        let spawnError: Error | null = null
+
+        stderr.on("data", (chunk) => {
+          stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+        })
+
+        child.once("error", (error) => {
+          spawnError = error
+        })
+
+        stdin.write(runtime.prompt)
+        stdin.end()
+
+        const closePromise = new Promise<{
+          code: number | null
+          signal: NodeJS.Signals | null
+        }>((resolve) => {
+          child.once("close", (code, closeSignal) => {
+            resolve({ code, signal: closeSignal })
+          })
+        })
+
+        let aborted = false
+        const abort = () => {
+          aborted = true
+          try {
+            child.kill("SIGTERM")
+          } catch {
+            // ignore abort cleanup errors
+          }
+        }
+
+        signal?.addEventListener("abort", abort, { once: true })
+
+        try {
+          for await (const line of readline) {
+            let parsed: ThreadEvent
+
+            try {
+              parsed = JSON.parse(line) as ThreadEvent
+            } catch (error) {
+              throw new Error(`Failed to parse Codex event: ${line}`, {
+                cause: error,
+              })
+            }
+
+            yield parsed
+          }
+
+          if (spawnError) {
+            throw spawnError
+          }
+
+          const { code, signal: closeSignal } = await closePromise
+          if (!aborted && (code !== 0 || closeSignal)) {
+            const stderrBuffer = Buffer.concat(stderrChunks)
+            const detail = closeSignal
+              ? `signal ${closeSignal}`
+              : `code ${code ?? 1}`
+            throw new Error(
+              `Codex Exec exited with ${detail}: ${stderrBuffer.toString("utf8")}`,
+            )
+          }
+        } finally {
+          readline.close()
+          signal?.removeEventListener("abort", abort)
+          child.removeAllListeners()
+          try {
+            if (!child.killed) {
+              child.kill("SIGTERM")
+            }
+          } catch {
+            // ignore cleanup errors
+          }
+        }
+      })(this.threadId, this.options, childEnv, prompt, options?.signal),
+    }
+  }
+}
+
+function createBundledCodexClient(args: {
+  env: Record<string, string>
+}) {
+  return {
+    startThread: (options: ReturnType<typeof buildThreadOptions>) =>
+      new CliBackedThread(null, options, args.env),
+    resumeThread: (
+      sessionId: string,
+      options: ReturnType<typeof buildThreadOptions>,
+    ) => new CliBackedThread(sessionId, options, args.env),
+  }
 }
 
 /**
@@ -204,11 +500,7 @@ export function convertThreadItemToEvent(
  */
 export class CodexAdapter implements IAgent {
   constructor(
-    private readonly createCodexClient: CreateCodexClient = ({ env }) =>
-      new Codex({
-        codexPathOverride: DEFAULT_CODEX_COMMAND,
-        env,
-      }),
+    private readonly createCodexClient: CreateCodexClient = createBundledCodexClient,
   ) {}
 
   getType(): string {
@@ -292,7 +584,6 @@ export class CodexAdapter implements IAgent {
         case "item.completed": {
           const item = event.item
 
-          // Handle command execution output
           if (item.type === "command_execution") {
             const previous = commandOutputs.get(item.id) ?? ""
             const next = item.aggregated_output ?? ""
@@ -331,7 +622,6 @@ export class CodexAdapter implements IAgent {
             break
           }
 
-          // Convert other item types
           const agentEvent = convertThreadItemToEvent(event.type, item)
           if (agentEvent) {
             yield agentEvent

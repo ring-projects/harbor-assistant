@@ -21,11 +21,6 @@ function normalizePath(value: string) {
   return value.replaceAll("\\", "/")
 }
 
-async function verifyGitRepository(projectPath: string) {
-  const result = await runGitCommand(["rev-parse", "--show-toplevel"], projectPath)
-  return result.exitCode === 0
-}
-
 async function hasHeadCommit(projectPath: string) {
   const result = await runGitCommand(["rev-parse", "--verify", "HEAD"], projectPath)
   return result.exitCode === 0
@@ -420,11 +415,6 @@ export async function readProjectGitDiff(args: {
   projectId: string
   projectPath: string
 }): Promise<GitDiff> {
-  const isGitRepository = await verifyGitRepository(args.projectPath)
-  if (!isGitRepository) {
-    throw new Error("Project path is not a git repository.")
-  }
-
   const trackedPatch = await readTrackedPatch(args.projectPath)
   const statusEntries = await readGitStatus(args.projectPath)
   const untrackedPatches = await buildSyntheticUntrackedPatches(

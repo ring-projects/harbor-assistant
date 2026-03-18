@@ -1,15 +1,213 @@
+import { existsSync, readFileSync, realpathSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
 import { spawn } from "node:child_process"
 import { createInterface } from "node:readline"
+import { fileURLToPath } from "node:url"
 
 import type { AgentCapabilities, AgentModel } from "../types"
-import {
-  findInstalledCommand,
-  resolveCommandVersion,
-} from "../utils/command"
-import { AGENT_COMMANDS, CODEX_CONFIG_PATH } from "../constants"
+import { resolveCommandVersion } from "../utils/command"
+import { CODEX_CONFIG_PATH } from "../constants"
+import { buildChildProcessEnv } from "../../process-env"
+
+const PLATFORM_VERSION_SUFFIX_BY_TARGET: Record<string, string> = {
+  "x86_64-unknown-linux-musl": "linux-x64",
+  "aarch64-unknown-linux-musl": "linux-arm64",
+  "x86_64-apple-darwin": "darwin-x64",
+  "aarch64-apple-darwin": "darwin-arm64",
+  "x86_64-pc-windows-msvc": "win32-x64",
+  "aarch64-pc-windows-msvc": "win32-arm64",
+}
+
+type BundledCodexRuntime = {
+  command: string
+  version: string | null
+}
+
+function resolveTargetTriple(platform: NodeJS.Platform, arch: string) {
+  switch (platform) {
+    case "linux":
+    case "android":
+      if (arch === "x64") {
+        return "x86_64-unknown-linux-musl"
+      }
+
+      if (arch === "arm64") {
+        return "aarch64-unknown-linux-musl"
+      }
+      return null
+
+    case "darwin":
+      if (arch === "x64") {
+        return "x86_64-apple-darwin"
+      }
+
+      if (arch === "arm64") {
+        return "aarch64-apple-darwin"
+      }
+      return null
+
+    case "win32":
+      if (arch === "x64") {
+        return "x86_64-pc-windows-msvc"
+      }
+
+      if (arch === "arm64") {
+        return "aarch64-pc-windows-msvc"
+      }
+      return null
+
+    default:
+      return null
+  }
+}
+
+function readPackageVersion(packageJsonPath: string): string | null {
+  try {
+    const packageJson = JSON.parse(
+      readFileSync(packageJsonPath, "utf8"),
+    ) as {
+      version?: unknown
+    }
+
+    return typeof packageJson.version === "string"
+      ? `codex-cli ${packageJson.version}`
+      : null
+  } catch {
+    return null
+  }
+}
+
+export function buildCodexChildEnv(overrides?: Record<string, string>) {
+  const env = buildChildProcessEnv(overrides)
+  env.NO_COLOR = "1"
+  return env
+}
+
+export function resolveBundledCodexRuntime(): BundledCodexRuntime | null {
+  try {
+    const moduleDirectory = path.dirname(fileURLToPath(import.meta.url))
+    const sdkPackageJsonPath = findNearestSdkPackageJson(moduleDirectory)
+
+    if (!sdkPackageJsonPath) {
+      return null
+    }
+
+    const resolvedSdkPackageJsonPath = realpathSync(sdkPackageJsonPath)
+    const pnpmRoot = findNearestPnpmRoot(path.dirname(resolvedSdkPackageJsonPath))
+
+    if (!pnpmRoot) {
+      return null
+    }
+
+    const sdkPackageJson = JSON.parse(
+      readFileSync(resolvedSdkPackageJsonPath, "utf8"),
+    ) as {
+      dependencies?: Record<string, string>
+    }
+    const codexVersion = sdkPackageJson.dependencies?.["@openai/codex"]?.trim()
+
+    if (!codexVersion) {
+      return null
+    }
+
+    const codexPackageJsonPath = path.join(
+      pnpmRoot,
+      `@openai+codex@${codexVersion}`,
+      "node_modules",
+      "@openai",
+      "codex",
+      "package.json",
+    )
+
+    if (!existsSync(codexPackageJsonPath)) {
+      return null
+    }
+
+    const version = readPackageVersion(codexPackageJsonPath)
+    const targetTriple = resolveTargetTriple(process.platform, process.arch)
+
+    if (!targetTriple) {
+      return null
+    }
+
+    const platformVersionSuffix = PLATFORM_VERSION_SUFFIX_BY_TARGET[targetTriple]
+    if (!platformVersionSuffix) {
+      return null
+    }
+
+    const platformPackageJsonPath = path.join(
+      pnpmRoot,
+      `@openai+codex@${codexVersion}-${platformVersionSuffix}`,
+      "node_modules",
+      "@openai",
+      "codex",
+      "package.json",
+    )
+
+    if (!existsSync(platformPackageJsonPath)) {
+      return null
+    }
+
+    const vendorRoot = path.join(path.dirname(platformPackageJsonPath), "vendor")
+    const binaryName = process.platform === "win32" ? "codex.exe" : "codex"
+    const command = path.join(vendorRoot, targetTriple, "codex", binaryName)
+
+    if (!existsSync(command)) {
+      return null
+    }
+
+    return {
+      command,
+      version,
+    }
+  } catch {
+    return null
+  }
+}
+
+function findNearestSdkPackageJson(startDirectory: string) {
+  let currentDirectory = startDirectory
+
+  while (true) {
+    const candidate = path.join(
+      currentDirectory,
+      "node_modules",
+      "@openai",
+      "codex-sdk",
+      "package.json",
+    )
+
+    if (existsSync(candidate)) {
+      return candidate
+    }
+
+    const parentDirectory = path.dirname(currentDirectory)
+    if (parentDirectory === currentDirectory) {
+      return null
+    }
+
+    currentDirectory = parentDirectory
+  }
+}
+
+function findNearestPnpmRoot(startDirectory: string) {
+  let currentDirectory = startDirectory
+
+  while (true) {
+    if (path.basename(currentDirectory) === ".pnpm") {
+      return currentDirectory
+    }
+
+    const parentDirectory = path.dirname(currentDirectory)
+    if (parentDirectory === currentDirectory) {
+      return null
+    }
+
+    currentDirectory = parentDirectory
+  }
+}
 
 /**
  * Extract default model from config file
@@ -94,10 +292,7 @@ async function resolveModelsViaAppServer(
   return new Promise((resolve) => {
     const child = spawn(codexCommand, ["app-server"], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        NO_COLOR: "1",
-      },
+      env: buildCodexChildEnv(),
     })
 
     const stdout = child.stdout
@@ -272,9 +467,9 @@ async function resolveCodexModels(codexCommand: string): Promise<AgentModel[]> {
  * Inspect Codex agent capabilities
  */
 export async function inspectCodexCapabilities(): Promise<AgentCapabilities> {
-  const command = await findInstalledCommand(AGENT_COMMANDS.codex)
+  const bundledRuntime = resolveBundledCodexRuntime()
 
-  if (!command) {
+  if (!bundledRuntime) {
     return {
       installed: false,
       version: null,
@@ -286,8 +481,10 @@ export async function inspectCodexCapabilities(): Promise<AgentCapabilities> {
 
   return {
     installed: true,
-    version: await resolveCommandVersion(command),
-    models: await resolveCodexModels(command),
+    version:
+      bundledRuntime.version ??
+      await resolveCommandVersion(bundledRuntime.command),
+    models: await resolveCodexModels(bundledRuntime.command),
     supportsResume: true,
     supportsStreaming: true,
   }

@@ -1,7 +1,9 @@
-import { execFile } from "node:child_process"
-import { promisify } from "node:util"
+import { spawn } from "node:child_process"
 
-const execFileAsync = promisify(execFile)
+import {
+  buildChildProcessEnv,
+  logChildProcessSpawnFailure,
+} from "../../../lib/process-env"
 
 export type GitCommandResult = {
   stdout: string
@@ -14,47 +16,79 @@ function readGitCommandError(error: unknown) {
     return String(error)
   }
 
-  const stderr =
-    "stderr" in error && typeof error.stderr === "string" ? error.stderr : ""
-  const stdout =
-    "stdout" in error && typeof error.stdout === "string" ? error.stdout : ""
   const message =
     "message" in error && typeof error.message === "string" ? error.message : ""
 
-  return [stderr, stdout, message].filter(Boolean).join("\n").trim()
+  return message.trim()
 }
 
 export async function runGitCommand(
   args: string[],
   cwd: string,
 ): Promise<GitCommandResult> {
-  try {
-    const result = await execFileAsync("git", args, {
-      cwd,
-      windowsHide: true,
-      maxBuffer: 4 * 1024 * 1024,
+  return new Promise((resolve) => {
+    let child
+    try {
+      child = spawn("git", args, {
+        cwd,
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+        env: buildChildProcessEnv(),
+      })
+    } catch (error) {
+      logChildProcessSpawnFailure({
+        scope: "git.runGitCommand",
+        command: "git",
+        args,
+        cwd,
+        error,
+      })
+      resolve({
+        stdout: "",
+        stderr: readGitCommandError(error),
+        exitCode: null,
+      })
+      return
+    }
+
+    let stdout = ""
+    let stderr = ""
+    let settled = false
+
+    function settle(result: GitCommandResult) {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      resolve(result)
+    }
+
+    child.stdout?.on("data", (chunk) => {
+      stdout += chunk.toString()
     })
 
-    return {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: 0,
-    }
-  } catch (error) {
-    const exitCode =
-      typeof error === "object" && error !== null && "code" in error
-        ? Number((error as { code?: unknown }).code)
-        : null
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk.toString()
+    })
 
-    return {
-      stdout:
-        typeof error === "object" && error !== null && "stdout" in error
-          ? String((error as { stdout?: unknown }).stdout ?? "")
-          : "",
-      stderr: readGitCommandError(error),
-      exitCode: Number.isInteger(exitCode) ? exitCode : null,
-    }
-  }
+    child.on("error", (error) => {
+      const message = readGitCommandError(error)
+      settle({
+        stdout,
+        stderr: [stderr, message].filter(Boolean).join("\n").trim(),
+        exitCode: null,
+      })
+    })
+
+    child.on("close", (code) => {
+      settle({
+        stdout,
+        stderr: stderr.trim(),
+        exitCode: code,
+      })
+    })
+  })
 }
 
 export function createGitRepository() {

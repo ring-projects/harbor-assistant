@@ -20,17 +20,14 @@ function createProject(projectPath: string) {
 }
 
 function createFakeWatcher() {
-  const listeners = new Map<string, Set<() => void>>()
+  const listeners = new Set<() => void>()
   const fakeWatcher = {
-    on: vi.fn((eventName: string, listener: () => void) => {
-      const existing = listeners.get(eventName) ?? new Set<() => void>()
-      existing.add(listener)
-      listeners.set(eventName, existing)
-      return fakeWatcher as never
+    onChange: vi.fn((listener: () => void) => {
+      listeners.add(listener)
     }),
     close: vi.fn(async () => {}),
-    emit(eventName: string) {
-      for (const listener of listeners.get(eventName) ?? []) {
+    emit() {
+      for (const listener of listeners) {
         listener()
       }
     },
@@ -57,8 +54,8 @@ describe("createProjectGitWatcher", () => {
 
     await projectGitWatcher.subscribe("project-1", listener)
 
-    watcher.emit("change")
-    watcher.emit("change")
+    watcher.emit()
+    watcher.emit()
 
     vi.advanceTimersByTime(249)
     expect(listener).not.toHaveBeenCalled()

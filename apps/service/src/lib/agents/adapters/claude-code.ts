@@ -7,6 +7,7 @@ import type { AgentCapabilities, SessionOptions, AgentEvent } from "../types"
 import { inspectClaudeCodeCapabilities } from "../capabilities/claude-code"
 import { AGENT_COMMANDS, MAX_CAPTURED_OUTPUT_LENGTH } from "../constants"
 import { findInstalledCommand } from "../utils/command"
+import { buildChildProcessEnv } from "../../process-env"
 
 export const claudeCodeProcess = {
   spawn,
@@ -350,8 +351,7 @@ export class ClaudeCodeAdapter implements IAgent {
       cwd: args.workingDirectory,
       stdio: ["ignore", "pipe", "pipe"],
       env: {
-        ...process.env,
-        ...(args.env ?? {}),
+        ...buildChildProcessEnv(args.env),
         NO_COLOR: "1",
       },
     })

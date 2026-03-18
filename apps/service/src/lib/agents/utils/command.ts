@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 
+import { buildChildProcessEnv } from "../../process-env"
+
 const execFileAsync = promisify(execFile)
 
 const VERSION_ARGS: readonly string[][] = [
@@ -43,6 +45,7 @@ export async function isCommandAvailable(command: string): Promise<boolean> {
     const { stdout } = await execFileAsync(getCommandLocator(), [command], {
       timeout: 1_000,
       windowsHide: true,
+      env: buildChildProcessEnv(),
     })
 
     return stdout.trim().length > 0
@@ -78,6 +81,7 @@ export async function resolveCommandVersion(
         timeout: 1_500,
         maxBuffer: 64 * 1024,
         windowsHide: true,
+        env: buildChildProcessEnv(),
       })
 
       const version = extractFirstLine(`${stdout}\n${stderr}`)

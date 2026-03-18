@@ -4,6 +4,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { PrismaClient } from "@prisma/client"
+import { buildChildProcessEnv } from "./process-env"
 
 const REQUIRED_SQLITE_TABLES = [
   "_prisma_migrations",
@@ -71,10 +72,9 @@ async function runPrismaMigrateDeploy(args: {
       {
         cwd: args.serviceRootDirectory,
         stdio: "inherit",
-        env: {
-          ...process.env,
+        env: buildChildProcessEnv({
           DATABASE_URL: args.databaseUrl,
-        },
+        }),
       },
     )
 
