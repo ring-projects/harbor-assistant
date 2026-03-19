@@ -1,21 +1,14 @@
 "use client"
+
 import { useRouter } from "next/navigation"
-import { useMemo } from "react"
-import {
-  CheckIcon,
-  ChevronsUpDownIcon,
-  FolderOpenIcon,
-  PlusIcon,
-} from "lucide-react"
+import type { ReactNode } from "react"
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { HarborLogo } from "@/components/logo"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -29,12 +22,16 @@ type ProjectSwitcherProps = {
   activeProjectId: string
   initialProjects?: Project[]
   className?: string
+  children?: ReactNode
+  triggerLabel?: string
 }
 
 export function ProjectSwitcher({
   activeProjectId,
   initialProjects,
   className,
+  children,
+  triggerLabel = "Switch project",
 }: ProjectSwitcherProps) {
   const router = useRouter()
   const isMobile = useIsMobile()
@@ -45,24 +42,16 @@ export function ProjectSwitcher({
   })
   const projectItems = projectsQuery.data ?? []
 
-  const activeProject = useMemo(
-    () =>
-      projectItems?.find((project) => project.id === activeProjectId) ?? null,
-    [activeProjectId, projectItems],
-  )
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
           variant="ghost"
-          className={cn(
-            "max-w-[22rem] min-w-0 justify-between gap-3",
-            className,
-          )}
+          aria-label={triggerLabel}
+          className={cn("min-w-14 justify-between gap-2", className)}
         >
-          <HarborLogo className="w-24" />
+          {children ?? <span className="font-medium">Projects</span>}
           <ChevronsUpDownIcon className="text-muted-foreground ml-auto size-4 shrink-0" />
         </Button>
       </DropdownMenuTrigger>

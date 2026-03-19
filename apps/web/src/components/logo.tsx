@@ -2,8 +2,59 @@ import Image, { type ImageProps } from "next/image"
 
 import { cn } from "@/lib/utils"
 
+type HarborMarkProps = Omit<ImageProps, "src" | "alt"> & {
+  variant?: "adaptive" | "black" | "white"
+}
+
 type HarborLogoProps = Omit<ImageProps, "src" | "alt"> & {
   variant?: "adaptive" | "black" | "white"
+}
+
+export function HarborMark({
+  className,
+  variant = "adaptive",
+  width = 32,
+  height = 32,
+  ...props
+}: HarborMarkProps) {
+  if (variant === "adaptive") {
+    return (
+      <>
+        <Image
+          src="/brand/harbor-favicon-black.svg"
+          alt="Harbor logo"
+          width={width}
+          height={height}
+          className={cn("dark:hidden", className)}
+          {...props}
+        />
+        <Image
+          src="/brand/harbor-favicon-white.svg"
+          alt="Harbor logo"
+          width={width}
+          height={height}
+          className={cn("hidden dark:block", className)}
+          {...props}
+        />
+      </>
+    )
+  }
+
+  const src =
+    variant === "white"
+      ? "/brand/harbor-favicon-white.svg"
+      : "/brand/harbor-favicon-black.svg"
+
+  return (
+    <Image
+      src={src}
+      alt="Harbor logo"
+      width={width}
+      height={height}
+      className={className}
+      {...props}
+    />
+  )
 }
 
 export function HarborLogo({
