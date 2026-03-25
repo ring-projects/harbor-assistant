@@ -1,9 +1,11 @@
 import Fastify from "fastify"
 
+import { createNodeFileSystemRepository } from "../../src/modules/filesystem/infrastructure/node-filesystem-repository"
+import { registerFileSystemModuleRoutes } from "../../src/modules/filesystem/routes"
+import { InMemoryProjectRepository } from "../../src/modules/project/infrastructure/in-memory-project-repository"
 import errorHandlerPlugin from "../../src/plugins/error-handler"
-import { registerFileSystemModuleRoutes } from "../../src/modules/filesystem"
 
-export async function createFileSystemTestApp(args: { rootDirectory: string }) {
+export async function createFileSystemTestApp() {
   const app = Fastify({
     logger: false,
   })
@@ -12,7 +14,8 @@ export async function createFileSystemTestApp(args: { rootDirectory: string }) {
   await app.register(
     async (instance) => {
       await registerFileSystemModuleRoutes(instance, {
-        rootDirectory: args.rootDirectory,
+        projectRepository: new InMemoryProjectRepository(),
+        fileSystemRepository: createNodeFileSystemRepository(),
       })
     },
     {

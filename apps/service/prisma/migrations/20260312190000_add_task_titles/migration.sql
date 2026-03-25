@@ -1,4 +1,0 @@
--- No-op migration.
--- The preceding 20260312092020_update migration already recreates the tasks table
--- with title, titleSource, and titleUpdatedAt included and populated. Reapplying
--- ALTER TABLE statements here breaks fresh database initialization.

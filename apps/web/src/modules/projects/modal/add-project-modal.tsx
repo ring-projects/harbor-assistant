@@ -37,15 +37,9 @@ export function AddProjectModal() {
           className="rounded-none border-0"
           pickerTitle={null}
           onCancel={closeAddProjectModal}
-          onCreated={(projects) => {
+          onCreated={(project) => {
             closeAddProjectModal()
-
-            const nextProject = projects[0]
-            if (!nextProject) {
-              return
-            }
-
-            router.push(`/${encodeURIComponent(nextProject.id)}`)
+            router.push(`/${encodeURIComponent(project.id)}`)
           }}
         />
       </DialogContent>

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify"
 
-import { inspectAllAgentCapabilities } from "../../lib/agents"
+import { getAgentCapabilities } from "../../lib/agents"
 
 const getAgentCapabilitiesRouteSchema = {
   response: {
@@ -13,16 +13,9 @@ const getAgentCapabilitiesRouteSchema = {
         capabilities: {
           type: "object",
           additionalProperties: false,
-          required: ["checkedAt", "availableAgents", "agents"],
+          required: ["checkedAt", "agents"],
           properties: {
             checkedAt: { type: "string", format: "date-time" },
-            availableAgents: {
-              type: "array",
-              items: {
-                type: "string",
-                enum: ["codex", "claude-code"],
-              },
-            },
             agents: {
               type: "object",
               additionalProperties: false,
@@ -47,26 +40,22 @@ const agentCapabilitiesSchema = {
   $id: "agentCapabilitiesSchema",
   type: "object",
   additionalProperties: false,
-  required: [
-    "installed",
-    "version",
-    "models",
-    "supportsResume",
-    "supportsStreaming",
-  ],
+  required: ["models", "supportsResume", "supportsStreaming"],
   properties: {
-    installed: { type: "boolean" },
-    version: { type: ["string", "null"] },
     models: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "displayName", "isDefault"],
+        required: ["id", "name", "isDefault", "efforts"],
         properties: {
           id: { type: "string" },
-          displayName: { type: "string" },
+          name: { type: "string" },
           isDefault: { type: "boolean" },
+          efforts: {
+            type: "array",
+            items: { type: "string" },
+          },
         },
       },
     },
@@ -77,7 +66,6 @@ const agentCapabilitiesSchema = {
 
 export async function registerAgentRoutes(
   app: FastifyInstance,
-  args?: { harborHomeDirectory?: string },
 ) {
   app.addSchema(agentCapabilitiesSchema)
 
@@ -87,9 +75,7 @@ export async function registerAgentRoutes(
       schema: getAgentCapabilitiesRouteSchema,
     },
     async () => {
-      const capabilities = await inspectAllAgentCapabilities({
-        harborHomeDirectory: args?.harborHomeDirectory,
-      })
+      const capabilities = await getAgentCapabilities()
 
       return {
         ok: true,

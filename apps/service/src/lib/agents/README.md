@@ -1,158 +1,312 @@
 # Agents Library
 
-Infrastructure layer for AI agent integration. Provides a unified interface for integrating different AI coding agents (Codex, Claude Code, etc.).
+`apps/service/src/lib/agents` is Harbor's provider integration layer for external
+coding agents.
 
-## Architecture
+Current supported providers:
 
-### Core Concepts
+- `codex`
+- `claude-code`
 
-- **IAgent Interface**: Unified interface that all agent adapters must implement
-- **Adapter Pattern**: Each AI agent has its own adapter that converts its SDK to the unified interface
-- **Event Stream**: Uses `AsyncIterable<AgentEvent>` to provide a unified event stream model
-- **Capability Detection**: Utilities to detect installed agents and available models
+This module is intentionally small. It owns runtime invocation, provider capability
+declaration, and model catalog declaration. It does not own task lifecycle, event
+projection, or UI-facing conversation shaping.
 
-### Directory Structure
+## Boundary
 
-```
-lib/agents/
-├── types.ts                    # Core type definitions
-├── interface.ts                # Unified agent interface
-├── factory.ts                  # Agent factory
-├── constants.ts                # Constants
-├── index.ts                    # Module exports
-├── adapters/                   # Agent adapters
-│   ├── codex.ts               # Codex adapter
-│   └── claude-code.ts         # Claude Code adapter
-├── capabilities/               # Capability detection
-│   ├── index.ts               # Capability detection exports
-│   ├── codex.ts               # Codex capability detection
-│   └── claude-code.ts         # Claude Code capability detection
-└── utils/                      # Utility functions
-    └── command.ts             # Command-line utilities
-```
+`lib/agents` is responsible for:
 
-## Usage Examples
+- starting a new provider session
+- resuming an existing provider session
+- mapping Harbor runtime options to provider-specific SDK options
+- emitting provider-native raw events
+- exposing Harbor-declared model and capability metadata
+- registering runtimes and capability providers by `AgentType`
 
-### 1. Detect Available Agents
+`lib/agents` is not responsible for:
 
-```typescript
-import { inspectAllAgentCapabilities } from '@/lib/agents'
+- task creation, retry, follow-up, or archive workflows
+- task event persistence
+- normalized Harbor agent events
+- UI message rendering
+- business prompt summaries or display-only metadata
+- raw event projection
 
-const capabilities = await inspectAllAgentCapabilities()
-console.log('Available agents:', capabilities.availableAgents)
-console.log('Codex installed:', capabilities.agents.codex.installed)
-console.log('Codex models:', capabilities.agents.codex.models)
-```
+If a responsibility needs task state, repository access, or UI-oriented event
+shaping, it belongs outside this module.
 
-### 2. Use Agent Factory to Get Adapter
+## Current Design
 
-```typescript
-import { AgentFactory } from '@/lib/agents'
+The library is split into four parts:
 
-// Get Codex adapter
-const agent = AgentFactory.getAgent('codex')
+1. `types.ts`
+   Public contract for runtime input, runtime options, raw event envelopes, models,
+   capabilities, and registry interfaces.
 
-// Start new session and run task
-const events = agent.startSessionAndRun(
-  {
-    workingDirectory: '/path/to/project',
-    model: 'gpt-4',
-    sandboxMode: 'workspace-write',
-  },
-  'Fix the bug in auth.ts',
-)
+2. `adapters/`
+   Provider-specific runtime implementations.
 
-// Handle event stream
-for await (const event of events) {
-  switch (event.type) {
-    case 'session.started':
-      console.log('Session started:', event.sessionId)
-      break
-    case 'message':
-      console.log(`${event.role}: ${event.content}`)
-      break
-    case 'command.output':
-      console.log('Output:', event.output)
-      break
-    case 'error':
-      console.error('Error:', event.message)
-      break
-  }
+3. `capabilities/`
+   Declared capability readers. These expose Harbor's current provider capability
+   view. They do not perform dynamic environment probing.
+
+4. `model-config.ts`
+   Harbor-maintained source-code model catalog for providers that do not expose a
+   stable machine-readable model list API.
+
+## Public Contract
+
+The current public contract is:
+
+```ts
+export type AgentType = "codex" | "claude-code"
+
+export type AgentInputItem =
+  | {
+      type: "text"
+      text: string
+    }
+  | {
+      type: "local_image"
+      path: string
+    }
+
+export type AgentInput = string | AgentInputItem[]
+
+export type ReasoningEffort =
+  | "none"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+
+export type RuntimeReasoningEffort = Exclude<ReasoningEffort, "none">
+
+export type AgentRuntimeOptions = {
+  workingDirectory: string
+  modelId?: string
+  effort?: RuntimeReasoningEffort
+  env?: Record<string, string>
+  sandboxMode?: "read-only" | "workspace-write" | "danger-full-access"
+  approvalPolicy?: "never" | "on-request" | "untrusted"
+  networkAccessEnabled?: boolean
+  webSearchMode?: "disabled" | "cached" | "live"
+  additionalDirectories?: string[]
+}
+
+export type RawAgentEventEnvelope = {
+  agentType: AgentType
+  event: unknown
+  createdAt: Date
+}
+
+export type AgentModel = {
+  id: string
+  name: string
+  isDefault: boolean
+  efforts: ReasoningEffort[]
+}
+
+export type AgentCapabilities = {
+  models: AgentModel[]
+  supportsResume: boolean
+  supportsStreaming: boolean
+}
+
+export type AgentCapabilityResult = {
+  checkedAt: Date
+  agents: Record<AgentType, AgentCapabilities>
+}
+
+export interface IAgentRuntime {
+  readonly type: AgentType
+
+  startSessionAndRun(
+    options: AgentRuntimeOptions,
+    input: AgentInput,
+    signal?: AbortSignal,
+  ): AsyncIterable<RawAgentEventEnvelope>
+
+  resumeSessionAndRun(
+    sessionId: string,
+    options: AgentRuntimeOptions,
+    input: AgentInput,
+    signal?: AbortSignal,
+  ): AsyncIterable<RawAgentEventEnvelope>
+}
+
+export interface IAgentCapabilityProvider {
+  readonly type: AgentType
+
+  inspect(): Promise<AgentCapabilities>
+}
+
+export type AgentRegistration = {
+  type: AgentType
+  runtime: IAgentRuntime
+  capability: IAgentCapabilityProvider
+}
+
+export interface IAgentRegistry {
+  has(type: AgentType): boolean
+  get(type: AgentType): AgentRegistration
+  getRuntime(type: AgentType): IAgentRuntime
+  getCapability(type: AgentType): IAgentCapabilityProvider
+  list(): AgentRegistration[]
+  listTypes(): AgentType[]
+  inspectAll(): Promise<AgentCapabilityResult>
 }
 ```
 
-### 3. Resume Existing Session
+## Raw Event Rule
 
-```typescript
-const agent = AgentFactory.getAgent('codex')
+The most important rule in this module is:
 
-const events = agent.resumeSessionAndRun(
-  'session-id-123',
-  {
-    workingDirectory: '/path/to/project',
-    model: 'gpt-4',
-  },
-  'Continue with the previous task',
-)
+`adapters emit provider-native raw events`
 
-for await (const event of events) {
-  // Handle events
-}
-```
+That means:
 
-## Event Types
+- the adapter output is always `AsyncIterable<RawAgentEventEnvelope>`
+- `event` should preserve the provider's original event body as much as possible
+- adapters should not project provider events into Harbor task events
+- adapters should not synthesize Harbor-specific UI events
 
-All agent adapters emit unified `AgentEvent` types:
+If Harbor needs normalized task events, storage normalization, or lifecycle
+completion, that work belongs outside `lib/agents`.
 
-- `session.started` - Session started
-- `turn.started` - Turn started
-- `message` - Message (user/assistant/system)
-- `command.started` - Command execution started
-- `command.output` - Command output
-- `command.completed` - Command execution completed
-- `web_search.started` - Web search started
-- `web_search.completed` - Web search completed
-- `file_change` - File patch/change set applied
-- `mcp_tool_call.started` - MCP tool call started
-- `mcp_tool_call.completed` - MCP tool call completed
-- `reasoning` - Reasoning process
-- `todo_list` - TODO list
-- `error` - Error
-- `turn.completed` - Turn completed
-- `turn.failed` - Turn failed
-- `session.completed` - Session completed
+## Capability Semantics
 
-## Adding New Agents
+Capabilities in this module are intentionally narrow.
 
-To add a new agent (e.g., Claude Code):
+Current capability surface:
 
-1. Add new `AgentType` in `types.ts`
-2. Add command candidates in `constants.ts`
-3. Create capability detection file `capabilities/xxx.ts`
-4. Create adapter `adapters/xxx.ts` implementing `IAgent` interface
-5. Register new adapter in `factory.ts`
+- `models`
+- `supportsResume`
+- `supportsStreaming`
 
-## Integration with Modules
+This shape is deliberate. The capability API is primarily used to expose model
+choices and a small amount of runtime behavior that affects task execution flow.
 
-Business modules should use agents through the factory:
+Capabilities in this module are:
 
-```typescript
-import { AgentFactory } from '@/lib/agents'
+- Harbor-declared
+- provider-specific
+- stable enough for UI and task validation
 
-// In task runner
-const agent = AgentFactory.getAgent('codex')
-const events = agent.startSessionAndRun(options, prompt, signal)
+Capabilities in this module are not:
 
-// Handle events and persist to database
-for await (const event of events) {
-  await persistEvent(taskId, event)
-}
-```
+- dynamic installation checks
+- runtime health checks
+- authoritative provider-wide discovery results
 
-## Advantages
+## Model Catalog
 
-1. **Decoupling**: Business modules don't directly depend on specific AI SDKs
-2. **Extensibility**: Adding new agents only requires new adapters
-3. **Unified**: All agents use the same interface and event model
-4. **Testable**: Easy to mock IAgent interface
-5. **Type-safe**: Complete TypeScript type definitions
+Model definitions live in `model-config.ts`.
+
+These model lists are Harbor-maintained source-code configuration. They are used
+because current providers do not expose a stable machine-readable model catalog API
+that Harbor can rely on.
+
+Important semantics:
+
+- the model catalog is a curated candidate set
+- it is not a provider-authoritative real-time inventory
+- runtime execution remains the final source of truth
+- model validation in higher layers may use this catalog to constrain allowed values
+
+Current `codex` catalog includes:
+
+- `gpt-5.3-codex`
+- `gpt-5.4`
+- `gpt-5.2-codex`
+- `gpt-5.1-codex-max`
+- `gpt-5.2`
+- `gpt-5.1-codex-mini`
+
+Current `claude-code` catalog includes:
+
+- `claude-sonnet-4-6`
+- `claude-opus-4-6`
+
+## Runtime Notes
+
+### Codex
+
+`codex` integrates through the Codex SDK.
+
+Current behavior:
+
+- Harbor runtime options are mapped in `adapters/codex/options.ts`
+- execution is performed through `Codex.startThread()` / `resumeThread()`
+- SDK `ThreadEvent` values are emitted directly as raw envelopes
+
+### Claude Code
+
+`claude-code` integrates through the Claude Agent SDK.
+
+Current behavior:
+
+- Harbor runtime options are mapped in `adapters/claude-code/options.ts`
+- structured Harbor input is serialized to a string prompt when required by the SDK
+- SDK message values are emitted directly as raw envelopes
+
+The local `sdk.js` / `sdk.d.ts` wrapper exists because the upstream package types are
+not clean enough to consume directly in the current codebase.
+
+## Registry
+
+`AgentFactory` is the registry entrypoint for this module.
+
+It binds each `AgentType` to:
+
+- one runtime implementation
+- one capability provider
+
+This keeps runtime execution and capability declaration separate, while still using
+one stable lookup key.
+
+## Exports
+
+The stable public module exports are:
+
+- core types from `types.ts`
+- `AgentFactory`
+- `codexAdapter`
+- `claudeCodeAdapter`
+- `getAgentCapabilities`
+- `getCodexCapabilities`
+- `getClaudeCodeCapabilities`
+- `AGENT_MODEL_CONFIG`
+- `getConfiguredAgentModels`
+
+## Testing Expectations
+
+Tests in this module should focus on:
+
+- provider option mapping
+- raw event envelope shape
+- runtime injection boundaries
+- declared capability output
+- registry registration behavior
+
+Tests in this module should not depend on:
+
+- task projection
+- persistence
+- UI rendering
+- provider-wide live discovery
+
+## Non-Goals
+
+This module must not become:
+
+- a task orchestration service
+- a projection layer
+- a persistence layer
+- a prompt policy engine
+- a UI formatting layer
+- a generic diagnostics framework
+
+If a new requirement needs domain state or read-model awareness, it should live
+outside `lib/agents`.

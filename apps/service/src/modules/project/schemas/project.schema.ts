@@ -2,151 +2,116 @@ export type ProjectIdParams = {
   id: string
 }
 
+export type DeleteProjectResponse = {
+  ok: true
+  projectId: string
+}
+
 export type CreateProjectBody = {
-  path: string
-  name?: string
+  id: string
+  name: string
+  rootPath: string
+  description?: string | null
 }
 
 export type UpdateProjectBody = {
-  path?: string
   name?: string
+  description?: string | null
+  rootPath?: string
 }
 
-export type ProjectSettingsBody = {
-  defaultExecutor?: "codex" | "claude-code"
-  defaultModel?: string | null
-  defaultExecutionMode?: "safe" | "connected" | "full-access"
-  maxConcurrentTasks?: number
-  logRetentionDays?: number | null
-  eventRetentionDays?: number | null
-  harborSkillsEnabled?: boolean
-  harborSkillProfile?: string | null
-}
+export type UpdateProjectSettingsBody = Partial<{
+  execution: Partial<{
+    defaultExecutor: string | null
+    defaultModel: string | null
+    defaultExecutionMode: string | null
+    maxConcurrentTasks: number
+  }>
+  retention: Partial<{
+    logRetentionDays: number | null
+    eventRetentionDays: number | null
+  }>
+  skills: Partial<{
+    harborSkillsEnabled: boolean
+    harborSkillProfile: string | null
+  }>
+}>
+
+const projectSettingsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["execution", "retention", "skills"],
+  properties: {
+    execution: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "defaultExecutor",
+        "defaultModel",
+        "defaultExecutionMode",
+        "maxConcurrentTasks",
+      ],
+      properties: {
+        defaultExecutor: { type: ["string", "null"] },
+        defaultModel: { type: ["string", "null"] },
+        defaultExecutionMode: { type: ["string", "null"] },
+        maxConcurrentTasks: { type: "integer", minimum: 1 },
+      },
+    },
+    retention: {
+      type: "object",
+      additionalProperties: false,
+      required: ["logRetentionDays", "eventRetentionDays"],
+      properties: {
+        logRetentionDays: { type: ["integer", "null"], minimum: 1 },
+        eventRetentionDays: { type: ["integer", "null"], minimum: 1 },
+      },
+    },
+    skills: {
+      type: "object",
+      additionalProperties: false,
+      required: ["harborSkillsEnabled", "harborSkillProfile"],
+      properties: {
+        harborSkillsEnabled: { type: "boolean" },
+        harborSkillProfile: { type: ["string", "null"] },
+      },
+    },
+  },
+} as const
 
 const projectEntitySchema = {
   type: "object",
   additionalProperties: false,
   required: [
     "id",
-    "name",
     "slug",
+    "name",
+    "description",
     "rootPath",
     "normalizedPath",
-    "description",
     "status",
-    "lastOpenedAt",
     "createdAt",
     "updatedAt",
     "archivedAt",
-    "path",
+    "lastOpenedAt",
+    "settings",
   ],
   properties: {
-    id: { type: "string" },
-    name: { type: "string" },
-    slug: { type: ["string", "null"] },
-    rootPath: { type: "string" },
-    normalizedPath: { type: "string" },
+    id: { type: "string", minLength: 1 },
+    slug: { type: "string", minLength: 1 },
+    name: { type: "string", minLength: 1 },
     description: { type: ["string", "null"] },
+    rootPath: { type: "string", minLength: 1 },
+    normalizedPath: { type: "string", minLength: 1 },
     status: {
       type: "string",
       enum: ["active", "archived", "missing"],
     },
-    lastOpenedAt: {
-      type: ["string", "null"],
-      format: "date-time",
-    },
-    createdAt: {
-      type: "string",
-      format: "date-time",
-    },
-    updatedAt: {
-      type: "string",
-      format: "date-time",
-    },
-    archivedAt: {
-      type: ["string", "null"],
-      format: "date-time",
-    },
-    path: { type: "string" },
-  },
-} as const
-
-const projectsSuccessResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["ok", "projects"],
-  properties: {
-    ok: { type: "boolean", const: true },
-    projects: {
-      type: "array",
-      items: projectEntitySchema,
-    },
-  },
-} as const
-
-const projectSettingsEntitySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "projectId",
-    "defaultExecutor",
-    "defaultModel",
-    "defaultExecutionMode",
-    "maxConcurrentTasks",
-    "logRetentionDays",
-    "eventRetentionDays",
-    "harborSkillsEnabled",
-    "harborSkillProfile",
-    "createdAt",
-    "updatedAt",
-  ],
-  properties: {
-    projectId: { type: "string" },
-    defaultExecutor: {
-      type: ["string", "null"],
-      enum: ["codex", "claude-code", null],
-    },
-    defaultModel: { type: ["string", "null"] },
-    defaultExecutionMode: {
-      type: ["string", "null"],
-      enum: ["safe", "connected", "full-access", null],
-    },
-    maxConcurrentTasks: {
-      type: "integer",
-      minimum: 1,
-    },
-    logRetentionDays: {
-      type: ["integer", "null"],
-      minimum: 1,
-    },
-    eventRetentionDays: {
-      type: ["integer", "null"],
-      minimum: 1,
-    },
-    harborSkillsEnabled: {
-      type: "boolean",
-    },
-    harborSkillProfile: {
-      type: ["string", "null"],
-    },
-    createdAt: {
-      type: "string",
-      format: "date-time",
-    },
-    updatedAt: {
-      type: "string",
-      format: "date-time",
-    },
-  },
-} as const
-
-const projectSettingsSuccessResponseSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["ok", "settings"],
-  properties: {
-    ok: { type: "boolean", const: true },
-    settings: projectSettingsEntitySchema,
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+    archivedAt: { type: ["string", "null"], format: "date-time" },
+    lastOpenedAt: { type: ["string", "null"], format: "date-time" },
+    settings: projectSettingsSchema,
   },
 } as const
 
@@ -155,17 +120,19 @@ export const projectIdParamsSchema = {
   additionalProperties: false,
   required: ["id"],
   properties: {
-    id: { type: "string" },
+    id: { type: "string", minLength: 1 },
   },
 } as const
 
 export const createProjectBodySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["path"],
+  required: ["id", "name", "rootPath"],
   properties: {
-    path: { type: "string" },
-    name: { type: "string" },
+    id: { type: "string", minLength: 1 },
+    name: { type: "string", minLength: 1 },
+    rootPath: { type: "string", minLength: 1 },
+    description: { type: ["string", "null"] },
   },
 } as const
 
@@ -173,71 +140,113 @@ export const updateProjectBodySchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    path: { type: "string" },
-    name: { type: "string" },
+    name: { type: "string", minLength: 1 },
+    description: { type: ["string", "null"] },
+    rootPath: { type: "string", minLength: 1 },
   },
   anyOf: [
-    { required: ["path"] },
     { required: ["name"] },
+    { required: ["description"] },
+    { required: ["rootPath"] },
   ],
 } as const
 
-export const projectSettingsBodySchema = {
+export const updateProjectSettingsBodySchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    defaultExecutor: {
-      type: "string",
-      enum: ["codex", "claude-code"],
+    execution: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        defaultExecutor: { type: ["string", "null"] },
+        defaultModel: { type: ["string", "null"] },
+        defaultExecutionMode: { type: ["string", "null"] },
+        maxConcurrentTasks: { type: "integer", minimum: 1 },
+      },
+      anyOf: [
+        { required: ["defaultExecutor"] },
+        { required: ["defaultModel"] },
+        { required: ["defaultExecutionMode"] },
+        { required: ["maxConcurrentTasks"] },
+      ],
     },
-    defaultModel: {
-      type: ["string", "null"],
+    retention: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        logRetentionDays: { type: ["integer", "null"], minimum: 1 },
+        eventRetentionDays: { type: ["integer", "null"], minimum: 1 },
+      },
+      anyOf: [
+        { required: ["logRetentionDays"] },
+        { required: ["eventRetentionDays"] },
+      ],
     },
-    defaultExecutionMode: {
-      type: "string",
-      enum: ["safe", "connected", "full-access"],
-    },
-    maxConcurrentTasks: {
-      type: "integer",
-      minimum: 1,
-    },
-    logRetentionDays: {
-      type: ["integer", "null"],
-      minimum: 1,
-    },
-    eventRetentionDays: {
-      type: ["integer", "null"],
-      minimum: 1,
-    },
-    harborSkillsEnabled: {
-      type: "boolean",
-    },
-    harborSkillProfile: {
-      type: ["string", "null"],
+    skills: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        harborSkillsEnabled: { type: "boolean" },
+        harborSkillProfile: { type: ["string", "null"] },
+      },
+      anyOf: [
+        { required: ["harborSkillsEnabled"] },
+        { required: ["harborSkillProfile"] },
+      ],
     },
   },
   anyOf: [
-    { required: ["defaultExecutor"] },
-    { required: ["defaultModel"] },
-    { required: ["defaultExecutionMode"] },
-    { required: ["maxConcurrentTasks"] },
-    { required: ["logRetentionDays"] },
-    { required: ["eventRetentionDays"] },
-    { required: ["harborSkillsEnabled"] },
-    { required: ["harborSkillProfile"] },
+    { required: ["execution"] },
+    { required: ["retention"] },
+    { required: ["skills"] },
   ],
 } as const
 
 export const listProjectsRouteSchema = {
   response: {
-    200: projectsSuccessResponseSchema,
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "projects"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        projects: {
+          type: "array",
+          items: projectEntitySchema,
+        },
+      },
+    },
   },
 } as const
 
 export const createProjectRouteSchema = {
   body: createProjectBodySchema,
   response: {
-    200: projectsSuccessResponseSchema,
+    201: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "project"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        project: projectEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const getProjectRouteSchema = {
+  params: projectIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "project"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        project: projectEntitySchema,
+      },
+    },
   },
 } as const
 
@@ -245,28 +254,77 @@ export const updateProjectRouteSchema = {
   params: projectIdParamsSchema,
   body: updateProjectBodySchema,
   response: {
-    200: projectsSuccessResponseSchema,
-  },
-} as const
-
-export const deleteProjectRouteSchema = {
-  params: projectIdParamsSchema,
-  response: {
-    200: projectsSuccessResponseSchema,
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "project"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        project: projectEntitySchema,
+      },
+    },
   },
 } as const
 
 export const getProjectSettingsRouteSchema = {
   params: projectIdParamsSchema,
   response: {
-    200: projectSettingsSuccessResponseSchema,
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "settings"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        settings: projectSettingsSchema,
+      },
+    },
   },
 } as const
 
 export const updateProjectSettingsRouteSchema = {
   params: projectIdParamsSchema,
-  body: projectSettingsBodySchema,
+  body: updateProjectSettingsBodySchema,
   response: {
-    200: projectSettingsSuccessResponseSchema,
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "project"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        project: projectEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const archiveProjectRouteSchema = {
+  params: projectIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "project"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        project: projectEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const restoreProjectRouteSchema = archiveProjectRouteSchema
+
+export const deleteProjectRouteSchema = {
+  params: projectIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "projectId"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        projectId: { type: "string", minLength: 1 },
+      },
+    },
   },
 } as const

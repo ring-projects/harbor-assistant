@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
+import { buildExecutorApiUrl } from "@/lib/executor-service-url"
 import {
   type TaskAgentEventStream,
   TASK_STATUS_VALUES,
@@ -11,8 +12,6 @@ import {
   taskDetailSchema,
   taskListItemSchema,
 } from "@/modules/tasks/contracts"
-
-const EXECUTOR_API_BASE = "/api/v1"
 
 const taskApiErrorSchema = z.object({
   code: z.string(),
@@ -41,24 +40,47 @@ export class TaskApiClientError extends Error {
 }
 
 export type CreateTaskInput = {
-  prompt: string
+  input: Array<
+    | {
+        type: "text"
+        text: string
+      }
+    | {
+        type: "local_image"
+        path: string
+      }
+  >
   model?: string
-  modelSource?: "project-default" | "runtime-default"
   executor?: string
-  executionMode?: "safe" | "connected" | "full-access" | "custom"
-  runtimePolicy?: {
-    sandboxMode?: "read-only" | "workspace-write" | "danger-full-access"
-    approvalPolicy?: "never" | "on-request" | "untrusted"
-    networkAccessEnabled?: boolean
-    webSearchMode?: "disabled" | "cached" | "live"
-    additionalDirectories?: string[]
-  }
+  executionMode?: "safe" | "connected" | "full-access"
 }
 
 export type FollowupTaskInput = {
-  prompt: string
+  input: Array<
+    | {
+        type: "text"
+        text: string
+      }
+    | {
+        type: "local_image"
+        path: string
+      }
+  >
   model?: string
   modelSource?: "task-default" | "runtime-default"
+}
+
+export type StoreTaskInputImageInput = {
+  name: string
+  mediaType: string
+  dataBase64: string
+}
+
+export type StoreTaskInputImageResult = {
+  path: string
+  mediaType: string
+  name: string
+  size: number
 }
 
 export type CreateTaskResult = {
@@ -121,37 +143,10 @@ function toStatus(value: unknown): TaskStatus | null {
 
 function toExecutionMode(
   value: unknown,
-): "safe" | "connected" | "full-access" | "custom" | null {
+): "safe" | "connected" | "full-access" | null {
   return value === "safe" ||
     value === "connected" ||
-    value === "full-access" ||
-    value === "custom"
-    ? value
-    : null
-}
-
-function toSandboxMode(
-  value: unknown,
-): "read-only" | "workspace-write" | "danger-full-access" | null {
-  return value === "read-only" ||
-    value === "workspace-write" ||
-    value === "danger-full-access"
-    ? value
-    : null
-}
-
-function toApprovalPolicy(
-  value: unknown,
-): "never" | "on-request" | "untrusted" | null {
-  return value === "never" || value === "on-request" || value === "untrusted"
-    ? value
-    : null
-}
-
-function toWebSearchMode(
-  value: unknown,
-): "disabled" | "cached" | "live" | null {
-  return value === "disabled" || value === "cached" || value === "live"
+    value === "full-access"
     ? value
     : null
 }
@@ -204,9 +199,6 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
   if (!taskId || !projectId || !status) {
     return null
   }
-
-  const runtimePolicySource = asRecord(source.runtimePolicy)
-
   const parsed = taskListItemSchema.safeParse({
     taskId,
     projectId,
@@ -220,20 +212,6 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
     model: toStringOrNull(source.model),
     executor: toStringOrNull(source.executor) ?? "codex",
     executionMode: toExecutionMode(source.executionMode),
-    runtimePolicy: runtimePolicySource
-      ? {
-          sandboxMode: toSandboxMode(runtimePolicySource.sandboxMode) ?? "workspace-write",
-          approvalPolicy:
-            toApprovalPolicy(runtimePolicySource.approvalPolicy) ?? "never",
-          networkAccessEnabled: runtimePolicySource.networkAccessEnabled === true,
-          webSearchMode: toWebSearchMode(runtimePolicySource.webSearchMode) ?? "disabled",
-          additionalDirectories: Array.isArray(runtimePolicySource.additionalDirectories)
-            ? (runtimePolicySource.additionalDirectories as unknown[]).filter(
-                (item): item is string => typeof item === "string",
-              )
-            : [],
-        }
-      : null,
     status,
     threadId: toStringOrNull(source.threadId),
     parentTaskId: toStringOrNull(source.parentTaskId),
@@ -349,19 +327,17 @@ export async function createTask(
   projectId: string,
   input: CreateTaskInput,
 ): Promise<CreateTaskResult> {
-  const response = await fetch(`${EXECUTOR_API_BASE}/tasks`, {
+  const response = await fetch(buildExecutorApiUrl("/v1/tasks"), {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
     body: JSON.stringify({
       projectId,
-      prompt: input.prompt,
+      input: input.input,
       model: input.model,
-      modelSource: input.modelSource,
       executor: input.executor ?? "codex",
       executionMode: input.executionMode,
-      runtimePolicy: input.runtimePolicy,
     }),
   })
 
@@ -398,7 +374,9 @@ export async function readProjectTasks(args: {
   }
 
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/projects/${encodeURIComponent(args.projectId)}/tasks${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
+    buildExecutorApiUrl(
+      `/v1/projects/${encodeURIComponent(args.projectId)}/tasks${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
+    ),
     {
       method: "GET",
       cache: "no-store",
@@ -420,7 +398,7 @@ export async function readProjectTasks(args: {
 
 export async function readTaskDetail(taskId: string): Promise<TaskDetail> {
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}`,
+    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}`),
     {
       method: "GET",
       cache: "no-store",
@@ -462,7 +440,9 @@ export async function readTaskEvents(args: {
 
   const query = searchParams.toString()
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(args.taskId)}/events${query ? `?${query}` : ""}`,
+    buildExecutorApiUrl(
+      `/v1/tasks/${encodeURIComponent(args.taskId)}/events${query ? `?${query}` : ""}`,
+    ),
     {
       method: "GET",
       cache: "no-store",
@@ -488,7 +468,7 @@ export async function readTaskEvents(args: {
 
 export async function breakTaskTurn(taskId: string): Promise<TaskDetail | null> {
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/break`,
+    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/break`),
     {
       method: "POST",
       headers: {
@@ -506,7 +486,7 @@ export async function breakTaskTurn(taskId: string): Promise<TaskDetail | null> 
 
 export async function retryTask(taskId: string): Promise<CreateTaskResult> {
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/retry`,
+    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/retry`),
     {
       method: "POST",
       headers: {
@@ -542,7 +522,7 @@ export async function retryTask(taskId: string): Promise<CreateTaskResult> {
 
 export async function archiveTask(taskId: string): Promise<TaskDetail> {
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/archive`,
+    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/archive`),
     {
       method: "POST",
       headers: {
@@ -568,7 +548,7 @@ export async function archiveTask(taskId: string): Promise<TaskDetail> {
 
 export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}`,
+    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}`),
     {
       method: "DELETE",
     },
@@ -600,14 +580,14 @@ export async function followupTask(
   input: FollowupTaskInput,
 ): Promise<CreateTaskResult> {
   const response = await fetch(
-    `${EXECUTOR_API_BASE}/tasks/${encodeURIComponent(taskId)}/followup`,
+    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/followup`),
     {
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        prompt: input.prompt,
+        input: input.input,
         model: input.model,
         modelSource: input.modelSource,
       }),
@@ -635,5 +615,45 @@ export async function followupTask(
   return {
     taskId: nextTaskId,
     task: task ?? undefined,
+  }
+}
+
+export async function storeTaskInputImage(
+  projectId: string,
+  input: StoreTaskInputImageInput,
+): Promise<StoreTaskInputImageResult> {
+  const response = await fetch(
+    buildExecutorApiUrl(
+      `/v1/projects/${encodeURIComponent(projectId)}/task-input-images`,
+    ),
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to store task input image.")
+
+  const path = toStringOrNull(payload?.path)
+  const mediaType = toStringOrNull(payload?.mediaType)
+  const name = toStringOrNull(payload?.name)
+  const size = toIntegerOrNull(payload?.size)
+
+  if (!path || !mediaType || !name || size === null) {
+    throw new TaskApiClientError("Image upload succeeded but payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return {
+    path,
+    mediaType,
+    name,
+    size,
   }
 }

@@ -1,16 +1,19 @@
+export type {
+  CreateProjectBody,
+  DeleteProjectResponse,
+  ProjectIdParams,
+  UpdateProjectBody,
+  UpdateProjectSettingsBody,
+} from "./project.schema"
 export {
+  archiveProjectRouteSchema,
   createProjectRouteSchema,
-  createProjectBodySchema,
   deleteProjectRouteSchema,
+  getProjectRouteSchema,
   getProjectSettingsRouteSchema,
   listProjectsRouteSchema,
-  type CreateProjectBody,
-  type ProjectSettingsBody,
-  type ProjectIdParams,
-  projectSettingsBodySchema,
   projectIdParamsSchema,
-  type UpdateProjectBody,
-  updateProjectSettingsRouteSchema,
+  restoreProjectRouteSchema,
   updateProjectRouteSchema,
-  updateProjectBodySchema,
+  updateProjectSettingsRouteSchema,
 } from "./project.schema"

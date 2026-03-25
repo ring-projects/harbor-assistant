@@ -1,290 +1,465 @@
-# Project 接口文档
+# Project API
 
-本文档描述当前 `project` 相关后端接口（Service + Server Actions）的真实行为，用于 client 对接和后续重构基线。
+本文档描述当前 Harbor `project` 模块的真实运行时契约。
 
-## 1. 概览
+结论先说：
 
-- 基础模型：`Project`
-- 数据存储：SQLite（Prisma）
-- 数据文件位置：由 `DATABASE_URL` 决定
-- 兼容迁移：启动时可从旧 `~/.harbor/data/workspaces.json` 导入
-- 当前 action 返回统一结果类型：`ProjectActionResult`
+- 当前前端不再通过 Next.js BFF `/api/*` 转发 `project` 请求。
+- Web 直接请求 executor service 的 `/v1/projects/*`。
+- `project` 当前同时支持：
+  - 创建
+  - 查询
+  - 更新
+  - 更新 settings
+  - 归档 / 恢复
+  - 永久删除
 
-## 2. 数据模型
+---
 
-来源：[src/services/project/types.ts](../src/services/project/types.ts)
+## 1. 接入方式
+
+Web 通过环境变量 `NEXT_PUBLIC_EXECUTOR_API_BASE_URL` 直连后端 service。
+
+实现位置：
+
+- 前端 URL 解析：[executor-service-url.ts](../apps/web/src/lib/executor-service-url.ts)
+- 前端 project client：[project-api-client.ts](../apps/web/src/modules/projects/api/project-api-client.ts)
+- 后端 project routes：[index.ts](../apps/service/src/modules/project/routes/index.ts)
+
+示例：
+
+```bash
+NEXT_PUBLIC_EXECUTOR_API_BASE_URL=http://127.0.0.1:3400
+```
+
+---
+
+## 2. Project 数据模型
+
+来源：[project.ts](../apps/service/src/modules/project/domain/project.ts)
 
 ```ts
+type ProjectStatus = "active" | "archived" | "missing"
+
+type ProjectExecutionPolicy = {
+  defaultExecutor: string | null
+  defaultModel: string | null
+  defaultExecutionMode: string | null
+  maxConcurrentTasks: number
+}
+
+type ProjectRetentionPolicy = {
+  logRetentionDays: number | null
+  eventRetentionDays: number | null
+}
+
+type ProjectSkillPolicy = {
+  harborSkillsEnabled: boolean
+  harborSkillProfile: string | null
+}
+
+type ProjectSettings = {
+  execution: ProjectExecutionPolicy
+  retention: ProjectRetentionPolicy
+  skills: ProjectSkillPolicy
+}
+
 type Project = {
   id: string
+  slug: string
   name: string
-  path: string
+  description: string | null
+  rootPath: string
+  normalizedPath: string
+  status: ProjectStatus
   createdAt: string
+  updatedAt: string
+  archivedAt: string | null
+  lastOpenedAt: string | null
+  settings: ProjectSettings
 }
 ```
 
-`createdAt` 使用 ISO 时间字符串（`new Date().toISOString()`）。
+说明：
 
-## 3. Service 层接口
+- `rootPath` 表示当前项目根目录。
+- `normalizedPath` 是 canonical path，用于唯一性约束。
+- `status` 当前支持 `active | archived | missing`。
+- 所有时间字段在 HTTP 响应中都是 ISO 字符串。
 
-来源：[src/services/project/project.repository.ts](../src/services/project/project.repository.ts)
-
-### 3.1 `listProjects()`
-
-```ts
-function listProjects(): Promise<Project[]>
-```
-
-- 读取 `projects` 表全部数据
-- 排序规则：`ORDER BY created_at DESC`（新建在前）
-- 失败时抛出 `ProjectRepositoryError(code = "DB_READ_ERROR")`
-
-### 3.2 `getProjectById(id)`
+默认 settings：
 
 ```ts
-function getProjectById(id: string): Promise<Project | null>
-```
-
-- 会先 `trim()` 处理 `id`
-- 空字符串直接返回 `null`（不会抛错）
-- 查询异常抛出 `ProjectRepositoryError(code = "DB_READ_ERROR")`
-
-### 3.3 `addProject({ path, name? })`
-
-```ts
-function addProject(input: { path: string; name?: string }): Promise<Project>
-```
-
-路径处理与校验：
-
-- `path.trim()` 为空：抛 `INVALID_PATH`
-- 相对路径会基于 service 配置中的 `fileBrowserRootDirectory` 解析
-- 使用 `realpath` 获取规范化绝对路径
-- 路径不存在或不可访问：抛 `PATH_NOT_FOUND`
-- 路径不是目录：抛 `NOT_A_DIRECTORY`
-
-命名规则：
-
-- `name` 传入且非空（trim 后）则使用该值
-- 否则默认 `basename(canonicalPath)`
-
-写入规则：
-
-- 主键 `id` 使用 `randomUUID()`
-- `createdAt` 为当前 ISO 时间
-- `path` 唯一约束冲突：抛 `DUPLICATE_PATH`
-- 其他写入失败：抛 `DB_WRITE_ERROR`
-
-### 3.4 `deleteProject(id)`
-
-```ts
-function deleteProject(id: string): Promise<boolean>
-```
-
-- `id.trim()` 为空：抛 `INVALID_PROJECT_ID`
-- 存在则删除并返回 `true`
-- 不存在返回 `false`（不会抛错）
-- 删除异常抛 `DB_WRITE_ERROR`
-
-### 3.5 异常类型
-
-```ts
-class ProjectRepositoryError extends Error {
-  code: ProjectErrorCode
+{
+  execution: {
+    defaultExecutor: "codex",
+    defaultModel: null,
+    defaultExecutionMode: "safe",
+    maxConcurrentTasks: 1,
+  },
+  retention: {
+    logRetentionDays: 30,
+    eventRetentionDays: 7,
+  },
+  skills: {
+    harborSkillsEnabled: false,
+    harborSkillProfile: "default",
+  },
 }
 ```
 
-`ProjectErrorCode` 定义如下：
+---
 
-- `INVALID_PATH`
-- `PATH_NOT_FOUND`
-- `NOT_A_DIRECTORY`
-- `DUPLICATE_PATH`
-- `INVALID_PROJECT_ID`
-- `DB_READ_ERROR`
-- `DB_WRITE_ERROR`
+## 3. 路由总览
 
-## 4. Server Actions 接口
+当前 `project` 模块对外暴露以下路由：
 
-来源：[src/app/actions/projects.ts](../src/app/actions/projects.ts)
+1. `GET /v1/projects`
+2. `POST /v1/projects`
+3. `GET /v1/projects/:id`
+4. `PATCH /v1/projects/:id`
+5. `DELETE /v1/projects/:id`
+6. `GET /v1/projects/:id/settings`
+7. `PATCH /v1/projects/:id/settings`
+8. `POST /v1/projects/:id/archive`
+9. `POST /v1/projects/:id/restore`
 
-### 4.1 统一返回结构
+---
 
-```ts
-type ProjectActionResult = {
-  ok: boolean
-  projects: Project[]
-  error?: {
-    code: string
-    message: string
+## 4. 具体接口
+
+### 4.1 `GET /v1/projects`
+
+返回所有项目列表。
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "projects": [
+    {
+      "id": "project-1",
+      "slug": "harbor-assistant",
+      "name": "Harbor Assistant",
+      "description": null,
+      "rootPath": "/tmp/harbor-assistant",
+      "normalizedPath": "/tmp/harbor-assistant",
+      "status": "active",
+      "createdAt": "2026-03-25T04:00:00.000Z",
+      "updatedAt": "2026-03-25T04:00:00.000Z",
+      "archivedAt": null,
+      "lastOpenedAt": null,
+      "settings": {
+        "execution": {
+          "defaultExecutor": "codex",
+          "defaultModel": null,
+          "defaultExecutionMode": "safe",
+          "maxConcurrentTasks": 1
+        },
+        "retention": {
+          "logRetentionDays": 30,
+          "eventRetentionDays": 7
+        },
+        "skills": {
+          "harborSkillsEnabled": false,
+          "harborSkillProfile": "default"
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4.2 `POST /v1/projects`
+
+创建项目。
+
+请求体：
+
+```json
+{
+  "id": "project-1",
+  "name": "Harbor Assistant",
+  "rootPath": "~/workspace/harbor-assistant",
+  "description": "optional"
+}
+```
+
+说明：
+
+- 当前后端要求 `id` 显式传入。
+- Web client 当前在浏览器侧使用 `crypto.randomUUID()` 生成 `id`。
+- `rootPath` 会先经过 path policy canonicalize，再写入 `rootPath` 与 `normalizedPath`。
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "project": {
+    "...": "Project"
+  }
+}
+```
+
+常见错误：
+
+- `400 INVALID_REQUEST_BODY`
+- `400 INVALID_REQUEST_BODY`：例如 `rootPath` 为空
+- `409 DUPLICATE_PATH`
+- `409 DUPLICATE_SLUG`
+
+### 4.3 `GET /v1/projects/:id`
+
+按 `id` 读取项目。
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "project": {
+    "...": "Project"
+  }
+}
+```
+
+常见错误：
+
+- `404 PROJECT_NOT_FOUND`
+
+### 4.4 `PATCH /v1/projects/:id`
+
+更新项目 profile 或根路径。
+
+请求体：
+
+```json
+{
+  "name": "Harbor Service",
+  "description": "Core service workspace",
+  "rootPath": "~/workspace/harbor-service"
+}
+```
+
+说明：
+
+- 三个字段都是可选的，但至少要传一个。
+- `name` / `description` 更新 profile。
+- `rootPath` 会重新 canonicalize，并同步更新 `rootPath` 与 `normalizedPath`。
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "project": {
+    "...": "Project"
+  }
+}
+```
+
+常见错误：
+
+- `400 INVALID_REQUEST_BODY`
+- `404 PROJECT_NOT_FOUND`
+- `409 DUPLICATE_PATH`
+- `409 DUPLICATE_SLUG`
+
+### 4.5 `DELETE /v1/projects/:id`
+
+永久删除项目记录。
+
+说明：
+
+- 这是删除 Harbor 中的项目元数据记录。
+- 当前语义不删除本地工作区文件。
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "projectId": "project-1"
+}
+```
+
+常见错误：
+
+- `404 PROJECT_NOT_FOUND`
+
+### 4.6 `GET /v1/projects/:id/settings`
+
+读取项目 settings。
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "settings": {
+    "execution": {
+      "defaultExecutor": "codex",
+      "defaultModel": null,
+      "defaultExecutionMode": "safe",
+      "maxConcurrentTasks": 1
+    },
+    "retention": {
+      "logRetentionDays": 30,
+      "eventRetentionDays": 7
+    },
+    "skills": {
+      "harborSkillsEnabled": false,
+      "harborSkillProfile": "default"
+    }
+  }
+}
+```
+
+常见错误：
+
+- `404 PROJECT_NOT_FOUND`
+
+### 4.7 `PATCH /v1/projects/:id/settings`
+
+局部更新 settings。
+
+请求体示例：
+
+```json
+{
+  "execution": {
+    "defaultExecutor": "codex",
+    "defaultExecutionMode": "connected",
+    "maxConcurrentTasks": 4
+  },
+  "retention": {
+    "logRetentionDays": 14
   }
 }
 ```
 
 说明：
 
-- action 返回时总是携带 `projects`
-- 成功时 `ok = true`，`error` 为空
-- 失败时 `ok = false`，`error` 包含 `code/message`
+- `execution` / `retention` / `skills` 都是可选块。
+- 每个块内也是 partial update。
+- 数值字段必须是正整数，或 `null`。
 
-### 4.2 `addProjectAction({ path, name? })`
-
-```ts
-function addProjectAction(input: {
-  path: string
-  name?: string
-}): Promise<ProjectActionResult>
-```
-
-行为：
-
-1. 调用 `addProject(input)`
-2. 成功后调用 `listProjects()`，返回最新列表
-3. 异常时：
-   - 错误通过 `mapError` 映射
-   - 仍尝试 `listProjects()`；若再次失败则降级为空数组
-
-### 4.3 `listProjectsAction()`
-
-```ts
-function listProjectsAction(): Promise<ProjectActionResult>
-```
-
-行为：
-
-- 成功：`{ ok: true, projects }`
-- 失败：`{ ok: false, projects: [], error }`
-
-### 4.4 `deleteProjectAction({ id })`
-
-```ts
-function deleteProjectAction(input: {
-  id: string
-}): Promise<ProjectActionResult>
-```
-
-行为：
-
-1. 调用 `deleteProject(input.id)`
-2. 若返回 `false`（未找到）：
-   - 返回 `ok: false`
-   - `error.code = "NOT_FOUND"`
-   - 同时返回当前 `projects` 列表
-3. 删除成功返回 `ok: true` + 最新 `projects`
-4. 出现异常时走 `mapError`，并尽量附带最新 `projects`（失败则空数组）
-
-### 4.5 Action 错误映射
-
-- 若异常是 `ProjectRepositoryError`：直接透传 `code/message`
-- 其他未知错误：映射为
-  - `code: "INTERNAL_ERROR"`
-  - `message: "Unexpected error occurred while updating projects."`
-
-## 5. 存储与迁移细节
-
-### 5.1 SQLite 初始化
-
-- 打开 DB 前确保目录存在（`mkdirSync(..., { recursive: true })`）
-- 启用：
-  - `PRAGMA journal_mode = WAL`
-  - `PRAGMA foreign_keys = ON`
-
-表结构：
-
-```sql
-CREATE TABLE IF NOT EXISTS projects (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  path TEXT NOT NULL UNIQUE,
-  created_at TEXT NOT NULL
-)
-```
-
-### 5.2 旧数据迁移（workspaces -> projects）
-
-迁移触发条件：
-
-- 仅当 `projects` 表当前为空时执行
-
-迁移来源：
-
-- `~/.harbor/data/workspaces.json`
-
-迁移规则：
-
-- 读取 `workspaces[]` 中合法项（`id/name/path/createdAt` 均为字符串）
-- 通过事务批量 `INSERT OR IGNORE INTO projects`
-- 非法 JSON、文件不存在、字段不完整都会被安全忽略（不抛出）
-
-## 6. HTTP API（供 useQuery/useMutation 使用）
-
-当前新增了基于 Route Handler 的项目接口，可直接用于客户端 `fetch`。
-
-### 6.1 `GET /api/projects`
-
-- 成功：`200`
-  - `{ ok: true, projects: Project[] }`
-- 失败：`4xx/5xx`
-  - `{ ok: false, projects: [], error }`
-
-### 6.2 `POST /api/projects`
-
-请求体：
+成功响应：
 
 ```json
 {
-  "path": "string",
-  "name": "string (optional)"
+  "ok": true,
+  "project": {
+    "...": "Project"
+  }
 }
 ```
 
-- 成功：`200`
-  - `{ ok: true, projects: Project[] }`（返回新增后的完整列表）
-- 参数错误：`400`（`INVALID_REQUEST_BODY`）
-- 业务错误：
-  - `DUPLICATE_PATH` -> `409`
-  - `INVALID_PATH/PATH_NOT_FOUND/NOT_A_DIRECTORY` -> `400`
-  - 其他 -> `500`
+常见错误：
 
-### 6.3 `DELETE /api/projects/:id`
+- `400 INVALID_REQUEST_BODY`
+- `404 PROJECT_NOT_FOUND`
 
-- 成功：`200`
-  - `{ ok: true, projects: Project[] }`
-- 不存在：`404`
-  - `{ ok: false, projects: Project[], error: { code: "NOT_FOUND", ... } }`
-- 业务错误（如 `INVALID_PROJECT_ID`）：`400`
+### 4.8 `POST /v1/projects/:id/archive`
 
-### 6.4 `PUT /api/projects/:id`
+将项目置为归档状态。
 
-请求体：
+成功响应：
 
 ```json
 {
-  "path": "string (optional)",
-  "name": "string (optional)"
+  "ok": true,
+  "project": {
+    "...": "Project",
+    "status": "archived"
+  }
 }
 ```
 
-约束：
+常见错误：
 
-- 至少提供一个字段：`path` 或 `name`
+- `404 PROJECT_NOT_FOUND`
+- `409 INVALID_PROJECT_STATE`
 
-- 成功：`200`
-  - `{ ok: true, projects: Project[] }`（返回更新后的完整列表）
-- 参数错误：`400`（`INVALID_REQUEST_BODY`）
-- 不存在：`404`（`NOT_FOUND`）
-- 业务错误：
-  - `DUPLICATE_PATH` -> `409`
-  - `INVALID_PATH/PATH_NOT_FOUND/NOT_A_DIRECTORY` -> `400`
-  - 其他 -> `500`
+### 4.9 `POST /v1/projects/:id/restore`
 
-## 7. 对接建议
+恢复已归档项目。
 
-- client 侧优先依赖 `/api/projects`，不直接耦合 repository 抛错细节
-- 对 `error.code` 做分支处理时，至少覆盖：
-  - `NOT_FOUND`
-  - `DUPLICATE_PATH`
-  - `INVALID_PATH`
-  - `PATH_NOT_FOUND`
-  - `NOT_A_DIRECTORY`
-  - `INTERNAL_ERROR`
+成功响应：
+
+```json
+{
+  "ok": true,
+  "project": {
+    "...": "Project",
+    "status": "active"
+  }
+}
+```
+
+常见错误：
+
+- `404 PROJECT_NOT_FOUND`
+- `409 INVALID_PROJECT_STATE`
+
+---
+
+## 5. 错误码
+
+来源：
+
+- service app error 映射：[project-app-error.ts](../apps/service/src/modules/project/project-app-error.ts)
+- 全局错误码：[errors.ts](../apps/service/src/constants/errors.ts)
+
+`project` 相关对外错误码主要包括：
+
+- `INVALID_REQUEST_BODY`
+- `PROJECT_NOT_FOUND`
+- `DUPLICATE_PATH`
+- `DUPLICATE_SLUG`
+- `INVALID_PROJECT_STATE`
+- `INTERNAL_ERROR`
+
+错误响应结构：
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "PROJECT_NOT_FOUND",
+    "message": "project not found"
+  }
+}
+```
+
+---
+
+## 6. 前端对接约定
+
+当前前端 project 模块的真实行为：
+
+1. 使用 `NEXT_PUBLIC_EXECUTOR_API_BASE_URL` 拼接 service URL。
+2. 直接请求 `/v1/projects/*`，不再经过 `/api/projects`。
+3. 创建项目时，浏览器生成 `id`。
+4. 删除项目后，前端会：
+   - 从 `projects` 查询缓存移除该项目
+   - 清理 project detail / settings 缓存
+   - 如果当前激活项目被删，则清空 `activeProjectId`
+
+相关实现：
+
+- 前端 API client：[project-api-client.ts](../apps/web/src/modules/projects/api/project-api-client.ts)
+- 前端 hooks：[use-projects.ts](../apps/web/src/modules/projects/hooks/use-projects.ts)
+
+---
+
+## 7. 当前非目标
+
+以下内容不属于当前 `project` API：
+
+- 不通过 Next Route Handlers 做项目代理转发
+- 不通过 Server Actions 暴露项目 CRUD
+- 不在删除项目时自动删除本地目录
+- 不在 `project` 模块内混入 filesystem / git 读写逻辑

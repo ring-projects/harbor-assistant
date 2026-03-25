@@ -7,8 +7,8 @@
 - 日期：2026-03-11
 - 范围：项目内 Task 工作台（创建、列表、conversation events、follow-up、取消、重试）
 - 依赖文档：
-  - `/Users/qiuhao/workspace/harbor-assistant/docs/frd-frontend.md`
-  - `/Users/qiuhao/workspace/harbor-assistant/docs/prd-executor-service.md`
+  - [frd-frontend.md](./frd-frontend.md)
+  - [prd-executor-service.md](./prd-executor-service.md)
 
 ---
 
@@ -141,7 +141,10 @@ conversation 区需展示：
 
 1. 原始 agent event 按时间顺序展示。
 2. event 需保留 `sequence` 与 `createdAt`。
-3. 前端可以基于 eventType 做差异化视觉映射，但不改变原始数据语义。
+3. 前端不得把数据库中的原始事件直接当作最终 UI 模型使用。
+4. 前端可以基于 query projection 做差异化视觉映射，但 projection 不应反向定义存储模型。
+5. 原始事件存储与 query projection 的边界见：
+   - [task-event-storage-model.md](./task-event-storage-model.md)
 
 ### TFR-011 实时更新优先级
 

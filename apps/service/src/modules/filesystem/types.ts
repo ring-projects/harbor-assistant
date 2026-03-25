@@ -17,3 +17,19 @@ export type FileSystemListResult = {
   nextCursor: string | null
   truncated: boolean
 }
+
+export type FileSystemPathInfo = {
+  path: string
+  type: FileSystemEntryType
+  isHidden: boolean
+  isSymlink: boolean
+  size: number | null
+  mtime: string | null
+}
+
+export type ReadTextFileResult = {
+  path: string
+  content: string
+  size: number | null
+  mtime: string | null
+}

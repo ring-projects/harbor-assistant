@@ -1,7 +1,8 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { RotateCcwIcon, SaveIcon, XIcon } from "lucide-react"
-import { useEffect, useMemo, useState, type ComponentProps } from "react"
+import { useMemo, useState, type ComponentProps } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -14,6 +15,7 @@ import {
   type ProjectExecutionMode,
   type ProjectExecutor,
   type ProjectSettings,
+  useDeleteProjectMutation,
   useProjectSettingsQuery,
   useUpdateProjectSettingsMutation,
 } from "@/modules/projects"
@@ -26,7 +28,6 @@ type ProjectSettingsViewProps = {
 
 type SettingsDraft = {
   defaultExecutor: ProjectExecutor
-  defaultModel: string
   defaultExecutionMode: ProjectExecutionMode
   maxConcurrentTasks: string
   logRetentionDays: string
@@ -87,14 +88,17 @@ function formatExecutionModeLabel(value: ProjectExecutionMode | null) {
 
 function toDraft(settings: ProjectSettings): SettingsDraft {
   return {
-    defaultExecutor: settings.defaultExecutor ?? "codex",
-    defaultModel: settings.defaultModel ?? "",
-    defaultExecutionMode: settings.defaultExecutionMode ?? "connected",
-    maxConcurrentTasks: String(settings.maxConcurrentTasks),
+    defaultExecutor: settings.execution.defaultExecutor ?? "codex",
+    defaultExecutionMode: settings.execution.defaultExecutionMode ?? "connected",
+    maxConcurrentTasks: String(settings.execution.maxConcurrentTasks),
     logRetentionDays:
-      settings.logRetentionDays === null ? "" : String(settings.logRetentionDays),
+      settings.retention.logRetentionDays === null
+        ? ""
+        : String(settings.retention.logRetentionDays),
     eventRetentionDays:
-      settings.eventRetentionDays === null ? "" : String(settings.eventRetentionDays),
+      settings.retention.eventRetentionDays === null
+        ? ""
+        : String(settings.retention.eventRetentionDays),
   }
 }
 
@@ -140,32 +144,29 @@ export function ProjectSettingsView({
   mode = "page",
   onClose,
 }: ProjectSettingsViewProps) {
+  const router = useRouter()
   const settingsQuery = useProjectSettingsQuery(projectId)
   const updateMutation = useUpdateProjectSettingsMutation(projectId)
-  const [draft, setDraft] = useState<SettingsDraft | null>(null)
+  const deleteMutation = useDeleteProjectMutation()
+  const [draftOverride, setDraftOverride] = useState<SettingsDraft | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!settingsQuery.data || draft) {
-      return
-    }
-
-    setDraft(toDraft(settingsQuery.data))
-  }, [draft, settingsQuery.data])
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const baselineDraft = useMemo(
     () => (settingsQuery.data ? toDraft(settingsQuery.data) : null),
     [settingsQuery.data],
   )
+  const draft = draftOverride ?? baselineDraft
 
   const hasChanges = useMemo(() => {
-    if (!draft || !baselineDraft) {
+    if (!draftOverride || !baselineDraft) {
       return false
     }
 
-    return JSON.stringify(draft) !== JSON.stringify(baselineDraft)
-  }, [baselineDraft, draft])
+    return JSON.stringify(draftOverride) !== JSON.stringify(baselineDraft)
+  }, [baselineDraft, draftOverride])
 
   const shellClassName =
     mode === "modal"
@@ -179,16 +180,19 @@ export function ProjectSettingsView({
 
     try {
       setSaveError(null)
-      const nextSettings = await updateMutation.mutateAsync({
-        defaultExecutor: draft.defaultExecutor,
-        defaultModel: draft.defaultModel.trim() || null,
-        defaultExecutionMode: draft.defaultExecutionMode,
-        maxConcurrentTasks: parsePositiveInteger(draft.maxConcurrentTasks, 1),
-        logRetentionDays: parseNullablePositiveInteger(draft.logRetentionDays),
-        eventRetentionDays: parseNullablePositiveInteger(draft.eventRetentionDays),
+      const nextProject = await updateMutation.mutateAsync({
+        execution: {
+          defaultExecutor: draft.defaultExecutor,
+          defaultExecutionMode: draft.defaultExecutionMode,
+          maxConcurrentTasks: parsePositiveInteger(draft.maxConcurrentTasks, 1),
+        },
+        retention: {
+          logRetentionDays: parseNullablePositiveInteger(draft.logRetentionDays),
+          eventRetentionDays: parseNullablePositiveInteger(draft.eventRetentionDays),
+        },
       })
 
-      setDraft(toDraft(nextSettings))
+      setDraftOverride(toDraft(nextProject.settings))
       setSaveSuccessMessage("Project settings saved.")
     } catch (error) {
       setSaveSuccessMessage(null)
@@ -203,10 +207,21 @@ export function ProjectSettingsView({
 
     setSaveError(null)
     setSaveSuccessMessage(null)
-    setDraft(baselineDraft)
+    setDraftOverride(baselineDraft)
   }
 
-  const summary = draft ?? baselineDraft
+  async function handleDeleteProject() {
+    try {
+      setDeleteError(null)
+      await deleteMutation.mutateAsync({ projectId })
+      onClose?.()
+      router.replace("/")
+    } catch (error) {
+      setDeleteError(getProjectActionError(error))
+    }
+  }
+
+  const summary = draft
 
   return (
     <div className={shellClassName}>
@@ -255,12 +270,6 @@ export function ProjectSettingsView({
                     </dd>
                   </div>
                   <div className="grid gap-1">
-                    <dt className="text-muted-foreground text-xs">Default Model</dt>
-                    <dd className="font-medium">
-                      {summary.defaultModel.trim() || "-"}
-                    </dd>
-                  </div>
-                  <div className="grid gap-1">
                     <dt className="text-muted-foreground text-xs">Concurrency</dt>
                     <dd className="font-medium">{summary.maxConcurrentTasks}</dd>
                   </div>
@@ -295,6 +304,61 @@ export function ProjectSettingsView({
               <p className="text-muted-foreground mt-1 text-xs leading-5">
                 The current default uses a pre-authorized runtime flow instead of in-run approval as the primary path. These values are the project-level baseline.
               </p>
+            </Card>
+
+            <Card className="border-red-200 p-4">
+              <p className="text-sm font-semibold">Danger Zone</p>
+              <p className="text-muted-foreground mt-1 text-xs leading-5">
+                Permanently delete this project record. This removes Harbor metadata for the project but does not delete files from the local workspace.
+              </p>
+
+              <div className="mt-4 grid gap-2">
+                {confirmDelete ? (
+                  <>
+                    <p className="text-sm font-medium text-red-700">
+                      Delete project permanently?
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => void handleDeleteProject()}
+                        disabled={deleteMutation.isPending}
+                      >
+                        {deleteMutation.isPending ? "Deleting..." : "Delete Project"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setConfirmDelete(false)
+                          setDeleteError(null)
+                        }}
+                        disabled={deleteMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                    onClick={() => {
+                      setDeleteError(null)
+                      setConfirmDelete(true)
+                    }}
+                    disabled={deleteMutation.isPending}
+                  >
+                    Delete Project
+                  </Button>
+                )}
+
+                {deleteError ? (
+                  <p className="text-xs text-red-600">{deleteError}</p>
+                ) : null}
+              </div>
             </Card>
           </aside>
 
@@ -334,10 +398,12 @@ export function ProjectSettingsView({
                             onClick={() => {
                               setSaveError(null)
                               setSaveSuccessMessage(null)
-                              setDraft((current) =>
+                              setDraftOverride((current) =>
                                 current
                                   ? { ...current, defaultExecutor: option.value }
-                                  : current,
+                                  : baselineDraft
+                                    ? { ...baselineDraft, defaultExecutor: option.value }
+                                    : current,
                               )
                             }}
                             disabled={updateMutation.isPending}
@@ -358,19 +424,6 @@ export function ProjectSettingsView({
                     </div>
                   </div>
 
-                  <SettingsField
-                    label="Default Model"
-                    description="Default model for new tasks. Leave empty to let each runtime use its own default."
-                    value={draft.defaultModel}
-                    onChange={(value) => {
-                      setSaveError(null)
-                      setSaveSuccessMessage(null)
-                      setDraft((current) =>
-                        current ? { ...current, defaultModel: value } : current,
-                      )
-                    }}
-                    placeholder="gpt-5-codex"
-                  />
                 </TabsContent>
 
                 <TabsContent value="execution" className="mt-0 flex-1 space-y-4">
@@ -387,13 +440,18 @@ export function ProjectSettingsView({
                             onClick={() => {
                               setSaveError(null)
                               setSaveSuccessMessage(null)
-                              setDraft((current) =>
+                              setDraftOverride((current) =>
                                 current
                                   ? {
                                       ...current,
                                       defaultExecutionMode: option.value,
                                     }
-                                  : current,
+                                  : baselineDraft
+                                    ? {
+                                        ...baselineDraft,
+                                        defaultExecutionMode: option.value,
+                                      }
+                                    : current,
                               )
                             }}
                             disabled={updateMutation.isPending}
@@ -426,8 +484,12 @@ export function ProjectSettingsView({
                     onChange={(value) => {
                       setSaveError(null)
                       setSaveSuccessMessage(null)
-                      setDraft((current) =>
-                        current ? { ...current, maxConcurrentTasks: value } : current,
+                      setDraftOverride((current) =>
+                        current
+                          ? { ...current, maxConcurrentTasks: value }
+                          : baselineDraft
+                            ? { ...baselineDraft, maxConcurrentTasks: value }
+                            : current,
                       )
                     }}
                     type="number"
@@ -444,8 +506,12 @@ export function ProjectSettingsView({
                       onChange={(value) => {
                         setSaveError(null)
                         setSaveSuccessMessage(null)
-                        setDraft((current) =>
-                          current ? { ...current, logRetentionDays: value } : current,
+                        setDraftOverride((current) =>
+                          current
+                            ? { ...current, logRetentionDays: value }
+                            : baselineDraft
+                              ? { ...baselineDraft, logRetentionDays: value }
+                              : current,
                         )
                       }}
                       type="number"
@@ -458,10 +524,12 @@ export function ProjectSettingsView({
                       onChange={(value) => {
                         setSaveError(null)
                         setSaveSuccessMessage(null)
-                        setDraft((current) =>
+                        setDraftOverride((current) =>
                           current
                             ? { ...current, eventRetentionDays: value }
-                            : current,
+                            : baselineDraft
+                              ? { ...baselineDraft, eventRetentionDays: value }
+                              : current,
                         )
                       }}
                       type="number"

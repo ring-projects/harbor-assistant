@@ -33,38 +33,11 @@ export const TASK_EXECUTION_MODE_VALUES = [
   "safe",
   "connected",
   "full-access",
-  "custom",
-] as const
-export const TASK_SANDBOX_MODE_VALUES = [
-  "read-only",
-  "workspace-write",
-  "danger-full-access",
-] as const
-export const TASK_APPROVAL_POLICY_VALUES = [
-  "never",
-  "on-request",
-  "untrusted",
-] as const
-export const TASK_WEB_SEARCH_MODE_VALUES = [
-  "disabled",
-  "cached",
-  "live",
 ] as const
 
 export const taskStatusSchema = z.enum(TASK_STATUS_VALUES)
 export const taskTimeRangeSchema = z.enum(TASK_TIME_RANGE_VALUES)
 export const taskExecutionModeSchema = z.enum(TASK_EXECUTION_MODE_VALUES)
-export const taskSandboxModeSchema = z.enum(TASK_SANDBOX_MODE_VALUES)
-export const taskApprovalPolicySchema = z.enum(TASK_APPROVAL_POLICY_VALUES)
-export const taskWebSearchModeSchema = z.enum(TASK_WEB_SEARCH_MODE_VALUES)
-
-export const taskRuntimePolicySchema = z.object({
-  sandboxMode: taskSandboxModeSchema,
-  approvalPolicy: taskApprovalPolicySchema,
-  networkAccessEnabled: z.boolean(),
-  webSearchMode: taskWebSearchModeSchema,
-  additionalDirectories: z.array(z.string()).default([]),
-})
 
 export const taskFilterSchema = z.object({
   statuses: z.array(taskStatusSchema),
@@ -82,7 +55,6 @@ export const taskListItemSchema = z.object({
   model: z.string().nullable().default(null),
   executor: z.string().default("codex"),
   executionMode: taskExecutionModeSchema.nullable().default(null),
-  runtimePolicy: taskRuntimePolicySchema.nullable().default(null),
   status: taskStatusSchema,
   threadId: z.string().nullable().default(null),
   parentTaskId: z.string().nullable().default(null),
@@ -120,7 +92,6 @@ export type TaskStatus = z.infer<typeof taskStatusSchema>
 export type TaskAgentEventType = z.infer<typeof taskAgentEventTypeSchema>
 export type TaskTimeRange = z.infer<typeof taskTimeRangeSchema>
 export type TaskExecutionMode = z.infer<typeof taskExecutionModeSchema>
-export type TaskRuntimePolicy = z.infer<typeof taskRuntimePolicySchema>
 export type TaskFilter = z.infer<typeof taskFilterSchema>
 export type TaskListItem = z.infer<typeof taskListItemSchema>
 export type TaskDetail = z.infer<typeof taskDetailSchema>

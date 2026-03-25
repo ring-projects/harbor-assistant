@@ -1,30 +1,41 @@
 export type Project = {
   id: string
+  slug: string
   name: string
-  slug: string | null
+  description: string | null
   rootPath: string
   normalizedPath: string
-  description: string | null
   status: "active" | "archived" | "missing"
-  lastOpenedAt: string | null
-  updatedAt: string
   archivedAt: string | null
-  path: string
+  lastOpenedAt: string | null
   createdAt: string
+  updatedAt: string
+  settings: ProjectSettings
 }
 
 export type ProjectExecutor = "codex" | "claude-code"
 
 export type ProjectExecutionMode = "safe" | "connected" | "full-access"
 
-export type ProjectSettings = {
-  projectId: string
+export type ProjectExecutionPolicy = {
   defaultExecutor: ProjectExecutor | null
   defaultModel: string | null
   defaultExecutionMode: ProjectExecutionMode | null
   maxConcurrentTasks: number
+}
+
+export type ProjectRetentionPolicy = {
   logRetentionDays: number | null
   eventRetentionDays: number | null
-  createdAt: string
-  updatedAt: string
+}
+
+export type ProjectSkillPolicy = {
+  harborSkillsEnabled: boolean
+  harborSkillProfile: string | null
+}
+
+export type ProjectSettings = {
+  execution: ProjectExecutionPolicy
+  retention: ProjectRetentionPolicy
+  skills: ProjectSkillPolicy
 }

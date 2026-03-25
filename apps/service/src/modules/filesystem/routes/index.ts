@@ -1,20 +1,157 @@
 import type { FastifyInstance } from "fastify"
 
-import { createFileSystemRepository } from "../repositories"
-import { createFileSystemService } from "../services"
-import { registerFileSystemRoutes } from "./filesystem.routes"
+import { getProjectUseCase } from "../../project/application/get-project"
+import type { ProjectRepository } from "../../project/application/project-repository"
+import { createDirectoryUseCase } from "../application/create-directory"
+import type { FileSystemRepository } from "../application/filesystem-repository"
+import { listDirectoryUseCase } from "../application/list-directory"
+import { readTextFileUseCase } from "../application/read-text-file"
+import { statPathUseCase } from "../application/stat-path"
+import { writeTextFileUseCase } from "../application/write-text-file"
+import { toFileSystemAppError } from "../filesystem-app-error"
+import {
+  createProjectDirectoryRouteSchema,
+  listProjectFilesRouteSchema,
+  readProjectTextFileRouteSchema,
+  statProjectPathRouteSchema,
+  writeProjectTextFileRouteSchema,
+  type ProjectCreateDirectoryBody,
+  type ProjectFilePathQuery,
+  type ProjectFilesParams,
+  type ProjectListDirectoryBody,
+  type ProjectWriteTextFileBody,
+} from "../schemas"
 
 export async function registerFileSystemModuleRoutes(
   app: FastifyInstance,
-  args: { rootDirectory: string },
+  options: {
+    projectRepository: Pick<ProjectRepository, "findById">
+    fileSystemRepository: FileSystemRepository
+  },
 ) {
-  const fileSystemRepository = createFileSystemRepository()
-  const fileSystemService = createFileSystemService({
-    fileSystemRepository,
-    rootDirectory: args.rootDirectory,
-  })
+  async function resolveProjectRoot(projectId: string) {
+    const project = await getProjectUseCase(options.projectRepository, projectId)
+    return project.rootPath
+  }
 
-  await registerFileSystemRoutes(app, {
-    fileSystemService,
-  })
+  app.post<{ Params: ProjectFilesParams; Body: ProjectListDirectoryBody }>(
+    "/projects/:projectId/files/list",
+    {
+      schema: listProjectFilesRouteSchema,
+    },
+    async (request) => {
+      try {
+        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const listing = await listDirectoryUseCase(options.fileSystemRepository, {
+          rootPath,
+          path: request.body?.path,
+          cursor: request.body?.cursor,
+          limit: request.body?.limit,
+          includeHidden: request.body?.includeHidden,
+        })
+
+        return {
+          ok: true,
+          listing,
+        }
+      } catch (error) {
+        throw toFileSystemAppError(error)
+      }
+    },
+  )
+
+  app.get<{ Params: ProjectFilesParams; Querystring: ProjectFilePathQuery }>(
+    "/projects/:projectId/files/stat",
+    {
+      schema: statProjectPathRouteSchema,
+    },
+    async (request) => {
+      try {
+        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const pathInfo = await statPathUseCase(options.fileSystemRepository, {
+          rootPath,
+          path: request.query.path,
+        })
+
+        return {
+          ok: true,
+          pathInfo,
+        }
+      } catch (error) {
+        throw toFileSystemAppError(error)
+      }
+    },
+  )
+
+  app.get<{ Params: ProjectFilesParams; Querystring: ProjectFilePathQuery }>(
+    "/projects/:projectId/files/text",
+    {
+      schema: readProjectTextFileRouteSchema,
+    },
+    async (request) => {
+      try {
+        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const file = await readTextFileUseCase(options.fileSystemRepository, {
+          rootPath,
+          path: request.query.path,
+        })
+
+        return {
+          ok: true,
+          file,
+        }
+      } catch (error) {
+        throw toFileSystemAppError(error)
+      }
+    },
+  )
+
+  app.post<{ Params: ProjectFilesParams; Body: ProjectWriteTextFileBody }>(
+    "/projects/:projectId/files/text",
+    {
+      schema: writeProjectTextFileRouteSchema,
+    },
+    async (request) => {
+      try {
+        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const file = await writeTextFileUseCase(options.fileSystemRepository, {
+          rootPath,
+          path: request.body.path,
+          content: request.body.content,
+          createParents: request.body.createParents,
+        })
+
+        return {
+          ok: true,
+          file,
+        }
+      } catch (error) {
+        throw toFileSystemAppError(error)
+      }
+    },
+  )
+
+  app.post<{ Params: ProjectFilesParams; Body: ProjectCreateDirectoryBody }>(
+    "/projects/:projectId/files/directories",
+    {
+      schema: createProjectDirectoryRouteSchema,
+    },
+    async (request) => {
+      try {
+        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const directory = await createDirectoryUseCase(options.fileSystemRepository, {
+          rootPath,
+          path: request.body.path,
+          recursive: request.body.recursive,
+        })
+
+        return {
+          ok: true,
+          directory,
+        }
+      } catch (error) {
+        throw toFileSystemAppError(error)
+      }
+    },
+  )
 }

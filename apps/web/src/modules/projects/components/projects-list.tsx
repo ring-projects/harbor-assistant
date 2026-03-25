@@ -96,7 +96,7 @@ export function ProjectsList({
                     <SidebarMenuButton
                       asChild
                       isActive={project.id === resolvedActiveProjectId}
-                      tooltip={project.path}
+                      tooltip={project.rootPath}
                       className="h-auto py-2"
                     >
                       <Link href={`/${encodeURIComponent(project.id)}`}>

@@ -12,60 +12,23 @@ enum TaskTitleSource {
   user
 }
 
-enum TaskMessageRole {
-  user
-  assistant
-  system
-}
-
 model Task {
-  id            String             @id @default(cuid())
-  projectId     String
-  projectPath   String
-  prompt        String
-  title         String
-  titleSource   TaskTitleSource    @default(prompt)
-  titleUpdatedAt DateTime?
-  executor      String
-  executionMode String?
-  runtimePolicy String?
-  model         String?
-  status        TaskStatus         @default(queued)
-  threadId      String?
-  parentTaskId  String?
-  startedAt     DateTime?
-  finishedAt    DateTime?
-  exitCode      Int?
-  command       String?
-  stdout        String             @default("")
-  stderr        String             @default("")
-  error         String?
-  archivedAt    DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  parentTask    Task?              @relation("TaskLineage", fields: [parentTaskId], references: [id], onDelete: SetNull)
-  childTasks    Task[]             @relation("TaskLineage")
-  agentEvents   TaskAgentEvent[]
+  id          String          @id @default(cuid())
+  projectId   String
+  prompt      String
+  title       String
+  titleSource TaskTitleSource @default(prompt)
+  status      TaskStatus      @default(queued)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  execution   Execution?
 
   @@index([projectId, createdAt(sort: Desc)])
   @@index([projectId, archivedAt, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
-  @@index([threadId, status, createdAt(sort: Desc)])
-  @@index([parentTaskId, createdAt(sort: Desc)])
   @@map("tasks")
-}
-
-model TaskAgentEvent {
-  id         String   @id @default(cuid())
-  taskId     String
-  sequence   Int
-  eventType  String
-  payload    String
-  createdAt  DateTime @default(now())
-  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@unique([taskId, sequence])
-  @@index([taskId, createdAt(sort: Asc)])
-  @@index([taskId, eventType, sequence])
-  @@map("task_agent_events")
 }

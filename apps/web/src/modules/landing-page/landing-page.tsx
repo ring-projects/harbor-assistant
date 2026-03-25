@@ -30,14 +30,9 @@ export function LandingPage() {
     setIsCreateMode(false)
   }
 
-  function handleProjectCreated(projects: Project[]) {
-    const nextProject = projects[0]
-    if (!nextProject) {
-      setCreateError("Project created but no project is available to open.")
-      return
-    }
-
-    router.push(`/${nextProject.id}`)
+  function handleProjectCreated(project: Project) {
+    setCreateError(null)
+    router.push(`/${project.id}`)
   }
 
   return (

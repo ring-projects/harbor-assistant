@@ -1,4 +1,6 @@
 export * from "./api"
-export * from "./components"
 export * from "./contracts"
+export * from "./domain"
+export * from "./features"
+export * from "./screens"
 export * from "./telemetry"

@@ -16,7 +16,7 @@ type CreateProjectProps = {
   defaultPath?: string
   defaultName?: string
   onCancel?: () => void
-  onCreated?: (projects: Project[]) => void
+  onCreated?: (project: Project) => void
 }
 
 export function CreateProject(props: CreateProjectProps) {
@@ -31,12 +31,12 @@ export function CreateProject(props: CreateProjectProps) {
 
   async function handleConfirm(path: string) {
     try {
-      const projects = await createMutation.mutateAsync({
-        path,
-        name: props.defaultName?.trim() || undefined,
+      const project = await createMutation.mutateAsync({
+        rootPath: path,
+        name: props.defaultName?.trim() || path.split(/[\\/]/).filter(Boolean).at(-1) || path,
       })
 
-      onCreated?.(projects)
+      onCreated?.(project)
     } catch (error) {
       throw new Error(getProjectActionError(error))
     }

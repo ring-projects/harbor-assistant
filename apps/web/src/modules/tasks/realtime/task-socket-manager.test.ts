@@ -1,8 +1,8 @@
 import { QueryClient } from "@tanstack/react-query"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { useTasksSessionStore } from "@/modules/tasks/domain/store"
 import { gitQueryKeys } from "@/modules/git"
-import { useTasksSessionStore } from "@/modules/tasks/store"
 
 import { TaskSocketManager } from "./task-socket-manager"
 
@@ -67,7 +67,6 @@ describe("TaskSocketManager", () => {
         model: null,
         executor: "codex",
         executionMode: "connected",
-        runtimePolicy: null,
         status: "completed",
         threadId: null,
         parentTaskId: null,

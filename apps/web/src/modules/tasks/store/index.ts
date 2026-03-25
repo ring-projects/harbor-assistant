@@ -1,4 +1,5 @@
-export * from "./tasks-session.selectors"
-export * from "./tasks-session.store"
-export * from "./tasks-session.types"
+export {
+  selectProjectTasks,
+  selectTaskDetail,
+} from "../domain/store"
 export * from "./task-event-stream.utils"

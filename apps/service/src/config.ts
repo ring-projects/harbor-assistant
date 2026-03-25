@@ -4,7 +4,7 @@ import { resolveHarborConfig } from "../../../scripts/harbor-config.mjs"
 
 const configSchema = z.object({
   port: z.coerce.number().int().default(3400),
-  host: z.string().default("0.0.0.0"),
+  host: z.string().default("127.0.0.1"),
   serviceName: z.string().default("harbor"),
   database: z.url(),
   fileBrowserRootDirectory: z.string().min(1),

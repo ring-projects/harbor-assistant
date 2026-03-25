@@ -22,8 +22,10 @@ pnpm run dev:all
 
 ## 连接后端 service
 
-Web 侧 `/api/projects` 与 `/api/fs/list` 已改为转发到 service。
+Web 不再通过 Next.js BFF `/api/*` 转发请求，当前直接连接 executor service。
 
-- 环境变量：`EXECUTOR_SERVICE_BASE_URL`
-- 默认值：`http://127.0.0.1:3400`
-- 如果 service 运行在默认本地模式下，通常不需要额外配置。service 本身会从 `~/.harbor/app.yaml` 读取数据库和根目录设置。
+- 环境变量：`NEXT_PUBLIC_EXECUTOR_API_BASE_URL`
+- 必填：没有默认推导逻辑
+- 示例：`NEXT_PUBLIC_EXECUTOR_API_BASE_URL=http://127.0.0.1:3400`
+
+当前 `project`、`task`、`git` 等前端数据请求都基于这个地址直接访问 `/v1/*`。

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect } from "react"
 
 import { gitQueryKeys } from "@/modules/git"
+import { useTasksSessionStore } from "@/modules/tasks/domain/store"
 import {
   archiveTask,
   breakTaskTurn,
@@ -17,7 +18,6 @@ import {
   retryTask,
   type CreateTaskInput,
 } from "@/modules/tasks/api"
-import { useTasksSessionStore } from "@/modules/tasks/store"
 export { useTaskEventStream } from "./use-task-event-stream"
 export { useProjectTaskListStream } from "./use-project-task-list-stream"
 
@@ -241,12 +241,21 @@ export function useTaskFollowupMutation(projectId: string) {
   return useMutation({
     mutationFn: (input: {
       taskId: string
-      prompt: string
+      input: Array<
+        | {
+            type: "text"
+            text: string
+          }
+        | {
+            type: "local_image"
+            path: string
+          }
+      >
       model?: string
       modelSource?: "task-default" | "runtime-default"
     }) =>
       followupTask(input.taskId, {
-        prompt: input.prompt,
+        input: input.input,
         model: input.model,
         modelSource: input.modelSource,
       }),

@@ -58,11 +58,11 @@ apps/service/src/modules/project/
 
 对应关键文件：
 
-- 路由组合根：[apps/service/src/modules/project/routes/index.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/routes/index.ts)
-- 模块工厂入口：[apps/service/src/modules/project/index.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/index.ts)
-- 错误定义：[apps/service/src/modules/project/errors.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/errors.ts)
-- 路由 schema：[apps/service/src/modules/project/schemas/project.schema.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/schemas/project.schema.ts)
-- 测试样例：[apps/service/src/modules/project/__tests__/project.routes.test.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/__tests__/project.routes.test.ts)
+- 路由组合根：[apps/service/src/modules/project/routes/index.ts](../apps/service/src/modules/project/routes/index.ts)
+- 模块工厂入口：[apps/service/src/modules/project/index.ts](../apps/service/src/modules/project/index.ts)
+- 错误定义：[apps/service/src/modules/project/errors.ts](../apps/service/src/modules/project/errors.ts)
+- 路由 schema：[apps/service/src/modules/project/schemas/project.schema.ts](../apps/service/src/modules/project/schemas/project.schema.ts)
+- 测试样例：[apps/service/src/modules/project/__tests__/project.routes.test.ts](../apps/service/src/modules/project/__tests__/project.routes.test.ts)
 
 ### 1.3 当前值得保留的优点
 
@@ -263,7 +263,7 @@ Repository 层不要做这些事：
 
 ## 2.6 错误处理规范
 
-统一遵守 [service-error-handling-guide.md](/Users/qiuhao/workspace/harbor-assistant/docs/service-error-handling-guide.md)。
+统一遵守 [service-error-handling-guide.md](./service-error-handling-guide.md)。
 
 模块内错误规范如下：
 
@@ -287,7 +287,7 @@ Repository 层不要做这些事：
 1. 导出模块公开类型和 factory
 2. 提供模块 composition root
 
-推荐参考 [apps/service/src/modules/project/index.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/index.ts)
+推荐参考 [apps/service/src/modules/project/index.ts](../apps/service/src/modules/project/index.ts)
 
 建议保留的公开入口：
 
@@ -329,9 +329,9 @@ Repository 层不要做这些事：
 
 当前参考文件：
 
-- [apps/service/src/modules/project/__tests__/project.routes.test.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/__tests__/project.routes.test.ts)
-- [apps/service/test/helpers/project-test-app.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/test/helpers/project-test-app.ts)
-- [apps/service/test/helpers/test-database.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/test/helpers/test-database.ts)
+- [apps/service/src/modules/project/__tests__/project.routes.test.ts](../apps/service/src/modules/project/__tests__/project.routes.test.ts)
+- [apps/service/test/helpers/project-test-app.ts](../apps/service/test/helpers/project-test-app.ts)
+- [apps/service/test/helpers/test-database.ts](../apps/service/test/helpers/test-database.ts)
 
 测试规范要求：
 

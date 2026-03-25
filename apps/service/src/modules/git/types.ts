@@ -1,14 +1,20 @@
+export type GitBranch = {
+  name: string
+  current: boolean
+}
+
 export type GitRepositorySummary = {
-  projectId: string
+  path: string
   repositoryRoot: string
   currentBranch: string | null
   detached: boolean
   dirty: boolean
 }
 
-export type GitBranch = {
-  name: string
-  current: boolean
+export type GitBranchList = {
+  path: string
+  currentBranch: string | null
+  branches: GitBranch[]
 }
 
 export type GitDiffFileStatus =
@@ -47,12 +53,6 @@ export type GitDiffFile = {
 }
 
 export type GitDiff = {
-  projectId: string
+  path: string
   files: GitDiffFile[]
-}
-
-export type GitBranchList = {
-  projectId: string
-  currentBranch: string | null
-  branches: GitBranch[]
 }

@@ -5,52 +5,27 @@ enum ProjectStatus {
 }
 
 model Project {
-  id             String             @id @default(uuid())
-  name           String
-  slug           String?            @unique
-  rootPath       String
-  normalizedPath String             @unique
-  description    String?
-  status         ProjectStatus      @default(active)
-  lastOpenedAt   DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  archivedAt     DateTime?
-  settings       ProjectSetting?
-  mcpServers     ProjectMcpServer[]
+  id                   String        @id @default(uuid())
+  name                 String
+  slug                 String?       @unique
+  rootPath             String
+  normalizedPath       String        @unique
+  description          String?
+  status               ProjectStatus @default(active)
+  lastOpenedAt         DateTime?
+  defaultExecutor      String?       @default("codex")
+  defaultModel         String?
+  defaultExecutionMode String?       @default("safe")
+  maxConcurrentTasks   Int           @default(1)
+  logRetentionDays     Int?          @default(30)
+  eventRetentionDays   Int?          @default(7)
+  harborSkillsEnabled  Boolean       @default(false)
+  harborSkillProfile   String?       @default("default")
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  archivedAt           DateTime?
+  tasks                Task[]
 
   @@index([status, updatedAt(sort: Desc)])
   @@map("projects")
-}
-
-model ProjectSetting {
-  projectId            String   @id
-  defaultExecutor      String?  @default("codex")
-  defaultModel         String?
-  defaultExecutionMode String? @default("safe")
-  maxConcurrentTasks   Int      @default(1)
-  logRetentionDays     Int?     @default(30)
-  eventRetentionDays   Int?     @default(7)
-  harborSkillsEnabled  Boolean  @default(false)
-  harborSkillProfile   String?  @default("default")
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@map("project_settings")
-}
-
-model ProjectMcpServer {
-  id         String   @id @default(cuid())
-  projectId  String
-  serverName String
-  enabled    Boolean  @default(true)
-  source     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, serverName])
-  @@index([projectId, updatedAt(sort: Desc)])
-  @@map("project_mcp_servers")
 }

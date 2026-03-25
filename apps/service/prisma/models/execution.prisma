@@ -1,0 +1,55 @@
+enum ExecutionOwnerType {
+  task
+}
+
+enum ExecutionStatus {
+  queued
+  running
+  awaiting_input
+  completed
+  failed
+  cancelled
+}
+
+model Execution {
+  id               String             @id @default(cuid())
+  ownerType        ExecutionOwnerType @default(task)
+  ownerId          String             @unique
+  executorType     String
+  executorModel    String?
+  executionMode    String?
+  workingDirectory String
+  sessionId        String?
+  status           ExecutionStatus    @default(queued)
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  exitCode         Int?
+  errorMessage     String?
+  command          String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  task             Task               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  events           ExecutionEvent[]
+
+  @@unique([ownerType, ownerId])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([sessionId, status, createdAt(sort: Desc)])
+  @@map("executions")
+}
+
+model ExecutionEvent {
+  id           String    @id @default(cuid())
+  executionId  String
+  sequence     Int
+  source       String
+  rawEventType String
+  rawPayload   Json
+  createdAt    DateTime  @default(now())
+  execution    Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, sequence])
+  @@index([executionId, createdAt(sort: Asc)])
+  @@index([executionId, source, sequence])
+  @@index([executionId, rawEventType, sequence])
+  @@map("execution_events")
+}

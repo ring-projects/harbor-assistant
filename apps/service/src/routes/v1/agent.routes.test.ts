@@ -2,27 +2,23 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
 import Fastify, { type FastifyInstance } from "fastify"
 
-const { inspectAllAgentCapabilities } = vi.hoisted(() => ({
-  inspectAllAgentCapabilities: vi.fn(async () => ({
+const { getAgentCapabilities } = vi.hoisted(() => ({
+  getAgentCapabilities: vi.fn(async () => ({
     checkedAt: new Date("2026-03-18T01:02:03.000Z"),
-    availableAgents: ["codex"],
     agents: {
       codex: {
-        installed: true,
-        version: "codex-cli 0.64.0",
         models: [
           {
-            id: "gpt-5",
-            displayName: "GPT-5",
+            id: "gpt-5.3-codex",
+            name: "GPT-5.3 Codex",
             isDefault: true,
+            efforts: ["low", "medium", "high", "xhigh"],
           },
         ],
         supportsResume: true,
         supportsStreaming: true,
       },
       "claude-code": {
-        installed: false,
-        version: null,
         models: [],
         supportsResume: false,
         supportsStreaming: false,
@@ -32,7 +28,7 @@ const { inspectAllAgentCapabilities } = vi.hoisted(() => ({
 }))
 
 vi.mock("../../lib/agents", () => ({
-  inspectAllAgentCapabilities,
+  getAgentCapabilities,
 }))
 
 import { registerAgentRoutes } from "./agent.routes"
@@ -61,24 +57,20 @@ describe("agent routes", () => {
       ok: true,
       capabilities: {
         checkedAt: "2026-03-18T01:02:03.000Z",
-        availableAgents: ["codex"],
         agents: {
           codex: {
-            installed: true,
-            version: "codex-cli 0.64.0",
             models: [
               {
-                id: "gpt-5",
-                displayName: "GPT-5",
+                id: "gpt-5.3-codex",
+                name: "GPT-5.3 Codex",
                 isDefault: true,
+                efforts: ["low", "medium", "high", "xhigh"],
               },
             ],
             supportsResume: true,
             supportsStreaming: true,
           },
           "claude-code": {
-            installed: false,
-            version: null,
             models: [],
             supportsResume: false,
             supportsStreaming: false,

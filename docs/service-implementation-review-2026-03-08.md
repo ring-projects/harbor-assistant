@@ -1,5 +1,8 @@
 # Harbor Service Implementation Review
 
+> Historical review snapshot. Keep this document as a dated risk review, not as
+> the current service architecture definition.
+
 Date: 2026-03-08  
 Scope: `apps/service` (HTTP routes, task runtime, repository/persistence, config, capability probe)
 

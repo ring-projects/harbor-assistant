@@ -378,7 +378,7 @@ All APIs must return typed error codes suitable for UI branching.
 
 ## 17. References
 
-- `/Users/qiuhao/workspace/harbor-assistant/docs/agent-runtime-integration.md`
-- `/Users/qiuhao/workspace/harbor-assistant/docs/project-api.md`
-- `/Users/qiuhao/workspace/harbor-assistant/docs/research/codex-mcp-config-research.md`
-- `/Users/qiuhao/workspace/harbor-assistant/_bmad-output/planning-artifacts/research/technical-codex-sub-agent-in-service-research-2026-03-05.md`
+- [agent-runtime-integration.md](./agent-runtime-integration.md)
+- [project-api.md](./project-api.md)
+- [research/codex-mcp-config-research.md](./research/codex-mcp-config-research.md)
+- historical planning artifact in `_bmad-output/planning-artifacts/research/technical-codex-sub-agent-in-service-research-2026-03-05.md` if present locally

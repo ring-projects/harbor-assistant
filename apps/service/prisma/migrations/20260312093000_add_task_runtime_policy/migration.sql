@@ -1,5 +1,0 @@
--- No-op migration.
--- The preceding 20260312092020_update migration already recreates the tasks table
--- with both "executionMode" and "runtimePolicy" columns included. Leaving the
--- original ALTER TABLE statements here breaks fresh database initialization with
--- duplicate column errors.

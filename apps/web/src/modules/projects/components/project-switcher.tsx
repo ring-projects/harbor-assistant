@@ -78,7 +78,7 @@ export function ProjectSwitcher({
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{project.name}</div>
                   <div className="text-muted-foreground truncate text-xs">
-                    {project.path}
+                    {project.rootPath}
                   </div>
                 </div>
 

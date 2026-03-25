@@ -1,4 +1,5 @@
-import { ERROR_CODES, getV1AgentCapabilitiesApiRoute } from "@/constants"
+import { ERROR_CODES } from "@/constants"
+import { buildExecutorApiUrl } from "@/lib/executor-service-url"
 import {
   agentCapabilityResultSchema,
   type AgentCapabilityResult,
@@ -16,7 +17,7 @@ type AgentCapabilitiesEnvelope = {
 }
 
 export async function readAgentCapabilities(): Promise<AgentCapabilityResult> {
-  const response = await fetch(getV1AgentCapabilitiesApiRoute(), {
+  const response = await fetch(buildExecutorApiUrl("/v1/agents/capabilities"), {
     method: "GET",
     cache: "no-store",
   })

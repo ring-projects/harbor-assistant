@@ -14,7 +14,7 @@
 
 ### 1.1 共享错误基类
 
-文件：[apps/service/src/lib/errors/app-error.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/lib/errors/app-error.ts)
+文件：[apps/service/src/lib/errors/app-error.ts](../apps/service/src/lib/errors/app-error.ts)
 
 当前所有可被全局错误处理器识别的业务错误，都应该继承 `AppError`。
 
@@ -34,7 +34,7 @@
 
 ### 1.2 错误归一化与响应序列化
 
-文件：[apps/service/src/lib/errors/error-response.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/lib/errors/error-response.ts)
+文件：[apps/service/src/lib/errors/error-response.ts](../apps/service/src/lib/errors/error-response.ts)
 
 这里负责两件事：
 
@@ -65,7 +65,7 @@
 
 ### 1.3 Fastify 全局错误处理插件
 
-文件：[apps/service/src/plugins/error-handler.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/plugins/error-handler.ts)
+文件：[apps/service/src/plugins/error-handler.ts](../apps/service/src/plugins/error-handler.ts)
 
 插件注册了两个入口：
 
@@ -84,13 +84,13 @@
 
 这个插件已经在应用初始化时注册：
 
-文件：[apps/service/src/app.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/app.ts)
+文件：[apps/service/src/app.ts](../apps/service/src/app.ts)
 
 ## 2. 当前各模块的接入方式
 
 ### 2.1 Project 模块
 
-文件：[apps/service/src/modules/project/errors.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/errors.ts)
+文件：[apps/service/src/modules/project/errors.ts](../apps/service/src/modules/project/errors.ts)
 
 `project` 模块当前采用的是推荐结构：
 
@@ -113,8 +113,8 @@
 
 文件：
 
-- [apps/service/src/modules/tasks/task.service.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/tasks/task.service.ts)
-- [apps/service/src/modules/tasks/task.repository.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/tasks/task.repository.ts)
+- [apps/service/src/modules/tasks/services/task.service.ts](../apps/service/src/modules/tasks/services/task.service.ts)
+- [apps/service/src/modules/tasks/repositories/task.repository.ts](../apps/service/src/modules/tasks/repositories/task.repository.ts)
 
 `task` 模块当前已经接到 `AppError` 体系里，但还没有完全收敛成 factory-only 风格。
 
@@ -133,7 +133,7 @@
 
 ### 2.3 Filesystem 模块
 
-文件：[apps/service/src/modules/filesystem/types.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/filesystem/types.ts)
+文件：[apps/service/src/modules/filesystem/types.ts](../apps/service/src/modules/filesystem/types.ts)
 
 `filesystem` 模块当前是一个过渡态：
 
@@ -149,9 +149,9 @@
 
 对应文件：
 
-- [apps/service/src/modules/project/routes/project.routes.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/project/routes/project.routes.ts)
-- [apps/service/src/modules/tasks/routes/tasks.routes.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/tasks/routes/tasks.routes.ts)
-- [apps/service/src/modules/filesystem/routes/filesystem.routes.ts](/Users/qiuhao/workspace/harbor-assistant/apps/service/src/modules/filesystem/routes/filesystem.routes.ts)
+- [apps/service/src/modules/project/routes/project.routes.ts](../apps/service/src/modules/project/routes/project.routes.ts)
+- [apps/service/src/modules/tasks/routes/tasks.routes.ts](../apps/service/src/modules/tasks/routes/tasks.routes.ts)
+- [apps/service/src/modules/filesystem/routes/filesystem.routes.ts](../apps/service/src/modules/filesystem/routes/filesystem.routes.ts)
 
 当前约束如下：
 

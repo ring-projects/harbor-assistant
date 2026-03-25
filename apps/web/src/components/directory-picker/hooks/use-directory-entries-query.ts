@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 
-import { API_ROUTES } from "@/constants"
+import { buildExecutorApiUrl } from "@/lib/executor-service-url"
 import type {
   DirectoryListErrorResponse,
   DirectoryListSuccessResponse,
@@ -25,7 +25,7 @@ function toErrorMessage(payload: DirectoryListErrorResponse | null) {
 }
 
 async function fetchDirectoryEntries(input: UseDirectoryEntriesQueryInput) {
-  const response = await fetch(API_ROUTES.fsList, {
+  const response = await fetch(buildExecutorApiUrl("/v1/fs/list"), {
     method: "POST",
     headers: {
       "content-type": "application/json",

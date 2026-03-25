@@ -1,35 +1,9 @@
-import type { AgentCapabilityResult, AgentType } from "../types"
-import { inspectCodexCapabilities } from "./codex"
-import { inspectClaudeCodeCapabilities } from "./claude-code"
+import type { AgentCapabilityResult } from "../types"
+import { AgentFactory } from "../factory"
 
 /**
- * Inspect all agent capabilities
+ * Get all declared agent capabilities
  */
-export async function inspectAllAgentCapabilities(args?: {
-  harborHomeDirectory?: string
-}): Promise<AgentCapabilityResult> {
-  const [codexCapabilities, claudeCodeCapabilities] = await Promise.all([
-    inspectCodexCapabilities({
-      harborHomeDirectory: args?.harborHomeDirectory,
-    }),
-    inspectClaudeCodeCapabilities(),
-  ])
-
-  const agents = {
-    codex: codexCapabilities,
-    "claude-code": claudeCodeCapabilities,
-  }
-
-  const availableAgents: AgentType[] = []
-  for (const [type, capabilities] of Object.entries(agents)) {
-    if (capabilities.installed) {
-      availableAgents.push(type as AgentType)
-    }
-  }
-
-  return {
-    checkedAt: new Date(),
-    agents,
-    availableAgents,
-  }
+export async function getAgentCapabilities(): Promise<AgentCapabilityResult> {
+  return AgentFactory.inspectAll()
 }

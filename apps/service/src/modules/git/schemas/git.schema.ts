@@ -12,6 +12,52 @@ export type CreateGitBranchBody = {
   fromRef?: string | null
 }
 
+const gitProjectParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["projectId"],
+  properties: {
+    projectId: { type: "string", minLength: 1 },
+  },
+} as const
+
+const gitRepositorySummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["path", "repositoryRoot", "currentBranch", "detached", "dirty"],
+  properties: {
+    path: { type: "string" },
+    repositoryRoot: { type: "string" },
+    currentBranch: { type: ["string", "null"] },
+    detached: { type: "boolean" },
+    dirty: { type: "boolean" },
+  },
+} as const
+
+const gitBranchSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "current"],
+  properties: {
+    name: { type: "string" },
+    current: { type: "boolean" },
+  },
+} as const
+
+const gitBranchListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["path", "currentBranch", "branches"],
+  properties: {
+    path: { type: "string" },
+    currentBranch: { type: ["string", "null"] },
+    branches: {
+      type: "array",
+      items: gitBranchSchema,
+    },
+  },
+} as const
+
 const gitDiffLineSchema = {
   type: "object",
   additionalProperties: false,
@@ -73,44 +119,6 @@ const gitDiffFileSchema = {
   },
 } as const
 
-const gitRepositorySummarySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "projectId",
-    "repositoryRoot",
-    "currentBranch",
-    "detached",
-    "dirty",
-  ],
-  properties: {
-    projectId: { type: "string" },
-    repositoryRoot: { type: "string" },
-    currentBranch: { type: ["string", "null"] },
-    detached: { type: "boolean" },
-    dirty: { type: "boolean" },
-  },
-} as const
-
-const gitBranchSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["name", "current"],
-  properties: {
-    name: { type: "string" },
-    current: { type: "boolean" },
-  },
-} as const
-
-const gitProjectParamsSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["projectId"],
-  properties: {
-    projectId: { type: "string" },
-  },
-} as const
-
 const checkoutGitBranchBodySchema = {
   type: "object",
   additionalProperties: false,
@@ -131,7 +139,7 @@ const createGitBranchBodySchema = {
   },
 } as const
 
-export const getGitRepositoryRouteSchema = {
+export const getProjectGitRepositoryRouteSchema = {
   params: gitProjectParamsSchema,
   response: {
     200: {
@@ -146,27 +154,22 @@ export const getGitRepositoryRouteSchema = {
   },
 } as const
 
-export const listGitBranchesRouteSchema = {
+export const listProjectGitBranchesRouteSchema = {
   params: gitProjectParamsSchema,
   response: {
     200: {
       type: "object",
       additionalProperties: false,
-      required: ["ok", "projectId", "currentBranch", "branches"],
+      required: ["ok", "branches"],
       properties: {
         ok: { type: "boolean", const: true },
-        projectId: { type: "string" },
-        currentBranch: { type: ["string", "null"] },
-        branches: {
-          type: "array",
-          items: gitBranchSchema,
-        },
+        branches: gitBranchListSchema,
       },
     },
   },
 } as const
 
-export const getGitDiffRouteSchema = {
+export const getProjectGitDiffRouteSchema = {
   params: gitProjectParamsSchema,
   response: {
     200: {
@@ -178,9 +181,9 @@ export const getGitDiffRouteSchema = {
         diff: {
           type: "object",
           additionalProperties: false,
-          required: ["projectId", "files"],
+          required: ["path", "files"],
           properties: {
-            projectId: { type: "string" },
+            path: { type: "string" },
             files: {
               type: "array",
               items: gitDiffFileSchema,
@@ -192,7 +195,7 @@ export const getGitDiffRouteSchema = {
   },
 } as const
 
-export const checkoutGitBranchRouteSchema = {
+export const checkoutProjectGitBranchRouteSchema = {
   params: gitProjectParamsSchema,
   body: checkoutGitBranchBodySchema,
   response: {
@@ -208,17 +211,17 @@ export const checkoutGitBranchRouteSchema = {
   },
 } as const
 
-export const createGitBranchRouteSchema = {
+export const createProjectGitBranchRouteSchema = {
   params: gitProjectParamsSchema,
   body: createGitBranchBodySchema,
   response: {
     200: {
       type: "object",
       additionalProperties: false,
-      required: ["ok", "repository"],
+      required: ["ok", "branches"],
       properties: {
         ok: { type: "boolean", const: true },
-        repository: gitRepositorySummarySchema,
+        branches: gitBranchListSchema,
       },
     },
   },

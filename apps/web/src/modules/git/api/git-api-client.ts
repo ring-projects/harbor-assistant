@@ -1,9 +1,8 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
+import { buildExecutorApiUrl } from "@/lib/executor-service-url"
 import { gitDiffSchema, type GitDiff } from "@/modules/git/contracts"
-
-const GIT_API_BASE = "/api/v1/projects"
 
 const gitApiErrorSchema = z.object({
   code: z.string(),
@@ -85,7 +84,7 @@ function extractDiff(payload: unknown): GitDiff | null {
 
 export async function readProjectGitDiff(projectId: string): Promise<GitDiff> {
   const response = await fetch(
-    `${GIT_API_BASE}/${encodeURIComponent(projectId)}/git/diff`,
+    buildExecutorApiUrl(`/v1/projects/${encodeURIComponent(projectId)}/git/diff`),
     {
       method: "GET",
       cache: "no-store",

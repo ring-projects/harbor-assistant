@@ -7,12 +7,10 @@ import { PrismaClient } from "@prisma/client"
 import { buildChildProcessEnv } from "./process-env"
 
 const REQUIRED_SQLITE_TABLES = [
-  "_prisma_migrations",
   "projects",
-  "project_settings",
-  "project_mcp_servers",
   "tasks",
-  "task_agent_events",
+  "executions",
+  "execution_events",
 ] as const
 
 function getServiceRootDirectory() {
@@ -61,14 +59,14 @@ async function inspectSqliteSchema(databaseUrl: string) {
   }
 }
 
-async function runPrismaMigrateDeploy(args: {
+async function runPrismaDbPush(args: {
   databaseUrl: string
   serviceRootDirectory: string
 }) {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(
       getPnpmCommand(),
-      ["exec", "prisma", "migrate", "deploy"],
+      ["exec", "prisma", "db", "push", "--skip-generate"],
       {
         cwd: args.serviceRootDirectory,
         stdio: "inherit",
@@ -81,12 +79,12 @@ async function runPrismaMigrateDeploy(args: {
     child.on("error", reject)
     child.on("close", (code, signal) => {
       if (signal) {
-        reject(new Error(`Prisma migrate deploy was terminated by signal ${signal}.`))
+        reject(new Error(`Prisma db push was terminated by signal ${signal}.`))
         return
       }
 
       if (code !== 0) {
-        reject(new Error(`Prisma migrate deploy exited with code ${code ?? 1}.`))
+        reject(new Error(`Prisma db push exited with code ${code ?? 1}.`))
         return
       }
 
@@ -99,7 +97,7 @@ export async function ensureServiceDatabaseInitialized(args: {
   databaseUrl: string
   serviceRootDirectory?: string
   inspectSqliteSchema?: (databaseUrl: string) => Promise<boolean>
-  runPrismaMigrateDeploy?: (args: {
+  runPrismaDbPush?: (args: {
     databaseUrl: string
     serviceRootDirectory: string
   }) => Promise<void>
@@ -116,7 +114,7 @@ export async function ensureServiceDatabaseInitialized(args: {
 
   if (!databaseExists) {
     await mkdir(path.dirname(sqliteFilePath), { recursive: true })
-    await (args.runPrismaMigrateDeploy ?? runPrismaMigrateDeploy)({
+    await (args.runPrismaDbPush ?? runPrismaDbPush)({
       databaseUrl: args.databaseUrl,
       serviceRootDirectory,
     })
@@ -132,7 +130,7 @@ export async function ensureServiceDatabaseInitialized(args: {
   )
 
   if (!schemaInitialized) {
-    await (args.runPrismaMigrateDeploy ?? runPrismaMigrateDeploy)({
+    await (args.runPrismaDbPush ?? runPrismaDbPush)({
       databaseUrl: args.databaseUrl,
       serviceRootDirectory,
     })

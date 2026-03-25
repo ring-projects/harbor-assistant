@@ -18,39 +18,39 @@ describe("ensureServiceDatabaseInitialized", () => {
     )
   })
 
-  it("runs migrate deploy when the sqlite file is missing", async () => {
+  it("runs db push when the sqlite file is missing", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harbor-db-init-"))
     tempDirs.push(root)
     const databaseFile = path.join(root, "data", "harbor.sqlite")
-    const runPrismaMigrateDeploy = vi.fn(async () => {})
+    const runPrismaDbPush = vi.fn(async () => {})
 
     const result = await ensureServiceDatabaseInitialized({
       databaseUrl: `file:${databaseFile}`,
       serviceRootDirectory: root,
-      runPrismaMigrateDeploy,
+      runPrismaDbPush,
     })
 
     expect(result).toEqual({
       action: "migrated-missing-sqlite",
       sqliteFilePath: databaseFile,
     })
-    expect(runPrismaMigrateDeploy).toHaveBeenCalledTimes(1)
+    expect(runPrismaDbPush).toHaveBeenCalledTimes(1)
   })
 
-  it("runs migrate deploy when the sqlite file exists but schema is missing", async () => {
+  it("runs db push when the sqlite file exists but schema is missing", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harbor-db-init-"))
     tempDirs.push(root)
     const databaseFile = path.join(root, "data", "harbor.sqlite")
     await mkdir(path.dirname(databaseFile), { recursive: true })
     await writeFile(databaseFile, "", "utf8")
     const inspectSqliteSchema = vi.fn(async () => false)
-    const runPrismaMigrateDeploy = vi.fn(async () => {})
+    const runPrismaDbPush = vi.fn(async () => {})
 
     const result = await ensureServiceDatabaseInitialized({
       databaseUrl: `file:${databaseFile}`,
       serviceRootDirectory: root,
       inspectSqliteSchema,
-      runPrismaMigrateDeploy,
+      runPrismaDbPush,
     })
 
     expect(result).toEqual({
@@ -58,43 +58,43 @@ describe("ensureServiceDatabaseInitialized", () => {
       sqliteFilePath: databaseFile,
     })
     expect(inspectSqliteSchema).toHaveBeenCalledTimes(1)
-    expect(runPrismaMigrateDeploy).toHaveBeenCalledTimes(1)
+    expect(runPrismaDbPush).toHaveBeenCalledTimes(1)
   })
 
-  it("skips migrate deploy when the sqlite schema is already initialized", async () => {
+  it("skips db push when the sqlite schema is already initialized", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harbor-db-init-"))
     tempDirs.push(root)
     const databaseFile = path.join(root, "data", "harbor.sqlite")
     await mkdir(path.dirname(databaseFile), { recursive: true })
     await writeFile(databaseFile, "", "utf8")
     const inspectSqliteSchema = vi.fn(async () => true)
-    const runPrismaMigrateDeploy = vi.fn(async () => {})
+    const runPrismaDbPush = vi.fn(async () => {})
 
     const result = await ensureServiceDatabaseInitialized({
       databaseUrl: `file:${databaseFile}`,
       serviceRootDirectory: root,
       inspectSqliteSchema,
-      runPrismaMigrateDeploy,
+      runPrismaDbPush,
     })
 
     expect(result).toEqual({
       action: "ready",
       sqliteFilePath: databaseFile,
     })
-    expect(runPrismaMigrateDeploy).not.toHaveBeenCalled()
+    expect(runPrismaDbPush).not.toHaveBeenCalled()
   })
 
   it("skips auto-migration for non-sqlite datasources", async () => {
-    const runPrismaMigrateDeploy = vi.fn(async () => {})
+    const runPrismaDbPush = vi.fn(async () => {})
 
     const result = await ensureServiceDatabaseInitialized({
       databaseUrl: "postgresql://localhost:5432/harbor",
-      runPrismaMigrateDeploy,
+      runPrismaDbPush,
     })
 
     expect(result).toEqual({
       action: "skipped-non-sqlite",
     })
-    expect(runPrismaMigrateDeploy).not.toHaveBeenCalled()
+    expect(runPrismaDbPush).not.toHaveBeenCalled()
   })
 })

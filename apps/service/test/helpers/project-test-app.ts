@@ -1,19 +1,16 @@
 import type { PrismaClient } from "@prisma/client"
 import Fastify from "fastify"
 
+import { InMemoryProjectRepository } from "../../src/modules/project/infrastructure/in-memory-project-repository"
+import { PrismaProjectRepository } from "../../src/modules/project/infrastructure/persistence/prisma-project-repository"
+import { createSimpleProjectPathPolicy } from "../../src/modules/project/infrastructure/simple-project-path-policy"
+import { registerProjectModuleRoutes } from "../../src/modules/project/routes"
 import errorHandlerPlugin from "../../src/plugins/error-handler"
-import { registerProjectModuleRoutes } from "../../src/modules/project"
 
 export async function createProjectTestApp(prisma: PrismaClient) {
-  return createProjectTestAppWithOptions(prisma)
-}
-
-export async function createProjectTestAppWithOptions(
-  prisma: PrismaClient,
-  options?: {
-    harborHomeDirectory?: string
-  },
-) {
+  const repository = prisma
+    ? new PrismaProjectRepository(prisma)
+    : new InMemoryProjectRepository()
   const app = Fastify({
     logger: false,
   })
@@ -23,7 +20,8 @@ export async function createProjectTestAppWithOptions(
   await app.register(
     async (instance) => {
       await registerProjectModuleRoutes(instance, {
-        harborHomeDirectory: options?.harborHomeDirectory,
+        repository,
+        pathPolicy: createSimpleProjectPathPolicy(),
       })
     },
     {

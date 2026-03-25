@@ -1,81 +1,72 @@
-import { ERROR_CODES } from "../../constants/errors"
-import { AppError } from "../../lib/errors/app-error"
+export const FILESYSTEM_ERROR_CODES = {
+  INVALID_INPUT: "INVALID_INPUT",
+  PATH_NOT_FOUND: "PATH_NOT_FOUND",
+  NOT_A_DIRECTORY: "NOT_A_DIRECTORY",
+  NOT_A_FILE: "NOT_A_FILE",
+  PATH_OUTSIDE_ALLOWED_ROOT: "PATH_OUTSIDE_ALLOWED_ROOT",
+  PERMISSION_DENIED: "PERMISSION_DENIED",
+  READ_FAILED: "READ_FAILED",
+  WRITE_FAILED: "WRITE_FAILED",
+  INVALID_CURSOR: "INVALID_CURSOR",
+} as const
 
 export type FileSystemErrorCode =
-  | (typeof ERROR_CODES.INVALID_PATH)
-  | (typeof ERROR_CODES.PATH_NOT_FOUND)
-  | (typeof ERROR_CODES.NOT_A_DIRECTORY)
-  | (typeof ERROR_CODES.PATH_OUTSIDE_ALLOWED_ROOT)
-  | (typeof ERROR_CODES.PERMISSION_DENIED)
-  | (typeof ERROR_CODES.READ_ERROR)
-  | (typeof ERROR_CODES.INVALID_CURSOR)
-  | (typeof ERROR_CODES.INTERNAL_ERROR)
+  (typeof FILESYSTEM_ERROR_CODES)[keyof typeof FILESYSTEM_ERROR_CODES]
 
-export class FileSystemError extends AppError {}
+export class FileSystemError extends Error {
+  readonly code: FileSystemErrorCode
 
-export const createFileSystemError = {
-  invalidPath: (
-    message = "Requested path is invalid.",
-    details?: unknown,
-  ) =>
-    new FileSystemError(ERROR_CODES.INVALID_PATH, 400, message, {
-      details,
-    }),
+  constructor(code: FileSystemErrorCode, message: string) {
+    super(message)
+    this.name = "FileSystemError"
+    this.code = code
+  }
+}
 
-  pathNotFound: (targetPath: string) =>
-    new FileSystemError(
-      ERROR_CODES.PATH_NOT_FOUND,
-      404,
-      `Path not found: ${targetPath}`,
-      {
-        details: { path: targetPath },
-      },
-    ),
+export function createFileSystemError() {
+  return {
+    invalidInput(message: string) {
+      return new FileSystemError(FILESYSTEM_ERROR_CODES.INVALID_INPUT, message)
+    },
+    pathNotFound(targetPath: string) {
+      return new FileSystemError(
+        FILESYSTEM_ERROR_CODES.PATH_NOT_FOUND,
+        `Path not found: ${targetPath}`,
+      )
+    },
+    notADirectory(targetPath: string) {
+      return new FileSystemError(
+        FILESYSTEM_ERROR_CODES.NOT_A_DIRECTORY,
+        `Path is not a directory: ${targetPath}`,
+      )
+    },
+    notAFile(targetPath: string) {
+      return new FileSystemError(
+        FILESYSTEM_ERROR_CODES.NOT_A_FILE,
+        `Path is not a file: ${targetPath}`,
+      )
+    },
+    pathOutsideAllowedRoot(targetPath: string, rootPath: string) {
+      return new FileSystemError(
+        FILESYSTEM_ERROR_CODES.PATH_OUTSIDE_ALLOWED_ROOT,
+        `Path is outside allowed root: ${targetPath} (root: ${rootPath})`,
+      )
+    },
+    permissionDenied(message: string) {
+      return new FileSystemError(FILESYSTEM_ERROR_CODES.PERMISSION_DENIED, message)
+    },
+    readFailed(message: string) {
+      return new FileSystemError(FILESYSTEM_ERROR_CODES.READ_FAILED, message)
+    },
+    writeFailed(message: string) {
+      return new FileSystemError(FILESYSTEM_ERROR_CODES.WRITE_FAILED, message)
+    },
+    invalidCursor(message = "Cursor must be a non-negative integer string.") {
+      return new FileSystemError(FILESYSTEM_ERROR_CODES.INVALID_CURSOR, message)
+    },
+  }
+}
 
-  notADirectory: (targetPath: string) =>
-    new FileSystemError(
-      ERROR_CODES.NOT_A_DIRECTORY,
-      400,
-      `Path is not a directory: ${targetPath}`,
-      {
-        details: { path: targetPath },
-      },
-    ),
-
-  pathOutsideAllowedRoot: (targetPath: string, allowedRootPath: string) =>
-    new FileSystemError(
-      ERROR_CODES.PATH_OUTSIDE_ALLOWED_ROOT,
-      403,
-      "Requested path is outside allowed root.",
-      {
-        details: {
-          path: targetPath,
-          allowedRootPath,
-        },
-      },
-    ),
-
-  permissionDenied: (message: string, details?: unknown) =>
-    new FileSystemError(ERROR_CODES.PERMISSION_DENIED, 403, message, {
-      details,
-    }),
-
-  invalidCursor: (
-    message = "Cursor must be a non-negative integer string.",
-    details?: unknown,
-  ) =>
-    new FileSystemError(ERROR_CODES.INVALID_CURSOR, 400, message, {
-      details,
-    }),
-
-  readError: (message: string, cause?: unknown, details?: unknown) =>
-    new FileSystemError(ERROR_CODES.READ_ERROR, 500, message, {
-      details,
-      cause,
-    }),
-
-  internalError: (message = "Unexpected filesystem service error.", cause?: unknown) =>
-    new FileSystemError(ERROR_CODES.INTERNAL_ERROR, 500, message, {
-      cause,
-    }),
+export function isFileSystemError(error: unknown): error is FileSystemError {
+  return error instanceof FileSystemError
 }

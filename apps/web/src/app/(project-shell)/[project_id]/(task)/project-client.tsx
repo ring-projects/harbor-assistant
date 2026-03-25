@@ -4,7 +4,7 @@ import { useEffect } from "react"
 
 import { ProjectHeader } from "@/modules/projects"
 import { SettingsShell } from "@/modules/settings"
-import { TaskWorkbench } from "@/modules/tasks"
+import { TaskWorkbench } from "@/modules/tasks/screens"
 import { useAppStore } from "@/stores/app.store"
 
 type ProjectClientProps = {
