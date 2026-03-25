@@ -40,14 +40,24 @@ describe("TaskSocketManager", () => {
     manager.bindQueryClient(queryClient)
     manager.subscribeProjectGit("project-1")
 
-    const handler = handlers.get("project:git_changed")
+    const handler = handlers.get("interaction:message")
     if (!handler) {
-      throw new Error("project:git_changed handler was not registered")
+      throw new Error("interaction:message handler was not registered")
     }
 
     handler({
-      projectId: "project-1",
-      changedAt: "2026-03-12T04:32:44.092Z",
+      topic: {
+        kind: "project-git",
+        id: "project-1",
+      },
+      message: {
+        kind: "event",
+        name: "project_git_changed",
+        data: {
+          projectId: "project-1",
+          changedAt: "2026-03-12T04:32:44.092Z",
+        },
+      },
     })
 
     expect(invalidateQueries).toHaveBeenCalledWith({
@@ -63,36 +73,38 @@ describe("TaskSocketManager", () => {
         prompt: "Delete me",
         title: "Delete me",
         titleSource: "prompt",
-        titleUpdatedAt: null,
         model: null,
         executor: "codex",
         executionMode: "connected",
         status: "completed",
-        threadId: null,
-        parentTaskId: null,
         archivedAt: null,
         createdAt: "2026-03-18T00:00:00.000Z",
         startedAt: null,
         finishedAt: "2026-03-18T00:01:00.000Z",
-        exitCode: 0,
-        command: [],
-        stdout: "",
-        stderr: "",
-        error: null,
       },
     ])
 
     const manager = new TaskSocketManager()
     manager.bindQueryClient(new QueryClient())
 
-    const handler = handlers.get("project:task_deleted")
+    const handler = handlers.get("interaction:message")
     if (!handler) {
-      throw new Error("project:task_deleted handler was not registered")
+      throw new Error("interaction:message handler was not registered")
     }
 
     handler({
-      projectId: "project-1",
-      taskId: "task-1",
+      topic: {
+        kind: "project",
+        id: "project-1",
+      },
+      message: {
+        kind: "event",
+        name: "task_deleted",
+        data: {
+          projectId: "project-1",
+          taskId: "task-1",
+        },
+      },
     })
 
     expect(useTasksSessionStore.getState().taskIdsByProject["project-1"]).toEqual([])

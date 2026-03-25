@@ -3,13 +3,11 @@
 import {
   BotIcon,
   ChevronDownIcon,
-  ImageIcon,
   PlusIcon,
   Settings2Icon,
   WifiIcon,
-  XIcon,
 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -28,7 +26,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useProjectSettingsQuery } from "@/modules/projects"
-import { storeTaskInputImage } from "@/modules/tasks/api"
 import { ChatInteraction } from "@/modules/tasks/features/task-session/composer"
 import {
   useAgentCapabilitiesQuery,
@@ -73,48 +70,6 @@ const EXECUTION_MODE_OPTIONS = [
 
 function formatModelSummary(model: string | null | undefined) {
   return model?.trim() || "Runtime Default"
-}
-
-type PendingImageAttachment = {
-  id: string
-  file: File
-  previewUrl: string
-}
-
-const ACCEPTED_IMAGE_MEDIA_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-])
-
-function describePendingPrompt(text: string, imageCount: number) {
-  if (text) {
-    return text
-  }
-
-  if (imageCount === 1) {
-    return "Shared 1 image"
-  }
-
-  if (imageCount > 1) {
-    return `Shared ${imageCount} images`
-  }
-
-  return ""
-}
-
-async function fileToBase64(file: File) {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-
-    reader.onerror = () => reject(new Error(`Failed to read ${file.name}.`))
-    reader.onload = () => resolve(String(reader.result ?? ""))
-    reader.readAsDataURL(file)
-  })
-
-  const [, encoded = ""] = dataUrl.split(",", 2)
-  return encoded
 }
 
 type TaskCreateDialogProps = {
@@ -175,9 +130,6 @@ export function TaskCreateDialog({
     "safe" | "connected" | "full-access"
   >(defaultExecutionMode)
   const [createTaskError, setCreateTaskError] = useState<string | null>(null)
-  const [pendingImages, setPendingImages] = useState<PendingImageAttachment[]>([])
-  const pendingImagesRef = useRef<PendingImageAttachment[]>([])
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const agentCapabilitiesQuery = useAgentCapabilitiesQuery({
     enabled: open,
@@ -207,104 +159,25 @@ export function TaskCreateDialog({
     return null
   }, [selectedExecutorModelIds, selectedExecutorModels.length, selectedModel])
 
-  useEffect(() => {
-    pendingImagesRef.current = pendingImages
-  }, [pendingImages])
-
-  useEffect(() => {
-    return () => {
-      for (const item of pendingImagesRef.current) {
-        URL.revokeObjectURL(item.previewUrl)
-      }
-    }
-  }, [])
-
   function resetCreateComposer() {
     setCreateTaskError(null)
     setNewTaskPrompt("")
     setNewTaskExecutor(defaultExecutor)
     setSelectedModel(readLastSelectedModel(projectId, defaultExecutor))
     setNewTaskExecutionMode(defaultExecutionMode)
-    setPendingImages((current) => {
-      for (const item of current) {
-        URL.revokeObjectURL(item.previewUrl)
-      }
-
-      return []
-    })
-  }
-
-  function appendPendingImages(files: File[]) {
-    if (files.length === 0) {
-      return
-    }
-
-    const acceptedFiles = files.filter((file) =>
-      ACCEPTED_IMAGE_MEDIA_TYPES.has(file.type),
-    )
-
-    if (acceptedFiles.length === 0) {
-      return
-    }
-
-    setPendingImages((current) => [
-      ...current,
-      ...acceptedFiles.map((file) => ({
-        id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
-        file,
-        previewUrl: URL.createObjectURL(file),
-      })),
-    ])
-  }
-
-  function removePendingImage(id: string) {
-    setPendingImages((current) => {
-      const next = current.filter((item) => item.id !== id)
-      const removed = current.find((item) => item.id === id)
-
-      if (removed) {
-        URL.revokeObjectURL(removed.previewUrl)
-      }
-
-      return next
-    })
   }
 
   async function handleCreateTask() {
     const prompt = newTaskPrompt.trim()
-    if (!prompt && pendingImages.length === 0) {
-      setCreateTaskError("Enter a prompt or add at least one image.")
+    if (!prompt) {
+      setCreateTaskError("Enter a prompt before creating the task.")
       return
     }
 
     try {
       setCreateTaskError(null)
-      const uploadedImages = await Promise.all(
-        pendingImages.map(async (item) => {
-          const dataBase64 = await fileToBase64(item.file)
-          return storeTaskInputImage(projectId, {
-            name: item.file.name,
-            mediaType: item.file.type || "image/png",
-            dataBase64,
-          })
-        }),
-      )
-
       const result = await createTaskMutation.mutateAsync({
-        input: [
-          ...(prompt
-            ? [
-                {
-                  type: "text" as const,
-                  text: prompt,
-                },
-              ]
-            : []),
-          ...uploadedImages.map((item) => ({
-            type: "local_image" as const,
-            path: item.path,
-          })),
-        ],
+        prompt,
         model: resolvedSelectedModel ?? undefined,
         executor: newTaskExecutor,
         executionMode: newTaskExecutionMode,
@@ -354,26 +227,8 @@ export function TaskCreateDialog({
             void handleCreateTask()
           }}
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            multiple
-            className="hidden"
-            onChange={(event) => {
-              const files = event.target.files
-              if (files) {
-                appendPendingImages(Array.from(files))
-              }
-              event.target.value = ""
-            }}
-          />
-
           <ChatInteraction
-            canSubmit={
-              !createTaskMutation.isPending &&
-              (newTaskPrompt.trim().length > 0 || pendingImages.length > 0)
-            }
+            canSubmit={!createTaskMutation.isPending && newTaskPrompt.trim().length > 0}
             inputDisabled={createTaskMutation.isPending}
             isSubmitting={createTaskMutation.isPending}
             autoFocus
@@ -389,56 +244,8 @@ export function TaskCreateDialog({
             placeholder="Describe the task you want the agent to start with..."
             value={newTaskPrompt}
             errorMessage={createTaskError}
-            attachments={
-              pendingImages.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {pendingImages.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 rounded-2xl border border-border/70 bg-muted/20 px-2 py-2"
-                    >
-                      <img
-                        src={item.previewUrl}
-                        alt={item.file.name}
-                        className="size-10 rounded-xl object-cover"
-                      />
-                      <div className="min-w-0">
-                        <p className="max-w-40 truncate text-xs font-medium">
-                          {item.file.name}
-                        </p>
-                        <p className="text-muted-foreground text-[11px]">
-                          {(item.file.size / 1024).toFixed(0)} KB
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => removePendingImage(item.id)}
-                        disabled={createTaskMutation.isPending}
-                        aria-label={`Remove ${item.file.name}`}
-                      >
-                        <XIcon className="size-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : null
-            }
             controls={
               <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  className="h-9 w-9 rounded-full border-border/70 bg-background/80 shadow-none"
-                  disabled={createTaskMutation.isPending}
-                  onClick={() => fileInputRef.current?.click()}
-                  aria-label="Add images"
-                >
-                  <PlusIcon className="size-4" />
-                </Button>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -568,15 +375,14 @@ export function TaskCreateDialog({
             }
             footer={
               <div className="flex flex-wrap items-center gap-2">
-                {selectedExecutorCapabilities?.version ? (
+                {agentCapabilitiesQuery.isLoading ? (
                   <span className="inline-flex h-8 items-center rounded-full border border-border/70 bg-muted/30 px-3 text-[11px] font-medium text-foreground/80">
-                    {selectedExecutorCapabilities.version}
+                    Refreshing runtime capabilities...
                   </span>
                 ) : null}
-                {pendingImages.length > 0 ? (
-                  <span className="inline-flex h-8 items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-3 text-[11px] font-medium text-foreground/80">
-                    <ImageIcon className="size-3.5 text-muted-foreground" />
-                    {describePendingPrompt(newTaskPrompt.trim(), pendingImages.length)}
+                {agentCapabilitiesQuery.isError ? (
+                  <span className="inline-flex h-8 items-center rounded-full border border-border/70 bg-muted/30 px-3 text-[11px] font-medium text-foreground/80">
+                    Runtime capability check unavailable
                   </span>
                 ) : null}
                 <Button
@@ -595,8 +401,6 @@ export function TaskCreateDialog({
               </div>
             }
             onChange={setNewTaskPrompt}
-            onPasteFiles={appendPendingImages}
-            onDropFiles={appendPendingImages}
             onSubmit={() => {
               void handleCreateTask()
             }}

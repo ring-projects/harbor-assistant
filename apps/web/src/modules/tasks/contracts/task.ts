@@ -51,33 +51,23 @@ export const taskListItemSchema = z.object({
   prompt: z.string().default(""),
   title: z.string().default(""),
   titleSource: z.enum(["prompt", "agent", "user"]).default("prompt"),
-  titleUpdatedAt: z.string().nullable().default(null),
   model: z.string().nullable().default(null),
-  executor: z.string().default("codex"),
+  executor: z.string().nullable().default(null),
   executionMode: taskExecutionModeSchema.nullable().default(null),
   status: taskStatusSchema,
-  threadId: z.string().nullable().default(null),
-  parentTaskId: z.string().nullable().default(null),
   archivedAt: z.string().nullable().default(null),
   createdAt: z.string().min(1),
   startedAt: z.string().nullable().default(null),
   finishedAt: z.string().nullable().default(null),
-  exitCode: z.number().int().nullable().default(null),
-  command: z.array(z.string()).default([]),
-  stdout: z.string().default(""),
-  stderr: z.string().default(""),
-  error: z.string().nullable().default(null),
 })
 
 export const taskDetailSchema = taskListItemSchema
 
-export const taskAgentEventTypeSchema = z.enum(TASK_AGENT_EVENT_TYPE_VALUES)
-
 export const taskAgentEventSchema = z.object({
   id: z.string().min(1),
   taskId: z.string().min(1),
-  sequence: z.number().int().nonnegative(),
-  eventType: taskAgentEventTypeSchema,
+  sequence: z.number().int().positive(),
+  eventType: z.string().min(1),
   payload: z.object({}).catchall(z.unknown()),
   createdAt: z.string().min(1),
 })
@@ -89,7 +79,7 @@ export const taskAgentEventStreamSchema = z.object({
 })
 
 export type TaskStatus = z.infer<typeof taskStatusSchema>
-export type TaskAgentEventType = z.infer<typeof taskAgentEventTypeSchema>
+export type TaskAgentEventType = string
 export type TaskTimeRange = z.infer<typeof taskTimeRangeSchema>
 export type TaskExecutionMode = z.infer<typeof taskExecutionModeSchema>
 export type TaskFilter = z.infer<typeof taskFilterSchema>

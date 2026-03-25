@@ -12,9 +12,7 @@ import {
   updateProject,
   updateProjectSettings,
   type ArchiveProjectInput,
-  type CreateProjectInput,
   type DeleteProjectInput,
-  type UpdateProjectInput,
   type UpdateProjectSettingsInput,
 } from "@/modules/projects/api"
 import type {

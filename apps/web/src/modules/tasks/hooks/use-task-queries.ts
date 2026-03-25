@@ -7,15 +7,12 @@ import { gitQueryKeys } from "@/modules/git"
 import { useTasksSessionStore } from "@/modules/tasks/domain/store"
 import {
   archiveTask,
-  breakTaskTurn,
   createTask,
   deleteTask,
-  followupTask,
   readAgentCapabilities,
   readProjectTasks,
   readTaskDetail,
   readTaskEvents,
-  retryTask,
   type CreateTaskInput,
 } from "@/modules/tasks/api"
 export { useTaskEventStream } from "./use-task-event-stream"
@@ -153,52 +150,6 @@ export function useCreateTaskMutation(projectId: string) {
   })
 }
 
-export function useBreakTaskTurnMutation(projectId: string) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (taskId: string) => breakTaskTurn(taskId),
-    onSuccess(task) {
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.byProject(projectId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: gitQueryKeys.byProject(projectId),
-      })
-
-      if (task) {
-        useTasksSessionStore.getState().applyTaskUpsert(task)
-        void queryClient.invalidateQueries({
-          queryKey: taskQueryKeys.events(task.taskId),
-        })
-      }
-    },
-  })
-}
-
-export function useRetryTaskMutation(projectId: string) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (taskId: string) => retryTask(taskId),
-    onSuccess(result) {
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.byProject(projectId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: gitQueryKeys.byProject(projectId),
-      })
-
-      if (result.task) {
-        useTasksSessionStore.getState().applyTaskUpsert(result.task)
-      }
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.events(result.taskId),
-      })
-    },
-  })
-}
-
 export function useArchiveTaskMutation(projectId: string) {
   const queryClient = useQueryClient()
 
@@ -231,52 +182,6 @@ export function useDeleteTaskMutation(projectId: string) {
       })
 
       useTasksSessionStore.getState().deleteTask(result.projectId, result.taskId)
-    },
-  })
-}
-
-export function useTaskFollowupMutation(projectId: string) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (input: {
-      taskId: string
-      input: Array<
-        | {
-            type: "text"
-            text: string
-          }
-        | {
-            type: "local_image"
-            path: string
-          }
-      >
-      model?: string
-      modelSource?: "task-default" | "runtime-default"
-    }) =>
-      followupTask(input.taskId, {
-        input: input.input,
-        model: input.model,
-        modelSource: input.modelSource,
-      }),
-    onSuccess(result, variables) {
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.byProject(projectId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: gitQueryKeys.byProject(projectId),
-      })
-
-      if (result.task) {
-        useTasksSessionStore.getState().applyTaskUpsert(result.task)
-      }
-
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.detail(variables.taskId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.events(variables.taskId),
-      })
     },
   })
 }

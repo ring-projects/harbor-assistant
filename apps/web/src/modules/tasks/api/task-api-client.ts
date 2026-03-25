@@ -40,47 +40,11 @@ export class TaskApiClientError extends Error {
 }
 
 export type CreateTaskInput = {
-  input: Array<
-    | {
-        type: "text"
-        text: string
-      }
-    | {
-        type: "local_image"
-        path: string
-      }
-  >
+  prompt: string
+  title?: string
   model?: string
   executor?: string
   executionMode?: "safe" | "connected" | "full-access"
-}
-
-export type FollowupTaskInput = {
-  input: Array<
-    | {
-        type: "text"
-        text: string
-      }
-    | {
-        type: "local_image"
-        path: string
-      }
-  >
-  model?: string
-  modelSource?: "task-default" | "runtime-default"
-}
-
-export type StoreTaskInputImageInput = {
-  name: string
-  mediaType: string
-  dataBase64: string
-}
-
-export type StoreTaskInputImageResult = {
-  path: string
-  mediaType: string
-  name: string
-  size: number
 }
 
 export type CreateTaskResult = {
@@ -112,25 +76,6 @@ function toStringOrNull(value: unknown): string | null {
 
 function toStringOrEmpty(value: unknown) {
   return typeof value === "string" ? value : ""
-}
-
-function toIntegerOrNull(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") {
-    return null
-  }
-
-  if (typeof value === "number" && Number.isInteger(value)) {
-    return value
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number(value)
-    if (Number.isInteger(parsed)) {
-      return parsed
-    }
-  }
-
-  return null
 }
 
 function toStatus(value: unknown): TaskStatus | null {
@@ -172,14 +117,6 @@ function toOptionalDateString(value: unknown): string | null {
   return toDateString(value)
 }
 
-function toCommand(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value.filter((item): item is string => typeof item === "string")
-}
-
 function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
   const source = asRecord(candidate)
   if (!source) {
@@ -208,22 +145,14 @@ function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
       source.titleSource === "agent" || source.titleSource === "user"
         ? source.titleSource
         : "prompt",
-    titleUpdatedAt: toOptionalDateString(source.titleUpdatedAt),
     model: toStringOrNull(source.model),
-    executor: toStringOrNull(source.executor) ?? "codex",
+    executor: toStringOrNull(source.executor),
     executionMode: toExecutionMode(source.executionMode),
     status,
-    threadId: toStringOrNull(source.threadId),
-    parentTaskId: toStringOrNull(source.parentTaskId),
     archivedAt: toOptionalDateString(source.archivedAt),
     createdAt: toDateString(source.createdAt),
     startedAt: toOptionalDateString(source.startedAt),
     finishedAt: toOptionalDateString(source.finishedAt),
-    exitCode: toIntegerOrNull(source.exitCode),
-    command: toCommand(source.command),
-    stdout: toStringOrEmpty(source.stdout),
-    stderr: toStringOrEmpty(source.stderr),
-    error: toStringOrNull(source.error),
   })
 
   return parsed.success ? parsed.data : null
@@ -334,7 +263,8 @@ export async function createTask(
     },
     body: JSON.stringify({
       projectId,
-      input: input.input,
+      prompt: input.prompt,
+      title: input.title,
       model: input.model,
       executor: input.executor ?? "codex",
       executionMode: input.executionMode,
@@ -466,60 +396,6 @@ export async function readTaskEvents(args: {
   return events
 }
 
-export async function breakTaskTurn(taskId: string): Promise<TaskDetail | null> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/break`),
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({}),
-    },
-  )
-
-  const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to break current turn.")
-
-  return extractSingleTask(payload)
-}
-
-export async function retryTask(taskId: string): Promise<CreateTaskResult> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/retry`),
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({}),
-    },
-  )
-
-  const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to retry task.")
-
-  const task = extractSingleTask(payload)
-  const nextTaskId =
-    toStringOrNull(payload?.newTaskId) ??
-    toStringOrNull(payload?.taskId) ??
-    toStringOrNull(payload?.id) ??
-    task?.taskId ??
-    null
-
-  if (!nextTaskId) {
-    throw new TaskApiClientError("Retry succeeded but taskId is missing.", {
-      code: ERROR_CODES.TASK_RETRY_FAILED,
-      status: response.status,
-    })
-  }
-
-  return {
-    taskId: nextTaskId,
-    task: task ?? undefined,
-  }
-}
-
 export async function archiveTask(taskId: string): Promise<TaskDetail> {
   const response = await fetch(
     buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/archive`),
@@ -572,88 +448,5 @@ export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {
   return {
     taskId: nextTaskId,
     projectId,
-  }
-}
-
-export async function followupTask(
-  taskId: string,
-  input: FollowupTaskInput,
-): Promise<CreateTaskResult> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/followup`),
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        input: input.input,
-        model: input.model,
-        modelSource: input.modelSource,
-      }),
-    },
-  )
-
-  const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to follow up task.")
-
-  const task = extractSingleTask(payload)
-  const nextTaskId =
-    toStringOrNull(payload?.newTaskId) ??
-    toStringOrNull(payload?.taskId) ??
-    toStringOrNull(payload?.id) ??
-    task?.taskId ??
-    null
-
-  if (!nextTaskId) {
-    throw new TaskApiClientError("Follow-up succeeded but taskId is missing.", {
-      code: ERROR_CODES.TASK_FOLLOWUP_FAILED,
-      status: response.status,
-    })
-  }
-
-  return {
-    taskId: nextTaskId,
-    task: task ?? undefined,
-  }
-}
-
-export async function storeTaskInputImage(
-  projectId: string,
-  input: StoreTaskInputImageInput,
-): Promise<StoreTaskInputImageResult> {
-  const response = await fetch(
-    buildExecutorApiUrl(
-      `/v1/projects/${encodeURIComponent(projectId)}/task-input-images`,
-    ),
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(input),
-    },
-  )
-
-  const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to store task input image.")
-
-  const path = toStringOrNull(payload?.path)
-  const mediaType = toStringOrNull(payload?.mediaType)
-  const name = toStringOrNull(payload?.name)
-  const size = toIntegerOrNull(payload?.size)
-
-  if (!path || !mediaType || !name || size === null) {
-    throw new TaskApiClientError("Image upload succeeded but payload is invalid.", {
-      code: ERROR_CODES.INTERNAL_ERROR,
-      status: response.status,
-    })
-  }
-
-  return {
-    path,
-    mediaType,
-    name,
-    size,
   }
 }

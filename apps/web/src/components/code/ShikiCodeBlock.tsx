@@ -50,29 +50,45 @@ async function highlightCode(code: string, language: string | null) {
 
 export function ShikiCodeBlock({ code, language }: ShikiCodeBlockProps) {
   const normalizedCode = useMemo(() => code.replace(/\n$/, ""), [code])
-  const [html, setHtml] = useState(() => createFallbackHtml(normalizedCode))
+  const fallbackHtml = useMemo(
+    () => createFallbackHtml(normalizedCode),
+    [normalizedCode],
+  )
+  const highlightKey = useMemo(
+    () => `${language ?? "text"}\u0000${normalizedCode}`,
+    [language, normalizedCode],
+  )
+  const [htmlState, setHtmlState] = useState(() => ({
+    key: highlightKey,
+    html: fallbackHtml,
+  }))
+  const html = htmlState.key === highlightKey ? htmlState.html : fallbackHtml
 
   useEffect(() => {
     let disposed = false
 
-    setHtml(createFallbackHtml(normalizedCode))
-
     void highlightCode(normalizedCode, language ?? null)
       .then((nextHtml) => {
         if (!disposed) {
-          setHtml(nextHtml)
+          setHtmlState({
+            key: highlightKey,
+            html: nextHtml,
+          })
         }
       })
       .catch(() => {
         if (!disposed) {
-          setHtml(createFallbackHtml(normalizedCode))
+          setHtmlState({
+            key: highlightKey,
+            html: fallbackHtml,
+          })
         }
       })
 
     return () => {
       disposed = true
     }
-  }, [language, normalizedCode])
+  }, [fallbackHtml, highlightKey, language, normalizedCode])
 
   return <div dangerouslySetInnerHTML={{ __html: html }} />
 }

@@ -1,7 +1,6 @@
 import { create, type StateCreator } from "zustand"
 
 import type {
-  TaskAgentEvent,
   TaskAgentEventStream,
   TaskDetail,
   TaskStatus,
@@ -44,8 +43,6 @@ function patchTaskStatus(task: TaskDetail, status: TaskStatus): TaskDetail {
   if (status === "running" && !task.startedAt) {
     nextTask.startedAt = new Date().toISOString()
     nextTask.finishedAt = null
-    nextTask.exitCode = null
-    nextTask.error = null
   }
 
   if (status === "completed" || status === "failed" || status === "cancelled") {
@@ -72,10 +69,6 @@ function mergeTaskRecord(
     merged.status = existing.status
     merged.startedAt = existing.startedAt
     merged.finishedAt = existing.finishedAt
-    merged.exitCode = existing.exitCode
-    merged.error = existing.error
-    merged.stdout = existing.stdout
-    merged.stderr = existing.stderr
   }
 
   return merged

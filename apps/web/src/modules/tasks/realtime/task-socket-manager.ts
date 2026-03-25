@@ -3,11 +3,11 @@
 import type { QueryClient } from "@tanstack/react-query"
 import { io, type Socket } from "socket.io-client"
 
+import { gitQueryKeys } from "@/modules/git"
 import {
   selectLastSequence,
   useTasksSessionStore,
 } from "@/modules/tasks/domain/store"
-import { gitQueryKeys } from "@/modules/git"
 import { getTaskSocketBaseUrl } from "@/modules/tasks/api"
 import type {
   TaskAgentEvent,
@@ -15,54 +15,64 @@ import type {
   TaskStatus,
 } from "@/modules/tasks/contracts"
 
-type ProjectTaskUpsertPayload = {
-  projectId: string
-  task: Record<string, unknown>
+type InteractionTopic =
+  | {
+      kind: "project"
+      id: string
+    }
+  | {
+      kind: "task"
+      id: string
+    }
+  | {
+      kind: "task-events"
+      id: string
+    }
+  | {
+      kind: "project-git"
+      id: string
+    }
+
+type InteractionSubscribeRequest = {
+  topic: InteractionTopic
+  afterSequence?: number
+  limit?: number
 }
 
-type ProjectTaskDeletedPayload = {
-  projectId: string
-  taskId: string
-}
-
-type TaskReadyPayload = {
-  taskId: string
-  task: Record<string, unknown>
-}
-
-type TaskStatusPayload = {
-  taskId: string
-  status: TaskStatus
-}
-
-type TaskEndPayload = {
-  taskId: string
-  status: TaskStatus
-  cursor: number
-}
-
-type TaskEventsReadyPayload = {
-  taskId: string
-  cursor: number
-  status: TaskStatus
-}
-
-type TaskEventsItemPayload = {
-  taskId: string
-  event: TaskAgentEvent
-}
-
-type ProjectGitChangedPayload = {
-  projectId: string
-  changedAt: string
-}
-
-type SubscriptionErrorPayload = {
-  scope: string
-  code: string
-  message: string
-  projectId?: string
-  taskId?: string
+type InteractionMessageEnvelope = {
+  topic?: InteractionTopic
+  message?: {
+    kind: "subscribed" | "unsubscribed"
+  }
+} | {
+  topic?: InteractionTopic
+  message?: {
+    kind: "snapshot"
+    name: "project_tasks" | "task" | "task_events"
+    data?: Record<string, unknown>
+  }
+} | {
+  topic?: InteractionTopic
+  message?: {
+    kind: "event"
+    name:
+      | "task_upsert"
+      | "task_deleted"
+      | "task_status_changed"
+      | "task_ended"
+      | "task_event"
+      | "project_git_changed"
+    data?: Record<string, unknown>
+  }
+} | {
+  topic?: InteractionTopic
+  message?: {
+    kind: "error"
+    error?: {
+      code?: string
+      message?: string
+    }
+  }
 }
 
 function toStringOrNull(value: unknown): string | null {
@@ -82,29 +92,6 @@ function toOptionalDateString(value: unknown): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
 }
 
-function toIntegerOrNull(value: unknown): number | null {
-  if (typeof value === "number" && Number.isInteger(value)) {
-    return value
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number(value)
-    if (Number.isInteger(parsed)) {
-      return parsed
-    }
-  }
-
-  return null
-}
-
-function toCommand(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value.filter((item): item is string => typeof item === "string")
-}
-
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return null
@@ -113,12 +100,12 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>
 }
 
-function toExecutionMode(
-  value: unknown,
-): "safe" | "connected" | "full-access" | null {
-  return value === "safe" ||
-    value === "connected" ||
-    value === "full-access"
+function toTaskStatus(value: unknown): TaskStatus | null {
+  return value === "queued" ||
+    value === "running" ||
+    value === "completed" ||
+    value === "failed" ||
+    value === "cancelled"
     ? value
     : null
 }
@@ -126,19 +113,12 @@ function toExecutionMode(
 function normalizeTask(input: Record<string, unknown>): TaskListItem | null {
   const taskId = toStringOrNull(input.taskId) ?? toStringOrNull(input.id)
   const projectId = toStringOrNull(input.projectId)
-  const status = toStringOrNull(input.status)
+  const status = toTaskStatus(input.status)
 
-  if (
-    !taskId ||
-    !projectId ||
-    (status !== "queued" &&
-      status !== "running" &&
-      status !== "completed" &&
-      status !== "failed" &&
-      status !== "cancelled")
-  ) {
+  if (!taskId || !projectId || !status) {
     return null
   }
+
   return {
     taskId,
     projectId,
@@ -148,22 +128,46 @@ function normalizeTask(input: Record<string, unknown>): TaskListItem | null {
       input.titleSource === "agent" || input.titleSource === "user"
         ? input.titleSource
         : "prompt",
-    titleUpdatedAt: toOptionalDateString(input.titleUpdatedAt),
     model: toStringOrNull(input.model),
-    executor: toStringOrNull(input.executor) ?? "codex",
-    executionMode: toExecutionMode(input.executionMode),
+    executor: toStringOrNull(input.executor),
+    executionMode:
+      input.executionMode === "safe" ||
+      input.executionMode === "connected" ||
+      input.executionMode === "full-access"
+        ? input.executionMode
+        : null,
     status,
-    threadId: toStringOrNull(input.threadId),
-    parentTaskId: toStringOrNull(input.parentTaskId),
     archivedAt: toOptionalDateString(input.archivedAt),
     createdAt: toStringOrNull(input.createdAt) ?? new Date().toISOString(),
-    startedAt: toStringOrNull(input.startedAt),
-    finishedAt: toStringOrNull(input.finishedAt),
-    exitCode: toIntegerOrNull(input.exitCode),
-    command: toCommand(input.command),
-    stdout: toStringOrEmpty(input.stdout),
-    stderr: toStringOrEmpty(input.stderr),
-    error: toStringOrNull(input.error),
+    startedAt: toOptionalDateString(input.startedAt),
+    finishedAt: toOptionalDateString(input.finishedAt),
+  }
+}
+
+function normalizeTaskEvent(
+  taskId: string,
+  input: Record<string, unknown>,
+): TaskAgentEvent | null {
+  const id = toStringOrNull(input.id)
+  const eventType = toStringOrNull(input.eventType)
+  const createdAt = toStringOrNull(input.createdAt)
+  const sequence =
+    typeof input.sequence === "number" && Number.isInteger(input.sequence)
+      ? input.sequence
+      : null
+  const payload = asRecord(input.payload)
+
+  if (!id || !eventType || !createdAt || sequence === null || !payload) {
+    return null
+  }
+
+  return {
+    id,
+    taskId,
+    sequence,
+    eventType,
+    payload,
+    createdAt,
   }
 }
 
@@ -192,8 +196,11 @@ export class TaskSocketManager {
     this.projectRefs.set(normalizedProjectId, current + 1)
 
     if (current === 0) {
-      this.socket?.emit("subscribe:project", {
-        projectId: normalizedProjectId,
+      this.emitSubscribe({
+        topic: {
+          kind: "project",
+          id: normalizedProjectId,
+        },
         limit: 200,
       })
     }
@@ -202,8 +209,11 @@ export class TaskSocketManager {
       const next = (this.projectRefs.get(normalizedProjectId) ?? 1) - 1
       if (next <= 0) {
         this.projectRefs.delete(normalizedProjectId)
-        this.socket?.emit("unsubscribe:project", {
-          projectId: normalizedProjectId,
+        this.emitUnsubscribe({
+          topic: {
+            kind: "project",
+            id: normalizedProjectId,
+          },
         })
         return
       }
@@ -223,8 +233,11 @@ export class TaskSocketManager {
     this.taskRefs.set(normalizedTaskId, current + 1)
 
     if (current === 0) {
-      this.socket?.emit("subscribe:task", {
-        taskId: normalizedTaskId,
+      this.emitSubscribe({
+        topic: {
+          kind: "task",
+          id: normalizedTaskId,
+        },
       })
     }
 
@@ -232,8 +245,11 @@ export class TaskSocketManager {
       const next = (this.taskRefs.get(normalizedTaskId) ?? 1) - 1
       if (next <= 0) {
         this.taskRefs.delete(normalizedTaskId)
-        this.socket?.emit("unsubscribe:task", {
-          taskId: normalizedTaskId,
+        this.emitUnsubscribe({
+          topic: {
+            kind: "task",
+            id: normalizedTaskId,
+          },
         })
         return
       }
@@ -253,8 +269,11 @@ export class TaskSocketManager {
     this.projectGitRefs.set(normalizedProjectId, current + 1)
 
     if (current === 0) {
-      this.socket?.emit("subscribe:project-git", {
-        projectId: normalizedProjectId,
+      this.emitSubscribe({
+        topic: {
+          kind: "project-git",
+          id: normalizedProjectId,
+        },
       })
     }
 
@@ -262,8 +281,11 @@ export class TaskSocketManager {
       const next = (this.projectGitRefs.get(normalizedProjectId) ?? 1) - 1
       if (next <= 0) {
         this.projectGitRefs.delete(normalizedProjectId)
-        this.socket?.emit("unsubscribe:project-git", {
-          projectId: normalizedProjectId,
+        this.emitUnsubscribe({
+          topic: {
+            kind: "project-git",
+            id: normalizedProjectId,
+          },
         })
         return
       }
@@ -283,12 +305,15 @@ export class TaskSocketManager {
     this.taskEventsRefs.set(normalizedTaskId, current + 1)
 
     if (current === 0) {
-      const afterSequence =
-        selectLastSequence(useTasksSessionStore.getState(), normalizedTaskId)
-
-      this.socket?.emit("subscribe:task-events", {
-        taskId: normalizedTaskId,
-        afterSequence,
+      this.emitSubscribe({
+        topic: {
+          kind: "task-events",
+          id: normalizedTaskId,
+        },
+        afterSequence: selectLastSequence(
+          useTasksSessionStore.getState(),
+          normalizedTaskId,
+        ),
         limit: 500,
       })
     }
@@ -297,14 +322,25 @@ export class TaskSocketManager {
       const next = (this.taskEventsRefs.get(normalizedTaskId) ?? 1) - 1
       if (next <= 0) {
         this.taskEventsRefs.delete(normalizedTaskId)
-        this.socket?.emit("unsubscribe:task-events", {
-          taskId: normalizedTaskId,
+        this.emitUnsubscribe({
+          topic: {
+            kind: "task-events",
+            id: normalizedTaskId,
+          },
         })
         return
       }
 
       this.taskEventsRefs.set(normalizedTaskId, next)
     }
+  }
+
+  private emitSubscribe(payload: InteractionSubscribeRequest) {
+    this.socket?.emit("interaction:subscribe", payload)
+  }
+
+  private emitUnsubscribe(payload: InteractionSubscribeRequest) {
+    this.socket?.emit("interaction:unsubscribe", payload)
   }
 
   private ensureSocket() {
@@ -330,89 +366,212 @@ export class TaskSocketManager {
 
     this.socket.on("connect", () => {
       for (const projectId of this.projectRefs.keys()) {
-        this.socket?.emit("subscribe:project", { projectId, limit: 200 })
+        this.emitSubscribe({
+          topic: {
+            kind: "project",
+            id: projectId,
+          },
+          limit: 200,
+        })
       }
       for (const projectId of this.projectGitRefs.keys()) {
-        this.socket?.emit("subscribe:project-git", { projectId })
+        this.emitSubscribe({
+          topic: {
+            kind: "project-git",
+            id: projectId,
+          },
+        })
       }
       for (const taskId of this.taskRefs.keys()) {
-        this.socket?.emit("subscribe:task", { taskId })
+        this.emitSubscribe({
+          topic: {
+            kind: "task",
+            id: taskId,
+          },
+        })
       }
       for (const taskId of this.taskEventsRefs.keys()) {
-        const afterSequence = selectLastSequence(useTasksSessionStore.getState(), taskId)
-
-        this.socket?.emit("subscribe:task-events", {
-          taskId,
-          afterSequence,
+        this.emitSubscribe({
+          topic: {
+            kind: "task-events",
+            id: taskId,
+          },
+          afterSequence: selectLastSequence(useTasksSessionStore.getState(), taskId),
           limit: 500,
         })
       }
     })
 
-    this.socket.on("project:task_upsert", (payload: ProjectTaskUpsertPayload) => {
-      const task = normalizeTask(payload.task)
-      if (!task) {
+    this.socket.on("interaction:message", (payload: InteractionMessageEnvelope) => {
+      const topic = payload?.topic
+      const message = payload?.message
+      if (!topic || !message) {
         return
       }
 
-      useTasksSessionStore.getState().applyTaskUpsert(task)
-    })
-
-    this.socket.on("project:task_deleted", (payload: ProjectTaskDeletedPayload) => {
-      useTasksSessionStore.getState().deleteTask(payload.projectId, payload.taskId)
-    })
-
-    this.socket.on("task:ready", (payload: TaskReadyPayload) => {
-      const task = normalizeTask(payload.task)
-      if (!task) {
+      if (message.kind === "snapshot") {
+        this.handleSnapshot(topic, message.name, message.data ?? {})
         return
       }
 
-      useTasksSessionStore.getState().applyTaskUpsert(task)
+      if (message.kind === "event") {
+        this.handleEvent(topic, message.name, message.data ?? {})
+      }
     })
+  }
 
-    this.socket.on("task:status", (payload: TaskStatusPayload) => {
-      useTasksSessionStore.getState().applyTaskStatus(payload.taskId, payload.status)
-    })
+  private handleSnapshot(
+    topic: InteractionTopic,
+    name: "project_tasks" | "task" | "task_events",
+    data: Record<string, unknown>,
+  ) {
+    switch (name) {
+      case "project_tasks": {
+        if (topic.kind !== "project") {
+          return
+        }
 
-    this.socket.on("task:end", (payload: TaskEndPayload) => {
-      useTasksSessionStore.getState().applyTaskEnd(payload.taskId, payload.status)
+        const tasks = Array.isArray(data.tasks)
+          ? data.tasks
+              .map((task) => normalizeTask(asRecord(task) ?? {}))
+              .filter((task): task is TaskListItem => task !== null)
+          : []
 
-      const currentTask = useTasksSessionStore
-        .getState()
-        .tasksById[payload.taskId]
-
-      if (!this.queryClient) {
+        useTasksSessionStore.getState().hydrateProjectTasks(topic.id, tasks)
         return
       }
-      if (currentTask?.projectId) {
-        void this.queryClient.invalidateQueries({
-          queryKey: gitQueryKeys.byProject(currentTask.projectId),
+      case "task": {
+        const task = normalizeTask(asRecord(data.task) ?? {})
+        if (!task) {
+          return
+        }
+
+        useTasksSessionStore.getState().applyTaskUpsert(task)
+        return
+      }
+      case "task_events": {
+        if (topic.kind !== "task-events") {
+          return
+        }
+
+        const items = Array.isArray(data.items)
+          ? data.items
+              .map((event) => normalizeTaskEvent(topic.id, asRecord(event) ?? {}))
+              .filter((event): event is TaskAgentEvent => event !== null)
+          : []
+        const nextSequence =
+          typeof data.nextSequence === "number" && Number.isInteger(data.nextSequence)
+            ? data.nextSequence
+            : items.at(-1)?.sequence ?? 0
+
+        useTasksSessionStore.getState().hydrateTaskEvents(topic.id, {
+          taskId: topic.id,
+          items,
+          nextSequence,
         })
-      } else {
+      }
+    }
+  }
+
+  private handleEvent(
+    topic: InteractionTopic,
+    name:
+      | "task_upsert"
+      | "task_deleted"
+      | "task_status_changed"
+      | "task_ended"
+      | "task_event"
+      | "project_git_changed",
+    data: Record<string, unknown>,
+  ) {
+    switch (name) {
+      case "task_upsert": {
+        const task = normalizeTask(asRecord(data.task) ?? {})
+        if (!task) {
+          return
+        }
+
+        useTasksSessionStore.getState().applyTaskUpsert(task)
+        return
+      }
+      case "task_deleted": {
+        const taskId = toStringOrNull(data.taskId)
+        const projectId =
+          toStringOrNull(data.projectId) ??
+          (topic.kind === "project" ? topic.id : null)
+
+        if (!taskId || !projectId) {
+          return
+        }
+
+        useTasksSessionStore.getState().deleteTask(projectId, taskId)
+        return
+      }
+      case "task_status_changed": {
+        if (topic.kind !== "task") {
+          return
+        }
+
+        const status = toTaskStatus(data.status)
+        if (!status) {
+          return
+        }
+
+        useTasksSessionStore.getState().applyTaskStatus(topic.id, status)
+        return
+      }
+      case "task_ended": {
+        if (topic.kind !== "task" && topic.kind !== "task-events") {
+          return
+        }
+
+        const status = toTaskStatus(data.status)
+        if (!status) {
+          return
+        }
+
+        useTasksSessionStore.getState().applyTaskEnd(topic.id, status)
+
+        const currentTask = useTasksSessionStore.getState().tasksById[topic.id]
+        if (!this.queryClient) {
+          return
+        }
+
+        if (currentTask?.projectId) {
+          void this.queryClient.invalidateQueries({
+            queryKey: gitQueryKeys.byProject(currentTask.projectId),
+          })
+          return
+        }
+
         void this.queryClient.invalidateQueries({
           queryKey: gitQueryKeys.all,
         })
-      }
-    })
-
-    this.socket.on("task-events:ready", (_payload: TaskEventsReadyPayload) => {})
-
-    this.socket.on("task-events:item", (payload: TaskEventsItemPayload) => {
-      useTasksSessionStore.getState().applyAgentEvent(payload.taskId, payload.event)
-    })
-
-    this.socket.on("project:git_changed", (payload: ProjectGitChangedPayload) => {
-      if (!this.queryClient || !payload.projectId?.trim()) {
         return
       }
+      case "task_event": {
+        if (topic.kind !== "task-events") {
+          return
+        }
 
-      void this.queryClient.invalidateQueries({
-        queryKey: gitQueryKeys.byProject(payload.projectId),
-      })
-    })
+        const event = normalizeTaskEvent(topic.id, asRecord(data.event) ?? {})
+        if (!event) {
+          return
+        }
 
-    this.socket.on("subscription:error", (_payload: SubscriptionErrorPayload) => {})
+        useTasksSessionStore.getState().applyAgentEvent(topic.id, event)
+        return
+      }
+      case "project_git_changed": {
+        if (topic.kind !== "project-git" || !this.queryClient) {
+          return
+        }
+
+        void this.queryClient.invalidateQueries({
+          queryKey: gitQueryKeys.byProject(topic.id),
+        })
+      }
+    }
   }
 }
 
