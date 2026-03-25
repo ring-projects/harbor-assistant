@@ -50,3 +50,4 @@ bmad-output/
 _bmad/
 _bmad-output/
 .agents/
+.harbor/
