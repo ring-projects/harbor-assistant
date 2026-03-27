@@ -6,6 +6,7 @@ import { deleteTaskUseCase } from "../application/delete-task"
 import { getTaskDetailUseCase } from "../application/get-task-detail"
 import { getTaskEventsUseCase } from "../application/get-task-events"
 import type { ProjectTaskPort } from "../application/project-task-port"
+import { resumeTaskUseCase } from "../application/resume-task"
 import type { TaskEventProjection } from "../application/task-event-projection"
 import type { TaskNotificationPublisher } from "../application/task-notification"
 import type { TaskRecordStore } from "../application/task-record-store"
@@ -26,8 +27,10 @@ import {
   type GetProjectTasksQuery,
   type GetTaskEventsQuery,
   type ProjectIdParams,
+  type ResumeTaskBody,
   type TaskIdParams,
   type UpdateTaskTitleBody,
+  resumeTaskRouteSchema,
   updateTaskTitleRouteSchema,
 } from "../schemas"
 
@@ -141,6 +144,35 @@ export async function registerTaskModuleRoutes(
           taskId: request.params.taskId,
           title: request.body.title,
         })
+
+        return {
+          ok: true,
+          task: toResponseTask(task),
+        }
+      } catch (error) {
+        throw toTaskAppError(error)
+      }
+    },
+  )
+
+  app.post<{ Params: TaskIdParams; Body: ResumeTaskBody }>(
+    "/tasks/:taskId/resume",
+    {
+      schema: resumeTaskRouteSchema,
+    },
+    async (request) => {
+      try {
+        const task = await resumeTaskUseCase(
+          {
+            projectTaskPort,
+            repository,
+            runtimePort,
+          },
+          {
+            taskId: request.params.taskId,
+            prompt: request.body.prompt,
+          },
+        )
 
         return {
           ok: true,

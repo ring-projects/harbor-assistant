@@ -1,5 +1,12 @@
 export type FileSystemEntryType = "directory" | "file"
 
+export type BootstrapFileSystemRoot = {
+  id: string
+  label: string
+  path: string
+  isDefault: boolean
+}
+
 export type FileSystemListEntry = {
   name: string
   path: string
@@ -25,6 +32,29 @@ export type FileSystemPathInfo = {
   isSymlink: boolean
   size: number | null
   mtime: string | null
+}
+
+export type BootstrapFileSystemEntry = Omit<FileSystemListEntry, "path"> & {
+  path: string
+  absolutePath: string
+}
+
+export type BootstrapDirectoryListing = {
+  rootId: string
+  rootPath: string
+  path: string | null
+  absolutePath: string
+  parentPath: string | null
+  entries: BootstrapFileSystemEntry[]
+  nextCursor: string | null
+  truncated: boolean
+}
+
+export type BootstrapFileSystemPathInfo = Omit<FileSystemPathInfo, "path"> & {
+  rootId: string
+  rootPath: string
+  path: string | null
+  absolutePath: string
 }
 
 export type ReadTextFileResult = {

@@ -69,6 +69,37 @@ function stringifyPretty(value: unknown) {
   }
 }
 
+function countOutputLines(output: string) {
+  const trimmed = output.trim()
+  if (!trimmed) {
+    return 0
+  }
+
+  return trimmed.split(/\r?\n/).length
+}
+
+function previewOutput(output: string, maxLines: number) {
+  const trimmed = output.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const lines = trimmed.split(/\r?\n/)
+  if (lines.length <= maxLines) {
+    return trimmed
+  }
+
+  return `${lines.slice(0, maxLines).join("\n")}\n...`
+}
+
+function updateCommandOutputMeta(
+  group: Extract<ChatConversationBlock, { type: "command-group" }>,
+) {
+  group.outputLineCount = countOutputLines(group.output)
+  group.outputPreview = previewOutput(group.output, 4)
+  group.hasMoreOutput = group.outputLineCount > 4
+}
+
 function formatFileChanges(payload: Record<string, unknown> | null) {
   const status = toStringOrNull(payload?.status) ?? "unknown"
   const changes = Array.isArray(payload?.changes) ? payload.changes : []
@@ -299,6 +330,9 @@ function createCommandGroup(
     commandId,
     command: toStringOrNull(payload?.command) ?? `Command ${commandId}`,
     output: "",
+    outputPreview: null,
+    outputLineCount: 0,
+    hasMoreOutput: false,
     startedAt: null,
     completedAt: null,
     timestamp: eventTimestamp(event),
@@ -325,6 +359,7 @@ function appendCommandEventToGroup(
     const nextOutput = toStringOrNull(payload?.output) ?? ""
     if (nextOutput) {
       group.output = `${group.output}${nextOutput}`
+      updateCommandOutputMeta(group)
     }
     group.timestamp = eventTimestamp(event)
     return
@@ -377,10 +412,24 @@ export function toConversationBlocks(
   events: TaskAgentEvent[],
 ): ChatConversationBlock[] {
   const blocks: ChatConversationBlock[] = []
+  return appendConversationBlocks(blocks, events)
+}
+
+export function appendConversationBlocks(
+  currentBlocks: ChatConversationBlock[],
+  events: TaskAgentEvent[],
+): ChatConversationBlock[] {
+  const blocks: ChatConversationBlock[] = [...currentBlocks]
   const commandGroups = new Map<
     string,
     Extract<ChatConversationBlock, { type: "command-group" }>
   >()
+
+  for (const block of blocks) {
+    if (block.type === "command-group") {
+      commandGroups.set(block.commandId, block)
+    }
+  }
 
   for (const event of events) {
     if (HIDDEN_EVENT_TYPES.has(event.eventType)) {

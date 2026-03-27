@@ -16,20 +16,22 @@
 2. [project-context-design-2026-03-24.md](./project-context-design-2026-03-24.md)
 3. [git-project-boundary-design-2026-03-24.md](./git-project-boundary-design-2026-03-24.md)
 4. [filesystem-context-design-2026-03-24.md](./filesystem-context-design-2026-03-24.md)
-5. [task-runtime-system-design-2026-03-23.md](./task-runtime-system-design-2026-03-23.md)
-6. [service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
-7. [task-event-storage-model.md](./task-event-storage-model.md)
-8. [task-api.md](./task-api.md)
-9. [project-api.md](./project-api.md)
-10. [service-module-standard-based-on-project.md](./service-module-standard-based-on-project.md)
-11. [service-error-handling-guide.md](./service-error-handling-guide.md)
-12. [agent-event-projection-design-2026-03-25.md](./agent-event-projection-design-2026-03-25.md)
+5. [bootstrap-filesystem-api-design-2026-03-26.md](./bootstrap-filesystem-api-design-2026-03-26.md)
+6. [task-runtime-system-design-2026-03-23.md](./task-runtime-system-design-2026-03-23.md)
+7. [service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
+8. [task-event-storage-model.md](./task-event-storage-model.md)
+9. [task-api.md](./task-api.md)
+10. [project-api.md](./project-api.md)
+11. [service-module-standard-based-on-project.md](./service-module-standard-based-on-project.md)
+12. [service-error-handling-guide.md](./service-error-handling-guide.md)
+13. [agent-event-projection-design-2026-03-25.md](./agent-event-projection-design-2026-03-25.md)
 
 如果你要按 TDD 推进模块开发，再继续看：
 
 1. [tdd/project.md](./tdd/project.md)
 2. [tdd/git.md](./tdd/git.md)
 3. [tdd/filesystem.md](./tdd/filesystem.md)
+4. [tdd/bootstrap-filesystem.md](./tdd/bootstrap-filesystem.md)
 
 如果你在做前端，再继续看：
 
@@ -57,6 +59,10 @@
 - [filesystem-context-design-2026-03-24.md](./filesystem-context-design-2026-03-24.md)
   - `filesystem` 的边界设计文档
   - 当前 root-scoped 文件访问边界与对 `project` 的依赖方向以这份文档为准
+
+- [bootstrap-filesystem-api-design-2026-03-26.md](./bootstrap-filesystem-api-design-2026-03-26.md)
+  - pre-project filesystem browse API 的边界设计文档
+  - 当前项目创建前目录选择能力以这份文档为准
 
 - [task-runtime-system-design-2026-03-23.md](./task-runtime-system-design-2026-03-23.md)
   - 当前 task / runtime / project 主设计，以及 runtime-policy 应用层能力的边界判断
@@ -98,6 +104,9 @@
 
 - [tdd/filesystem.md](./tdd/filesystem.md)
   - `filesystem` 模块的红灯 / 绿灯 / 重构推进计划
+
+- [tdd/bootstrap-filesystem.md](./tdd/bootstrap-filesystem.md)
+  - bootstrap filesystem browse API 的 TDD 推进计划
 
 - [frontend-testing.md](./frontend-testing.md)
   - `apps/web` 测试策略与实践指南

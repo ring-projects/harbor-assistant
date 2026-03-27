@@ -3,6 +3,7 @@ export type {
   GetProjectTasksQuery,
   GetTaskEventsQuery,
   ProjectIdParams,
+  ResumeTaskBody,
   TaskIdParams,
   UpdateTaskTitleBody,
 } from "./task.schema"
@@ -17,6 +18,8 @@ export {
   getTaskEventsRouteSchema,
   getTaskRouteSchema,
   projectIdParamsSchema,
+  resumeTaskBodySchema,
+  resumeTaskRouteSchema,
   taskIdParamsSchema,
   updateTaskTitleBodySchema,
   updateTaskTitleRouteSchema,

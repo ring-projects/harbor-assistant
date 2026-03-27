@@ -312,8 +312,9 @@
 4. `ArchiveTask`
 5. `DeleteTask`
 6. `UpdateTaskTitle`
-7. `TaskNotificationPublisher`
-8. `TaskNotificationSubscriber`
+7. `ResumeTask`
+8. `TaskNotificationPublisher`
+9. `TaskNotificationSubscriber`
 
 暂时不进入第一阶段的内容：
 
@@ -324,7 +325,7 @@
 原因：
 
 1. 先固定 `task` 自己的 aggregate / repository / notification 形状
-2. 再接 runtime facade，风险更低
+2. `ResumeTask` 虽然会接 runtime facade，但它的业务语义已经很明确：在同一个 execution 上继续运行，不创建新的 task 或 execution
 3. 可以避免一开始就把旧 runner 逻辑整块搬进来
 
 ## 8. 测试文件组织建议

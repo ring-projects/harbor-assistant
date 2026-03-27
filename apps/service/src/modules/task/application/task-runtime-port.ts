@@ -12,4 +12,10 @@ export interface TaskRuntimePort {
     prompt: string
     runtimeConfig: TaskRuntimeConfig
   }): Promise<void>
+  resumeTaskExecution(input: {
+    taskId: string
+    projectId: string
+    projectPath: string
+    prompt: string
+  }): Promise<void>
 }

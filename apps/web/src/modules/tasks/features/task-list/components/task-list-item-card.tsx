@@ -56,12 +56,12 @@ export function TaskListItemCard({
   return (
     <div
       className={cn(
-        "w-full rounded-md border transition-colors",
+        "w-full min-w-0 rounded-md border transition-colors",
         isArchived && "border-dashed",
         isActive ? "border-primary bg-primary/5" : "hover:border-muted-foreground/40",
       )}
     >
-      <div className="flex items-start gap-2 p-3">
+      <div className="flex min-w-0 items-start gap-2 p-3">
         <button
           type="button"
           onClick={() => onSelectTask(task.taskId)}
@@ -84,7 +84,9 @@ export function TaskListItemCard({
             )}
           </div>
 
-          <p className="pt-2 text-sm font-medium">{taskTitle}</p>
+          <p className="line-clamp-2 pt-2 text-sm font-medium break-words">
+            {taskTitle}
+          </p>
 
           {isArchived ? (
             <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 pt-2 text-[11px]">
@@ -108,7 +110,7 @@ export function TaskListItemCard({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 shrink-0 p-0"
               aria-label={`Task actions for ${taskTitle}`}
             >
               <MoreHorizontalIcon className="size-4" />

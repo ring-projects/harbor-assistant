@@ -2,19 +2,30 @@ import type { FastifyInstance } from "fastify"
 
 import { getProjectUseCase } from "../../project/application/get-project"
 import type { ProjectRepository } from "../../project/application/project-repository"
+import {
+  createBootstrapRootRegistry,
+  type BootstrapFileSystemRootConfig,
+} from "../application/bootstrap-root-registry"
 import { createDirectoryUseCase } from "../application/create-directory"
 import type { FileSystemRepository } from "../application/filesystem-repository"
+import { listBootstrapDirectoryUseCase } from "../application/list-bootstrap-directory"
 import { listDirectoryUseCase } from "../application/list-directory"
 import { readTextFileUseCase } from "../application/read-text-file"
+import { statBootstrapPathUseCase } from "../application/stat-bootstrap-path"
 import { statPathUseCase } from "../application/stat-path"
 import { writeTextFileUseCase } from "../application/write-text-file"
 import { toFileSystemAppError } from "../filesystem-app-error"
 import {
   createProjectDirectoryRouteSchema,
+  listBootstrapFilesRouteSchema,
+  listBootstrapRootsRouteSchema,
   listProjectFilesRouteSchema,
   readProjectTextFileRouteSchema,
+  statBootstrapPathRouteSchema,
   statProjectPathRouteSchema,
   writeProjectTextFileRouteSchema,
+  type BootstrapFilePathQuery,
+  type BootstrapListDirectoryBody,
   type ProjectCreateDirectoryBody,
   type ProjectFilePathQuery,
   type ProjectFilesParams,
@@ -27,12 +38,81 @@ export async function registerFileSystemModuleRoutes(
   options: {
     projectRepository: Pick<ProjectRepository, "findById">
     fileSystemRepository: FileSystemRepository
+    bootstrapRoots?: BootstrapFileSystemRootConfig[]
   },
 ) {
+  const bootstrapRootRegistry = createBootstrapRootRegistry(
+    options.fileSystemRepository,
+    options.bootstrapRoots ?? [],
+  )
+
   async function resolveProjectRoot(projectId: string) {
     const project = await getProjectUseCase(options.projectRepository, projectId)
     return project.rootPath
   }
+
+  app.get(
+    "/bootstrap/filesystem/roots",
+    {
+      schema: listBootstrapRootsRouteSchema,
+    },
+    async () => {
+      try {
+        return {
+          ok: true,
+          roots: await bootstrapRootRegistry.listRoots(),
+        }
+      } catch (error) {
+        throw toFileSystemAppError(error)
+      }
+    },
+  )
+
+  app.post<{ Body: BootstrapListDirectoryBody }>(
+    "/bootstrap/filesystem/list",
+    {
+      schema: listBootstrapFilesRouteSchema,
+    },
+    async (request) => {
+      try {
+        const listing = await listBootstrapDirectoryUseCase(
+          options.fileSystemRepository,
+          options.bootstrapRoots ?? [],
+          request.body,
+        )
+
+        return {
+          ok: true,
+          listing,
+        }
+      } catch (error) {
+        throw toFileSystemAppError(error)
+      }
+    },
+  )
+
+  app.get<{ Querystring: BootstrapFilePathQuery }>(
+    "/bootstrap/filesystem/stat",
+    {
+      schema: statBootstrapPathRouteSchema,
+    },
+    async (request) => {
+      try {
+        const pathInfo = await statBootstrapPathUseCase(
+          options.fileSystemRepository,
+          options.bootstrapRoots ?? [],
+          request.query,
+        )
+
+        return {
+          ok: true,
+          pathInfo,
+        }
+      } catch (error) {
+        throw toFileSystemAppError(error)
+      }
+    },
+  )
 
   app.post<{ Params: ProjectFilesParams; Body: ProjectListDirectoryBody }>(
     "/projects/:projectId/files/list",

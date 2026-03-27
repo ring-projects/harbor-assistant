@@ -68,6 +68,20 @@ async function createApp() {
         },
         runtimePort: {
           async startTaskExecution() {},
+          async resumeTaskExecution(input) {
+            const current = await repository.findById(input.taskId)
+            if (!current) {
+              return
+            }
+
+            await repository.save({
+              ...current,
+              status: "running",
+              startedAt: new Date("2026-03-25T01:00:00.000Z"),
+              finishedAt: null,
+              updatedAt: new Date("2026-03-25T01:00:00.000Z"),
+            })
+          },
         },
       })
     },
@@ -179,6 +193,36 @@ describe("task routes", () => {
       taskId: "task-1",
       projectId: "project-1",
     })
+  })
+
+  it("resumes a terminal task and rejects archived task resume", async () => {
+    const app = await createApp()
+
+    const resumed = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-1/resume",
+      payload: {
+        prompt: "Continue from the previous execution context.",
+      },
+    })
+    expect(resumed.statusCode).toBe(200)
+    expect(resumed.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: "task-1",
+        status: "running",
+        finishedAt: null,
+      },
+    })
+
+    const archivedResume = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-2/resume",
+      payload: {
+        prompt: "Attempt to resume an archived task.",
+      },
+    })
+    expect(archivedResume.statusCode).toBe(409)
   })
 
   it("returns projected task events and structured errors", async () => {

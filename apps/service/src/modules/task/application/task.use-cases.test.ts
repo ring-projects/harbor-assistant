@@ -8,6 +8,7 @@ import { deleteTaskUseCase } from "./delete-task"
 import { getTaskDetailUseCase } from "./get-task-detail"
 import { getTaskEventsUseCase } from "./get-task-events"
 import type { ProjectTaskPort } from "./project-task-port"
+import { resumeTaskUseCase } from "./resume-task"
 import { listProjectTasksUseCase } from "./list-project-tasks"
 import type { TaskNotificationPublisher } from "./task-notification"
 import type { TaskRecordStore } from "./task-record-store"
@@ -68,6 +69,7 @@ describe("task use cases", () => {
   function createRuntimePort(): TaskRuntimePort {
     return {
       startTaskExecution: vi.fn(async () => undefined),
+      resumeTaskExecution: vi.fn(async () => undefined),
     }
   }
 
@@ -204,6 +206,86 @@ describe("task use cases", () => {
     })
     expect(renamed.title).toBe("Refine runtime drift report")
     expect(publisher.publish).toHaveBeenCalledTimes(2)
+  })
+
+  it("resumes a terminal task through the same execution boundary", async () => {
+    const repository = createRepository([
+      createTask({
+        id: "task-1",
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        status: "completed",
+      }),
+    ])
+    const resumeTaskExecution = vi.fn(async (input: {
+      taskId: string
+      projectId: string
+      projectPath: string
+      prompt: string
+    }) => {
+      const current = await repository.findById(input.taskId)
+      if (!current) {
+        return
+      }
+
+      await repository.save({
+        ...current,
+        status: "running",
+        startedAt: new Date("2026-03-25T00:00:00.000Z"),
+        finishedAt: null,
+        updatedAt: new Date("2026-03-25T00:00:00.000Z"),
+      })
+    })
+
+    const task = await resumeTaskUseCase(
+      {
+        projectTaskPort: createProjectTaskPort(),
+        repository,
+        runtimePort: {
+          ...createRuntimePort(),
+          resumeTaskExecution,
+        },
+      },
+      {
+        taskId: "task-1",
+        prompt: "Continue with the unresolved failures.",
+      },
+    )
+
+    expect(resumeTaskExecution).toHaveBeenCalledWith({
+      taskId: "task-1",
+      projectId: "project-1",
+      projectPath: "/tmp/harbor-assistant",
+      prompt: "Continue with the unresolved failures.",
+    })
+    expect(task.status).toBe("running")
+  })
+
+  it("rejects resume for non-terminal tasks", async () => {
+    const repository = createRepository([
+      createTask({
+        id: "task-running",
+        projectId: "project-1",
+        prompt: "Still running",
+        status: "running",
+      }),
+    ])
+
+    await expect(
+      resumeTaskUseCase(
+        {
+          projectTaskPort: createProjectTaskPort(),
+          repository,
+          runtimePort: createRuntimePort(),
+        },
+        {
+          taskId: "task-running",
+          prompt: "Continue",
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: TASK_ERROR_CODES.INVALID_RESUME_STATE,
+    } satisfies Partial<TaskError>)
   })
 
   it("deletes only terminal tasks and returns delete result", async () => {

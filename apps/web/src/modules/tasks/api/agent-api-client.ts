@@ -1,11 +1,10 @@
 import { ERROR_CODES } from "@/constants"
 import { buildExecutorApiUrl } from "@/lib/executor-service-url"
-import {
-  agentCapabilityResultSchema,
-  type AgentCapabilityResult,
-} from "@/modules/tasks/contracts"
+import { asRecord, parseJsonResponse, pickString } from "@/lib/protocol"
+import { type AgentCapabilityResult } from "@/modules/tasks/contracts"
 
 import { TaskApiClientError } from "./task-api-client"
+import { extractAgentCapabilities } from "./agent-payload"
 
 type AgentCapabilitiesEnvelope = {
   ok?: boolean
@@ -14,15 +13,7 @@ type AgentCapabilitiesEnvelope = {
     code?: string
     message?: string
   }
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return null
-  }
-
-  return value as Record<string, unknown>
-}
+} & Record<string, unknown>
 
 export async function readAgentCapabilities(): Promise<AgentCapabilityResult> {
   const response = await fetch(buildExecutorApiUrl("/v1/agents/capabilities"), {
@@ -30,76 +21,26 @@ export async function readAgentCapabilities(): Promise<AgentCapabilityResult> {
     cache: "no-store",
   })
 
-  const payload = (await response
-    .json()
-    .catch(() => null)) as AgentCapabilitiesEnvelope | null
+  const payload = await parseJsonResponse<AgentCapabilitiesEnvelope>(response)
+  const error = asRecord(payload?.error)
 
   if (!response.ok || payload?.ok === false) {
     throw new TaskApiClientError(
-      payload?.error?.message ?? "Failed to load agent capabilities.",
+      pickString(error, "message") ?? "Failed to load agent capabilities.",
       {
-        code: payload?.error?.code ?? ERROR_CODES.INTERNAL_ERROR,
+        code: pickString(error, "code") ?? ERROR_CODES.INTERNAL_ERROR,
         status: response.status,
       },
     )
   }
 
-  const capabilities = asRecord(payload?.capabilities)
-  const agents = asRecord(capabilities?.agents)
-
-  const parsed = agentCapabilityResultSchema.safeParse({
-    checkedAt:
-      typeof capabilities?.checkedAt === "string"
-        ? capabilities.checkedAt
-        : new Date().toISOString(),
-    agents: {
-      codex: {
-        models: Array.isArray(asRecord(agents?.codex)?.models)
-          ? (asRecord(agents?.codex)?.models as unknown[]).map((model) => {
-              const record = asRecord(model)
-              return {
-                id: typeof record?.id === "string" ? record.id : "",
-                displayName:
-                  typeof record?.name === "string"
-                    ? record.name
-                    : typeof record?.id === "string"
-                      ? record.id
-                      : "",
-                isDefault: record?.isDefault === true,
-              }
-            })
-          : [],
-        supportsResume: asRecord(agents?.codex)?.supportsResume === true,
-        supportsStreaming: asRecord(agents?.codex)?.supportsStreaming === true,
-      },
-      "claude-code": {
-        models: Array.isArray(asRecord(agents?.["claude-code"])?.models)
-          ? (asRecord(agents?.["claude-code"])?.models as unknown[]).map((model) => {
-              const record = asRecord(model)
-              return {
-                id: typeof record?.id === "string" ? record.id : "",
-                displayName:
-                  typeof record?.name === "string"
-                    ? record.name
-                    : typeof record?.id === "string"
-                      ? record.id
-                      : "",
-                isDefault: record?.isDefault === true,
-              }
-            })
-          : [],
-        supportsResume: asRecord(agents?.["claude-code"])?.supportsResume === true,
-        supportsStreaming:
-          asRecord(agents?.["claude-code"])?.supportsStreaming === true,
-      },
-    },
-  })
-  if (!parsed.success) {
+  const capabilities = extractAgentCapabilities(payload?.capabilities)
+  if (!capabilities) {
     throw new TaskApiClientError("Agent capabilities payload is invalid.", {
       code: ERROR_CODES.INTERNAL_ERROR,
       status: response.status,
     })
   }
 
-  return parsed.data
+  return capabilities
 }

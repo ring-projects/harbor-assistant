@@ -1,6 +1,11 @@
 "use client"
 
-import { isValidElement, type ComponentProps, type ReactNode } from "react"
+import {
+  isValidElement,
+  memo,
+  type ComponentProps,
+  type ReactNode,
+} from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -20,25 +25,27 @@ type MarkdownCodeElementProps = {
   children?: ReactNode
 }
 
-export function ChatMessage({ block }: ChatMessageProps) {
+function ChatMessageView({ block }: ChatMessageProps) {
   const isUser = block.role === "user"
-  const label = isUser ? "input" : "agent"
+  const label = isUser ? "you" : "assistant"
   const markdownClassName =
     `${styles.markdownBody} space-y-3 text-[14px] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:italic [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_li]:leading-7 [&_ol]:space-y-1 [&_ol]:pl-5 [&_p]:leading-7 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:p-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:bg-muted/45 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_ul]:space-y-1 [&_ul]:pl-5`
 
   return (
-    <div className="flex w-full justify-start">
+    <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
           styles.messageShell,
           isUser ? styles.userShell : styles.agentShell,
           block.pending && styles.pendingShell,
+          isUser ? "max-w-[min(78%,42rem)]" : "max-w-[min(100%,52rem)]",
         )}
+        aria-label={`${label} message`}
       >
         <div className={styles.messageMeta}>
           <span className={styles.messageLabel}>{label}</span>
           <span className={styles.messageDivider}>·</span>
-          <span>{block.pending ? "sending..." : formatChatTimestamp(block.timestamp)}</span>
+          <span>{block.pending ? "sending…" : formatChatTimestamp(block.timestamp)}</span>
         </div>
 
         <div className={cn(styles.messageBody, isUser ? styles.userBody : styles.agentBody)}>
@@ -107,3 +114,18 @@ export function ChatMessage({ block }: ChatMessageProps) {
     </div>
   )
 }
+
+function areMessagePropsEqual(
+  previous: ChatMessageProps,
+  next: ChatMessageProps,
+) {
+  return (
+    previous.block.id === next.block.id &&
+    previous.block.role === next.block.role &&
+    previous.block.content === next.block.content &&
+    previous.block.timestamp === next.block.timestamp &&
+    previous.block.pending === next.block.pending
+  )
+}
+
+export const ChatMessage = memo(ChatMessageView, areMessagePropsEqual)

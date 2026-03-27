@@ -30,7 +30,7 @@ export function AddProjectModal() {
         <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>Add Project</DialogTitle>
           <DialogDescription>
-            Enter a project root path and register it as a new workspace.
+            Select a project directory and register it as a new workspace.
           </DialogDescription>
         </DialogHeader>
         <CreateProject

@@ -2,6 +2,7 @@
 
 import { ImageIcon } from "lucide-react"
 import {
+  useId,
   useRef,
   useState,
   type ClipboardEvent,
@@ -49,6 +50,9 @@ function extractImageFiles(items: DataTransferItemList | null) {
 }
 
 export function ChatInteraction(props: ChatInteractionProps) {
+  const textareaId = useId()
+  const helperTextId = useId()
+  const errorTextId = useId()
   const isComposingRef = useRef(false)
   const dragDepthRef = useRef(0)
   const [isDraggingImage, setIsDraggingImage] = useState(false)
@@ -97,7 +101,6 @@ export function ChatInteraction(props: ChatInteractionProps) {
       return
     }
 
-    event.preventDefault()
     props.onPasteFiles(files)
   }
 
@@ -187,15 +190,19 @@ export function ChatInteraction(props: ChatInteractionProps) {
 
       <div className="relative flex min-h-[168px] flex-col gap-3 p-3">
         <div className="text-muted-foreground flex items-center gap-2 font-mono text-[11px] leading-5">
-          <span className="text-foreground/80">{">"}</span>
-          <span>input</span>
+          <label htmlFor={textareaId} className="text-foreground/80 font-semibold">
+            Prompt
+          </label>
           <span className="opacity-50">·</span>
-          <span>enter to send</span>
+          <span>Enter to send</span>
           <span className="opacity-50">·</span>
-          <span>shift+enter for newline</span>
+          <span>Shift+Enter for newline</span>
+          <span className="opacity-50">·</span>
+          <span>Paste or drag images</span>
         </div>
 
         <Textarea
+          id={textareaId}
           autoFocus={props.autoFocus}
           value={props.value}
           onChange={(event) => props.onChange(event.target.value)}
@@ -205,11 +212,17 @@ export function ChatInteraction(props: ChatInteractionProps) {
           onPaste={handlePaste}
           placeholder={props.placeholder}
           disabled={props.inputDisabled || props.isSubmitting}
+          aria-label="Task prompt"
+          aria-describedby={props.errorMessage ? `${helperTextId} ${errorTextId}` : helperTextId}
+          aria-invalid={props.errorMessage ? true : undefined}
           className="min-h-[96px] resize-none border-0 bg-transparent px-0 py-0 font-mono text-[13px] leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
 
         {props.errorMessage ? (
-          <div className="rounded-md border border-rose-300/70 bg-rose-50/80 px-3 py-2 font-mono text-[11px] text-rose-700">
+          <div
+            id={errorTextId}
+            className="rounded-md border border-rose-300/70 bg-rose-50/80 px-3 py-2 font-mono text-[11px] text-rose-700"
+          >
             {props.errorMessage}
           </div>
         ) : null}
@@ -223,7 +236,7 @@ export function ChatInteraction(props: ChatInteractionProps) {
             ) : null}
 
             {props.helperText ? (
-              <p className="text-muted-foreground font-mono text-[11px] leading-5">
+              <p id={helperTextId} className="text-muted-foreground font-mono text-[11px] leading-5">
                 {props.helperText}
               </p>
             ) : null}

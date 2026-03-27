@@ -10,6 +10,10 @@ export type UpdateTaskTitleBody = {
   title: string
 }
 
+export type ResumeTaskBody = {
+  prompt: string
+}
+
 export type CreateTaskBody = {
   projectId: string
   prompt: string
@@ -149,6 +153,15 @@ export const updateTaskTitleBodySchema = {
   },
 } as const
 
+export const resumeTaskBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["prompt"],
+  properties: {
+    prompt: { type: "string", minLength: 1 },
+  },
+} as const
+
 export const getTaskEventsQuerySchema = {
   type: "object",
   additionalProperties: false,
@@ -229,6 +242,22 @@ export const updateTaskTitleRouteSchema = {
 
 export const archiveTaskRouteSchema = {
   params: taskIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "task"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        task: taskEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const resumeTaskRouteSchema = {
+  params: taskIdParamsSchema,
+  body: resumeTaskBodySchema,
   response: {
     200: {
       type: "object",

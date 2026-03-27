@@ -118,7 +118,10 @@ export function ProjectSidebar({
                               className="size-12 justify-center p-0 [&>svg]:size-5"
                             >
                               <Link href={item.href} aria-label={item.label}>
-                                <Icon aria-hidden="true" />
+                                <Icon
+                                  aria-hidden="true"
+                                  className={cn(isActive && "text-primary")}
+                                />
                               </Link>
                             </SidebarMenuButton>
                           ) : (

@@ -182,9 +182,15 @@ task 需要和执行上下文有关联，但不意味着它拥有执行上下文
 
 这意味着：
 
-1. `task` 应知道自己可以有多次 execution
+1. 当前 `task` 应知道自己关联一个持续的 canonical execution
 2. 但 execution lifecycle 仍归 `runtime execution` 边界
 3. `task` 不应因为知道 session/thread 关系，就把 provider session 状态吸进自己的聚合
+
+当前实现约束补充：
+
+1. `resume` 是在同一个 `Execution` 上继续运行
+2. 不为 `resume` 新建第二个 execution 记录
+3. 是否未来需要一个 task 对应多个独立 execution，应等产品语义明确后再放开
 
 ### 6.3 关系语义刻意留空
 
@@ -413,8 +419,9 @@ type ProjectTaskPort = {
 用途：
 
 1. 为新 task 启动 runtime execution
-2. 请求 break / cancel / recover 这类执行编排动作
-3. 查询 task 对应的 canonical runtime pointer
+2. 在同一个 execution 上恢复 terminal task
+3. 请求 break / cancel / recover 这类执行编排动作
+4. 查询 task 对应的 canonical runtime pointer
 
 它不负责：
 
@@ -434,9 +441,14 @@ type TaskRuntimePort = {
       model: string | null
       executionMode: string | null
     }
-  }): Promise<{
-    agentSessionId: string | null
-  }>
+  }): Promise<void>
+
+  resumeTaskExecution(input: {
+    taskId: string
+    projectId: string
+    projectPath: string
+    prompt: string
+  }): Promise<void>
 }
 ```
 

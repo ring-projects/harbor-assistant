@@ -1,5 +1,7 @@
 "use client"
 
+import { memo } from "react"
+
 import {
   CheckCircle2Icon,
   LoaderCircleIcon,
@@ -18,33 +20,8 @@ type ChatCommandGroupProps = {
   onOpen: (block: Extract<ChatConversationBlock, { type: "command-group" }>) => void
 }
 
-function countOutputLines(output: string) {
-  const trimmed = output.trim()
-  if (!trimmed) {
-    return 0
-  }
-
-  return trimmed.split(/\r?\n/).length
-}
-
-function previewOutput(output: string, maxLines: number) {
-  const trimmed = output.trim()
-  if (!trimmed) {
-    return null
-  }
-
-  const lines = trimmed.split(/\r?\n/)
-  if (lines.length <= maxLines) {
-    return trimmed
-  }
-
-  return `${lines.slice(0, maxLines).join("\n")}\n...`
-}
-
-export function ChatCommandGroup({ block, onOpen }: ChatCommandGroupProps) {
-  const outputLineCount = countOutputLines(block.output)
-  const outputPreview = previewOutput(block.output, 4)
-  const hasOutput = Boolean(outputPreview)
+function ChatCommandGroupView({ block, onOpen }: ChatCommandGroupProps) {
+  const hasOutput = Boolean(block.outputPreview)
 
   const statusMeta =
     block.status === "success"
@@ -72,26 +49,35 @@ export function ChatCommandGroup({ block, onOpen }: ChatCommandGroupProps) {
 
   return (
     <div className="flex justify-start">
-      <div className="w-full rounded-lg bg-muted/22 px-3 py-2.5">
+      <div className="w-full max-w-[52rem] rounded-xl border border-border/55 bg-card/60 px-3.5 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
         <div className="flex items-start gap-3">
           <StatusIcon className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)} />
 
           <div className="min-w-0 flex-1">
-            <p className="truncate font-mono text-[12px] leading-5 text-foreground/88">
-              {block.command}
-            </p>
-
-            <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
-              <span className={cn("font-medium", statusMeta.metaClassName)}>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate font-mono text-[12px] leading-5 text-foreground/88">
+                {block.command}
+              </p>
+              <span
+                className={cn(
+                  "inline-flex rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium",
+                  block.status === "success" && "border-emerald-200 bg-emerald-50/75 text-emerald-700",
+                  block.status === "failed" && "border-rose-200 bg-rose-50/80 text-rose-700",
+                  block.status === "running" && "border-sky-200 bg-sky-50/75 text-sky-700",
+                )}
+              >
                 {statusMeta.label}
               </span>
+            </div>
+
+            <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
               {block.startedAt ? ` · Started ${formatChatTimestamp(block.startedAt)}` : ""}
-              {hasOutput ? ` · ${outputLineCount} lines captured` : " · No output yet"}
+              {hasOutput ? ` · ${block.outputLineCount} lines captured` : " · No output yet"}
             </p>
 
-            {outputPreview ? (
+            {block.outputPreview ? (
               <pre className="mt-2 overflow-hidden whitespace-pre-wrap break-words rounded-md bg-background/45 p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
-                {outputPreview}
+                {block.outputPreview}
               </pre>
             ) : null}
 
@@ -112,7 +98,7 @@ export function ChatCommandGroup({ block, onOpen }: ChatCommandGroupProps) {
                 className="text-muted-foreground hover:text-foreground h-6 rounded-md px-2 font-mono text-[11px]"
                 onClick={() => onOpen(block)}
               >
-                Show more
+                View details
               </Button>
             </div>
           </div>
@@ -121,3 +107,15 @@ export function ChatCommandGroup({ block, onOpen }: ChatCommandGroupProps) {
     </div>
   )
 }
+
+function areCommandGroupPropsEqual(
+  previous: ChatCommandGroupProps,
+  next: ChatCommandGroupProps,
+) {
+  return previous.block === next.block && previous.onOpen === next.onOpen
+}
+
+export const ChatCommandGroup = memo(
+  ChatCommandGroupView,
+  areCommandGroupPropsEqual,
+)

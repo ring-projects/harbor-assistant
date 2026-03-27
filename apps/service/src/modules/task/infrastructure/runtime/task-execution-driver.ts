@@ -120,6 +120,9 @@ export function createTaskExecutionDriver(args: {
       select: {
         id: true,
         ownerId: true,
+        executorType: true,
+        executorModel: true,
+        executionMode: true,
         workingDirectory: true,
         sessionId: true,
       },
@@ -248,6 +251,7 @@ export function createTaskExecutionDriver(args: {
     agentRuntime: IAgentRuntime
     executionRecord: Awaited<ReturnType<typeof loadExecutionRecord>>
     startedAt: Date
+    startMode: "start" | "resume"
   }) {
     const state = createTaskRunEventState()
     let nextSequence =
@@ -277,15 +281,23 @@ export function createTaskExecutionDriver(args: {
         })
       }
 
-      const events = input.agentRuntime.startSessionAndRun(
-        createAgentRuntimeOptions({
-          workingDirectory: input.executionRecord.workingDirectory,
-          modelId: input.runtimeConfig.model,
-          executionMode: input.runtimeConfig.executionMode,
-          env: buildHarborSessionEnv(input),
-        }),
-        input.prompt,
-      )
+      const runtimeOptions = createAgentRuntimeOptions({
+        workingDirectory: input.executionRecord.workingDirectory,
+        modelId: input.runtimeConfig.model,
+        executionMode: input.runtimeConfig.executionMode,
+        env: buildHarborSessionEnv(input),
+      })
+      const events =
+        input.startMode === "resume"
+          ? input.agentRuntime.resumeSessionAndRun(
+              input.executionRecord.sessionId ?? "",
+              runtimeOptions,
+              input.prompt,
+            )
+          : input.agentRuntime.startSessionAndRun(
+              runtimeOptions,
+              input.prompt,
+            )
 
       for await (const envelope of events) {
         const normalizedEvents = normalizeRawAgentEvent({
@@ -410,6 +422,48 @@ export function createTaskExecutionDriver(args: {
         executionId: executionRecord.id,
         executionRecord,
         startedAt,
+        startMode: "start",
+      })
+    },
+    async resumeExecution(input: {
+      taskId: string
+      projectId: string
+      projectPath: string
+      prompt: string
+      runtimeConfig: TaskRuntimeConfig
+      sessionId: string
+      agentType: AgentType
+      agentRuntime: IAgentRuntime
+    }) {
+      const executionRecord = await loadExecutionRecord(input.taskId)
+      const startedAt = now()
+
+      await args.prisma.execution.update({
+        where: {
+          id: executionRecord.id,
+        },
+        data: {
+          workingDirectory: input.projectPath,
+          status: "running",
+          startedAt,
+          finishedAt: null,
+          exitCode: null,
+          errorMessage: null,
+          sessionId: input.sessionId,
+        },
+      })
+      await markTaskRunning(input.taskId, startedAt)
+
+      void runInBackground({
+        ...input,
+        executionId: executionRecord.id,
+        executionRecord: {
+          ...executionRecord,
+          workingDirectory: input.projectPath,
+          sessionId: input.sessionId,
+        },
+        startedAt,
+        startMode: "resume",
       })
     },
   }

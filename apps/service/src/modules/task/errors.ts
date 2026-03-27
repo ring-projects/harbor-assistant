@@ -5,7 +5,9 @@ export const TASK_ERROR_CODES = {
   PROJECT_NOT_FOUND: "PROJECT_NOT_FOUND",
   INVALID_ARCHIVE_STATE: "INVALID_ARCHIVE_STATE",
   INVALID_DELETE_STATE: "INVALID_DELETE_STATE",
+  INVALID_RESUME_STATE: "INVALID_RESUME_STATE",
   START_FAILED: "START_FAILED",
+  RESUME_FAILED: "RESUME_FAILED",
 } as const
 
 export type TaskErrorCode =
@@ -41,8 +43,14 @@ export function createTaskError() {
     invalidDeleteState(message: string) {
       return new TaskError(TASK_ERROR_CODES.INVALID_DELETE_STATE, message)
     },
+    invalidResumeState(message: string) {
+      return new TaskError(TASK_ERROR_CODES.INVALID_RESUME_STATE, message)
+    },
     startFailed(message = "task runtime failed to start") {
       return new TaskError(TASK_ERROR_CODES.START_FAILED, message)
+    },
+    resumeFailed(message = "task runtime failed to resume") {
+      return new TaskError(TASK_ERROR_CODES.RESUME_FAILED, message)
     },
   }
 }

@@ -1,6 +1,7 @@
 import { create, type StateCreator } from "zustand"
 
 import type {
+  TaskAgentEvent,
   TaskAgentEventStream,
   TaskDetail,
   TaskStatus,
@@ -29,6 +30,7 @@ function createDefaultChatUiState(): ChatUiState {
   return {
     draft: "",
     pendingPrompt: null,
+    queuedPrompt: null,
     stickToBottom: true,
     selectedInspectorBlockId: null,
   }
@@ -103,12 +105,7 @@ function reconcilePendingPrompt(
   }
 
   const matchedUserMessage = stream.items.some(
-    (event) =>
-      event.sequence > chatUi.pendingPrompt!.baselineSequence &&
-      event.eventType === "message" &&
-      event.payload.role === "user" &&
-      typeof event.payload.content === "string" &&
-      event.payload.content.trim() === chatUi.pendingPrompt!.content.trim(),
+    (event) => matchesPendingPromptEvent(chatUi.pendingPrompt, event),
   )
 
   if (!matchedUserMessage) {
@@ -121,12 +118,45 @@ function reconcilePendingPrompt(
   }
 }
 
+function matchesPendingPromptEvent(
+  pendingPrompt: ChatUiState["pendingPrompt"] | null | undefined,
+  event: TaskAgentEvent,
+) {
+  if (!pendingPrompt) {
+    return false
+  }
+
+  return (
+    event.sequence > pendingPrompt.baselineSequence &&
+    event.eventType === "message" &&
+    event.payload.role === "user" &&
+    typeof event.payload.content === "string" &&
+    event.payload.content.trim() === pendingPrompt.content.trim()
+  )
+}
+
 function setChatUiField(
   state: TasksSessionState,
   taskId: string,
   patch: Partial<ChatUiState>,
 ) {
   const existing = state.chatUiByTaskId[taskId] ?? createDefaultChatUiState()
+
+  let changed = false
+  for (const [key, value] of Object.entries(patch) as [
+    keyof ChatUiState,
+    ChatUiState[keyof ChatUiState],
+  ][]) {
+    if (!Object.is(existing[key], value)) {
+      changed = true
+      break
+    }
+  }
+
+  if (!changed) {
+    return state.chatUiByTaskId
+  }
+
   return {
     ...state.chatUiByTaskId,
     [taskId]: {
@@ -304,10 +334,16 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
         state.eventStreamsByTaskId[normalizedTaskId],
         event,
       )
-      const nextChatUi = reconcilePendingPrompt(
-        state.chatUiByTaskId[normalizedTaskId],
-        nextStream,
+      const currentChatUi = state.chatUiByTaskId[normalizedTaskId]
+      const nextChatUi = matchesPendingPromptEvent(
+        currentChatUi?.pendingPrompt,
+        event,
       )
+        ? {
+            ...(currentChatUi ?? createDefaultChatUiState()),
+            pendingPrompt: null,
+          }
+        : currentChatUi ?? createDefaultChatUiState()
 
       return {
         eventStreamsByTaskId: {
@@ -328,11 +364,19 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
       return
     }
 
-    set((state) => ({
-      chatUiByTaskId: setChatUiField(state, normalizedTaskId, {
+    set((state) => {
+      const chatUiByTaskId = setChatUiField(state, normalizedTaskId, {
         draft,
-      }),
-    }))
+      })
+
+      if (chatUiByTaskId === state.chatUiByTaskId) {
+        return state
+      }
+
+      return {
+        chatUiByTaskId,
+      }
+    })
   },
 
   setPendingPrompt(taskId, pendingPrompt) {
@@ -341,11 +385,40 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
       return
     }
 
-    set((state) => ({
-      chatUiByTaskId: setChatUiField(state, normalizedTaskId, {
+    set((state) => {
+      const chatUiByTaskId = setChatUiField(state, normalizedTaskId, {
         pendingPrompt,
-      }),
-    }))
+      })
+
+      if (chatUiByTaskId === state.chatUiByTaskId) {
+        return state
+      }
+
+      return {
+        chatUiByTaskId,
+      }
+    })
+  },
+
+  setQueuedPrompt(taskId, queuedPrompt) {
+    const normalizedTaskId = taskId.trim()
+    if (!normalizedTaskId) {
+      return
+    }
+
+    set((state) => {
+      const chatUiByTaskId = setChatUiField(state, normalizedTaskId, {
+        queuedPrompt,
+      })
+
+      if (chatUiByTaskId === state.chatUiByTaskId) {
+        return state
+      }
+
+      return {
+        chatUiByTaskId,
+      }
+    })
   },
 
   setStickToBottom(taskId, stickToBottom) {
@@ -354,11 +427,19 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
       return
     }
 
-    set((state) => ({
-      chatUiByTaskId: setChatUiField(state, normalizedTaskId, {
+    set((state) => {
+      const chatUiByTaskId = setChatUiField(state, normalizedTaskId, {
         stickToBottom,
-      }),
-    }))
+      })
+
+      if (chatUiByTaskId === state.chatUiByTaskId) {
+        return state
+      }
+
+      return {
+        chatUiByTaskId,
+      }
+    })
   },
 
   setSelectedInspectorBlockId(taskId, selectedInspectorBlockId) {
@@ -367,11 +448,19 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
       return
     }
 
-    set((state) => ({
-      chatUiByTaskId: setChatUiField(state, normalizedTaskId, {
+    set((state) => {
+      const chatUiByTaskId = setChatUiField(state, normalizedTaskId, {
         selectedInspectorBlockId,
-      }),
-    }))
+      })
+
+      if (chatUiByTaskId === state.chatUiByTaskId) {
+        return state
+      }
+
+      return {
+        chatUiByTaskId,
+      }
+    })
   },
 })
 

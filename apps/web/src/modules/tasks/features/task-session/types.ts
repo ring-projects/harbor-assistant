@@ -64,6 +64,9 @@ export type ChatConversationBlock =
       commandId: string
       command: string
       output: string
+      outputPreview: string | null
+      outputLineCount: number
+      hasMoreOutput: boolean
       startedAt: string | null
       completedAt: string | null
       timestamp: string | null

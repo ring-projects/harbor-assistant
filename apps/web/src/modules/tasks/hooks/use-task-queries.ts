@@ -14,6 +14,7 @@ import {
   readTaskDetail,
   readTaskEvents,
   type CreateTaskInput,
+  resumeTask,
 } from "@/modules/tasks/api"
 export { useTaskEventStream } from "./use-task-event-stream"
 export { useProjectTaskListStream } from "./use-project-task-list-stream"
@@ -158,6 +159,30 @@ export function useArchiveTaskMutation(projectId: string) {
     onSuccess(task) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
+      })
+
+      useTasksSessionStore.getState().applyTaskUpsert(task)
+    },
+  })
+}
+
+export function useResumeTaskMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: { taskId: string; prompt: string }) =>
+      resumeTask(input.taskId, {
+        prompt: input.prompt,
+      }),
+    onSuccess(task) {
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.byProject(projectId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.detail(task.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.events(task.taskId),
       })
 
       useTasksSessionStore.getState().applyTaskUpsert(task)

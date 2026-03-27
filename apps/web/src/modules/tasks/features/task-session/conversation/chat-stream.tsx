@@ -1,5 +1,7 @@
 "use client"
 
+import { memo } from "react"
+
 import type { ChatConversationBlock, ChatInspectorBlock } from "../types"
 import { ChatCommandGroup } from "./chat-command-group"
 import { ChatEvent } from "./chat-event"
@@ -14,7 +16,7 @@ type ChatStreamProps = {
   onOpenInspector: (block: ChatInspectorBlock) => void
 }
 
-export function ChatStream({ blocks, onOpenInspector }: ChatStreamProps) {
+function ChatStreamView({ blocks, onOpenInspector }: ChatStreamProps) {
   return (
     <div className="space-y-2.5 pr-1">
       {blocks.map((block) => {
@@ -71,3 +73,12 @@ export function ChatStream({ blocks, onOpenInspector }: ChatStreamProps) {
     </div>
   )
 }
+
+function areChatStreamPropsEqual(
+  previous: ChatStreamProps,
+  next: ChatStreamProps,
+) {
+  return previous.blocks === next.blocks && previous.onOpenInspector === next.onOpenInspector
+}
+
+export const ChatStream = memo(ChatStreamView, areChatStreamPropsEqual)

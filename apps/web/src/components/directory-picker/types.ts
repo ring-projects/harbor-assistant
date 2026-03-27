@@ -8,13 +8,28 @@ export type DirectoryEntry = {
   mtime: string | null
 }
 
+export type DirectoryRoot = {
+  id: string
+  label: string
+  path: string
+  isDefault: boolean
+}
+
 export type DirectoryListSuccessResponse = {
   ok: true
+  rootId: string
+  rootPath: string
   path: string
   parentPath: string | null
   entries: DirectoryEntry[]
   nextCursor: string | null
   truncated: boolean
+}
+
+export type DirectoryPickerSelection = {
+  rootId: string
+  rootPath: string
+  path: string
 }
 
 export type DirectoryListErrorResponse = {
@@ -35,7 +50,7 @@ export type DirectoryPickerProps = {
   includeHidden?: boolean
   pageSize?: number
   disabled?: boolean
-  onConfirm: (selectedPath: string) => Promise<void> | void
+  onConfirm: (selection: DirectoryPickerSelection) => Promise<void> | void
   onCancel?: () => void
 }
 

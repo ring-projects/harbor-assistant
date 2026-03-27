@@ -122,3 +122,17 @@ export function assertTaskCanDelete(task: Task) {
     )
   }
 }
+
+export function assertTaskCanResume(task: Task) {
+  if (task.archivedAt) {
+    throw createTaskError().invalidResumeState(
+      "archived tasks cannot be resumed",
+    )
+  }
+
+  if (!isTerminalTaskStatus(task.status)) {
+    throw createTaskError().invalidResumeState(
+      "only terminal tasks can be resumed",
+    )
+  }
+}

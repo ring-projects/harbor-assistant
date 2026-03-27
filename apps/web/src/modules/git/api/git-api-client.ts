@@ -2,6 +2,7 @@ import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
 import { buildExecutorApiUrl } from "@/lib/executor-service-url"
+import { asRecord, parseJsonResponse } from "@/lib/protocol"
 import { gitDiffSchema, type GitDiff } from "@/modules/git/contracts"
 
 const gitApiErrorSchema = z.object({
@@ -28,16 +29,8 @@ export class GitApiClientError extends Error {
   }
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null) {
-    return null
-  }
-
-  return value as Record<string, unknown>
-}
-
 async function parseJson(response: Response): Promise<GitEnvelopePayload | null> {
-  return (await response.json().catch(() => null)) as GitEnvelopePayload | null
+  return parseJsonResponse<GitEnvelopePayload>(response)
 }
 
 function throwIfFailed(

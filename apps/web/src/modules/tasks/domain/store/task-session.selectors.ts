@@ -1,4 +1,7 @@
-import { toConversationBlocks } from "@/modules/tasks/features/task-session/mappers/to-conversation-blocks"
+import {
+  appendConversationBlocks,
+  toConversationBlocks,
+} from "@/modules/tasks/features/task-session/mappers/to-conversation-blocks"
 import type { ChatConversationBlock } from "@/modules/tasks/features/task-session/types"
 import type { TaskAgentEvent } from "@/modules/tasks/contracts"
 
@@ -12,6 +15,7 @@ import type {
 const DEFAULT_CHAT_UI: ChatUiState = {
   draft: "",
   pendingPrompt: null,
+  queuedPrompt: null,
   stickToBottom: true,
   selectedInspectorBlockId: null,
 }
@@ -31,11 +35,53 @@ const projectTasksCache = new Map<
 const conversationBlocksCache = new Map<
   string,
   {
+    baseResult: ChatConversationBlock[]
     stream: ReturnType<typeof selectTaskEventStream>
     pendingPrompt: ChatUiState["pendingPrompt"]
     result: ChatConversationBlock[]
   }
 >()
+
+function buildConversationResult(
+  baseResult: ChatConversationBlock[],
+  pendingPrompt: ChatUiState["pendingPrompt"],
+) {
+  if (!pendingPrompt) {
+    return baseResult
+  }
+
+  return [
+    ...baseResult,
+    {
+      id: `pending-${pendingPrompt.baselineSequence}`,
+      type: "message" as const,
+      role: "user" as const,
+      content: pendingPrompt.content,
+      timestamp: null,
+      pending: true,
+    },
+  ]
+}
+
+function isStreamAppendOnly(
+  previous: ReturnType<typeof selectTaskEventStream>,
+  next: ReturnType<typeof selectTaskEventStream>,
+) {
+  if (!previous || !next) {
+    return false
+  }
+
+  const previousLength = previous.items.length
+  if (next.items.length <= previousLength) {
+    return false
+  }
+
+  if (previousLength === 0) {
+    return true
+  }
+
+  return previous.items[previousLength - 1] === next.items[previousLength - 1]
+}
 
 export function selectProjectTasks(
   state: TasksSessionState,
@@ -132,28 +178,14 @@ export function selectConversationBlocks(
   }
 
   const events = stream?.items ?? EMPTY_TASK_EVENTS
-  const result = [...toConversationBlocks(events)]
-
-  if (!pendingPrompt) {
-    conversationBlocksCache.set(cacheKey, {
-      stream,
-      pendingPrompt,
-      result,
-    })
-
-    return result
-  }
-
-  result.push({
-    id: `pending-${pendingPrompt.baselineSequence}`,
-    type: "message",
-    role: "user",
-    content: pendingPrompt.content,
-    timestamp: null,
-    pending: true,
-  })
+  const baseResult =
+    cached && cached.pendingPrompt === pendingPrompt && isStreamAppendOnly(cached.stream, stream)
+      ? appendConversationBlocks(cached.baseResult, events.slice(cached.stream?.items.length ?? 0))
+      : toConversationBlocks(events)
+  const result = buildConversationResult(baseResult, pendingPrompt)
 
   conversationBlocksCache.set(cacheKey, {
+    baseResult,
     stream,
     pendingPrompt,
     result,

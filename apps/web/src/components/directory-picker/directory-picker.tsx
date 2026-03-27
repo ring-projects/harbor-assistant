@@ -90,14 +90,18 @@ function DirectoryPickerInner({
   )
 
   async function handleConfirm() {
-    if (!selectedPath || disabled || isSubmitting || query.isLoading) {
+    if (!selectedPath || !query.data || disabled || isSubmitting || query.isLoading) {
       return
     }
 
     setActionError(null)
     setSubmitting(true)
     try {
-      await onConfirm(selectedPath)
+      await onConfirm({
+        rootId: query.data.rootId,
+        rootPath: query.data.rootPath,
+        path: selectedPath,
+      })
     } catch (error) {
       setActionError(getDirectoryPickerErrorMessage(error))
     } finally {
@@ -286,14 +290,16 @@ function DirectoryPickerInner({
       <div className="flex items-center justify-between gap-2 border-t px-5 py-2.5">
         <p className="min-h-5 text-sm text-destructive">{actionError ?? ""}</p>
         <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onCancel}
-            disabled={disabled || isSubmitting}
-          >
-            {cancelLabel}
-          </Button>
+          {onCancel ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onCancel}
+              disabled={disabled || isSubmitting}
+            >
+              {cancelLabel}
+            </Button>
+          ) : null}
           <Button
             type="button"
             onClick={handleConfirm}

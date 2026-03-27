@@ -1,5 +1,7 @@
 "use client"
 
+import { memo } from "react"
+
 import { ArrowUpRightIcon, FileCode2Icon } from "lucide-react"
 
 import type { ChatConversationBlock } from "../types"
@@ -10,7 +12,7 @@ type ChatFileChangeBlockProps = {
   onOpen: (block: Extract<ChatConversationBlock, { type: "file-change" }>) => void
 }
 
-export function ChatFileChangeBlock({
+function ChatFileChangeBlockView({
   block,
   onOpen,
 }: ChatFileChangeBlockProps) {
@@ -68,3 +70,15 @@ export function ChatFileChangeBlock({
     </div>
   )
 }
+
+function areFileChangePropsEqual(
+  previous: ChatFileChangeBlockProps,
+  next: ChatFileChangeBlockProps,
+) {
+  return previous.block === next.block && previous.onOpen === next.onOpen
+}
+
+export const ChatFileChangeBlock = memo(
+  ChatFileChangeBlockView,
+  areFileChangePropsEqual,
+)

@@ -23,10 +23,18 @@ export function toTaskAppError(error: unknown): AppError {
           409,
           error.message,
         )
+      case TASK_ERROR_CODES.INVALID_RESUME_STATE:
+        return new AppError(
+          ERROR_CODES.INVALID_TASK_RESUME_STATE,
+          409,
+          error.message,
+        )
       case TASK_ERROR_CODES.INVALID_INPUT:
         return new AppError(ERROR_CODES.INVALID_REQUEST_BODY, 400, error.message)
       case TASK_ERROR_CODES.START_FAILED:
         return new AppError(ERROR_CODES.TASK_START_FAILED, 500, error.message)
+      case TASK_ERROR_CODES.RESUME_FAILED:
+        return new AppError(ERROR_CODES.TASK_RESUME_FAILED, 500, error.message)
     }
   }
 

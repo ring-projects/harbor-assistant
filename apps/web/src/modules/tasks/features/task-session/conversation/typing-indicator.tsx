@@ -1,6 +1,8 @@
 "use client"
 
-export function TypingIndicator(props: { label: string }) {
+import { memo } from "react"
+
+function TypingIndicatorView(props: { label: string }) {
   return (
     <div className="flex justify-start">
       <div className="w-full rounded-lg bg-muted/18 px-3 py-2">
@@ -18,3 +20,5 @@ export function TypingIndicator(props: { label: string }) {
     </div>
   )
 }
+
+export const TypingIndicator = memo(TypingIndicatorView)

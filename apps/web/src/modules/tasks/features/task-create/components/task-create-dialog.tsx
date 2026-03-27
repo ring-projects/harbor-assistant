@@ -7,7 +7,7 @@ import {
   Settings2Icon,
   WifiIcon,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { type ReactNode, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   DropdownMenu,
@@ -75,6 +76,7 @@ function formatModelSummary(model: string | null | undefined) {
 type TaskCreateDialogProps = {
   projectId: string
   onTaskCreated: (taskId: string) => void
+  trigger?: ReactNode
 }
 
 function getLastSelectedModelStorageKey(projectId: string, executor: string) {
@@ -114,6 +116,7 @@ function writeLastSelectedModel(
 export function TaskCreateDialog({
   projectId,
   onTaskCreated,
+  trigger,
 }: TaskCreateDialogProps) {
   const projectSettingsQuery = useProjectSettingsQuery(projectId)
   const defaultExecutor =
@@ -202,18 +205,14 @@ export function TaskCreateDialog({
         }
       }}
     >
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          resetCreateComposer()
-          setOpen(true)
-        }}
-      >
-        <PlusIcon className="size-4" />
-        New Task
-      </Button>
+      <DialogTrigger asChild>
+        {trigger ?? (
+          <Button type="button" variant="outline" size="sm">
+            <PlusIcon className="size-4" />
+            New Task
+          </Button>
+        )}
+      </DialogTrigger>
 
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>

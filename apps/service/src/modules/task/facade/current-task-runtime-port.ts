@@ -39,5 +39,48 @@ export function createCurrentTaskRuntimePort(args: {
         agentRuntime,
       })
     },
+    async resumeTaskExecution(input) {
+      const executionRecord = await args.prisma.execution.findUnique({
+        where: {
+          ownerId: input.taskId,
+        },
+        select: {
+          executorType: true,
+          executorModel: true,
+          executionMode: true,
+          sessionId: true,
+        },
+      })
+
+      if (!executionRecord) {
+        throw new Error(`Execution for task ${input.taskId} was not found.`)
+      }
+
+      if (!executionRecord.sessionId) {
+        throw new Error(`Execution for task ${input.taskId} has no resumable session.`)
+      }
+
+      const agentType = normalizeAgentType(executionRecord.executorType)
+      const capability = await AgentFactory.getCapability(agentType).inspect()
+      if (!capability.supportsResume) {
+        throw new Error(`${executionRecord.executorType} does not support resume.`)
+      }
+
+      const agentRuntime = resolveAgentRuntime(agentType)
+      await executionDriver.resumeExecution({
+        taskId: input.taskId,
+        projectId: input.projectId,
+        projectPath: input.projectPath,
+        prompt: input.prompt,
+        runtimeConfig: {
+          executor: executionRecord.executorType,
+          model: executionRecord.executorModel,
+          executionMode: executionRecord.executionMode,
+        },
+        sessionId: executionRecord.sessionId,
+        agentType,
+        agentRuntime,
+      })
+    },
   }
 }

@@ -1,5 +1,7 @@
 "use client"
 
+import { memo } from "react"
+
 import { ArrowUpRightIcon, CheckCircle2Icon, CircleIcon, PlugZapIcon, XCircleIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -25,7 +27,7 @@ function previewText(value: string | null, maxLines: number) {
   return `${lines.slice(0, maxLines).join("\n")}\n...`
 }
 
-export function ChatMcpToolCallBlock({
+function ChatMcpToolCallBlockView({
   block,
   onOpen,
 }: ChatMcpToolCallBlockProps) {
@@ -59,20 +61,27 @@ export function ChatMcpToolCallBlock({
       <button
         type="button"
         onClick={() => onOpen(block)}
-        className="hover:bg-muted/30 w-full rounded-lg bg-muted/22 text-left transition-colors"
+        className="hover:bg-muted/30 w-full max-w-[52rem] rounded-xl border border-border/55 bg-card/60 text-left transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
       >
-        <div className="flex items-start justify-between gap-3 px-3 py-2.5">
+        <div className="flex items-start justify-between gap-3 px-3.5 py-3">
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-2 font-mono text-[12px] leading-5 text-foreground/88">
-              <PlugZapIcon className="text-muted-foreground size-3.5 shrink-0" />
-              <span className="truncate">{`tool: ${toolLabel}`}</span>
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="flex min-w-0 items-center gap-2 font-mono text-[12px] leading-5 text-foreground/88">
+                <PlugZapIcon className="text-muted-foreground size-3.5 shrink-0" />
+                <span className="truncate">{`tool: ${toolLabel}`}</span>
+              </p>
+              <span className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium",
+                block.status === "success" && "border-emerald-200 bg-emerald-50/75 text-emerald-700",
+                block.status === "failed" && "border-rose-200 bg-rose-50/80 text-rose-700",
+                block.status === "running" && "border-sky-200 bg-sky-50/75 text-sky-700",
+              )}>
+                <StatusIcon className="size-3" />
+                {statusMeta.label}
+              </span>
+            </div>
 
             <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
-              <span className={cn("inline-flex items-center gap-1", statusMeta.metaClassName)}>
-                <StatusIcon className="size-3" />
-                {statusMeta.label.toLowerCase()}
-              </span>
               {block.callId ? ` · ${block.callId}` : ""}
               {block.timestamp ? ` · ${formatChatTimestamp(block.timestamp)}` : ""}
             </p>
@@ -96,3 +105,15 @@ export function ChatMcpToolCallBlock({
     </div>
   )
 }
+
+function areMcpToolCallPropsEqual(
+  previous: ChatMcpToolCallBlockProps,
+  next: ChatMcpToolCallBlockProps,
+) {
+  return previous.block === next.block && previous.onOpen === next.onOpen
+}
+
+export const ChatMcpToolCallBlock = memo(
+  ChatMcpToolCallBlockView,
+  areMcpToolCallPropsEqual,
+)

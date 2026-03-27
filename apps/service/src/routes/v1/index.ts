@@ -71,6 +71,14 @@ export async function registerV1Routes(
   })
   const gitRepository = createGitCommandRepository()
   const fileSystemRepository = createNodeFileSystemRepository()
+  const bootstrapRoots = [
+    {
+      id: "default",
+      label: "Local Files",
+      path: config.fileBrowserRootDirectory,
+      isDefault: true,
+    },
+  ]
 
   await registerAgentRoutes(app)
   await registerProjectModuleRoutes(app, {
@@ -84,6 +92,7 @@ export async function registerV1Routes(
   await registerFileSystemModuleRoutes(app, {
     projectRepository,
     fileSystemRepository,
+    bootstrapRoots,
   })
   await registerTaskModuleRoutes(app, {
     repository: taskRepository,

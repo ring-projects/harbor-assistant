@@ -16,6 +16,24 @@ export function toFileSystemAppError(error: unknown): AppError {
       case FILESYSTEM_ERROR_CODES.INVALID_INPUT:
       case FILESYSTEM_ERROR_CODES.INVALID_CURSOR:
         return new AppError(ERROR_CODES.INVALID_REQUEST_BODY, 400, error.message)
+      case FILESYSTEM_ERROR_CODES.FILESYSTEM_ROOT_NOT_FOUND:
+        return new AppError(
+          FILESYSTEM_ERROR_CODES.FILESYSTEM_ROOT_NOT_FOUND,
+          404,
+          error.message,
+        )
+      case FILESYSTEM_ERROR_CODES.FILESYSTEM_ROOT_NOT_ALLOWED:
+        return new AppError(
+          FILESYSTEM_ERROR_CODES.FILESYSTEM_ROOT_NOT_ALLOWED,
+          403,
+          error.message,
+        )
+      case FILESYSTEM_ERROR_CODES.BOOTSTRAP_FILESYSTEM_DISABLED:
+        return new AppError(
+          FILESYSTEM_ERROR_CODES.BOOTSTRAP_FILESYSTEM_DISABLED,
+          503,
+          error.message,
+        )
       case FILESYSTEM_ERROR_CODES.PATH_NOT_FOUND:
         return new AppError(FILESYSTEM_ERROR_CODES.PATH_NOT_FOUND, 404, error.message)
       case FILESYSTEM_ERROR_CODES.NOT_A_DIRECTORY:

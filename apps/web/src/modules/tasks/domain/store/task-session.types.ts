@@ -17,9 +17,14 @@ export type PendingPromptState = {
   baselineSequence: number
 }
 
+export type QueuedPromptState = {
+  content: string
+}
+
 export type ChatUiState = {
   draft: string
   pendingPrompt: PendingPromptState | null
+  queuedPrompt: QueuedPromptState | null
   stickToBottom: boolean
   selectedInspectorBlockId: string | null
 }
@@ -42,6 +47,7 @@ export type TasksSessionActions = {
   applyAgentEvent: (taskId: string, event: TaskAgentEvent) => void
   setDraft: (taskId: string, draft: string) => void
   setPendingPrompt: (taskId: string, pendingPrompt: PendingPromptState | null) => void
+  setQueuedPrompt: (taskId: string, queuedPrompt: QueuedPromptState | null) => void
   setStickToBottom: (taskId: string, stickToBottom: boolean) => void
   setSelectedInspectorBlockId: (
     taskId: string,

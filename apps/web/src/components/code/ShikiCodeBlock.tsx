@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 import { codeToHtml } from "shiki/bundle/web"
 
 import { normalizeCodeLanguage } from "./utils"
@@ -48,7 +48,7 @@ async function highlightCode(code: string, language: string | null) {
   return pending
 }
 
-export function ShikiCodeBlock({ code, language }: ShikiCodeBlockProps) {
+function ShikiCodeBlockView({ code, language }: ShikiCodeBlockProps) {
   const normalizedCode = useMemo(() => code.replace(/\n$/, ""), [code])
   const fallbackHtml = useMemo(
     () => createFallbackHtml(normalizedCode),
@@ -92,3 +92,5 @@ export function ShikiCodeBlock({ code, language }: ShikiCodeBlockProps) {
 
   return <div dangerouslySetInnerHTML={{ __html: html }} />
 }
+
+export const ShikiCodeBlock = memo(ShikiCodeBlockView)

@@ -2,6 +2,16 @@ import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
 import { buildExecutorApiUrl } from "@/lib/executor-service-url"
+import {
+  asRecord,
+  parseJsonResponse,
+  pickString,
+  toBooleanOrNull,
+  toIntegerOrNull,
+  toIsoDateString,
+  toOptionalIsoDateString,
+  toStringOrNull,
+} from "@/lib/protocol"
 import type {
   Project,
   ProjectExecutionMode,
@@ -76,58 +86,6 @@ export type UpdateProjectSettingsInput = {
   }>
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null) {
-    return null
-  }
-
-  return value as Record<string, unknown>
-}
-
-function toStringOrNull(value: unknown): string | null {
-  return typeof value === "string" ? value : null
-}
-
-function toBooleanOrNull(value: unknown): boolean | null {
-  return typeof value === "boolean" ? value : null
-}
-
-function toIntegerOrNull(value: unknown): number | null {
-  if (typeof value === "number" && Number.isInteger(value)) {
-    return value
-  }
-
-  if (typeof value === "string") {
-    const parsed = Number(value)
-    if (Number.isInteger(parsed)) {
-      return parsed
-    }
-  }
-
-  return null
-}
-
-function toDateString(value: unknown) {
-  if (typeof value !== "string") {
-    return new Date().toISOString()
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return new Date().toISOString()
-  }
-
-  return parsed.toISOString()
-}
-
-function toOptionalDateString(value: unknown): string | null {
-  if (value === null || value === undefined || value === "") {
-    return null
-  }
-
-  return toDateString(value)
-}
-
 function toProjectExecutor(value: unknown): ProjectExecutor | null {
   return value === "codex" || value === "claude-code" ? value : null
 }
@@ -139,7 +97,7 @@ function toExecutionMode(value: unknown): ProjectExecutionMode | null {
 }
 
 async function parseJson(response: Response): Promise<ProjectEnvelopePayload | null> {
-  return (await response.json().catch(() => null)) as ProjectEnvelopePayload | null
+  return parseJsonResponse<ProjectEnvelopePayload>(response)
 }
 
 function throwIfFailed(
@@ -237,10 +195,10 @@ function extractProject(candidate: unknown): Project | null {
     rootPath,
     normalizedPath,
     status,
-    archivedAt: toOptionalDateString(source.archivedAt),
-    lastOpenedAt: toOptionalDateString(source.lastOpenedAt),
-    createdAt: toDateString(source.createdAt),
-    updatedAt: toDateString(source.updatedAt),
+    archivedAt: toOptionalIsoDateString(source.archivedAt),
+    lastOpenedAt: toOptionalIsoDateString(source.lastOpenedAt),
+    createdAt: toIsoDateString(source.createdAt),
+    updatedAt: toIsoDateString(source.updatedAt),
     settings,
   }
 }
@@ -512,7 +470,7 @@ export async function deleteProject(
   const payload = await parseJson(response)
   throwIfFailed(response, payload, "Failed to delete project.")
 
-  const projectId = toStringOrNull(payload?.projectId)
+  const projectId = pickString(payload, "projectId")
   if (!projectId) {
     throw new ProjectApiClientError("Delete project payload is invalid.", {
       code: ERROR_CODES.INTERNAL_ERROR,
