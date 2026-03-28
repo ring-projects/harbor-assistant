@@ -20,6 +20,7 @@ import { InMemoryTaskRepository } from "../../modules/task/infrastructure/in-mem
 import { createInMemoryTaskNotificationBus } from "../../modules/task/infrastructure/notification/in-memory-task-notification-bus"
 import { PrismaTaskRepository } from "../../modules/task/infrastructure/persistence/prisma-task-repository"
 import { PrismaTaskEventProjection } from "../../modules/task/infrastructure/projection/prisma-task-event-projection"
+import { createTaskStartupReconciler } from "../../modules/task/infrastructure/runtime/task-startup-reconciler"
 import { registerTaskModuleRoutes } from "../../modules/task/routes"
 import { createProjectGitInteractionLifecycle } from "./create-project-git-interaction-lifecycle"
 import { createTaskInteractionService } from "./create-task-interaction-service"
@@ -58,6 +59,25 @@ export async function registerV1Routes(
         logger: app.log,
       })
     : createNoopTaskRuntimePort()
+
+  if (prisma) {
+    try {
+      await createTaskStartupReconciler({
+        prisma,
+        taskRepository,
+        notificationPublisher: taskNotificationBus.publisher,
+        logger: app.log,
+      }).reconcileOrphanedExecutions()
+    } catch (error) {
+      app.log.error(
+        {
+          error,
+        },
+        "Failed to reconcile orphaned task executions during service startup",
+      )
+    }
+  }
+
   const taskInteractionService = createTaskInteractionService({
     repository: taskRepository,
     eventProjection: taskEventProjection,

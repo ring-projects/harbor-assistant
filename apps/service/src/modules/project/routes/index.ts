@@ -36,16 +36,6 @@ export async function registerProjectModuleRoutes(
 ) {
   const { repository, pathPolicy } = options
 
-  function toResponseProject(project: Awaited<ReturnType<typeof getProjectUseCase>>) {
-    return {
-      ...project,
-      createdAt: project.createdAt.toISOString(),
-      updatedAt: project.updatedAt.toISOString(),
-      archivedAt: project.archivedAt?.toISOString() ?? null,
-      lastOpenedAt: project.lastOpenedAt?.toISOString() ?? null,
-    }
-  }
-
   app.get(
     "/projects",
     {
@@ -55,7 +45,7 @@ export async function registerProjectModuleRoutes(
       const projects = await listProjectsUseCase(repository)
       return {
         ok: true,
-        projects: projects.map(toResponseProject),
+        projects,
       }
     },
   )
@@ -74,7 +64,7 @@ export async function registerProjectModuleRoutes(
         )
         return reply.status(201).send({
           ok: true,
-          project: toResponseProject(project),
+          project,
         })
       } catch (error) {
         throw toProjectAppError(error)
@@ -93,7 +83,7 @@ export async function registerProjectModuleRoutes(
         const project = await getProjectUseCase(repository, id)
         return {
           ok: true,
-          project: toResponseProject(project),
+          project,
         }
       } catch (error) {
         throw toProjectAppError(error)
@@ -116,7 +106,7 @@ export async function registerProjectModuleRoutes(
 
         return {
           ok: true,
-          project: toResponseProject(project),
+          project,
         }
       } catch (error) {
         throw toProjectAppError(error)
@@ -157,7 +147,7 @@ export async function registerProjectModuleRoutes(
         })
         return {
           ok: true,
-          project: toResponseProject(project),
+          project,
         }
       } catch (error) {
         throw toProjectAppError(error)
@@ -176,7 +166,7 @@ export async function registerProjectModuleRoutes(
         const project = await archiveProjectUseCase(repository, id)
         return {
           ok: true,
-          project: toResponseProject(project),
+          project,
         }
       } catch (error) {
         throw toProjectAppError(error)
@@ -195,7 +185,7 @@ export async function registerProjectModuleRoutes(
         const project = await restoreProjectUseCase(repository, id)
         return {
           ok: true,
-          project: toResponseProject(project),
+          project,
         }
       } catch (error) {
         throw toProjectAppError(error)

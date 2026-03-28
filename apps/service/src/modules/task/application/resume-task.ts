@@ -1,4 +1,6 @@
+import type { AgentInputItem } from "../../../lib/agents"
 import { assertTaskCanResume } from "../domain/task"
+import { resolveAgentInput } from "../domain/task-input"
 import { createTaskError } from "../errors"
 import type { ProjectTaskPort } from "./project-task-port"
 import { toTaskDetail, type TaskDetail } from "./task-read-models"
@@ -11,17 +13,18 @@ export async function resumeTaskUseCase(args: {
   runtimePort: TaskRuntimePort
 }, input: {
   taskId: string
-  prompt: string
+  prompt?: string | null
+  items?: AgentInputItem[] | null
 }): Promise<TaskDetail> {
   const taskId = input.taskId.trim()
-  const prompt = input.prompt.trim()
+  const agentInput = resolveAgentInput(input)
 
   if (!taskId) {
     throw createTaskError().invalidInput("taskId is required")
   }
 
-  if (!prompt) {
-    throw createTaskError().invalidInput("prompt is required")
+  if (!agentInput) {
+    throw createTaskError().invalidInput("task input is required")
   }
 
   const task = await args.repository.findById(taskId)
@@ -41,7 +44,7 @@ export async function resumeTaskUseCase(args: {
       taskId: task.id,
       projectId: task.projectId,
       projectPath: project.rootPath,
-      prompt,
+      input: agentInput,
     })
   } catch (error) {
     throw createTaskError().resumeFailed(

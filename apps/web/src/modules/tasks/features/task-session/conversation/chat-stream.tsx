@@ -2,12 +2,13 @@
 
 import { memo } from "react"
 
-import type { ChatConversationBlock, ChatInspectorBlock } from "../types"
+import type { ChatConversationBlock, ChatInspectorBlock } from "@/modules/tasks/view-models"
 import { ChatCommandGroup } from "./chat-command-group"
 import { ChatEvent } from "./chat-event"
 import { ChatFileChangeBlock } from "./chat-file-change-block"
 import { ChatMessage } from "./chat-message"
 import { ChatMcpToolCallBlock } from "./chat-mcp-tool-call-block"
+import { ChatTodoListBlock } from "./chat-todo-list-block"
 import { ChatWebSearchBlock } from "./chat-web-search-block"
 import { TypingIndicator } from "./typing-indicator"
 
@@ -18,7 +19,7 @@ type ChatStreamProps = {
 
 function ChatStreamView({ blocks, onOpenInspector }: ChatStreamProps) {
   return (
-    <div className="space-y-2.5 pr-1">
+    <div>
       {blocks.map((block) => {
         if (block.type === "message") {
           return <ChatMessage key={block.id} block={block} />
@@ -62,6 +63,10 @@ function ChatStreamView({ blocks, onOpenInspector }: ChatStreamProps) {
               onOpen={onOpenInspector}
             />
           )
+        }
+
+        if (block.type === "todo-list") {
+          return <ChatTodoListBlock key={block.id} block={block} />
         }
 
         if (block.type === "typing") {

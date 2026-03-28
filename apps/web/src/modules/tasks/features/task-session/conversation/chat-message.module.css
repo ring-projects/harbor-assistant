@@ -1,31 +1,17 @@
 .messageShell {
   width: 100%;
   min-width: 0;
-  border: 1px solid color-mix(in oklab, var(--border) 52%, transparent);
+  border: 1px solid var(--border);
   border-radius: 18px;
   padding: 0.75rem 1rem 0.95rem;
 }
 
 .userShell {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--accent) 62%, var(--background)) 0%,
-      color-mix(in oklab, var(--accent) 36%, var(--background)) 100%
-    );
-  box-shadow: inset 0 1px 0 color-mix(in oklab, white 22%, transparent);
+  background: var(--accent);
 }
 
 .agentShell {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--card) 78%, var(--background)) 0%,
-      color-mix(in oklab, var(--muted) 26%, var(--background)) 100%
-    );
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, white 18%, transparent),
-    0 1px 2px color-mix(in oklab, black 6%, transparent);
+  background: var(--card);
 }
 
 .pendingShell {
@@ -89,6 +75,61 @@
   overflow-wrap: anywhere;
   font-size: 13px;
   line-height: 1.7;
+}
+
+.attachmentList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.attachmentCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--background) 96%, transparent) 0%,
+      color-mix(in oklab, var(--card) 92%, transparent) 100%
+    );
+  padding: 0.75rem 0.8rem;
+}
+
+.attachmentIconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 72%, var(--background));
+  color: color-mix(in oklab, var(--foreground) 72%, var(--muted-foreground));
+  flex: 0 0 auto;
+}
+
+.attachmentMeta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.attachmentName {
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.attachmentPath {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
 }
 
 .markdownBody {

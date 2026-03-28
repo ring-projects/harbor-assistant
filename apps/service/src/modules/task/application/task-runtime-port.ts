@@ -1,3 +1,5 @@
+import type { AgentInput } from "../../../lib/agents"
+
 export type TaskRuntimeConfig = {
   executor: string
   model: string | null
@@ -9,13 +11,13 @@ export interface TaskRuntimePort {
     taskId: string
     projectId: string
     projectPath: string
-    prompt: string
+    input: AgentInput
     runtimeConfig: TaskRuntimeConfig
   }): Promise<void>
   resumeTaskExecution(input: {
     taskId: string
     projectId: string
     projectPath: string
-    prompt: string
+    input: AgentInput
   }): Promise<void>
 }

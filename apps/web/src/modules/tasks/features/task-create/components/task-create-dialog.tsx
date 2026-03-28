@@ -27,16 +27,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useProjectSettingsQuery } from "@/modules/projects"
-import { ChatInteraction } from "@/modules/tasks/features/task-session/composer"
+import {
+  ChatInteraction,
+  TaskInputAttachmentList,
+} from "@/modules/tasks/features/task-session/composer"
 import {
   useAgentCapabilitiesQuery,
   useCreateTaskMutation,
+  useUploadTaskInputImageMutation,
 } from "@/modules/tasks/hooks/use-task-queries"
+import {
+  buildTaskInput,
+  summarizeTaskInput,
+  type UploadedTaskInputImage,
+} from "@/modules/tasks/lib"
 import {
   formatExecutionModeLabel,
   formatExecutorLabel,
   getErrorMessage,
-} from "@/modules/tasks/domain/lib"
+} from "@/modules/tasks/view-models"
 
 const EXECUTOR_OPTIONS = [
   {
@@ -127,6 +136,9 @@ export function TaskCreateDialog({
       : "connected"
   const [open, setOpen] = useState(false)
   const [newTaskPrompt, setNewTaskPrompt] = useState("")
+  const [newTaskAttachments, setNewTaskAttachments] = useState<
+    UploadedTaskInputImage[]
+  >([])
   const [newTaskExecutor, setNewTaskExecutor] = useState<string>(defaultExecutor)
   const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const [newTaskExecutionMode, setNewTaskExecutionMode] = useState<
@@ -138,6 +150,7 @@ export function TaskCreateDialog({
     enabled: open,
   })
   const createTaskMutation = useCreateTaskMutation(projectId)
+  const uploadTaskInputImageMutation = useUploadTaskInputImageMutation(projectId)
   const selectedExecutorCapabilities =
     newTaskExecutor === "claude-code"
       ? agentCapabilitiesQuery.data?.agents["claude-code"] ?? null
@@ -161,30 +174,48 @@ export function TaskCreateDialog({
 
     return null
   }, [selectedExecutorModelIds, selectedExecutorModels.length, selectedModel])
+  const createTaskInput = useMemo(
+    () =>
+      buildTaskInput({
+        text: newTaskPrompt,
+        attachments: newTaskAttachments,
+      }),
+    [newTaskAttachments, newTaskPrompt],
+  )
 
   function resetCreateComposer() {
     setCreateTaskError(null)
     setNewTaskPrompt("")
+    setNewTaskAttachments([])
     setNewTaskExecutor(defaultExecutor)
     setSelectedModel(readLastSelectedModel(projectId, defaultExecutor))
     setNewTaskExecutionMode(defaultExecutionMode)
   }
 
   async function handleCreateTask() {
-    const prompt = newTaskPrompt.trim()
-    if (!prompt) {
-      setCreateTaskError("Enter a prompt before creating the task.")
+    if (!createTaskInput) {
+      setCreateTaskError("Enter a prompt or attach an image before creating the task.")
       return
     }
 
     try {
       setCreateTaskError(null)
-      const result = await createTaskMutation.mutateAsync({
-        prompt,
-        model: resolvedSelectedModel ?? undefined,
-        executor: newTaskExecutor,
-        executionMode: newTaskExecutionMode,
-      })
+      const result = await createTaskMutation.mutateAsync(
+        typeof createTaskInput === "string"
+          ? {
+              prompt: createTaskInput,
+              model: resolvedSelectedModel ?? undefined,
+              executor: newTaskExecutor,
+              executionMode: newTaskExecutionMode,
+            }
+          : {
+              items: createTaskInput,
+              title: summarizeTaskInput(createTaskInput),
+              model: resolvedSelectedModel ?? undefined,
+              executor: newTaskExecutor,
+              executionMode: newTaskExecutionMode,
+            },
+      )
 
       writeLastSelectedModel(projectId, newTaskExecutor, resolvedSelectedModel)
       resetCreateComposer()
@@ -193,6 +224,24 @@ export function TaskCreateDialog({
     } catch (error) {
       setCreateTaskError(getErrorMessage(error))
     }
+  }
+
+  async function uploadFiles(files: File[]) {
+    const uploaded = await Promise.all(
+      files.map((file) =>
+        uploadTaskInputImageMutation.mutateAsync({
+          file,
+        }),
+      ),
+    )
+
+    setNewTaskAttachments((current) => [...current, ...uploaded])
+  }
+
+  function removeAttachment(path: string) {
+    setNewTaskAttachments((current) =>
+      current.filter((attachment) => attachment.path !== path),
+    )
   }
 
   return (
@@ -227,12 +276,20 @@ export function TaskCreateDialog({
           }}
         >
           <ChatInteraction
-            canSubmit={!createTaskMutation.isPending && newTaskPrompt.trim().length > 0}
+            canSubmit={
+              !createTaskMutation.isPending &&
+              !uploadTaskInputImageMutation.isPending &&
+              Boolean(createTaskInput)
+            }
             inputDisabled={createTaskMutation.isPending}
-            isSubmitting={createTaskMutation.isPending}
+            isSubmitting={
+              createTaskMutation.isPending || uploadTaskInputImageMutation.isPending
+            }
             autoFocus
             helperText={
-              agentCapabilitiesQuery.isLoading
+              uploadTaskInputImageMutation.isPending
+                ? "Uploading image attachment..."
+                : agentCapabilitiesQuery.isLoading
                 ? `Loading available models for ${formatExecutorLabel(newTaskExecutor)}...`
                 : agentCapabilitiesQuery.isError
                   ? "Model list unavailable. Task creation still works with the current defaults."
@@ -243,6 +300,15 @@ export function TaskCreateDialog({
             placeholder="Describe the task you want the agent to start with..."
             value={newTaskPrompt}
             errorMessage={createTaskError}
+            attachments={
+              <TaskInputAttachmentList
+                attachments={newTaskAttachments}
+                disabled={
+                  createTaskMutation.isPending || uploadTaskInputImageMutation.isPending
+                }
+                onRemove={removeAttachment}
+              />
+            }
             controls={
               <>
                 <DropdownMenu>
@@ -400,6 +466,12 @@ export function TaskCreateDialog({
               </div>
             }
             onChange={setNewTaskPrompt}
+            onPasteFiles={(files) => {
+              void uploadFiles(files)
+            }}
+            onDropFiles={(files) => {
+              void uploadFiles(files)
+            }}
             onSubmit={() => {
               void handleCreateTask()
             }}

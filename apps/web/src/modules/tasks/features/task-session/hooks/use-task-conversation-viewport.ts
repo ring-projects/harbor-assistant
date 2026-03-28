@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 
-import { useTasksSessionStore } from "@/modules/tasks/domain/store"
+import { useTasksSessionStore } from "@/modules/tasks/store"
 
-import type { ChatConversationBlock } from "../types"
+import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 const CHAT_WINDOW_INITIAL_SIZE = 160
 const CHAT_WINDOW_EXPAND_STEP = 120

@@ -79,16 +79,108 @@ describe("toConversationBlocks", () => {
     })
   })
 
-  it("maps command output into command group blocks", () => {
+  it("renders user structured input with local image attachments", () => {
+    const [block] = toConversationBlocks([
+      buildTaskAgentEvent({
+        id: "message-structured-1",
+        payload: {
+          type: "message",
+          role: "user",
+          content: "Review this screenshot",
+          input: [
+            {
+              type: "text",
+              text: "Review this screenshot",
+            },
+            {
+              type: "local_image",
+              path: ".harbor/task-input-images/example.png",
+            },
+          ],
+          source: "user_input",
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+    ])
+
+    expect(block).toEqual({
+      id: "message-structured-1",
+      type: "message",
+      role: "user",
+      content: "Review this screenshot",
+      attachments: [
+        {
+          type: "local_image",
+          path: ".harbor/task-input-images/example.png",
+        },
+      ],
+      timestamp: "2026-03-11T00:00:00.000Z",
+    })
+  })
+
+  it("renders attachment-only user input as message attachments without inline path text", () => {
+    const [block] = toConversationBlocks([
+      buildTaskAgentEvent({
+        id: "message-structured-2",
+        payload: {
+          type: "message",
+          role: "user",
+          content: "Attached 1 image",
+          input: [
+            {
+              type: "local_image",
+              path: ".harbor/task-input-images/only-image.png",
+            },
+          ],
+          attachments: [
+            {
+              type: "local_image",
+              path: ".harbor/task-input-images/only-image.png",
+            },
+          ],
+          source: "user_input",
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+    ])
+
+    expect(block).toEqual({
+      id: "message-structured-2",
+      type: "message",
+      role: "user",
+      content: "Attached 1 image",
+      attachments: [
+        {
+          type: "local_image",
+          path: ".harbor/task-input-images/only-image.png",
+        },
+      ],
+      timestamp: "2026-03-11T00:00:00.000Z",
+    })
+  })
+
+  it("treats command output as the latest snapshot", () => {
     const [block] = toConversationBlocks([
       buildTaskAgentEvent({
         id: "output-1",
+        sequence: 1,
+        eventType: "command.output",
+        payload: {
+          type: "command.output",
+          commandId: "command-1",
+          output: "bun test",
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+      buildTaskAgentEvent({
+        id: "output-2",
+        sequence: 2,
         eventType: "command.output",
         payload: {
           type: "command.output",
           commandId: "command-1",
           output: "bun test\nok",
-          timestamp: "2026-03-11T00:00:00.000Z",
+          timestamp: "2026-03-11T00:00:01.000Z",
         },
       }),
     ])
@@ -236,6 +328,97 @@ describe("toConversationBlocks", () => {
       content: "Something failed",
       timestamp: "2026-03-11T00:00:00.000Z",
       tone: "error",
+    })
+  })
+
+  it("aggregates todo list lifecycle events into one checklist block", () => {
+    const [block] = toConversationBlocks([
+      buildTaskAgentEvent({
+        id: "todo-0",
+        sequence: 1,
+        eventType: "todo_list.started",
+        payload: {
+          type: "todo_list.started",
+          todoListId: "todo-list-1",
+          items: [{ text: "Investigate", completed: false }],
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+      buildTaskAgentEvent({
+        id: "todo-1",
+        sequence: 2,
+        eventType: "todo_list.updated",
+        payload: {
+          type: "todo_list.updated",
+          todoListId: "todo-list-1",
+          items: [
+            { text: "Investigate", completed: true },
+            { text: "Patch", completed: false },
+          ],
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+      buildTaskAgentEvent({
+        id: "todo-2",
+        sequence: 3,
+        eventType: "todo_list.completed",
+        payload: {
+          type: "todo_list.completed",
+          todoListId: "todo-list-1",
+          items: [
+            { text: "Investigate", completed: true },
+            { text: "Patch", completed: true },
+          ],
+          timestamp: "2026-03-11T00:00:03.000Z",
+        },
+      }),
+    ])
+
+    expect(block).toEqual({
+      id: "todo-0",
+      type: "todo-list",
+      todoListId: "todo-list-1",
+      items: [
+        { text: "Investigate", completed: true },
+        { text: "Patch", completed: true },
+      ],
+      startedAt: "2026-03-11T00:00:00.000Z",
+      updatedAt: "2026-03-11T00:00:03.000Z",
+      completedAt: "2026-03-11T00:00:03.000Z",
+      timestamp: "2026-03-11T00:00:03.000Z",
+      status: "completed",
+    })
+  })
+
+  it("keeps compatibility with legacy todo_list snapshots", () => {
+    const [block] = toConversationBlocks([
+      buildTaskAgentEvent({
+        id: "todo-legacy",
+        eventType: "todo_list",
+        payload: {
+          type: "todo_list",
+          items: [
+            { text: "Legacy A", completed: true },
+            { text: "Legacy B", completed: false },
+          ],
+          timestamp: "2026-03-11T00:00:00.000Z",
+        },
+      }),
+    ])
+
+    expect(block).toEqual({
+      id: "todo-legacy",
+      type: "todo-list",
+      todoListId: "todo-legacy",
+      items: [
+        { text: "Legacy A", completed: true },
+        { text: "Legacy B", completed: false },
+      ],
+      startedAt: "2026-03-11T00:00:00.000Z",
+      updatedAt: "2026-03-11T00:00:00.000Z",
+      completedAt: null,
+      timestamp: "2026-03-11T00:00:00.000Z",
+      status: "running",
     })
   })
 })

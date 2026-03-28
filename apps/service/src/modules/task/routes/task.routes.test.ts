@@ -1,6 +1,11 @@
-import Fastify from "fastify"
-import { describe, expect, it } from "vitest"
+import { mkdtemp, readFile, rm } from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
 
+import Fastify from "fastify"
+import { afterEach, describe, expect, it } from "vitest"
+
+import { attachTaskRuntime, type TaskRecord } from "../application/task-read-models"
 import { createTask } from "../domain/task"
 import { InMemoryTaskEventProjection } from "../infrastructure/in-memory-task-event-projection"
 import { InMemoryTaskRepository } from "../infrastructure/in-memory-task-repository"
@@ -8,21 +13,35 @@ import { createInMemoryTaskNotificationBus } from "../infrastructure/notificatio
 import { registerTaskModuleRoutes } from "."
 import errorHandlerPlugin from "../../../plugins/error-handler"
 
-async function createApp() {
+const tempRoots = new Set<string>()
+
+function withRuntime(task: ReturnType<typeof createTask>): TaskRecord {
+  return attachTaskRuntime(task, {
+    executor: "codex",
+    model: null,
+    executionMode: "safe",
+  })
+}
+
+async function createApp(
+  rootPath = "/tmp/harbor-assistant",
+  seedTasks: TaskRecord[] = [],
+) {
   const repository = new InMemoryTaskRepository([
-    createTask({
+    withRuntime(createTask({
       id: "task-1",
       projectId: "project-1",
       prompt: "Investigate runtime drift",
       status: "completed",
-    }),
-    createTask({
+    })),
+    withRuntime(createTask({
       id: "task-2",
       projectId: "project-1",
       prompt: "Summarize runtime drift",
       status: "failed",
       archivedAt: new Date("2026-03-25T00:00:00.000Z"),
-    }),
+    })),
+    ...seedTasks,
   ])
   const eventProjection = new InMemoryTaskEventProjection({
     "task-1": [
@@ -55,9 +74,9 @@ async function createApp() {
               return null
             }
 
-            return {
+              return {
               projectId,
-              rootPath: "/tmp/harbor-assistant",
+              rootPath,
               settings: {
                 defaultExecutor: "codex",
                 defaultModel: null,
@@ -92,6 +111,13 @@ async function createApp() {
 }
 
 describe("task routes", () => {
+  afterEach(async () => {
+    for (const rootPath of tempRoots) {
+      await rm(rootPath, { recursive: true, force: true })
+      tempRoots.delete(rootPath)
+    }
+  })
+
   it("creates a task", async () => {
     const app = await createApp()
 
@@ -111,6 +137,45 @@ describe("task routes", () => {
         projectId: "project-1",
         prompt: "Investigate runtime drift",
         title: "Investigate runtime drift",
+        executor: "codex",
+        model: null,
+        executionMode: "safe",
+        status: "queued",
+      },
+    })
+  })
+
+  it("creates a task from structured input and keeps prompt as summary", async () => {
+    const app = await createApp()
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/tasks",
+      payload: {
+        projectId: "project-1",
+        items: [
+          {
+            type: "text",
+            text: "Review this screenshot",
+          },
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
+      },
+    })
+
+    expect(created.statusCode).toBe(201)
+    expect(created.json()).toMatchObject({
+      ok: true,
+      task: {
+        projectId: "project-1",
+        prompt: "Review this screenshot",
+        title: "Review this screenshot",
+        executor: "codex",
+        model: null,
+        executionMode: "safe",
         status: "queued",
       },
     })
@@ -131,6 +196,9 @@ describe("task routes", () => {
         id: "task-1",
         projectId: "project-1",
         title: "Investigate runtime drift",
+        executor: "codex",
+        model: null,
+        executionMode: "safe",
         status: "completed",
       },
     })
@@ -146,6 +214,9 @@ describe("task routes", () => {
       tasks: [
         expect.objectContaining({
           id: "task-1",
+          executor: "codex",
+          model: null,
+          executionMode: "safe",
         }),
       ],
     })
@@ -195,6 +266,33 @@ describe("task routes", () => {
     })
   })
 
+  it("rejects deleting a running task", async () => {
+    const app = await createApp(
+      "/tmp/harbor-assistant",
+      [
+        withRuntime(createTask({
+          id: "task-running",
+          projectId: "project-1",
+          prompt: "Still running",
+          status: "running",
+        })),
+      ],
+    )
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/v1/tasks/task-running",
+    })
+
+    expect(deleted.statusCode).toBe(409)
+    expect(deleted.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_TASK_DELETE_STATE",
+      },
+    })
+  })
+
   it("resumes a terminal task and rejects archived task resume", async () => {
     const app = await createApp()
 
@@ -223,6 +321,37 @@ describe("task routes", () => {
       },
     })
     expect(archivedResume.statusCode).toBe(409)
+  })
+
+  it("resumes a terminal task from structured input", async () => {
+    const app = await createApp()
+
+    const resumed = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-1/resume",
+      payload: {
+        items: [
+          {
+            type: "text",
+            text: "Review this screenshot",
+          },
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
+      },
+    })
+
+    expect(resumed.statusCode).toBe(200)
+    expect(resumed.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: "task-1",
+        status: "running",
+        prompt: "Investigate runtime drift",
+      },
+    })
   })
 
   it("returns projected task events and structured errors", async () => {
@@ -288,5 +417,40 @@ describe("task routes", () => {
         code: "INVALID_REQUEST_BODY",
       },
     })
+  })
+
+  it("uploads a task input image into the project workspace", async () => {
+    const rootPath = await mkdtemp(path.join(os.tmpdir(), "harbor-task-input-"))
+    tempRoots.add(rootPath)
+    const app = await createApp(rootPath)
+
+    const uploaded = await app.inject({
+      method: "POST",
+      url: "/v1/projects/project-1/task-input-images",
+      payload: {
+        name: "screenshot.png",
+        mediaType: "image/png",
+        dataBase64: Buffer.from("test-image").toString("base64"),
+      },
+    })
+
+    expect(uploaded.statusCode).toBe(200)
+    expect(uploaded.json()).toMatchObject({
+      ok: true,
+      mediaType: "image/png",
+      name: "screenshot.png",
+      size: 10,
+    })
+
+    const body = uploaded.json() as {
+      path: string
+      mediaType: string
+      name: string
+      size: number
+    }
+
+    expect(body.path).toMatch(/^\.harbor\/task-input-images\/.+-screenshot\.png$/)
+    const stored = await readFile(path.join(rootPath, body.path))
+    expect(stored.toString()).toBe("test-image")
   })
 })

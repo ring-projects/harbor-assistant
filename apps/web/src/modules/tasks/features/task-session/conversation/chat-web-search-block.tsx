@@ -4,8 +4,8 @@ import { memo } from "react"
 
 import { ArrowUpRightIcon, SearchIcon } from "lucide-react"
 
-import type { ChatConversationBlock } from "../types"
-import { formatChatTimestamp } from "../components/shared"
+import { formatTimeShort } from "@/lib/date-time"
+import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatWebSearchBlockProps = {
   block: Extract<ChatConversationBlock, { type: "web-search" }>
@@ -21,7 +21,7 @@ function ChatWebSearchBlockView({
       <button
         type="button"
         onClick={() => onOpen(block)}
-        className="hover:bg-muted/30 w-full max-w-[52rem] rounded-xl border border-border/55 bg-card/60 text-left transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+        className="hover:bg-muted/20 w-full bg-card text-left transition-colors"
       >
         <div className="flex items-start justify-between gap-3 px-3.5 py-3">
           <div className="min-w-0 flex-1">
@@ -37,7 +37,7 @@ function ChatWebSearchBlockView({
 
             <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
               {block.searchId ? `Search ${block.searchId}` : "Web search"}
-              {block.timestamp ? ` · ${formatChatTimestamp(block.timestamp)}` : ""}
+              {block.timestamp ? ` · ${formatTimeShort(block.timestamp)}` : ""}
             </p>
 
             <p className="mt-2 line-clamp-2 text-[13px] leading-6 text-foreground/78">

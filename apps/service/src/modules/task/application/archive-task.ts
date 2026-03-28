@@ -1,7 +1,12 @@
 import { archiveTask } from "../domain/task"
 import { createTaskError } from "../errors"
 import type { TaskNotificationPublisher } from "./task-notification"
-import { toTaskDetail, toTaskListItem, type TaskDetail } from "./task-read-models"
+import {
+  attachTaskRuntime,
+  toTaskDetail,
+  toTaskListItem,
+  type TaskDetail,
+} from "./task-read-models"
 import type { TaskRepository } from "./task-repository"
 
 export async function archiveTaskUseCase(
@@ -15,12 +20,13 @@ export async function archiveTaskUseCase(
   }
 
   const next = archiveTask(current)
+  const nextRecord = attachTaskRuntime(next, current)
   await repository.save(next)
   await notificationPublisher.publish({
     type: "task_upserted",
     projectId: next.projectId,
-    task: toTaskListItem(next),
+    task: toTaskListItem(nextRecord),
   })
 
-  return toTaskDetail(next)
+  return toTaskDetail(nextRecord)
 }

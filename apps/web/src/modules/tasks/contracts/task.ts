@@ -6,6 +6,7 @@ export const TASK_STATUS_VALUES = [
   "completed",
   "failed",
   "cancelled",
+  "archived"
 ] as const
 
 export const TASK_AGENT_EVENT_TYPE_VALUES = [
@@ -22,6 +23,9 @@ export const TASK_AGENT_EVENT_TYPE_VALUES = [
   "mcp_tool_call.completed",
   "reasoning",
   "todo_list",
+  "todo_list.started",
+  "todo_list.updated",
+  "todo_list.completed",
   "error",
   "turn.completed",
   "turn.failed",

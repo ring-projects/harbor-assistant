@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect } from "react"
 
 import { gitQueryKeys } from "@/modules/git"
-import { useTasksSessionStore } from "@/modules/tasks/domain/store"
+import { useTasksSessionStore } from "@/modules/tasks/store"
 import {
   archiveTask,
   createTask,
@@ -14,7 +14,9 @@ import {
   readTaskDetail,
   readTaskEvents,
   type CreateTaskInput,
+  type ResumeTaskInput,
   resumeTask,
+  uploadTaskInputImage,
 } from "@/modules/tasks/api"
 export { useTaskEventStream } from "./use-task-event-stream"
 export { useProjectTaskListStream } from "./use-project-task-list-stream"
@@ -170,10 +172,8 @@ export function useResumeTaskMutation(projectId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: { taskId: string; prompt: string }) =>
-      resumeTask(input.taskId, {
-        prompt: input.prompt,
-      }),
+    mutationFn: (input: { taskId: string } & ResumeTaskInput) =>
+      resumeTask(input.taskId, input),
     onSuccess(task) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
@@ -187,6 +187,12 @@ export function useResumeTaskMutation(projectId: string) {
 
       useTasksSessionStore.getState().applyTaskUpsert(task)
     },
+  })
+}
+
+export function useUploadTaskInputImageMutation(projectId: string) {
+  return useMutation({
+    mutationFn: (input: { file: File }) => uploadTaskInputImage(projectId, input),
   })
 }
 

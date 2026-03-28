@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { useTasksSessionStore } from "@/modules/tasks/domain/store"
+import { useTasksSessionStore } from "@/modules/tasks/store"
 import type { TaskDetail } from "@/modules/tasks/contracts"
 
 import { TaskSessionConversationPane } from "./task-session-conversation-pane"

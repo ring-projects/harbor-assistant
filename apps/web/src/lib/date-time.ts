@@ -1,41 +1,44 @@
-function toDate(value: string | null) {
+import dayjs from "dayjs"
+import relativeTime from "dayjs/plugin/relativeTime"
+
+dayjs.extend(relativeTime)
+
+function toDayjs(value: string | null) {
   if (!value) {
     return null
   }
 
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
+  const parsed = dayjs(value)
+  if (!parsed.isValid()) {
     return null
   }
 
   return parsed
 }
 
-function pad(value: number) {
-  return String(value).padStart(2, "0")
-}
-
 export function formatTimeShort(value: string | null) {
-  const parsed = toDate(value)
+  const parsed = toDayjs(value)
   if (!parsed) {
     return "-"
   }
 
-  return `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`
+  return parsed.format("HH:mm")
 }
 
-export function formatDateTime(value: string | null) {
-  const parsed = toDate(value)
+export function formatDateTime(value: string | null, formatter = "YYYY-MM-DD HH:mm") {
+  const parsed = toDayjs(value)
   if (!parsed) {
     return "-"
   }
 
-  const year = parsed.getFullYear()
-  const month = pad(parsed.getMonth() + 1)
-  const day = pad(parsed.getDate())
-  const hours = pad(parsed.getHours())
-  const minutes = pad(parsed.getMinutes())
-  const seconds = pad(parsed.getSeconds())
+  return parsed.format(formatter)
+}
 
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+export function formatRelativeTimeShort(value: string | null) {
+  const parsed = toDayjs(value)
+  if (!parsed) {
+    return "-"
+  }
+
+  return parsed.fromNow()
 }

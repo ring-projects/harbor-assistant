@@ -1,6 +1,3 @@
-"use client"
-
-import { formatTimeShort } from "@/lib/date-time"
 import type { TaskStatus } from "@/modules/tasks/contracts"
 
 export const CHAT_STATUS_META: Record<
@@ -30,8 +27,4 @@ export const CHAT_STATUS_META: Record<
     label: "Cancelled",
     badgeClassName: "border-amber-200 bg-amber-100 text-amber-700",
   },
-}
-
-export function formatChatTimestamp(value: string | null) {
-  return formatTimeShort(value)
 }

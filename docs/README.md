@@ -32,6 +32,8 @@
 2. [tdd/git.md](./tdd/git.md)
 3. [tdd/filesystem.md](./tdd/filesystem.md)
 4. [tdd/bootstrap-filesystem.md](./tdd/bootstrap-filesystem.md)
+5. [tdd/task.md](./tdd/task.md)
+6. [tdd/task-structured-input.md](./tdd/task-structured-input.md)
 
 如果你在做前端，再继续看：
 
@@ -76,6 +78,10 @@
   - 已接受的事件存储原则
   - 当前 raw event source-of-truth 规则以这份文档为准
 
+- [task-structured-input-requirements-2026-03-28.md](./task-structured-input-requirements-2026-03-28.md)
+  - task 结构化输入、本地图片、输入落库边界的当前需求文档
+  - 当前 `Task.prompt` 与 `ExecutionEvent` 的职责收敛以这份文档为准
+
 ### 当前接口契约
 
 - [task-api.md](./task-api.md)
@@ -107,6 +113,12 @@
 
 - [tdd/bootstrap-filesystem.md](./tdd/bootstrap-filesystem.md)
   - bootstrap filesystem browse API 的 TDD 推进计划
+
+- [tdd/task.md](./tdd/task.md)
+  - `task` 模块的整体 TDD 推进顺序与测试分层计划
+
+- [tdd/task-structured-input.md](./tdd/task-structured-input.md)
+  - task 结构化输入与本地图片接入的专项红绿灯计划
 
 - [frontend-testing.md](./frontend-testing.md)
   - `apps/web` 测试策略与实践指南

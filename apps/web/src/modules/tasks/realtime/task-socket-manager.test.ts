@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query"
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { useTasksSessionStore } from "@/modules/tasks/domain/store"
+import { useTasksSessionStore } from "@/modules/tasks/store"
 import { gitQueryKeys } from "@/modules/git"
 
 import { TaskSocketManager } from "./task-socket-manager"

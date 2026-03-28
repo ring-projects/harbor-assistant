@@ -6,16 +6,18 @@ import { TERMINAL_TASK_STATUSES, type TaskDetail } from "@/modules/tasks/contrac
 import {
   selectChatUi,
   useTasksSessionStore,
-} from "@/modules/tasks/domain/store"
-import { useResumeTaskMutation } from "@/modules/tasks/hooks/use-task-queries"
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-
-  return "Failed to load. Please try again."
-}
+} from "@/modules/tasks/store"
+import {
+  buildTaskInput,
+  summarizeTaskInput,
+  type TaskInput,
+  type UploadedTaskInputImage,
+} from "@/modules/tasks/lib"
+import { getErrorMessage } from "@/modules/tasks/view-models"
+import {
+  useResumeTaskMutation,
+  useUploadTaskInputImageMutation,
+} from "@/modules/tasks/hooks/use-task-queries"
 
 export function useTaskSessionResume(args: {
   detail: TaskDetail | null | undefined
@@ -25,6 +27,10 @@ export function useTaskSessionResume(args: {
   taskId: string | null
 }) {
   const resumeTaskMutation = useResumeTaskMutation(args.projectId)
+  const uploadTaskInputImageMutation = useUploadTaskInputImageMutation(args.projectId)
+  const draftAttachments = useTasksSessionStore((state) =>
+    selectChatUi(state, args.taskId).draftAttachments,
+  )
   const queuedPrompt = useTasksSessionStore((state) =>
     selectChatUi(state, args.taskId).queuedPrompt,
   )
@@ -40,7 +46,8 @@ export function useTaskSessionResume(args: {
         (args.detail.status === "running" ||
           TERMINAL_TASK_STATUSES.includes(args.detail.status)),
     ) &&
-    !resumeTaskMutation.isPending
+    !resumeTaskMutation.isPending &&
+    !uploadTaskInputImageMutation.isPending
 
   const inputDisabled =
     !args.taskId ||
@@ -51,10 +58,31 @@ export function useTaskSessionResume(args: {
     ) ||
     args.detail.archivedAt !== null
 
-  const errorMessage = useMemo(
+  const currentInput = useMemo(
     () =>
-      resumeTaskMutation.isError ? getErrorMessage(resumeTaskMutation.error) : null,
-    [resumeTaskMutation.error, resumeTaskMutation.isError],
+      buildTaskInput({
+        text: args.draft,
+        attachments: draftAttachments,
+      }),
+    [args.draft, draftAttachments],
+  )
+
+  const errorMessage = useMemo(
+    () => {
+      if (uploadTaskInputImageMutation.isError) {
+        return getErrorMessage(uploadTaskInputImageMutation.error)
+      }
+
+      return resumeTaskMutation.isError
+        ? getErrorMessage(resumeTaskMutation.error)
+        : null
+    },
+    [
+      resumeTaskMutation.error,
+      resumeTaskMutation.isError,
+      uploadTaskInputImageMutation.error,
+      uploadTaskInputImageMutation.isError,
+    ],
   )
 
   const updateDraft = useCallback(
@@ -63,7 +91,6 @@ export function useTaskSessionResume(args: {
         return
       }
 
-      const trimmedValue = value.trim()
       const store = useTasksSessionStore.getState()
 
       store.setDraft(args.taskId, value)
@@ -72,39 +99,91 @@ export function useTaskSessionResume(args: {
         return
       }
 
+      const nextInput = buildTaskInput({
+        text: value,
+        attachments: store.chatUiByTaskId[args.taskId]?.draftAttachments ?? [],
+      })
       store.setQueuedPrompt(
         args.taskId,
-        trimmedValue ? { content: value } : null,
+        nextInput
+          ? {
+              content: summarizeTaskInput(nextInput),
+              input: nextInput,
+            }
+          : null,
       )
     },
     [args.taskId],
   )
 
-  const submitPrompt = useCallback(
-    async (prompt: string, options?: { restoreQueuedPromptOnFailure?: boolean }) => {
+  const updateDraftAttachments = useCallback(
+    (nextDraftAttachments: UploadedTaskInputImage[]) => {
       if (!args.taskId) {
         return
       }
 
       const store = useTasksSessionStore.getState()
+      store.setDraftAttachments(args.taskId, nextDraftAttachments)
+
+      if (!store.chatUiByTaskId[args.taskId]?.queuedPrompt) {
+        return
+      }
+
+      const nextInput = buildTaskInput({
+        text: store.chatUiByTaskId[args.taskId]?.draft ?? "",
+        attachments: nextDraftAttachments,
+      })
+      store.setQueuedPrompt(
+        args.taskId,
+        nextInput
+          ? {
+              content: summarizeTaskInput(nextInput),
+              input: nextInput,
+            }
+          : null,
+      )
+    },
+    [args.taskId],
+  )
+
+  const submitInput = useCallback(
+    async (
+      input: TaskInput,
+      options?: { restoreQueuedPromptOnFailure?: boolean },
+    ) => {
+      if (!args.taskId) {
+        return
+      }
+
+      const store = useTasksSessionStore.getState()
+      const content = summarizeTaskInput(input)
 
       store.setQueuedPrompt(args.taskId, null)
       store.setPendingPrompt(args.taskId, {
-        content: prompt,
+        content,
         baselineSequence: args.lastSequence,
+        input,
       })
 
       try {
-        await resumeTaskMutation.mutateAsync({
-          taskId: args.taskId,
-          prompt,
-        })
+        if (typeof input === "string") {
+          await resumeTaskMutation.mutateAsync({
+            taskId: args.taskId,
+            prompt: input,
+          })
+        } else {
+          await resumeTaskMutation.mutateAsync({
+            taskId: args.taskId,
+            items: input,
+          })
+        }
         store.setDraft(args.taskId, "")
+        store.setDraftAttachments(args.taskId, [])
       } catch {
         store.setPendingPrompt(args.taskId, null)
 
         if (options?.restoreQueuedPromptOnFailure) {
-          store.setQueuedPrompt(args.taskId, { content: prompt })
+          store.setQueuedPrompt(args.taskId, { content, input })
         }
       }
     },
@@ -116,14 +195,16 @@ export function useTaskSessionResume(args: {
       return
     }
 
-    const prompt = args.draft.trim()
-    if (!prompt) {
+    if (!currentInput) {
       return
     }
 
+    const content = summarizeTaskInput(currentInput)
+
     if (args.detail.status === "running") {
       useTasksSessionStore.getState().setQueuedPrompt(args.taskId, {
-        content: args.draft,
+        content,
+        input: currentInput,
       })
       return
     }
@@ -132,10 +213,61 @@ export function useTaskSessionResume(args: {
       return
     }
 
-    await submitPrompt(prompt, {
+    await submitInput(currentInput, {
       restoreQueuedPromptOnFailure: Boolean(queuedPrompt),
     })
-  }, [args.detail, args.draft, args.taskId, queuedPrompt, submitPrompt])
+  }, [args.detail, args.taskId, currentInput, queuedPrompt, submitInput])
+
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
+      if (!args.taskId || files.length === 0) {
+        return
+      }
+
+      const uploaded = await Promise.all(
+        files.map((file) =>
+          uploadTaskInputImageMutation.mutateAsync({
+            file,
+          }),
+        ),
+      )
+
+      const currentDraftAttachments =
+        useTasksSessionStore.getState().chatUiByTaskId[args.taskId]?.draftAttachments ??
+        draftAttachments
+
+      updateDraftAttachments([...currentDraftAttachments, ...uploaded])
+    },
+    [
+      args.taskId,
+      draftAttachments,
+      updateDraftAttachments,
+      uploadTaskInputImageMutation,
+    ],
+  )
+
+  const handlePasteFiles = useCallback(
+    async (files: File[]) => {
+      await uploadFiles(files)
+    },
+    [uploadFiles],
+  )
+
+  const handleDropFiles = useCallback(
+    async (files: File[]) => {
+      await uploadFiles(files)
+    },
+    [uploadFiles],
+  )
+
+  const removeDraftAttachment = useCallback(
+    (path: string) => {
+      updateDraftAttachments(
+        draftAttachments.filter((attachment) => attachment.path !== path),
+      )
+    },
+    [draftAttachments, updateDraftAttachments],
+  )
 
   useEffect(() => {
     const previousStatus = previousStatusRef.current
@@ -148,30 +280,42 @@ export function useTaskSessionResume(args: {
       !currentStatus ||
       !TERMINAL_TASK_STATUSES.includes(currentStatus) ||
       !queuedPrompt ||
-      resumeTaskMutation.isPending
+      resumeTaskMutation.isPending ||
+      uploadTaskInputImageMutation.isPending
     ) {
       return
     }
 
-    const prompt = queuedPrompt.content.trim()
-    if (!prompt) {
+    if (!queuedPrompt.input) {
       if (args.taskId) {
         useTasksSessionStore.getState().setQueuedPrompt(args.taskId, null)
       }
       return
     }
 
-    void submitPrompt(prompt, {
+    void submitInput(queuedPrompt.input, {
       restoreQueuedPromptOnFailure: true,
     })
-  }, [args.detail?.status, args.taskId, queuedPrompt, resumeTaskMutation.isPending, submitPrompt])
+  }, [
+    args.detail?.status,
+    args.taskId,
+    queuedPrompt,
+    resumeTaskMutation.isPending,
+    submitInput,
+    uploadTaskInputImageMutation.isPending,
+  ])
 
   return {
     canResume,
+    draftAttachments,
     errorMessage,
+    handleDropFiles,
+    handlePasteFiles,
     handleResumeTask,
     inputDisabled,
-    isSubmitting: resumeTaskMutation.isPending,
+    isSubmitting:
+      resumeTaskMutation.isPending || uploadTaskInputImageMutation.isPending,
+    removeDraftAttachment,
     updateDraft,
   }
 }

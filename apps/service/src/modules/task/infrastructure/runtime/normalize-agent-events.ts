@@ -1,7 +1,14 @@
-import type { AgentType, RawAgentEventEnvelope } from "../../../../lib/agents"
+import type {
+  AgentInput,
+  AgentType,
+  RawAgentEventEnvelope,
+} from "../../../../lib/agents"
+import {
+  extractLocalImageAttachments,
+  normalizeAgentInputItems,
+  summarizeAgentInput,
+} from "../../domain/task-input"
 import { asRecord, toBoolean, toStringOrNull } from "../../../../utils"
-
-const MAX_CAPTURED_OUTPUT_LENGTH = 200_000
 
 type NormalizedTaskEventType =
   | "session.started"
@@ -16,7 +23,9 @@ type NormalizedTaskEventType =
   | "mcp_tool_call.started"
   | "mcp_tool_call.completed"
   | "reasoning"
-  | "todo_list"
+  | "todo_list.started"
+  | "todo_list.updated"
+  | "todo_list.completed"
   | "error"
   | "turn.completed"
   | "turn.failed"
@@ -30,25 +39,14 @@ export type NormalizedTaskEvent = {
 
 export type TaskRunEventState = {
   sessionId: string | null
-  stdout: string
   terminalError: string | null
   hasTerminalErrorEvent: boolean
-  codexCommandOutputs: Map<string, string>
 }
 
 function timestampPayload(createdAt: Date) {
   return {
     timestamp: createdAt.toISOString(),
   }
-}
-
-function appendWithLimit(base: string, nextChunk: string) {
-  const combined = `${base}${nextChunk}`
-  if (combined.length <= MAX_CAPTURED_OUTPUT_LENGTH) {
-    return combined
-  }
-
-  return combined.slice(combined.length - MAX_CAPTURED_OUTPUT_LENGTH)
 }
 
 function extractClaudeContentBlocks(value: unknown) {
@@ -141,7 +139,6 @@ function normalizeSyntheticEvent(
 
 function normalizeCodexEvent(
   envelope: RawAgentEventEnvelope,
-  state: TaskRunEventState,
 ): NormalizedTaskEvent[] {
   const payload = asRecord(envelope.event)
   const rawEventType = toStringOrNull(payload?.type) ?? "unknown"
@@ -230,12 +227,7 @@ function normalizeCodexEvent(
           return []
         }
 
-        const previousOutput = state.codexCommandOutputs.get(commandId) ?? ""
         const nextOutput = toStringOrNull(item.aggregated_output) ?? ""
-        const outputDelta = nextOutput.startsWith(previousOutput)
-          ? nextOutput.slice(previousOutput.length)
-          : nextOutput
-        state.codexCommandOutputs.set(commandId, nextOutput)
 
         const events: NormalizedTaskEvent[] = []
         if (rawEventType === "item.started") {
@@ -249,12 +241,12 @@ function normalizeCodexEvent(
             createdAt,
           })
         }
-        if (outputDelta) {
+        if (nextOutput) {
           events.push({
             eventType: "command.output",
             payload: {
               commandId,
-              output: outputDelta,
+              output: nextOutput,
               ...timestampPayload(createdAt),
             },
             createdAt,
@@ -313,12 +305,25 @@ function normalizeCodexEvent(
           : []
       }
 
-      if (itemType === "todo_list" && rawEventType === "item.completed") {
+      if (itemType === "todo_list") {
         const items = Array.isArray(item.items) ? item.items : []
+        const todoListEventType =
+          rawEventType === "item.started"
+            ? "todo_list.started"
+            : rawEventType === "item.updated"
+              ? "todo_list.updated"
+              : rawEventType === "item.completed"
+                ? "todo_list.completed"
+                : null
+        if (!todoListEventType) {
+          return []
+        }
+
         return [
           {
-            eventType: "todo_list",
+            eventType: todoListEventType,
             payload: {
+              todoListId: toStringOrNull(item.id) ?? undefined,
               items: items
                 .map((entry) => {
                   const source = asRecord(entry)
@@ -674,10 +679,8 @@ function normalizeClaudeEvent(
 export function createTaskRunEventState(): TaskRunEventState {
   return {
     sessionId: null,
-    stdout: "",
     terminalError: null,
     hasTerminalErrorEvent: false,
-    codexCommandOutputs: new Map(),
   }
 }
 
@@ -696,22 +699,31 @@ export function createSyntheticErrorEvent(args: {
   }
 }
 
-export function createSyntheticUserPromptEvent(args: {
-  content: string
+export function createSyntheticUserInputEvent(args: {
+  input: AgentInput
   createdAt?: Date
 }): NormalizedTaskEvent | null {
-  const content = args.content.trim()
-  if (!content) {
+  const input =
+    typeof args.input === "string"
+      ? args.input.trim()
+      : normalizeAgentInputItems(args.input)
+  const summary = summarizeAgentInput(input)
+
+  if (!summary) {
     return null
   }
 
   const createdAt = args.createdAt ?? new Date()
+  const attachments = extractLocalImageAttachments(input)
   return {
     eventType: "message",
     payload: {
       role: "user",
-      content,
-      source: "user_prompt",
+      content: summary,
+      summary,
+      input,
+      ...(attachments.length > 0 ? { attachments } : {}),
+      source: "user_input",
       ...timestampPayload(createdAt),
     },
     createdAt,
@@ -731,16 +743,6 @@ export function applyNormalizedTaskEvents(
         nextState = {
           ...nextState,
           sessionId,
-        }
-      }
-    }
-
-    if (event.eventType === "command.output") {
-      const output = toStringOrNull(event.payload.output) ?? ""
-      if (output) {
-        nextState = {
-          ...nextState,
-          stdout: appendWithLimit(nextState.stdout, output),
         }
       }
     }
@@ -773,7 +775,7 @@ export function normalizeRawAgentEvent(args: {
 }): NormalizedTaskEvent[] {
   switch (args.envelope.agentType) {
     case "codex":
-      return normalizeCodexEvent(args.envelope, args.state)
+      return normalizeCodexEvent(args.envelope)
     case "claude-code":
       return normalizeClaudeEvent(args.envelope)
     default:

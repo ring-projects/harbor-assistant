@@ -13,6 +13,10 @@ export type ChatConversationBlock =
       type: "message"
       role: ChatMessageRole
       content: string
+      attachments?: Array<{
+        type: "local_image"
+        path: string
+      }>
       timestamp: string | null
       pending?: boolean
     }
@@ -72,6 +76,20 @@ export type ChatConversationBlock =
       timestamp: string | null
       status: "running" | "success" | "failed"
       exitCode: number | null
+    }
+  | {
+      id: string
+      type: "todo-list"
+      todoListId: string
+      items: Array<{
+        text: string
+        completed: boolean
+      }>
+      startedAt: string | null
+      updatedAt: string | null
+      completedAt: string | null
+      timestamp: string | null
+      status: "running" | "completed"
     }
   | {
       id: string

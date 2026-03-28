@@ -1,3 +1,5 @@
+import type { AgentInputItem } from "../../../lib/agents"
+
 export type TaskIdParams = {
   taskId: string
 }
@@ -11,16 +13,24 @@ export type UpdateTaskTitleBody = {
 }
 
 export type ResumeTaskBody = {
-  prompt: string
+  prompt?: string
+  items?: AgentInputItem[]
 }
 
 export type CreateTaskBody = {
   projectId: string
-  prompt: string
+  prompt?: string
+  items?: AgentInputItem[]
   title?: string
   executor?: string | null
   model?: string | null
   executionMode?: string | null
+}
+
+export type UploadTaskInputImageBody = {
+  name: string
+  mediaType: string
+  dataBase64: string
 }
 
 export type GetTaskEventsQuery = {
@@ -41,6 +51,10 @@ const taskEntitySchema = {
     "projectId",
     "prompt",
     "title",
+    "titleSource",
+    "executor",
+    "model",
+    "executionMode",
     "status",
     "archivedAt",
     "createdAt",
@@ -53,6 +67,13 @@ const taskEntitySchema = {
     projectId: { type: "string", minLength: 1 },
     prompt: { type: "string", minLength: 1 },
     title: { type: "string", minLength: 1 },
+    titleSource: {
+      type: "string",
+      enum: ["prompt", "agent", "user"],
+    },
+    executor: { type: ["string", "null"] },
+    model: { type: ["string", "null"] },
+    executionMode: { type: ["string", "null"] },
     status: {
       type: "string",
       enum: ["queued", "running", "completed", "failed", "cancelled"],
@@ -72,6 +93,10 @@ const taskListItemSchema = {
     "id",
     "projectId",
     "title",
+    "titleSource",
+    "executor",
+    "model",
+    "executionMode",
     "status",
     "archivedAt",
     "createdAt",
@@ -83,6 +108,13 @@ const taskListItemSchema = {
     id: { type: "string", minLength: 1 },
     projectId: { type: "string", minLength: 1 },
     title: { type: "string", minLength: 1 },
+    titleSource: {
+      type: "string",
+      enum: ["prompt", "agent", "user"],
+    },
+    executor: { type: ["string", "null"] },
+    model: { type: ["string", "null"] },
+    executionMode: { type: ["string", "null"] },
     status: {
       type: "string",
       enum: ["queued", "running", "completed", "failed", "cancelled"],
@@ -153,12 +185,53 @@ export const updateTaskTitleBodySchema = {
   },
 } as const
 
+const taskInputTextItemSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "text"],
+  properties: {
+    type: {
+      type: "string",
+      const: "text",
+    },
+    text: {
+      type: "string",
+      minLength: 1,
+    },
+  },
+} as const
+
+const taskInputLocalImageItemSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "path"],
+  properties: {
+    type: {
+      type: "string",
+      const: "local_image",
+    },
+    path: {
+      type: "string",
+      minLength: 1,
+    },
+  },
+} as const
+
+const taskInputItemsSchema = {
+  type: "array",
+  minItems: 1,
+  items: {
+    oneOf: [taskInputTextItemSchema, taskInputLocalImageItemSchema],
+  },
+} as const
+
 export const resumeTaskBodySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["prompt"],
+  anyOf: [{ required: ["prompt"] }, { required: ["items"] }],
   properties: {
     prompt: { type: "string", minLength: 1 },
+    items: taskInputItemsSchema,
   },
 } as const
 
@@ -183,10 +256,12 @@ export const getProjectTasksQuerySchema = {
 export const createTaskBodySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["projectId", "prompt"],
+  required: ["projectId"],
+  anyOf: [{ required: ["prompt"] }, { required: ["items"] }],
   properties: {
     projectId: { type: "string", minLength: 1 },
     prompt: { type: "string", minLength: 1 },
+    items: taskInputItemsSchema,
     title: { type: "string", minLength: 1 },
     executor: { type: ["string", "null"] },
     model: { type: ["string", "null"] },
@@ -204,6 +279,36 @@ export const createTaskRouteSchema = {
       properties: {
         ok: { type: "boolean", const: true },
         task: taskEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const uploadTaskInputImageBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "mediaType", "dataBase64"],
+  properties: {
+    name: { type: "string", minLength: 1 },
+    mediaType: { type: "string", minLength: 1 },
+    dataBase64: { type: "string", minLength: 1 },
+  },
+} as const
+
+export const uploadTaskInputImageRouteSchema = {
+  params: projectIdParamsSchema,
+  body: uploadTaskInputImageBodySchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "path", "mediaType", "name", "size"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        path: { type: "string", minLength: 1 },
+        mediaType: { type: "string", minLength: 1 },
+        name: { type: "string", minLength: 1 },
+        size: { type: "integer", minimum: 1 },
       },
     },
   },

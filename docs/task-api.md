@@ -7,6 +7,8 @@
 - 当前 canonical 模块路径是 `apps/service/src/modules/task`
 - 早期 `followup / retry / break / task-input-images` 相关接口已经不再是当前 contract
 - 当前“继续执行”的唯一 canonical 语义是：`resume` 在同一个 `Execution` 上继续运行
+- service 启动时会把 orphaned `queued` / `running` execution 收敛到 `failed`
+- Harbor 当前不会在 service 重启后自动继续旧的 in-flight turn
 
 范围覆盖：
 
@@ -35,8 +37,10 @@
 
 来源：
 
-- [types.ts](../apps/service/src/modules/tasks/types.ts)
-- [runtime-policy.ts](../apps/service/src/modules/tasks/runtime-policy.ts)
+- `apps/service/src/modules/task/domain/task.ts`
+- `apps/service/src/modules/task/application/task-runtime-port.ts`
+- `apps/service/prisma/models/task.prisma`
+- `apps/service/prisma/models/execution.prisma`
 
 ### 2.1 `Task`
 
@@ -117,8 +121,9 @@ type StoredTaskRawEvent = {
 
 来源：
 
-- [raw-task-events.ts](../apps/service/src/modules/tasks/projectors/raw-task-events.ts)
-- [task-agent-runner.ts](../apps/service/src/modules/tasks/integrations/task-agent-runner.ts)
+- `apps/service/src/modules/task/infrastructure/runtime/normalize-agent-events.ts`
+- `apps/service/src/modules/task/infrastructure/runtime/task-execution-driver.ts`
+- `apps/service/src/modules/task/infrastructure/projection/prisma-task-event-projection.ts`
 
 ### 3.1 存储策略
 
@@ -172,23 +177,20 @@ Claude runtime：
 
 ### 3.4 sequence 语义
 
-raw event 的数据库序号与对外 `TaskAgentEvent.sequence` 不是同一套编号。
-
-原因：
-
-- 一个 raw event 可能投影成多条 normalized event
-- 为了保持前端 cursor 是单调整数，query projection 使用 stride 方案生成 projected sequence
+当前实现里，`/v1/tasks/:taskId/events` 直接按 `ExecutionEvent.sequence` 返回事件序号。
 
 因此：
 
-- `/events` 的 `afterSequence` 必须传上一次响应中的 projected `nextSequence`
-- 不应将 projected sequence 直接当作数据库 raw sequence 使用
+- `/events` 的 `afterSequence` 应继续传上一次响应中的 `nextSequence`
+- 当前没有额外的 projected stride sequence 层
+- 如果未来引入更复杂的 read-model projection，再单独调整 contract 文档
 
 ## 4. Service 层接口
 
 来源：
 
-- [task.service.ts](../apps/service/src/modules/tasks/services/task.service.ts)
+- `apps/service/src/modules/task/routes/index.ts`
+- `apps/service/src/modules/task/application/*`
 
 ### 4.1 `POST /v1/tasks`
 
@@ -210,6 +212,7 @@ function createTask(input: {
 - 若项目不存在，抛 `PROJECT_NOT_FOUND`
 - `executor / model / executionMode` 为空时回退到项目默认设置
 - 创建 task record 后立即启动 runtime execution
+- 若 runtime 无法开始，`task` 与 `execution` 会一起收敛为 `failed`
 - route 响应返回 task 本身；实时状态变化依赖 websocket / query 刷新
 
 ### 4.2 `POST /v1/tasks/:taskId/resume`
@@ -236,34 +239,43 @@ function resumeTask(input: {
 - 不是新的 child task
 - 也不是新的 execution attempt
 
+### 4.3 Service Restart Recovery
+
+当前实现的 restart semantics 明确如下：
+
+- service 启动时会扫描 `Execution.status in (queued, running)` 的 task-owned execution
+- 这类 orphaned execution 会被统一标记为 `failed`
+- Harbor 会追加一条 synthetic `error` event 说明失败原因
+- 若 execution 已记录 `sessionId`，后续仍允许用户通过 `POST /v1/tasks/:taskId/resume` 继续同一个 execution
+- Harbor 当前不会在 service 重启时自动继续旧的 in-flight turn
+
 ### 4.5 `updateTaskTitle(input)`
 
 ```ts
 function updateTaskTitle(input: {
   taskId: string
   title: string
-  source?: "agent" | "user"
-}): Promise<CodexTask>
+}): Promise<Task>
 ```
 
 行为：
 
-- `taskId` 为空时报 `INVALID_TASK_ID`
+- `taskId` 为空时报 `INVALID_REQUEST_BODY`
 - `title.trim()` 为空时报 `INVALID_TASK_TITLE`
-- 默认 `source = "agent"`
+- 标题更新会写回当前 task record，并发布 `task_upserted`
 
 ### 4.6 `archiveTask(input)`
 
 ```ts
 function archiveTask(input: {
   taskId: string
-}): Promise<CodexTask>
+}): Promise<Task>
 ```
 
 行为：
 
 - 仅允许 terminal task 归档
-- 已归档 task 再次归档时直接返回当前 task
+- 已归档 task 再次归档时返回冲突错误
 
 ### 4.7 `deleteTask(input)`
 
@@ -284,12 +296,12 @@ function deleteTask(input: {
 ### 4.8 `getTaskDetail(taskId)`
 
 ```ts
-function getTaskDetail(taskId: string): Promise<CodexTask>
+function getTaskDetail(taskId: string): Promise<Task>
 ```
 
 行为：
 
-- 空 taskId 抛 `INVALID_TASK_ID`
+- 空 `taskId` 由 route schema 拦截为 `INVALID_REQUEST_BODY`
 - 不存在抛 `TASK_NOT_FOUND`
 
 ### 4.9 `listProjectTasks(input)`
@@ -299,12 +311,12 @@ function listProjectTasks(input: {
   projectId: string
   limit?: number
   includeArchived?: boolean
-}): Promise<CodexTask[]>
+}): Promise<Task[]>
 ```
 
 行为：
 
-- 会先验证 project 是否存在
+- 当前实现直接按 `projectId` 查询 task 记录，不额外校验 project detail
 - `includeArchived !== true` 时排除已归档 task
 
 ### 4.10 `getTaskEvents(input)`
@@ -315,7 +327,7 @@ function getTaskEvents(input: {
   afterSequence?: number
   limit?: number
 }): Promise<{
-  task: CodexTask
+  task: Task
   events: TaskAgentEventStream
   isTerminal: boolean
 }>
@@ -324,7 +336,7 @@ function getTaskEvents(input: {
 行为：
 
 - 先读取 task detail
-- 将 projected `afterSequence` 转换为 raw lower-bound cursor
+- 当前实现直接用 `ExecutionEvent.sequence > afterSequence` 作为 cursor
 - repository 读取 raw events
 - service 再做 raw -> normalized projection
 

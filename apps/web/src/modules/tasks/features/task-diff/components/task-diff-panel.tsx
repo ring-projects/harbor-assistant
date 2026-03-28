@@ -12,7 +12,7 @@ import {
   useProjectGitDiffQuery,
   useProjectGitStream,
 } from "@/modules/git"
-import { getErrorMessage } from "@/modules/tasks/domain/lib"
+import { getErrorMessage } from "@/modules/tasks/view-models"
 
 type TaskDiffPanelProps = {
   projectId: string

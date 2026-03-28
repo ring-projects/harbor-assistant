@@ -4,20 +4,21 @@ import { useMemo } from "react"
 
 import {
   selectChatUi,
-  selectConversationBlocks,
   selectLastSequence,
-  selectSelectedInspectorBlock,
   selectTaskDetail,
   useTasksSessionStore,
-} from "@/modules/tasks/domain/store"
-import { formatExecutorLabel } from "@/modules/tasks/domain/lib"
+} from "@/modules/tasks/store"
+import {
+  formatExecutorLabel,
+  selectConversationBlocks,
+  selectSelectedInspectorBlock,
+  type ChatConversationBlock,
+} from "@/modules/tasks/view-models"
 import {
   useTaskDetailQuery,
   useTaskEventStream,
   useTaskEventsQuery,
 } from "@/modules/tasks/hooks/use-task-queries"
-
-import type { ChatConversationBlock } from "../types"
 
 function getRunningLabel(executor: string | null | undefined) {
   if (!executor) {

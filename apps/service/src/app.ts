@@ -7,6 +7,8 @@ import errorHandlerPlugin from "./plugins/error-handler"
 import prismaPlugin from "./plugins/prisma"
 import { registerV1Routes } from "./routes/v1"
 
+const SERVICE_CORS_METHODS = ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"]
+
 export async function buildServiceApp(
   config: ServiceConfig,
 ): Promise<FastifyInstance> {
@@ -35,6 +37,7 @@ export async function buildServiceApp(
 
   await app.register(cors, {
     origin: true,
+    methods: SERVICE_CORS_METHODS,
   })
   await app.register(errorHandlerPlugin)
   await app.register(prismaPlugin, {

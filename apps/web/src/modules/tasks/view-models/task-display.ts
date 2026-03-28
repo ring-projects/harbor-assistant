@@ -1,4 +1,3 @@
-import { formatDateTime as formatDateTimeValue } from "@/lib/date-time"
 import type { TaskStatus } from "@/modules/tasks/contracts"
 
 export const STATUS_META: Record<
@@ -28,10 +27,10 @@ export const STATUS_META: Record<
     label: "Cancelled",
     badgeClassName: "bg-amber-100 text-amber-700 border-amber-200",
   },
-}
-
-export function formatDateTime(value: string | null) {
-  return formatDateTimeValue(value)
+  archived: {
+    label: "Archived",
+    badgeClassName: "bg-amber-100 text-amber-700 border-amber-200",
+  }
 }
 
 export function getPromptSummary(prompt: string) {

@@ -1,39 +1,25 @@
 "use client"
 
-import { MoreHorizontalIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 
-import {
-  selectProjectTasks,
-  useTasksSessionStore,
-} from "@/modules/tasks/domain/store"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   useArchiveTaskMutation,
   useDeleteTaskMutation,
   useProjectTaskListStream,
   useTaskListQuery,
 } from "@/modules/tasks/hooks/use-task-queries"
-import { getErrorMessage } from "@/modules/tasks/domain/lib"
-import { TaskCreateDialog } from "@/modules/tasks/features/task-create"
-import { TaskListItemCard } from "./task-list-item-card"
+import {
+  selectProjectTasks,
+  useTasksSessionStore,
+} from "@/modules/tasks/store"
+import { getErrorMessage } from "@/modules/tasks/view-models"
+import {
+  DeleteTaskDialog,
+  type PendingTaskDelete,
+} from "./delete-task-dialog"
+import { TaskListHeader, type TaskListTab } from "./task-list-header"
+import { TaskListItem } from "./task-list-item"
 
 type TaskListProps = {
   projectId: string
@@ -41,19 +27,13 @@ type TaskListProps = {
   onSelectTask: (taskId: string | null) => void
 }
 
-type TaskListTab = "all" | "running" | "completed" | "archived"
-
 export function TaskList({
   projectId,
   selectedTaskId,
   onSelectTask,
 }: TaskListProps) {
-  const [taskActionError, setTaskActionError] = useState<string | null>(null)
-  const [taskPendingDelete, setTaskPendingDelete] = useState<{
-    taskId: string
-    title: string
-  } | null>(null)
-
+  const [taskPendingDelete, setTaskPendingDelete] =
+    useState<PendingTaskDelete | null>(null)
   const archiveTaskMutation = useArchiveTaskMutation(projectId)
   const deleteTaskMutation = useDeleteTaskMutation(projectId)
   const listQuery = useTaskListQuery({
@@ -97,7 +77,7 @@ export function TaskList({
   const visibleTasks = useMemo(() => {
     switch (selectedTab) {
       case "all":
-        return allTasks
+        return activeTasks
       case "completed":
         return completedTasks
       case "archived":
@@ -106,7 +86,7 @@ export function TaskList({
       default:
         return runningTasks
     }
-  }, [allTasks, archivedTasks, completedTasks, runningTasks, selectedTab])
+  }, [activeTasks, archivedTasks, completedTasks, runningTasks, selectedTab])
 
   const resolvedSelectedTaskId = useMemo(() => {
     if (visibleTasks.length === 0) {
@@ -130,7 +110,7 @@ export function TaskList({
 
     switch (selectedTab) {
       case "all":
-        return "No tasks yet."
+        return "No active tasks yet."
       case "completed":
         return "No completed tasks yet."
       case "archived":
@@ -149,10 +129,10 @@ export function TaskList({
 
   async function handleArchiveTask(taskId: string) {
     try {
-      setTaskActionError(null)
       await archiveTaskMutation.mutateAsync(taskId)
     } catch (error) {
-      setTaskActionError(getErrorMessage(error))
+      console.log(error)
+      // ignore
     }
   }
 
@@ -162,132 +142,42 @@ export function TaskList({
     }
 
     try {
-      setTaskActionError(null)
       await deleteTaskMutation.mutateAsync(taskPendingDelete.taskId)
       setTaskPendingDelete(null)
     } catch (error) {
-      setTaskActionError(getErrorMessage(error))
+      console.log(error)
     }
   }
 
   return (
     <section className="min-h-0 bg-transparent p-3">
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <div className="flex flex-col gap-2">
-          <Tabs
-            value={selectedTab}
-            onValueChange={(value) => {
-              if (
-                value === "all" ||
-                value === "running" ||
-                value === "completed"
-              ) {
-                setSelectedTab(value)
-              }
-            }}
-            className="min-w-0 items-center"
-          >
-            <TabsList className="h-8">
-              <TabsTrigger value="all" className="px-3 text-xs">
-                All
-                <span className="text-muted-foreground">{allTasks.length}</span>
-              </TabsTrigger>
-              <TabsTrigger value="running" className="px-3 text-xs">
-                Running
-                <span className="text-muted-foreground">{runningTasks.length}</span>
-              </TabsTrigger>
-              <TabsTrigger value="completed" className="px-3 text-xs">
-                Completed
-                <span className="text-muted-foreground">{completedTasks.length}</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <TaskListHeader
+          projectId={projectId}
+          selectedTab={selectedTab}
+          onSelectTab={setSelectedTab}
+          allCount={activeTasks.length}
+          runningCount={runningTasks.length}
+          completedCount={completedTasks.length}
+          archivedCount={archivedTasks.length}
+          onTaskCreated={(taskId) => onSelectTask(taskId)}
+        />
 
-          <div className="flex items-center justify-end gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant={selectedTab === "archived" ? "secondary" : "ghost"}
-                  size="icon-sm"
-                  className="shrink-0"
-                  aria-label="More task filters"
-                >
-                  <MoreHorizontalIcon className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setSelectedTab("archived")}>
-                  Archived ({archivedTasks.length})
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <TaskCreateDialog
-              projectId={projectId}
-              onTaskCreated={(taskId) => onSelectTask(taskId)}
-              trigger={
-                <Button type="button" size="sm" className="shrink-0">
-                  <PlusIcon className="size-4" />
-                  New Task
-                </Button>
-              }
-            />
-          </div>
-        </div>
-
-        <Dialog
-          open={Boolean(taskPendingDelete)}
+        <DeleteTaskDialog
+          pendingTaskDelete={taskPendingDelete}
+          isDeleting={deleteTaskMutation.isPending}
           onOpenChange={(open) => {
             if (!open && !deleteTaskMutation.isPending) {
               setTaskPendingDelete(null)
             }
           }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Delete Task</DialogTitle>
-              <DialogDescription>
-                Delete &quot;{taskPendingDelete?.title ?? "this task"}&quot;
-                permanently? This also removes its event history from Harbor.
-              </DialogDescription>
-            </DialogHeader>
+          onConfirm={() => {
+            void handleDeleteTask()
+          }}
+        />
 
-            {taskActionError ? (
-              <div className="rounded-md border border-rose-300 bg-rose-50 p-2 text-xs text-rose-700">
-                {taskActionError}
-              </div>
-            ) : null}
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setTaskPendingDelete(null)}
-                disabled={deleteTaskMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  void handleDeleteTask()
-                }}
-                disabled={deleteTaskMutation.isPending}
-              >
-                <Trash2Icon className="size-4" />
-                {deleteTaskMutation.isPending ? "Deleting..." : "Delete"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <ScrollArea
-          className="min-h-0 flex-1 overflow-hidden"
-          viewportClassName="h-full min-h-0"
-        >
-          <div className="mr-3 min-w-0 space-y-2 pb-3">
+        <div className="native-thin-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
+          <div className="w-full max-w-full min-w-0 space-y-2 pb-3">
             {listQuery.isLoading
               ? Array.from({ length: 8 }).map((_, index) => (
                   <Skeleton key={index} className="h-20 w-full rounded-md" />
@@ -308,15 +198,9 @@ export function TaskList({
               </div>
             ) : null}
 
-            {taskActionError ? (
-              <div className="rounded-md border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
-                {taskActionError}
-              </div>
-            ) : null}
-
             {!listQuery.isLoading && !listQuery.isError
               ? visibleTasks.map((task) => (
-                  <TaskListItemCard
+                  <TaskListItem
                     key={task.taskId}
                     task={task}
                     isActive={task.taskId === resolvedSelectedTaskId}
@@ -328,14 +212,13 @@ export function TaskList({
                       void handleArchiveTask(taskId)
                     }}
                     onDeleteTask={(nextTask) => {
-                      setTaskActionError(null)
                       setTaskPendingDelete(nextTask)
                     }}
                   />
                 ))
               : null}
           </div>
-        </ScrollArea>
+        </div>
       </div>
     </section>
   )

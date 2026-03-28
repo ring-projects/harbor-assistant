@@ -1,28 +1,31 @@
 import type {
-  ChatConversationBlock,
-  ChatInspectorBlock,
-} from "@/modules/tasks/features/task-session/types"
-import type {
   TaskAgentEvent,
   TaskAgentEventStream,
   TaskDetail,
   TaskListItem,
   TaskStatus,
 } from "@/modules/tasks/contracts"
+import type {
+  TaskInput,
+  UploadedTaskInputImage,
+} from "@/modules/tasks/lib"
 
 export type TaskRecord = TaskDetail | TaskListItem
 
 export type PendingPromptState = {
   content: string
   baselineSequence: number
+  input: TaskInput
 }
 
 export type QueuedPromptState = {
   content: string
+  input: TaskInput
 }
 
 export type ChatUiState = {
   draft: string
+  draftAttachments: UploadedTaskInputImage[]
   pendingPrompt: PendingPromptState | null
   queuedPrompt: QueuedPromptState | null
   stickToBottom: boolean
@@ -46,6 +49,10 @@ export type TasksSessionActions = {
   applyTaskEnd: (taskId: string, status: TaskStatus) => void
   applyAgentEvent: (taskId: string, event: TaskAgentEvent) => void
   setDraft: (taskId: string, draft: string) => void
+  setDraftAttachments: (
+    taskId: string,
+    draftAttachments: UploadedTaskInputImage[],
+  ) => void
   setPendingPrompt: (taskId: string, pendingPrompt: PendingPromptState | null) => void
   setQueuedPrompt: (taskId: string, queuedPrompt: QueuedPromptState | null) => void
   setStickToBottom: (taskId: string, stickToBottom: boolean) => void
@@ -56,6 +63,3 @@ export type TasksSessionActions = {
 }
 
 export type TasksSessionStore = TasksSessionState & TasksSessionActions
-
-export type SelectedInspectorBlock = ChatInspectorBlock
-export type TaskConversationBlock = ChatConversationBlock

@@ -2,7 +2,7 @@ import type { QueryClient } from "@tanstack/react-query"
 
 import { pickString } from "@/lib/protocol"
 import { gitQueryKeys } from "@/modules/git"
-import { useTasksSessionStore } from "@/modules/tasks/domain/store"
+import { useTasksSessionStore } from "@/modules/tasks/store"
 import {
   extractTaskEvents,
   extractTaskList,

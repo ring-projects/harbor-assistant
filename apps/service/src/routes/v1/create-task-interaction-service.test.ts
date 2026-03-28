@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { createTask } from "../../modules/task/domain/task"
+import { attachTaskRuntime } from "../../modules/task/application/task-read-models"
 import { InMemoryTaskEventProjection } from "../../modules/task/infrastructure/in-memory-task-event-projection"
 import { InMemoryTaskRepository } from "../../modules/task/infrastructure/in-memory-task-repository"
 import { createInMemoryTaskNotificationBus } from "../../modules/task/infrastructure/notification/in-memory-task-notification-bus"
@@ -9,15 +10,22 @@ import { createTaskInteractionService } from "./create-task-interaction-service"
 describe("createTaskInteractionService", () => {
   it("maps task read models to interaction queries", async () => {
     const repository = new InMemoryTaskRepository([
-      createTask({
-        id: "task-1",
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        status: "completed",
-        createdAt: new Date("2026-03-25T00:00:00.000Z"),
-        updatedAt: new Date("2026-03-25T00:10:00.000Z"),
-        finishedAt: new Date("2026-03-25T00:20:00.000Z"),
-      }),
+      attachTaskRuntime(
+        createTask({
+          id: "task-1",
+          projectId: "project-1",
+          prompt: "Investigate runtime drift",
+          status: "completed",
+          createdAt: new Date("2026-03-25T00:00:00.000Z"),
+          updatedAt: new Date("2026-03-25T00:10:00.000Z"),
+          finishedAt: new Date("2026-03-25T00:20:00.000Z"),
+        }),
+        {
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+        },
+      ),
     ])
     const eventProjection = new InMemoryTaskEventProjection({
       "task-1": [
@@ -49,6 +57,9 @@ describe("createTaskInteractionService", () => {
       expect.objectContaining({
         id: "task-1",
         projectId: "project-1",
+        executor: "codex",
+        model: "gpt-5.3-codex",
+        executionMode: "safe",
         status: "completed",
         createdAt: "2026-03-25T00:00:00.000Z",
       }),
@@ -58,6 +69,9 @@ describe("createTaskInteractionService", () => {
       expect.objectContaining({
         id: "task-1",
         prompt: "Investigate runtime drift",
+        executor: "codex",
+        model: "gpt-5.3-codex",
+        executionMode: "safe",
       }),
     )
 
@@ -118,6 +132,10 @@ describe("createTaskInteractionService", () => {
         id: "task-1",
         projectId: "project-1",
         title: "Investigate runtime drift",
+        titleSource: "prompt",
+        executor: "codex",
+        model: "gpt-5.3-codex",
+        executionMode: "safe",
         status: "completed",
         archivedAt: null,
         createdAt: new Date("2026-03-25T00:00:00.000Z"),
@@ -156,6 +174,7 @@ describe("createTaskInteractionService", () => {
         projectId: "project-1",
         task: expect.objectContaining({
           id: "task-1",
+          executor: "codex",
           status: "completed",
         }),
       },
@@ -172,6 +191,7 @@ describe("createTaskInteractionService", () => {
         projectId: "project-1",
         task: expect.objectContaining({
           id: "task-1",
+          executor: "codex",
           status: "completed",
         }),
       },

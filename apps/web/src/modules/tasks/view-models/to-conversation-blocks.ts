@@ -1,6 +1,6 @@
 import type { TaskAgentEvent } from "@/modules/tasks/contracts"
 
-import type { ChatConversationBlock } from "../types"
+import type { ChatConversationBlock } from "./conversation-blocks"
 
 const HIDDEN_EVENT_TYPES = new Set<TaskAgentEvent["eventType"]>([
   "session.started",
@@ -47,6 +47,29 @@ function formatTodoList(payload: Record<string, unknown> | null) {
     .filter((line): line is string => Boolean(line))
 
   return lines.join("\n")
+}
+
+function parseTodoListItems(payload: Record<string, unknown> | null) {
+  const items = Array.isArray(payload?.items) ? payload.items : []
+
+  return items
+    .map((item) => {
+      const source = asRecord(item)
+      if (!source) {
+        return null
+      }
+
+      const text = toStringOrNull(source.text)
+      if (!text) {
+        return null
+      }
+
+      return {
+        text,
+        completed: source.completed === true,
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
 }
 
 function formatCommandCompleted(payload: Record<string, unknown> | null) {
@@ -183,6 +206,116 @@ function parseFileChanges(
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
 }
 
+function formatUserInputContent(payload: Record<string, unknown> | null) {
+  if (!payload) {
+    return null
+  }
+
+  if (typeof payload.input === "string") {
+    const directInput = payload.input.trim()
+    return directInput || null
+  }
+
+  if (!Array.isArray(payload.input)) {
+    return null
+  }
+
+  const textBlocks = payload.input
+    .map((item) => {
+      const source = asRecord(item)
+      if (!source || source.type !== "text") {
+        return null
+      }
+
+      const text = toStringOrNull(source.text)?.trim()
+      return text || null
+    })
+    .filter((item): item is string => Boolean(item))
+
+  const attachmentBlocks = payload.input
+    .map((item) => {
+      const source = asRecord(item)
+      if (!source || source.type !== "local_image") {
+        return null
+      }
+
+      const imagePath = toStringOrNull(source.path)?.trim()
+      return imagePath ? `Attached image: ${imagePath}` : null
+    })
+    .filter((item): item is string => Boolean(item))
+
+  const blocks = [...textBlocks, ...attachmentBlocks]
+  return blocks.length > 0 ? blocks.join("\n") : null
+}
+
+function parseUserInputAttachments(payload: Record<string, unknown> | null) {
+  if (!payload) {
+    return []
+  }
+
+  const attachmentSources = Array.isArray(payload.attachments)
+    ? payload.attachments
+    : Array.isArray(payload.input)
+      ? payload.input
+      : []
+
+  return attachmentSources
+    .map((item) => {
+      const source = asRecord(item)
+      if (!source || source.type !== "local_image") {
+        return null
+      }
+
+      const path = toStringOrNull(source.path)?.trim()
+      if (!path) {
+        return null
+      }
+
+      return {
+        type: "local_image" as const,
+        path,
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+}
+
+function parseUserInputText(payload: Record<string, unknown> | null) {
+  if (!payload) {
+    return null
+  }
+
+  if (typeof payload.input === "string") {
+    const directInput = payload.input.trim()
+    return directInput || null
+  }
+
+  if (!Array.isArray(payload.input)) {
+    const content = toStringOrNull(payload.content)?.trim()
+    return content || null
+  }
+
+  const text = payload.input
+    .map((item) => {
+      const source = asRecord(item)
+      if (!source || source.type !== "text") {
+        return null
+      }
+
+      const text = toStringOrNull(source.text)?.trim()
+      return text || null
+    })
+    .filter((item): item is string => Boolean(item))
+    .join("\n\n")
+    .trim()
+
+  if (text) {
+    return text
+  }
+
+  const content = toStringOrNull(payload.content)?.trim()
+  return content || null
+}
+
 function eventContent(event: TaskAgentEvent) {
   const payload = asRecord(event.payload)
 
@@ -206,6 +339,9 @@ function eventContent(event: TaskAgentEvent) {
     case "reasoning":
       return toStringOrNull(payload?.content) ?? "(empty)"
     case "todo_list":
+    case "todo_list.started":
+    case "todo_list.updated":
+    case "todo_list.completed":
       return formatTodoList(payload) || "(empty)"
     case "error":
       return toStringOrNull(payload?.message) ?? "(empty)"
@@ -234,10 +370,24 @@ function isCommandEvent(event: TaskAgentEvent) {
   )
 }
 
+function isTodoListEvent(event: TaskAgentEvent) {
+  return (
+    event.eventType === "todo_list" ||
+    event.eventType === "todo_list.started" ||
+    event.eventType === "todo_list.updated" ||
+    event.eventType === "todo_list.completed"
+  )
+}
+
 function toMessageBlock(event: TaskAgentEvent): ChatConversationBlock {
   const payload = asRecord(event.payload)
   const role = toStringOrNull(payload?.role)
-  const content = eventContent(event)
+  const parsedUserAttachments =
+    role === "user" ? parseUserInputAttachments(payload) : []
+  const content =
+    role === "user"
+      ? parseUserInputText(payload) ?? formatUserInputContent(payload) ?? eventContent(event)
+      : eventContent(event)
 
   if (role === "user" || role === "assistant") {
     return {
@@ -245,6 +395,8 @@ function toMessageBlock(event: TaskAgentEvent): ChatConversationBlock {
       type: "message",
       role,
       content,
+      attachments:
+        parsedUserAttachments.length > 0 ? parsedUserAttachments : undefined,
       timestamp: eventTimestamp(event),
     }
   }
@@ -358,7 +510,7 @@ function appendCommandEventToGroup(
   if (event.eventType === "command.output") {
     const nextOutput = toStringOrNull(payload?.output) ?? ""
     if (nextOutput) {
-      group.output = `${group.output}${nextOutput}`
+      group.output = nextOutput
       updateCommandOutputMeta(group)
     }
     group.timestamp = eventTimestamp(event)
@@ -369,6 +521,78 @@ function appendCommandEventToGroup(
   group.timestamp = group.completedAt
   group.status = toStringOrNull(payload?.status) === "failed" ? "failed" : "success"
   group.exitCode = typeof payload?.exitCode === "number" ? payload.exitCode : null
+}
+
+function createTodoListBlock(
+  event: TaskAgentEvent,
+  todoListId: string,
+): Extract<ChatConversationBlock, { type: "todo-list" }> {
+  const timestamp = eventTimestamp(event)
+
+  return {
+    id: event.id,
+    type: "todo-list",
+    todoListId,
+    items: parseTodoListItems(asRecord(event.payload)),
+    startedAt:
+      event.eventType === "todo_list.started" || event.eventType === "todo_list"
+        ? timestamp
+        : null,
+    updatedAt: timestamp,
+    completedAt: event.eventType === "todo_list.completed" ? timestamp : null,
+    timestamp,
+    status: event.eventType === "todo_list.completed" ? "completed" : "running",
+  }
+}
+
+function applyTodoListEventToBlock(
+  block: Extract<ChatConversationBlock, { type: "todo-list" }>,
+  event: TaskAgentEvent,
+) {
+  const timestamp = eventTimestamp(event)
+  const payload = asRecord(event.payload)
+
+  block.items = parseTodoListItems(payload)
+  block.timestamp = timestamp
+  block.updatedAt = timestamp
+
+  if (
+    event.eventType === "todo_list.started" ||
+    event.eventType === "todo_list" ||
+    block.startedAt === null
+  ) {
+    block.startedAt = timestamp
+  }
+
+  if (event.eventType === "todo_list.completed") {
+    block.completedAt = timestamp
+    block.status = "completed"
+    return
+  }
+
+  block.completedAt = null
+  block.status = "running"
+}
+
+function pushTodoListBlock(
+  event: TaskAgentEvent,
+  blocks: ChatConversationBlock[],
+  todoLists: Map<
+    string,
+    Extract<ChatConversationBlock, { type: "todo-list" }>
+  >,
+) {
+  const payload = asRecord(event.payload)
+  const todoListId = toStringOrNull(payload?.todoListId) ?? event.id
+
+  let block = todoLists.get(todoListId)
+  if (!block) {
+    block = createTodoListBlock(event, todoListId)
+    todoLists.set(todoListId, block)
+    blocks.push(block)
+  } else {
+    applyTodoListEventToBlock(block, event)
+  }
 }
 
 function pushCommandBlock(
@@ -424,10 +648,17 @@ export function appendConversationBlocks(
     string,
     Extract<ChatConversationBlock, { type: "command-group" }>
   >()
+  const todoLists = new Map<
+    string,
+    Extract<ChatConversationBlock, { type: "todo-list" }>
+  >()
 
   for (const block of blocks) {
     if (block.type === "command-group") {
       commandGroups.set(block.commandId, block)
+    }
+    if (block.type === "todo-list") {
+      todoLists.set(block.todoListId, block)
     }
   }
 
@@ -443,6 +674,11 @@ export function appendConversationBlocks(
 
     if (isCommandEvent(event)) {
       pushCommandBlock(event, blocks, commandGroups)
+      continue
+    }
+
+    if (isTodoListEvent(event)) {
+      pushTodoListBlock(event, blocks, todoLists)
       continue
     }
 

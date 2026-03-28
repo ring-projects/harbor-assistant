@@ -27,6 +27,10 @@ export type InteractionTaskRecord = {
   projectId: string
   prompt?: string
   title: string
+  titleSource: "prompt" | "agent" | "user"
+  executor: string | null
+  model: string | null
+  executionMode: string | null
   status: InteractionTaskStatus
   archivedAt: string | null
   createdAt: string

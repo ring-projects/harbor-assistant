@@ -4,8 +4,8 @@ import { memo } from "react"
 
 import { ArrowUpRightIcon, FileCode2Icon } from "lucide-react"
 
-import type { ChatConversationBlock } from "../types"
-import { formatChatTimestamp } from "../components/shared"
+import { formatTimeShort } from "@/lib/date-time"
+import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatFileChangeBlockProps = {
   block: Extract<ChatConversationBlock, { type: "file-change" }>
@@ -23,7 +23,7 @@ function ChatFileChangeBlockView({
       <button
         type="button"
         onClick={() => onOpen(block)}
-        className="hover:bg-muted/30 w-full rounded-lg bg-muted/22 text-left transition-colors"
+        className="hover:bg-muted/30 w-full  bg-muted/22 text-left"
       >
         <div className="flex items-start justify-between gap-3 px-3 py-2.5">
           <div className="min-w-0 flex-1">
@@ -39,7 +39,7 @@ function ChatFileChangeBlockView({
                 ? "No file metadata available"
                 : `${block.changes.length} file${block.changes.length === 1 ? "" : "s"} changed`}
               {block.changeId ? ` · ${block.changeId}` : ""}
-              {block.timestamp ? ` · ${formatChatTimestamp(block.timestamp)}` : ""}
+              {block.timestamp ? ` · ${formatTimeShort(block.timestamp)}` : ""}
             </p>
 
             {previewChanges.length > 0 ? (

@@ -7,14 +7,15 @@ import type {
   TaskDetail,
   TaskListItem,
 } from "@/modules/tasks/contracts"
+import type { TaskInput } from "@/modules/tasks/lib"
 
 import {
-  selectConversationBlocks,
   selectProjectTasks,
   selectVisiblePendingPrompt,
 } from "./task-session.selectors"
 import { createTasksSessionStoreState } from "./task-session.store"
 import type { TasksSessionStore } from "./task-session.types"
+import { selectConversationBlocks } from "@/modules/tasks/view-models"
 
 function createTasksStore() {
   return createStore<TasksSessionStore>()(createTasksSessionStoreState)
@@ -68,6 +69,10 @@ function buildMessageEvent(
     createdAt: "2026-03-13T00:00:00.000Z",
     ...overrides,
   }
+}
+
+function buildTaskInput(input: TaskInput = "hello"): TaskInput {
+  return input
 }
 
 describe("tasks session store", () => {
@@ -137,6 +142,7 @@ describe("tasks session store", () => {
     store.getState().setPendingPrompt("task-1", {
       content: "continue",
       baselineSequence: 1,
+      input: buildTaskInput("continue"),
     })
 
     store.getState().applyAgentEvent("task-1", buildMessageEvent({
@@ -194,6 +200,7 @@ describe("tasks session store", () => {
     store.getState().setPendingPrompt("task-1", {
       content: "draft message",
       baselineSequence: 3,
+      input: buildTaskInput("draft message"),
     })
 
     expect(selectConversationBlocks(store.getState(), "task-1")).toEqual([
@@ -202,6 +209,39 @@ describe("tasks session store", () => {
         type: "message",
         role: "user",
         content: "draft message",
+        attachments: [],
+        timestamp: null,
+        pending: true,
+      },
+    ])
+  })
+
+  it("builds pending attachment blocks from structured input", () => {
+    const store = createTasksStore()
+
+    store.getState().setPendingPrompt("task-1", {
+      content: "Attached 1 image",
+      baselineSequence: 4,
+      input: [
+        {
+          type: "local_image",
+          path: ".harbor/task-input-images/example.png",
+        },
+      ],
+    })
+
+    expect(selectConversationBlocks(store.getState(), "task-1")).toEqual([
+      {
+        id: "pending-4",
+        type: "message",
+        role: "user",
+        content: "",
+        attachments: [
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
         timestamp: null,
         pending: true,
       },
@@ -221,6 +261,37 @@ describe("tasks session store", () => {
     const second = selectConversationBlocks(store.getState(), "task-1")
 
     expect(second).toBe(first)
+  })
+
+  it("updates draft attachments without affecting task query selectors", () => {
+    const store = createTasksStore()
+
+    store.getState().hydrateProjectTasks("project-1", [
+      buildTask({
+        taskId: "task-1",
+      }),
+    ])
+
+    const first = selectProjectTasks(store.getState(), "project-1")
+    store.getState().setDraftAttachments("task-1", [
+      {
+        path: ".harbor/task-input-images/example.png",
+        mediaType: "image/png",
+        name: "example.png",
+        size: 1024,
+      },
+    ])
+    const second = selectProjectTasks(store.getState(), "project-1")
+
+    expect(second).toBe(first)
+    expect(store.getState().chatUiByTaskId["task-1"]?.draftAttachments).toEqual([
+      {
+        path: ".harbor/task-input-images/example.png",
+        mediaType: "image/png",
+        name: "example.png",
+        size: 1024,
+      },
+    ])
   })
 
   it("replaces the visible project task list from query snapshots", () => {

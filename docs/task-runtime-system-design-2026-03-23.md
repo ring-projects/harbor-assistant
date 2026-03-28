@@ -323,6 +323,9 @@ followup 时：
 1. 恢复的是同一个 `AgentSession`
 2. 不是创建新的 `Task`
 3. 也不是创建新的“执行桥梁实体”
+4. 当前实现不会在 service 重启时自动继续旧的 in-flight turn
+5. service 启动时会先把 orphaned `queued` / `running` execution 收敛到 `failed`
+6. 若已记录 provider session id，用户后续仍可在同一个 execution 上手动 `resume`
 
 ### 8.5 subtask
 

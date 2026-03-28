@@ -1,9 +1,21 @@
 import type { Task } from "../domain/task"
 
+export type TaskRuntimeSnapshot = {
+  executor: string | null
+  model: string | null
+  executionMode: string | null
+}
+
+export type TaskRecord = Task & TaskRuntimeSnapshot
+
 export type TaskListItem = {
   id: string
   projectId: string
   title: string
+  titleSource: Task["titleSource"]
+  executor: string | null
+  model: string | null
+  executionMode: string | null
   status: Task["status"]
   archivedAt: Date | null
   createdAt: Date
@@ -36,11 +48,27 @@ export type DeleteTaskResult = {
   projectId: string
 }
 
-export function toTaskListItem(task: Task): TaskListItem {
+export function attachTaskRuntime(
+  task: Task,
+  runtime: TaskRuntimeSnapshot,
+): TaskRecord {
+  return {
+    ...task,
+    executor: runtime.executor,
+    model: runtime.model,
+    executionMode: runtime.executionMode,
+  }
+}
+
+export function toTaskListItem(task: TaskRecord): TaskListItem {
   return {
     id: task.id,
     projectId: task.projectId,
     title: task.title,
+    titleSource: task.titleSource,
+    executor: task.executor,
+    model: task.model,
+    executionMode: task.executionMode,
     status: task.status,
     archivedAt: task.archivedAt,
     createdAt: task.createdAt,
@@ -50,7 +78,7 @@ export function toTaskListItem(task: Task): TaskListItem {
   }
 }
 
-export function toTaskDetail(task: Task): TaskDetail {
+export function toTaskDetail(task: TaskRecord): TaskDetail {
   return {
     ...toTaskListItem(task),
     prompt: task.prompt,

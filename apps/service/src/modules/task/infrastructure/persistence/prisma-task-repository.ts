@@ -9,7 +9,18 @@ import type {
   TaskRecordStore,
 } from "../../application/task-record-store"
 import type { Task } from "../../domain/task"
-import { toDomainTask } from "./task-mapper"
+import type { TaskRecord } from "../../application/task-read-models"
+import { toTaskRecord } from "./task-mapper"
+
+const taskReadInclude = {
+  execution: {
+    select: {
+      executorType: true,
+      executorModel: true,
+      executionMode: true,
+    },
+  },
+} as const
 
 export class PrismaTaskRepository implements TaskRepository, TaskRecordStore {
   constructor(private readonly prisma: PrismaClient) {}
@@ -48,25 +59,27 @@ export class PrismaTaskRepository implements TaskRepository, TaskRecordStore {
     })
   }
 
-  async findById(id: string): Promise<Task | null> {
+  async findById(id: string): Promise<TaskRecord | null> {
     const task = await this.prisma.task.findUnique({
       where: { id },
+      include: taskReadInclude,
     })
 
-    return task ? toDomainTask(task) : null
+    return task ? toTaskRecord(task) : null
   }
 
-  async listByProject(input: ListProjectTasksInput): Promise<Task[]> {
+  async listByProject(input: ListProjectTasksInput): Promise<TaskRecord[]> {
     const tasks = await this.prisma.task.findMany({
       where: {
         projectId: input.projectId,
         ...(input.includeArchived ? {} : { archivedAt: null }),
       },
+      include: taskReadInclude,
       orderBy: [{ createdAt: "desc" }],
       ...(input.limit === undefined ? {} : { take: input.limit }),
     })
 
-    return tasks.map(toDomainTask)
+    return tasks.map(toTaskRecord)
   }
 
   async save(task: Task): Promise<void> {

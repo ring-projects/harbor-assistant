@@ -10,6 +10,13 @@
   - [frd-frontend.md](./frd-frontend.md)
   - [prd-executor-service.md](./prd-executor-service.md)
 
+当前状态说明：
+
+- 这份文档保留了较早期的 `followup / break / retry` 规划
+- 当前真实 product/API contract 以 [task-api.md](./task-api.md) 与仓库 [README.md](../README.md) 为准
+- 目前前端已上线的 canonical 继续执行入口是 `resume`
+- `break` / `retry` / `followup` 不应被当作当前已实现 contract
+
 ---
 
 ## 2. 设计目标（Design Goals）

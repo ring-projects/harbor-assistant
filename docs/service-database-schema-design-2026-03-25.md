@@ -294,6 +294,8 @@ ExecutionEvent stores raw runtime events for that execution.
 2. `retry` 也默认继续同一个 `Execution`
 3. `resume` / `retry` 都不创建新的 `Execution`
 4. 原因是 execution 持有真正的 session 上下文，重新创建 execution 往往意味着重新创建 agent session，会丢失上下文并浪费 token
+5. service 重启后不会自动继续旧的 in-flight turn，而是先把 orphaned `queued` / `running` execution 收敛到 `failed`
+6. 如果 execution 已记录 `sessionId`，后续仍允许在同一个 execution 上继续 `resume`
 
 因此在第一版里：
 

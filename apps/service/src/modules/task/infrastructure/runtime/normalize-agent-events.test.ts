@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   applyNormalizedTaskEvents,
-  createSyntheticUserPromptEvent,
+  createSyntheticUserInputEvent,
   createTaskRunEventState,
   normalizeRawAgentEvent,
 } from "./normalize-agent-events"
@@ -75,6 +75,163 @@ describe("normalizeRawAgentEvent", () => {
     ])
   })
 
+  it("keeps codex command output as the provider snapshot", () => {
+    const firstEvents = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:01.000Z"),
+        event: {
+          type: "item.updated",
+          item: {
+            type: "command_execution",
+            id: "cmd-1",
+            command: "ls",
+            aggregated_output: "file-a\n",
+            status: "in_progress",
+          },
+        },
+      },
+      state: createTaskRunEventState(),
+    })
+
+    const secondEvents = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:02.000Z"),
+        event: {
+          type: "item.updated",
+          item: {
+            type: "command_execution",
+            id: "cmd-1",
+            command: "ls",
+            aggregated_output: "file-a\nfile-b\n",
+            status: "in_progress",
+          },
+        },
+      },
+      state: createTaskRunEventState(),
+    })
+
+    expect(firstEvents).toEqual([
+      {
+        eventType: "command.output",
+        payload: {
+          commandId: "cmd-1",
+          output: "file-a\n",
+          timestamp: "2026-03-25T00:00:01.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:01.000Z"),
+      },
+    ])
+    expect(secondEvents).toEqual([
+      {
+        eventType: "command.output",
+        payload: {
+          commandId: "cmd-1",
+          output: "file-a\nfile-b\n",
+          timestamp: "2026-03-25T00:00:02.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:02.000Z"),
+      },
+    ])
+  })
+
+  it("preserves codex todo list lifecycle events", () => {
+    const startedEvents = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:03.000Z"),
+        event: {
+          type: "item.started",
+          item: {
+            type: "todo_list",
+            id: "todo-1",
+            items: [{ text: "A", completed: false }],
+          },
+        },
+      },
+      state: createTaskRunEventState(),
+    })
+
+    const updatedEvents = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:04.000Z"),
+        event: {
+          type: "item.updated",
+          item: {
+            type: "todo_list",
+            id: "todo-1",
+            items: [
+              { text: "A", completed: true },
+              { text: "B", completed: false },
+            ],
+          },
+        },
+      },
+      state: createTaskRunEventState(),
+    })
+
+    const completedEvents = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:05.000Z"),
+        event: {
+          type: "item.completed",
+          item: {
+            type: "todo_list",
+            id: "todo-1",
+            items: [
+              { text: "A", completed: true },
+              { text: "B", completed: true },
+            ],
+          },
+        },
+      },
+      state: createTaskRunEventState(),
+    })
+
+    expect(startedEvents).toEqual([
+      {
+        eventType: "todo_list.started",
+        payload: {
+          todoListId: "todo-1",
+          items: [{ text: "A", completed: false }],
+          timestamp: "2026-03-25T00:00:03.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:03.000Z"),
+      },
+    ])
+    expect(updatedEvents).toEqual([
+      {
+        eventType: "todo_list.updated",
+        payload: {
+          todoListId: "todo-1",
+          items: [
+            { text: "A", completed: true },
+            { text: "B", completed: false },
+          ],
+          timestamp: "2026-03-25T00:00:04.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:04.000Z"),
+      },
+    ])
+    expect(completedEvents).toEqual([
+      {
+        eventType: "todo_list.completed",
+        payload: {
+          todoListId: "todo-1",
+          items: [
+            { text: "A", completed: true },
+            { text: "B", completed: true },
+          ],
+          timestamp: "2026-03-25T00:00:05.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:05.000Z"),
+      },
+    ])
+  })
+
   it("normalizes claude assistant/tool events", () => {
     const events = normalizeRawAgentEvent({
       envelope: {
@@ -124,7 +281,7 @@ describe("normalizeRawAgentEvent", () => {
 })
 
 describe("task run event state", () => {
-  it("tracks session id, stdout, and terminal errors from normalized events", () => {
+  it("tracks session id and terminal errors from normalized events", () => {
     const state = applyNormalizedTaskEvents(createTaskRunEventState(), [
       {
         eventType: "session.started",
@@ -132,13 +289,6 @@ describe("task run event state", () => {
           sessionId: "session-1",
         },
         createdAt: new Date("2026-03-25T00:00:00.000Z"),
-      },
-      {
-        eventType: "command.output",
-        payload: {
-          output: "hello\n",
-        },
-        createdAt: new Date("2026-03-25T00:00:01.000Z"),
       },
       {
         eventType: "turn.failed",
@@ -150,15 +300,14 @@ describe("task run event state", () => {
     ])
 
     expect(state.sessionId).toBe("session-1")
-    expect(state.stdout).toBe("hello\n")
     expect(state.terminalError).toBe("boom")
     expect(state.hasTerminalErrorEvent).toBe(true)
   })
 
-  it("creates a synthetic user prompt event", () => {
+  it("creates a synthetic user input event", () => {
     expect(
-      createSyntheticUserPromptEvent({
-        content: "Investigate runtime drift",
+      createSyntheticUserInputEvent({
+        input: "Investigate runtime drift",
         createdAt: new Date("2026-03-25T00:00:00.000Z"),
       }),
     ).toEqual({
@@ -166,7 +315,53 @@ describe("task run event state", () => {
       payload: {
         role: "user",
         content: "Investigate runtime drift",
-        source: "user_prompt",
+        summary: "Investigate runtime drift",
+        input: "Investigate runtime drift",
+        source: "user_input",
+        timestamp: "2026-03-25T00:00:00.000Z",
+      },
+      createdAt: new Date("2026-03-25T00:00:00.000Z"),
+    })
+  })
+
+  it("creates a structured user input event with attachments", () => {
+    expect(
+      createSyntheticUserInputEvent({
+        input: [
+          {
+            type: "text",
+            text: "Review this screenshot",
+          },
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
+        createdAt: new Date("2026-03-25T00:00:00.000Z"),
+      }),
+    ).toEqual({
+      eventType: "message",
+      payload: {
+        role: "user",
+        content: "Review this screenshot",
+        summary: "Review this screenshot",
+        input: [
+          {
+            type: "text",
+            text: "Review this screenshot",
+          },
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
+        attachments: [
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
+        source: "user_input",
         timestamp: "2026-03-25T00:00:00.000Z",
       },
       createdAt: new Date("2026-03-25T00:00:00.000Z"),

@@ -4,10 +4,10 @@ import { memo } from "react"
 
 import { ArrowUpRightIcon, CheckCircle2Icon, CircleIcon, PlugZapIcon, XCircleIcon } from "lucide-react"
 
+import { formatTimeShort } from "@/lib/date-time"
 import { cn } from "@/lib/utils"
 
-import type { ChatConversationBlock } from "../types"
-import { formatChatTimestamp } from "../components/shared"
+import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatMcpToolCallBlockProps = {
   block: Extract<ChatConversationBlock, { type: "mcp-tool-call" }>
@@ -61,7 +61,7 @@ function ChatMcpToolCallBlockView({
       <button
         type="button"
         onClick={() => onOpen(block)}
-        className="hover:bg-muted/30 w-full max-w-[52rem] rounded-xl border border-border/55 bg-card/60 text-left transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+        className="hover:bg-muted/20 w-full bg-card text-left"
       >
         <div className="flex items-start justify-between gap-3 px-3.5 py-3">
           <div className="min-w-0 flex-1">
@@ -83,11 +83,11 @@ function ChatMcpToolCallBlockView({
 
             <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
               {block.callId ? ` · ${block.callId}` : ""}
-              {block.timestamp ? ` · ${formatChatTimestamp(block.timestamp)}` : ""}
+              {block.timestamp ? ` · ${formatTimeShort(block.timestamp)}` : ""}
             </p>
 
             {preview ? (
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-md bg-background/45 p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
+              <pre className="bg-muted/25 mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-md p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
                 {preview}
               </pre>
             ) : null}

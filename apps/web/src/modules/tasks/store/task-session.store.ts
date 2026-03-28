@@ -29,6 +29,7 @@ const TASK_STATUS_PRIORITY: Record<TaskStatus, number> = {
 function createDefaultChatUiState(): ChatUiState {
   return {
     draft: "",
+    draftAttachments: [],
     pendingPrompt: null,
     queuedPrompt: null,
     stickToBottom: true,
@@ -367,6 +368,27 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
     set((state) => {
       const chatUiByTaskId = setChatUiField(state, normalizedTaskId, {
         draft,
+      })
+
+      if (chatUiByTaskId === state.chatUiByTaskId) {
+        return state
+      }
+
+      return {
+        chatUiByTaskId,
+      }
+    })
+  },
+
+  setDraftAttachments(taskId, draftAttachments) {
+    const normalizedTaskId = taskId.trim()
+    if (!normalizedTaskId) {
+      return
+    }
+
+    set((state) => {
+      const chatUiByTaskId = setChatUiField(state, normalizedTaskId, {
+        draftAttachments,
       })
 
       if (chatUiByTaskId === state.chatUiByTaskId) {

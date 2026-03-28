@@ -1,11 +1,18 @@
 import { randomUUID } from "node:crypto"
 
+import type { AgentInputItem } from "../../../lib/agents"
 import { createTask } from "../domain/task"
+import { resolveAgentInput, summarizeAgentInput } from "../domain/task-input"
 import { createTaskError } from "../errors"
 import type { ProjectTaskPort } from "./project-task-port"
 import type { TaskNotificationPublisher } from "./task-notification"
 import type { TaskRecordStore } from "./task-record-store"
-import { toTaskDetail, toTaskListItem, type TaskDetail } from "./task-read-models"
+import {
+  attachTaskRuntime,
+  toTaskDetail,
+  toTaskListItem,
+  type TaskDetail,
+} from "./task-read-models"
 import type { TaskRepository } from "./task-repository"
 import type { TaskRuntimePort } from "./task-runtime-port"
 
@@ -17,29 +24,32 @@ function normalizeNullableString(value: string | null | undefined) {
 export async function createTaskUseCase(args: {
   projectTaskPort: ProjectTaskPort
   taskRecordStore: TaskRecordStore
-  repository: Pick<TaskRepository, "save">
+  repository: Pick<TaskRepository, "findById" | "save">
   runtimePort: TaskRuntimePort
   notificationPublisher: TaskNotificationPublisher
   idGenerator?: () => string
 }, input: {
   projectId: string
-  prompt: string
+  prompt?: string | null
+  items?: AgentInputItem[] | null
   title?: string
   executor?: string | null
   model?: string | null
   executionMode?: string | null
 }): Promise<TaskDetail> {
   const projectId = input.projectId.trim()
-  const prompt = input.prompt.trim()
+  const agentInput = resolveAgentInput(input)
   const title = input.title?.trim()
 
   if (!projectId) {
     throw createTaskError().invalidInput("projectId is required")
   }
 
-  if (!prompt) {
-    throw createTaskError().invalidInput("prompt is required")
+  if (!agentInput) {
+    throw createTaskError().invalidInput("task input is required")
   }
+
+  const prompt = summarizeAgentInput(agentInput)
 
   const project = await args.projectTaskPort.getProjectForTask(projectId)
   if (!project) {
@@ -74,11 +84,12 @@ export async function createTaskUseCase(args: {
     projectPath: project.rootPath,
     runtimeConfig,
   })
+  const taskRecord = attachTaskRuntime(task, runtimeConfig)
 
   await args.notificationPublisher.publish({
     type: "task_upserted",
     projectId: task.projectId,
-    task: toTaskListItem(task),
+    task: toTaskListItem(taskRecord),
   })
 
   try {
@@ -86,27 +97,35 @@ export async function createTaskUseCase(args: {
       taskId: task.id,
       projectId: task.projectId,
       projectPath: project.rootPath,
-      prompt: task.prompt,
+      input: agentInput,
       runtimeConfig,
     })
   } catch (error) {
+    const persistedTask = await args.repository.findById(task.id)
+    if (persistedTask?.status === "failed") {
+      throw createTaskError().startFailed(
+        error instanceof Error ? error.message : "task runtime failed to start",
+      )
+    }
+
     const now = new Date()
     const failedTask = {
-      ...task,
+      ...(persistedTask ?? task),
       status: "failed" as const,
       finishedAt: now,
       updatedAt: now,
     }
     await args.repository.save(failedTask)
+    const failedTaskRecord = attachTaskRuntime(failedTask, runtimeConfig)
     await args.notificationPublisher.publish({
       type: "task_upserted",
       projectId: failedTask.projectId,
-      task: toTaskListItem(failedTask),
+      task: toTaskListItem(failedTaskRecord),
     })
     throw createTaskError().startFailed(
       error instanceof Error ? error.message : "task runtime failed to start",
     )
   }
 
-  return toTaskDetail(task)
+  return toTaskDetail(taskRecord)
 }

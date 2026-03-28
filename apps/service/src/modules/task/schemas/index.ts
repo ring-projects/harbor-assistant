@@ -5,6 +5,7 @@ export type {
   ProjectIdParams,
   ResumeTaskBody,
   TaskIdParams,
+  UploadTaskInputImageBody,
   UpdateTaskTitleBody,
 } from "./task.schema"
 export {
@@ -21,6 +22,8 @@ export {
   resumeTaskBodySchema,
   resumeTaskRouteSchema,
   taskIdParamsSchema,
+  uploadTaskInputImageBodySchema,
+  uploadTaskInputImageRouteSchema,
   updateTaskTitleBodySchema,
   updateTaskTitleRouteSchema,
 } from "./task.schema"

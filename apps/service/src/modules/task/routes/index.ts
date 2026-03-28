@@ -10,9 +10,9 @@ import { resumeTaskUseCase } from "../application/resume-task"
 import type { TaskEventProjection } from "../application/task-event-projection"
 import type { TaskNotificationPublisher } from "../application/task-notification"
 import type { TaskRecordStore } from "../application/task-record-store"
-import type { TaskDetail, TaskEventStream, TaskListItem } from "../application/task-read-models"
 import type { TaskRepository } from "../application/task-repository"
 import type { TaskRuntimePort } from "../application/task-runtime-port"
+import { uploadTaskInputImageUseCase } from "../application/upload-task-input-image"
 import { listProjectTasksUseCase } from "../application/list-project-tasks"
 import { updateTaskTitleUseCase } from "../application/update-task-title"
 import { toTaskAppError } from "../task-app-error"
@@ -29,43 +29,12 @@ import {
   type ProjectIdParams,
   type ResumeTaskBody,
   type TaskIdParams,
+  type UploadTaskInputImageBody,
   type UpdateTaskTitleBody,
   resumeTaskRouteSchema,
+  uploadTaskInputImageRouteSchema,
   updateTaskTitleRouteSchema,
 } from "../schemas"
-
-function toResponseTask(task: TaskDetail) {
-  return {
-    ...task,
-    archivedAt: task.archivedAt?.toISOString() ?? null,
-    createdAt: task.createdAt.toISOString(),
-    updatedAt: task.updatedAt.toISOString(),
-    startedAt: task.startedAt?.toISOString() ?? null,
-    finishedAt: task.finishedAt?.toISOString() ?? null,
-  }
-}
-
-function toResponseTaskListItem(task: TaskListItem) {
-  return {
-    ...task,
-    archivedAt: task.archivedAt?.toISOString() ?? null,
-    createdAt: task.createdAt.toISOString(),
-    updatedAt: task.updatedAt.toISOString(),
-    startedAt: task.startedAt?.toISOString() ?? null,
-    finishedAt: task.finishedAt?.toISOString() ?? null,
-  }
-}
-
-function toResponseTaskEventStream(stream: TaskEventStream) {
-  return {
-    taskId: stream.taskId,
-    nextSequence: stream.nextSequence,
-    items: stream.items.map((item) => ({
-      ...item,
-      createdAt: item.createdAt.toISOString(),
-    })),
-  }
-}
 
 export async function registerTaskModuleRoutes(
   app: FastifyInstance,
@@ -107,8 +76,35 @@ export async function registerTaskModuleRoutes(
 
         return reply.status(201).send({
           ok: true,
-          task: toResponseTask(task),
+          task,
         })
+      } catch (error) {
+        throw toTaskAppError(error)
+      }
+    },
+  )
+
+  app.post<{ Params: ProjectIdParams; Body: UploadTaskInputImageBody }>(
+    "/projects/:projectId/task-input-images",
+    {
+      schema: uploadTaskInputImageRouteSchema,
+    },
+    async (request) => {
+      try {
+        const result = await uploadTaskInputImageUseCase(
+          {
+            projectTaskPort,
+          },
+          {
+            projectId: request.params.projectId,
+            ...request.body,
+          },
+        )
+
+        return {
+          ok: true,
+          ...result,
+        }
       } catch (error) {
         throw toTaskAppError(error)
       }
@@ -125,7 +121,7 @@ export async function registerTaskModuleRoutes(
         const task = await getTaskDetailUseCase(repository, request.params.taskId)
         return {
           ok: true,
-          task: toResponseTask(task),
+          task,
         }
       } catch (error) {
         throw toTaskAppError(error)
@@ -147,7 +143,7 @@ export async function registerTaskModuleRoutes(
 
         return {
           ok: true,
-          task: toResponseTask(task),
+          task,
         }
       } catch (error) {
         throw toTaskAppError(error)
@@ -171,12 +167,13 @@ export async function registerTaskModuleRoutes(
           {
             taskId: request.params.taskId,
             prompt: request.body.prompt,
+            items: request.body.items,
           },
         )
 
         return {
           ok: true,
-          task: toResponseTask(task),
+          task,
         }
       } catch (error) {
         throw toTaskAppError(error)
@@ -199,7 +196,7 @@ export async function registerTaskModuleRoutes(
 
         return {
           ok: true,
-          task: toResponseTask(task),
+          task,
         }
       } catch (error) {
         throw toTaskAppError(error)
@@ -245,8 +242,8 @@ export async function registerTaskModuleRoutes(
 
         return reply.status(result.isTerminal ? 200 : 206).send({
           ok: true,
-          task: toResponseTask(result.task),
-          events: toResponseTaskEventStream(result.events),
+          task: result.task,
+          events: result.events,
         })
       } catch (error) {
         throw toTaskAppError(error)
@@ -269,7 +266,7 @@ export async function registerTaskModuleRoutes(
 
         return {
           ok: true,
-          tasks: tasks.map(toResponseTaskListItem),
+          tasks,
         }
       } catch (error) {
         throw toTaskAppError(error)

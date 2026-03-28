@@ -1,7 +1,7 @@
 import {
   selectLastSequence,
   useTasksSessionStore,
-} from "@/modules/tasks/domain/store"
+} from "@/modules/tasks/store"
 
 import type {
   InteractionSubscribeRequest,

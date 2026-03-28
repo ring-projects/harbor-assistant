@@ -10,10 +10,10 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { formatTimeShort } from "@/lib/date-time"
 import { cn } from "@/lib/utils"
 
-import { formatChatTimestamp } from "../components/shared"
-import type { ChatConversationBlock } from "../types"
+import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatCommandGroupProps = {
   block: Extract<ChatConversationBlock, { type: "command-group" }>
@@ -49,7 +49,7 @@ function ChatCommandGroupView({ block, onOpen }: ChatCommandGroupProps) {
 
   return (
     <div className="flex justify-start">
-      <div className="w-full max-w-[52rem] rounded-xl border border-border/55 bg-card/60 px-3.5 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div className="w-full bg-card p-2">
         <div className="flex items-start gap-3">
           <StatusIcon className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)} />
 
@@ -71,12 +71,12 @@ function ChatCommandGroupView({ block, onOpen }: ChatCommandGroupProps) {
             </div>
 
             <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
-              {block.startedAt ? ` · Started ${formatChatTimestamp(block.startedAt)}` : ""}
+              {block.startedAt ? ` · Started ${formatTimeShort(block.startedAt)}` : ""}
               {hasOutput ? ` · ${block.outputLineCount} lines captured` : " · No output yet"}
             </p>
 
             {block.outputPreview ? (
-              <pre className="mt-2 overflow-hidden whitespace-pre-wrap break-words rounded-md bg-background/45 p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
+              <pre className="bg-muted/25 mt-2 overflow-hidden whitespace-pre-wrap break-words rounded-md p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
                 {block.outputPreview}
               </pre>
             ) : null}
@@ -86,7 +86,7 @@ function ChatCommandGroupView({ block, onOpen }: ChatCommandGroupProps) {
                 <TerminalSquareIcon className="size-3.5" />
                 <span>
                   {block.completedAt
-                    ? `Updated ${formatChatTimestamp(block.completedAt)}`
+                    ? `Updated ${formatTimeShort(block.completedAt)}`
                     : "Waiting for completion"}
                 </span>
               </div>

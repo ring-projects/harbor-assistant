@@ -9,6 +9,10 @@ import {
   type TaskListItem,
 } from "@/modules/tasks/contracts"
 import {
+  type TaskInput,
+  type UploadedTaskInputImage,
+} from "@/modules/tasks/lib"
+import {
   extractSingleTask,
   extractTaskEvents,
   extractTaskList,
@@ -39,7 +43,8 @@ export class TaskApiClientError extends Error {
 }
 
 export type CreateTaskInput = {
-  prompt: string
+  prompt?: string
+  items?: Extract<TaskInput, readonly unknown[]>
   title?: string
   model?: string
   executor?: string
@@ -47,7 +52,8 @@ export type CreateTaskInput = {
 }
 
 export type ResumeTaskInput = {
-  prompt: string
+  prompt?: string
+  items?: Extract<TaskInput, readonly unknown[]>
 }
 
 export type CreateTaskResult = {
@@ -63,6 +69,10 @@ export type DeleteTaskResult = {
 export type TaskListResult = {
   tasks: TaskListItem[]
   nextCursor: string | null
+}
+
+export type UploadTaskInputImageInput = {
+  file: File
 }
 
 async function parseJson(response: Response): Promise<TaskEnvelopePayload | null> {
@@ -95,19 +105,26 @@ export async function createTask(
   projectId: string,
   input: CreateTaskInput,
 ): Promise<CreateTaskResult> {
+  const body: Record<string, unknown> = {
+    projectId,
+    title: input.title,
+    model: input.model,
+    executor: input.executor ?? "codex",
+    executionMode: input.executionMode,
+  }
+
+  if (input.items) {
+    body.items = input.items
+  } else {
+    body.prompt = input.prompt
+  }
+
   const response = await fetch(buildExecutorApiUrl("/v1/tasks"), {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      projectId,
-      prompt: input.prompt,
-      title: input.title,
-      model: input.model,
-      executor: input.executor ?? "codex",
-      executionMode: input.executionMode,
-    }),
+    body: JSON.stringify(body),
   })
 
   const payload = await parseJson(response)
@@ -257,6 +274,8 @@ export async function resumeTask(
   taskId: string,
   input: ResumeTaskInput,
 ): Promise<TaskDetail> {
+  const body = input.items ? { items: input.items } : { prompt: input.prompt }
+
   const response = await fetch(
     buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/resume`),
     {
@@ -264,9 +283,7 @@ export async function resumeTask(
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify({
-        prompt: input.prompt,
-      }),
+      body: JSON.stringify(body),
     },
   )
 
@@ -282,6 +299,93 @@ export async function resumeTask(
   }
 
   return task
+}
+
+function encodeBytesToBase64(bytes: Uint8Array) {
+  let binary = ""
+  for (const value of bytes) {
+    binary += String.fromCharCode(value)
+  }
+
+  return btoa(binary)
+}
+
+async function readFileBytes(file: File) {
+  if (typeof file.arrayBuffer === "function") {
+    return new Uint8Array(await file.arrayBuffer())
+  }
+
+  if (typeof FileReader !== "undefined") {
+    return await new Promise<Uint8Array>((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onerror = () => {
+        reject(reader.error ?? new Error("Failed to read file."))
+      }
+      reader.onload = () => {
+        if (!(reader.result instanceof ArrayBuffer)) {
+          reject(new Error("Failed to read file."))
+          return
+        }
+
+        resolve(new Uint8Array(reader.result))
+      }
+
+      reader.readAsArrayBuffer(file)
+    })
+  }
+
+  return new Uint8Array(await new Response(await file.text()).arrayBuffer())
+}
+
+export async function uploadTaskInputImage(
+  projectId: string,
+  input: UploadTaskInputImageInput,
+): Promise<UploadedTaskInputImage> {
+  const file = input.file
+  const bytes = await readFileBytes(file)
+
+  const response = await fetch(
+    buildExecutorApiUrl(
+      `/v1/projects/${encodeURIComponent(projectId)}/task-input-images`,
+    ),
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: file.name,
+        mediaType: file.type,
+        dataBase64: encodeBytesToBase64(bytes),
+      }),
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to upload task input image.")
+
+  const path = pickString(payload, "path")
+  const mediaType = pickString(payload, "mediaType")
+  const name = pickString(payload, "name")
+  const size =
+    typeof payload?.size === "number" && Number.isFinite(payload.size)
+      ? payload.size
+      : null
+
+  if (!path || !mediaType || !name || size === null) {
+    throw new TaskApiClientError("Task input image payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return {
+    path,
+    mediaType,
+    name,
+    size,
+  }
 }
 
 export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {

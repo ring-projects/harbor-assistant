@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
+import type { AgentInput } from "../../../lib/agents"
 import { createTask } from "../domain/task"
 import { TASK_ERROR_CODES, type TaskError } from "../errors"
 import { archiveTaskUseCase } from "./archive-task"
@@ -13,20 +14,35 @@ import { listProjectTasksUseCase } from "./list-project-tasks"
 import type { TaskNotificationPublisher } from "./task-notification"
 import type { TaskRecordStore } from "./task-record-store"
 import type { TaskRepository } from "./task-repository"
+import { attachTaskRuntime, type TaskRecord } from "./task-read-models"
 import type { TaskRuntimePort } from "./task-runtime-port"
 import { updateTaskTitleUseCase } from "./update-task-title"
 
 describe("task use cases", () => {
-  function createRepository(seed = [createTask({
-    id: "task-1",
-    projectId: "project-1",
-    prompt: "Investigate runtime drift",
-    status: "completed",
-  })]): TaskRepository & TaskRecordStore {
+  function createTaskRecord(
+    task = createTask({
+      id: "task-1",
+      projectId: "project-1",
+      prompt: "Investigate runtime drift",
+      status: "completed",
+    }),
+    overrides: Partial<Pick<TaskRecord, "executor" | "model" | "executionMode">> = {},
+  ): TaskRecord {
+    return attachTaskRuntime(task, {
+      executor: "codex",
+      model: null,
+      executionMode: "safe",
+      ...overrides,
+    })
+  }
+
+  function createRepository(
+    seed = [createTaskRecord()],
+  ): TaskRepository & TaskRecordStore {
     const tasks = new Map(seed.map((task) => [task.id, task]))
     return {
-      create: vi.fn(async ({ task }) => {
-        tasks.set(task.id, task)
+      create: vi.fn(async ({ task, runtimeConfig }) => {
+        tasks.set(task.id, attachTaskRuntime(task, runtimeConfig))
       }),
       findById: vi.fn(async (id: string) => tasks.get(id) ?? null),
       listByProject: vi.fn(async ({ projectId, includeArchived, limit }) => {
@@ -38,7 +54,15 @@ describe("task use cases", () => {
         return limit === undefined ? items : items.slice(0, limit)
       }),
       save: vi.fn(async (task) => {
-        tasks.set(task.id, task)
+        const current = tasks.get(task.id)
+        tasks.set(
+          task.id,
+          attachTaskRuntime(task, {
+            executor: current?.executor ?? "codex",
+            model: current?.model ?? null,
+            executionMode: current?.executionMode ?? "safe",
+          }),
+        )
       }),
       delete: vi.fn(async (taskId: string) => {
         tasks.delete(taskId)
@@ -98,6 +122,9 @@ describe("task use cases", () => {
       id: "task-created-1",
       projectId: "project-1",
       title: "Investigate runtime drift",
+      executor: "codex",
+      model: null,
+      executionMode: "safe",
       status: "queued",
     })
     expect(repository.create).toHaveBeenCalledWith(
@@ -114,7 +141,7 @@ describe("task use cases", () => {
       taskId: "task-created-1",
       projectId: "project-1",
       projectPath: "/tmp/harbor-assistant",
-      prompt: "Investigate runtime drift",
+      input: "Investigate runtime drift",
       runtimeConfig: {
         executor: "codex",
         model: null,
@@ -122,6 +149,61 @@ describe("task use cases", () => {
       },
     })
     expect(publisher.publish).toHaveBeenCalledOnce()
+  })
+
+  it("creates a task from structured input while keeping prompt as summary", async () => {
+    const repository = createRepository([])
+    const publisher = createNotificationPublisher()
+    const projectTaskPort = createProjectTaskPort()
+    const runtimePort = createRuntimePort()
+
+    const task = await createTaskUseCase(
+      {
+        projectTaskPort,
+        taskRecordStore: repository,
+        repository,
+        runtimePort,
+        notificationPublisher: publisher,
+        idGenerator: () => "task-created-2",
+      },
+      {
+        projectId: "project-1",
+        items: [
+          {
+            type: "text",
+            text: "Review this screenshot",
+          },
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
+      },
+    )
+
+    expect(task.prompt).toBe("Review this screenshot")
+    expect(task.executor).toBe("codex")
+    expect(task.executionMode).toBe("safe")
+    expect(runtimePort.startTaskExecution).toHaveBeenCalledWith({
+      taskId: "task-created-2",
+      projectId: "project-1",
+      projectPath: "/tmp/harbor-assistant",
+      input: [
+        {
+          type: "text",
+          text: "Review this screenshot",
+        },
+        {
+          type: "local_image",
+          path: ".harbor/task-input-images/example.png",
+        },
+      ],
+      runtimeConfig: {
+        executor: "codex",
+        model: null,
+        executionMode: "safe",
+      },
+    })
   })
 
   it("fails create when project does not exist", async () => {
@@ -164,25 +246,30 @@ describe("task use cases", () => {
 
   it("lists project tasks with archived filtering", async () => {
     const repository = createRepository([
-      createTask({
+      createTaskRecord(createTask({
         id: "task-1",
         projectId: "project-1",
         prompt: "First",
         status: "completed",
-      }),
-      createTask({
+      })),
+      createTaskRecord(createTask({
         id: "task-2",
         projectId: "project-1",
         prompt: "Second",
         status: "failed",
         archivedAt: new Date("2026-03-25T00:00:00.000Z"),
-      }),
+      })),
     ])
 
     const activeOnly = await listProjectTasksUseCase(repository, {
       projectId: "project-1",
     })
     expect(activeOnly.map((task) => task.id)).toEqual(["task-1"])
+    expect(activeOnly[0]).toMatchObject({
+      executor: "codex",
+      model: null,
+      executionMode: "safe",
+    })
 
     const withArchived = await listProjectTasksUseCase(repository, {
       projectId: "project-1",
@@ -210,18 +297,18 @@ describe("task use cases", () => {
 
   it("resumes a terminal task through the same execution boundary", async () => {
     const repository = createRepository([
-      createTask({
+      createTaskRecord(createTask({
         id: "task-1",
         projectId: "project-1",
         prompt: "Investigate runtime drift",
         status: "completed",
-      }),
+      })),
     ])
     const resumeTaskExecution = vi.fn(async (input: {
       taskId: string
       projectId: string
       projectPath: string
-      prompt: string
+      input: AgentInput
     }) => {
       const current = await repository.findById(input.taskId)
       if (!current) {
@@ -256,19 +343,72 @@ describe("task use cases", () => {
       taskId: "task-1",
       projectId: "project-1",
       projectPath: "/tmp/harbor-assistant",
-      prompt: "Continue with the unresolved failures.",
+      input: "Continue with the unresolved failures.",
     })
     expect(task.status).toBe("running")
   })
 
+  it("resumes a terminal task with structured input without changing task prompt", async () => {
+    const repository = createRepository([
+      createTaskRecord(createTask({
+        id: "task-1",
+        projectId: "project-1",
+        prompt: "Original summary",
+        status: "completed",
+      })),
+    ])
+    const resumeTaskExecution = vi.fn(async () => undefined)
+
+    const task = await resumeTaskUseCase(
+      {
+        projectTaskPort: createProjectTaskPort(),
+        repository,
+        runtimePort: {
+          ...createRuntimePort(),
+          resumeTaskExecution,
+        },
+      },
+      {
+        taskId: "task-1",
+        items: [
+          {
+            type: "text",
+            text: "Review this screenshot",
+          },
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
+      },
+    )
+
+    expect(resumeTaskExecution).toHaveBeenCalledWith({
+      taskId: "task-1",
+      projectId: "project-1",
+      projectPath: "/tmp/harbor-assistant",
+      input: [
+        {
+          type: "text",
+          text: "Review this screenshot",
+        },
+        {
+          type: "local_image",
+          path: ".harbor/task-input-images/example.png",
+        },
+      ],
+    })
+    expect(task.prompt).toBe("Original summary")
+  })
+
   it("rejects resume for non-terminal tasks", async () => {
     const repository = createRepository([
-      createTask({
+      createTaskRecord(createTask({
         id: "task-running",
         projectId: "project-1",
         prompt: "Still running",
         status: "running",
-      }),
+      })),
     ])
 
     await expect(
@@ -290,12 +430,12 @@ describe("task use cases", () => {
 
   it("deletes only terminal tasks and returns delete result", async () => {
     const runningRepository = createRepository([
-      createTask({
+      createTaskRecord(createTask({
         id: "task-running",
         projectId: "project-1",
         prompt: "First",
         status: "running",
-      }),
+      })),
     ])
     const publisher = createNotificationPublisher()
 

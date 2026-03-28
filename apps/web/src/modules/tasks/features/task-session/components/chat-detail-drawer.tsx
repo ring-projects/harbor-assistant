@@ -19,10 +19,10 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer"
+import { formatTimeShort } from "@/lib/date-time"
 import { cn } from "@/lib/utils"
 
-import type { ChatInspectorBlock } from "../types"
-import { formatChatTimestamp } from "./shared"
+import type { ChatInspectorBlock } from "@/modules/tasks/view-models"
 
 type ChatDetailDrawerProps = {
   block: ChatInspectorBlock | null
@@ -275,11 +275,11 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
           <div className="space-y-2 rounded-xl border bg-muted/25 p-4 text-sm">
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">Started</span>
-              <span>{formatChatTimestamp(block.startedAt)}</span>
+              <span>{formatTimeShort(block.startedAt)}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">Completed</span>
-              <span>{block.completedAt ? formatChatTimestamp(block.completedAt) : "Pending"}</span>
+              <span>{block.completedAt ? formatTimeShort(block.completedAt) : "Pending"}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">Output</span>
@@ -372,7 +372,7 @@ export function ChatDetailDrawer({
                   </div>
                 </DrawerTitle>
                 <DrawerDescription className="mt-1">
-                  {[meta.subtitle, block ? formatChatTimestamp(block.timestamp) : ""]
+                  {[meta.subtitle, block ? formatTimeShort(block.timestamp) : ""]
                     .filter(Boolean)
                     .join(" · ")}
                 </DrawerDescription>

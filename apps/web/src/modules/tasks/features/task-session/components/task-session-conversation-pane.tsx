@@ -7,16 +7,18 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   selectChatUi,
+  useTasksSessionStore,
+} from "@/modules/tasks/store"
+import type { TaskDetail } from "@/modules/tasks/contracts"
+import {
+  formatExecutorLabel,
   selectConversationBlocks,
   selectSelectedInspectorBlock,
-  useTasksSessionStore,
-} from "@/modules/tasks/domain/store"
-import type { TaskDetail } from "@/modules/tasks/contracts"
-import { formatExecutorLabel } from "@/modules/tasks/domain/lib"
+  type ChatConversationBlock,
+} from "@/modules/tasks/view-models"
 
 import { ChatStream } from "../conversation"
 import { useTaskConversationViewport } from "../hooks/use-task-conversation-viewport"
-import type { ChatConversationBlock } from "../types"
 import { ChatDetailDrawer } from "./chat-detail-drawer"
 
 type InspectorBlock = Extract<
@@ -53,7 +55,7 @@ export const TaskSessionConversationPane = memo(
     const selectedInspectorBlock = useTasksSessionStore((state) =>
       selectSelectedInspectorBlock(state, taskId),
     )
-    const blocks = useMemo(() => {
+    const blocks = useMemo<ChatConversationBlock[]>(() => {
       if (detail?.status !== "running") {
         return blocksFromStore
       }
@@ -90,50 +92,41 @@ export const TaskSessionConversationPane = memo(
 
     return (
       <>
-        <div className="relative min-h-0 flex-1 overflow-hidden">
-          <ScrollArea
-            viewportRef={scrollerRef}
-            onViewportScroll={handleScroll}
-            className="h-full min-h-0"
-            viewportClassName="h-full min-h-0 px-3 py-3"
-          >
-            {blocks.length === 0 ? (
-              <div className="text-muted-foreground flex min-h-full items-center justify-center font-mono text-[12px]">
-                No messages are available for this chat yet.
-              </div>
-            ) : (
-              <div
-                role="log"
-                aria-label="Task conversation"
-                aria-live={stickToBottom ? "polite" : "off"}
-                aria-relevant="additions text"
-                aria-busy={detail?.status === "running"}
-                className="space-y-2.5"
-              >
-                {hiddenBlockCount > 0 ? (
-                  <div className="flex items-center justify-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 rounded-md border-dashed border-border/45 bg-background/45 px-2.5 font-mono text-[11px]"
-                      onClick={loadEarlier}
-                      aria-label={`Load ${Math.min(120, hiddenBlockCount)} earlier messages`}
-                    >
-                      <ArrowUpIcon className="size-3.5" />
-                      {`Load ${Math.min(120, hiddenBlockCount)} earlier messages`}
-                    </Button>
-                  </div>
-                ) : null}
+        <div className="relative min-h-0 min-w-0 overflow-y-auto native-thin-scrollbar">
+          {blocks.length === 0 ? (
+            <div className="text-muted-foreground flex min-h-full items-center justify-center font-mono text-[12px]">
+              No messages are available for this chat yet.
+            </div>
+          ) : (
+            <div
+              role="log"
+              aria-label="Task conversation"
+              aria-live={stickToBottom ? "polite" : "off"}
+              aria-relevant="additions text"
+              aria-busy={detail?.status === "running"}
+            >
+              {hiddenBlockCount > 0 ? (
+                <div className="flex items-center justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 rounded-md border-dashed border-border/45 bg-background/45 px-2.5 font-mono text-[11px]"
+                    onClick={loadEarlier}
+                    aria-label={`Load ${Math.min(120, hiddenBlockCount)} earlier messages`}
+                  >
+                    <ArrowUpIcon className="size-3.5" />
+                    {`Load ${Math.min(120, hiddenBlockCount)} earlier messages`}
+                  </Button>
+                </div>
+              ) : null}
 
-                <ChatStream
-                  blocks={visibleBlocks}
-                  onOpenInspector={openInspectorDrawer}
-                />
-              </div>
-            )}
-          </ScrollArea>
-
+              <ChatStream
+                blocks={visibleBlocks}
+                onOpenInspector={openInspectorDrawer}
+              />
+            </div>
+          )}
           {!stickToBottom && blocks.length > 0 ? (
             <div className="absolute right-4 bottom-4">
               <Button

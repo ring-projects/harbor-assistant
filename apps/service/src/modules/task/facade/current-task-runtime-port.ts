@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client"
 
 import {
+  type AgentInput,
   AgentFactory,
   type AgentType,
   type IAgentRuntime,
@@ -8,8 +9,13 @@ import {
 import type { TaskNotificationPublisher } from "../application/task-notification"
 import type { TaskRepository } from "../application/task-repository"
 import type { TaskRuntimePort } from "../application/task-runtime-port"
-import { normalizeAgentType } from "../infrastructure/runtime/normalize-agent-events"
+import {
+  createSyntheticErrorEvent,
+  createSyntheticUserInputEvent,
+  normalizeAgentType,
+} from "../infrastructure/runtime/normalize-agent-events"
 import { createTaskExecutionDriver } from "../infrastructure/runtime/task-execution-driver"
+import { createTaskExecutionStateStore } from "../infrastructure/runtime/task-execution-state"
 
 export function createCurrentTaskRuntimePort(args: {
   prisma: PrismaClient
@@ -28,16 +34,102 @@ export function createCurrentTaskRuntimePort(args: {
     harborApiBaseUrl: args.harborApiBaseUrl,
     logger: args.logger,
   })
+  const stateStore = createTaskExecutionStateStore({
+    prisma: args.prisma,
+    taskRepository: args.taskRepository,
+    notificationPublisher: args.notificationPublisher,
+  })
+
+  async function persistUserInputEvent(input: {
+    executionId: string
+    taskId: string
+    projectId: string
+    agentInput: AgentInput
+    createdAt?: Date
+  }) {
+    const event = createSyntheticUserInputEvent({
+      input: input.agentInput,
+      createdAt: input.createdAt,
+    })
+    if (!event) {
+      throw new Error("task input is required")
+    }
+
+    await stateStore.appendEvents({
+      executionId: input.executionId,
+      taskId: input.taskId,
+      projectId: input.projectId,
+      source: "harbor",
+      nextSequence: await stateStore.getNextSequence(input.executionId),
+      events: [event],
+    })
+  }
 
   return {
     async startTaskExecution(input) {
-      const agentType = normalizeAgentType(input.runtimeConfig.executor)
-      const agentRuntime = resolveAgentRuntime(agentType)
-      await executionDriver.startExecution({
-        ...input,
-        agentType,
-        agentRuntime,
+      const executionRecord = await args.prisma.execution.findUnique({
+        where: {
+          ownerId: input.taskId,
+        },
+        select: {
+          id: true,
+          sessionId: true,
+        },
       })
+
+      if (!executionRecord) {
+        throw new Error(`Execution for task ${input.taskId} was not found.`)
+      }
+
+      await persistUserInputEvent({
+        executionId: executionRecord.id,
+        taskId: input.taskId,
+        projectId: input.projectId,
+        agentInput: input.input,
+      })
+
+      try {
+        const agentType = normalizeAgentType(input.runtimeConfig.executor)
+        const agentRuntime = resolveAgentRuntime(agentType)
+        await executionDriver.startExecution({
+          ...input,
+          agentType,
+          agentRuntime,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+
+        const finishedAt = new Date()
+        try {
+          await stateStore.appendEvents({
+            executionId: executionRecord.id,
+            taskId: input.taskId,
+            projectId: input.projectId,
+            source: "harbor",
+            nextSequence: await stateStore.getNextSequence(executionRecord.id),
+            events: [createSyntheticErrorEvent({ message, createdAt: finishedAt })],
+          })
+        } catch (appendError) {
+          args.logger?.warn?.(
+            {
+              taskId: input.taskId,
+              executionId: executionRecord.id,
+              error: appendError,
+            },
+            "Failed to append synthetic task start failure event",
+          )
+        }
+
+        await stateStore.markFailed({
+          executionId: executionRecord.id,
+          taskId: input.taskId,
+          finishedAt,
+          sessionId: executionRecord.sessionId,
+          message,
+        })
+
+        throw error
+      }
     },
     async resumeTaskExecution(input) {
       const executionRecord = await args.prisma.execution.findUnique({
@@ -45,6 +137,7 @@ export function createCurrentTaskRuntimePort(args: {
           ownerId: input.taskId,
         },
         select: {
+          id: true,
           executorType: true,
           executorModel: true,
           executionMode: true,
@@ -60,6 +153,13 @@ export function createCurrentTaskRuntimePort(args: {
         throw new Error(`Execution for task ${input.taskId} has no resumable session.`)
       }
 
+      await persistUserInputEvent({
+        executionId: executionRecord.id,
+        taskId: input.taskId,
+        projectId: input.projectId,
+        agentInput: input.input,
+      })
+
       const agentType = normalizeAgentType(executionRecord.executorType)
       const capability = await AgentFactory.getCapability(agentType).inspect()
       if (!capability.supportsResume) {
@@ -71,7 +171,7 @@ export function createCurrentTaskRuntimePort(args: {
         taskId: input.taskId,
         projectId: input.projectId,
         projectPath: input.projectPath,
-        prompt: input.prompt,
+        input: input.input,
         runtimeConfig: {
           executor: executionRecord.executorType,
           model: executionRecord.executorModel,

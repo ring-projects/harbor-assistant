@@ -7,17 +7,18 @@ import {
   selectChatUi,
   selectLastSequence,
   useTasksSessionStore,
-} from "@/modules/tasks/domain/store"
+} from "@/modules/tasks/store"
 import {
   TERMINAL_TASK_STATUSES,
   type TaskDetail,
 } from "@/modules/tasks/contracts"
+import { buildTaskInput } from "@/modules/tasks/lib"
 import {
   formatExecutionModeLabel,
   formatExecutorLabel,
-} from "@/modules/tasks/domain/lib"
+} from "@/modules/tasks/view-models"
 
-import { ChatInteraction } from "../composer"
+import { ChatInteraction, TaskInputAttachmentList } from "../composer"
 import { useTaskSessionResume } from "../hooks/use-task-session-resume"
 
 function helperText(detail: TaskDetail | null | undefined) {
@@ -70,10 +71,14 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
   const lastSequence = useTasksSessionStore((state) => selectLastSequence(state, taskId))
   const {
     canResume,
+    draftAttachments,
     errorMessage,
+    handleDropFiles,
+    handlePasteFiles,
     handleResumeTask,
     inputDisabled,
     isSubmitting,
+    removeDraftAttachment,
     updateDraft,
   } = useTaskSessionResume({
     detail,
@@ -82,11 +87,15 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
     projectId,
     taskId,
   })
+  const canSubmit = canResume && Boolean(buildTaskInput({
+    text: draft,
+    attachments: draftAttachments,
+  }))
 
   return (
     <div className="min-h-0">
       <ChatInteraction
-        canSubmit={canResume && draft.trim().length > 0}
+        canSubmit={canSubmit}
         inputDisabled={inputDisabled}
         isSubmitting={isSubmitting}
         helperText={queuedHelperText(detail, Boolean(queuedPrompt))}
@@ -98,6 +107,13 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
             : "Resume this execution with a new prompt..."
         }
         value={draft}
+        attachments={
+          <TaskInputAttachmentList
+            attachments={draftAttachments}
+            disabled={isSubmitting}
+            onRemove={removeDraftAttachment}
+          />
+        }
         controls={
           detail ? (
             <>
@@ -127,6 +143,12 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
         }
         errorMessage={errorMessage}
         onChange={updateDraft}
+        onPasteFiles={(files) => {
+          void handlePasteFiles(files)
+        }}
+        onDropFiles={(files) => {
+          void handleDropFiles(files)
+        }}
         onSubmit={() => {
           void handleResumeTask()
         }}
