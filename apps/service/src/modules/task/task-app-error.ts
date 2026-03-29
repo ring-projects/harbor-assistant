@@ -9,8 +9,16 @@ export function toTaskAppError(error: unknown): AppError {
         return new AppError(ERROR_CODES.TASK_NOT_FOUND, 404, error.message)
       case TASK_ERROR_CODES.PROJECT_NOT_FOUND:
         return new AppError(ERROR_CODES.PROJECT_NOT_FOUND, 404, error.message)
+      case TASK_ERROR_CODES.INVALID_CANCEL_STATE:
+        return new AppError(
+          ERROR_CODES.INVALID_TASK_BREAK_STATE,
+          409,
+          error.message,
+        )
       case TASK_ERROR_CODES.INVALID_TITLE:
         return new AppError(ERROR_CODES.INVALID_TASK_TITLE, 400, error.message)
+      case TASK_ERROR_CODES.INVALID_EFFORT:
+        return new AppError(ERROR_CODES.INVALID_TASK_EFFORT, 400, error.message)
       case TASK_ERROR_CODES.INVALID_ARCHIVE_STATE:
         return new AppError(
           ERROR_CODES.INVALID_TASK_ARCHIVE_STATE,
@@ -31,6 +39,8 @@ export function toTaskAppError(error: unknown): AppError {
         )
       case TASK_ERROR_CODES.INVALID_INPUT:
         return new AppError(ERROR_CODES.INVALID_REQUEST_BODY, 400, error.message)
+      case TASK_ERROR_CODES.CANCEL_FAILED:
+        return new AppError(ERROR_CODES.TASK_BREAK_FAILED, 500, error.message)
       case TASK_ERROR_CODES.START_FAILED:
         return new AppError(ERROR_CODES.TASK_START_FAILED, 500, error.message)
       case TASK_ERROR_CODES.RESUME_FAILED:

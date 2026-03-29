@@ -20,11 +20,12 @@
 6. [task-runtime-system-design-2026-03-23.md](./task-runtime-system-design-2026-03-23.md)
 7. [service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
 8. [task-event-storage-model.md](./task-event-storage-model.md)
-9. [task-api.md](./task-api.md)
-10. [project-api.md](./project-api.md)
-11. [service-module-standard-based-on-project.md](./service-module-standard-based-on-project.md)
-12. [service-error-handling-guide.md](./service-error-handling-guide.md)
-13. [agent-event-projection-design-2026-03-25.md](./agent-event-projection-design-2026-03-25.md)
+9. [task-break-requirements-2026-03-29.md](./task-break-requirements-2026-03-29.md)
+10. [task-api.md](./task-api.md)
+11. [project-api.md](./project-api.md)
+12. [service-module-standard-based-on-project.md](./service-module-standard-based-on-project.md)
+13. [service-error-handling-guide.md](./service-error-handling-guide.md)
+14. [agent-event-projection-design-2026-03-25.md](./agent-event-projection-design-2026-03-25.md)
 
 如果你要按 TDD 推进模块开发，再继续看：
 
@@ -34,13 +35,15 @@
 4. [tdd/bootstrap-filesystem.md](./tdd/bootstrap-filesystem.md)
 5. [tdd/task.md](./tdd/task.md)
 6. [tdd/task-structured-input.md](./tdd/task-structured-input.md)
+7. [tdd/task-break.md](./tdd/task-break.md)
 
 如果你在做前端，再继续看：
 
 1. [frd-frontend.md](./frd-frontend.md)
 2. [frd-task-frontend.md](./frd-task-frontend.md)
 3. [frd-chat-frontend.md](./frd-chat-frontend.md)
-4. [frontend-testing.md](./frontend-testing.md)
+4. [chat-visual-style-guardrails-2026-03-29.md](./chat-visual-style-guardrails-2026-03-29.md)
+5. [frontend-testing.md](./frontend-testing.md)
 
 ## 分类
 
@@ -82,6 +85,10 @@
   - task 结构化输入、本地图片、输入落库边界的当前需求文档
   - 当前 `Task.prompt` 与 `ExecutionEvent` 的职责收敛以这份文档为准
 
+- [task-break-requirements-2026-03-29.md](./task-break-requirements-2026-03-29.md)
+  - task break current turn / cancel task execution 的当前需求文档
+  - 当前 break 的 task-facing API、terminal 语义与 cancel race 约束以这份文档为准
+
 ### 当前接口契约
 
 - [task-api.md](./task-api.md)
@@ -120,6 +127,9 @@
 - [tdd/task-structured-input.md](./tdd/task-structured-input.md)
   - task 结构化输入与本地图片接入的专项红绿灯计划
 
+- [tdd/task-break.md](./tdd/task-break.md)
+  - task break / cancel current turn 的专项红绿灯计划
+
 - [frontend-testing.md](./frontend-testing.md)
   - `apps/web` 测试策略与实践指南
 
@@ -144,6 +154,10 @@
 
 - [frd-chat-frontend.md](./frd-chat-frontend.md)
   - chat 面板前端需求文档
+
+- [chat-visual-style-guardrails-2026-03-29.md](./chat-visual-style-guardrails-2026-03-29.md)
+  - agent chat 当前视觉风格守则
+  - 后续前端迭代需要用它避免 UI 廉价化和风格漂移
 
 ### 历史设计与背景资料
 

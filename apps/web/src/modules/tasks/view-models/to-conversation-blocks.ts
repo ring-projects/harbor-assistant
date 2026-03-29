@@ -320,6 +320,9 @@ function eventContent(event: TaskAgentEvent) {
   const payload = asRecord(event.payload)
 
   switch (event.eventType) {
+    case "harbor.cancel_requested":
+    case "harbor.cancelled":
+      return toStringOrNull(payload?.reason) ?? "(empty)"
     case "message":
       return toStringOrNull(payload?.content) ?? "(empty)"
     case "command.started":
@@ -357,6 +360,10 @@ function eventContent(event: TaskAgentEvent) {
 function eventTone(event: TaskAgentEvent): "neutral" | "error" | "success" {
   if (event.eventType === "error" || event.eventType === "turn.failed") {
     return "error"
+  }
+
+  if (event.eventType === "harbor.cancelled") {
+    return "success"
   }
 
   return "neutral"

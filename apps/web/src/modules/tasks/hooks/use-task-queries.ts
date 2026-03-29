@@ -7,6 +7,7 @@ import { gitQueryKeys } from "@/modules/git"
 import { useTasksSessionStore } from "@/modules/tasks/store"
 import {
   archiveTask,
+  cancelTask,
   createTask,
   deleteTask,
   readAgentCapabilities,
@@ -14,6 +15,7 @@ import {
   readTaskDetail,
   readTaskEvents,
   type CreateTaskInput,
+  type CancelTaskInput,
   type ResumeTaskInput,
   resumeTask,
   uploadTaskInputImage,
@@ -161,6 +163,28 @@ export function useArchiveTaskMutation(projectId: string) {
     onSuccess(task) {
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.byProject(projectId),
+      })
+
+      useTasksSessionStore.getState().applyTaskUpsert(task)
+    },
+  })
+}
+
+export function useCancelTaskMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: { taskId: string } & CancelTaskInput) =>
+      cancelTask(input.taskId, input),
+    onSuccess(task) {
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.byProject(projectId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.detail(task.taskId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.events(task.taskId),
       })
 
       useTasksSessionStore.getState().applyTaskUpsert(task)

@@ -11,6 +11,8 @@ import {
 import { asRecord, toBoolean, toStringOrNull } from "../../../../utils"
 
 type NormalizedTaskEventType =
+  | "harbor.cancel_requested"
+  | "harbor.cancelled"
   | "session.started"
   | "turn.started"
   | "message"
@@ -126,6 +128,26 @@ function normalizeSyntheticEvent(
           eventType: "error",
           payload: {
             message,
+            ...timestampPayload(createdAt),
+          },
+          createdAt,
+        },
+      ]
+    }
+    case "harbor.cancel_requested":
+    case "harbor.cancelled": {
+      const reason = toStringOrNull(payload?.reason)
+      if (!reason) {
+        return []
+      }
+
+      return [
+        {
+          eventType: rawEventType,
+          payload: {
+            reason,
+            requestedBy: toStringOrNull(payload?.requestedBy) ?? "user",
+            ...(payload?.forced === true ? { forced: true } : {}),
             ...timestampPayload(createdAt),
           },
           createdAt,
@@ -693,6 +715,42 @@ export function createSyntheticErrorEvent(args: {
     eventType: "error",
     payload: {
       message: args.message,
+      ...timestampPayload(createdAt),
+    },
+    createdAt,
+  }
+}
+
+export function createSyntheticCancelRequestedEvent(args: {
+  reason: string
+  requestedBy?: string
+  createdAt?: Date
+}): NormalizedTaskEvent {
+  const createdAt = args.createdAt ?? new Date()
+  return {
+    eventType: "harbor.cancel_requested",
+    payload: {
+      reason: args.reason,
+      requestedBy: args.requestedBy ?? "user",
+      ...timestampPayload(createdAt),
+    },
+    createdAt,
+  }
+}
+
+export function createSyntheticCancelledEvent(args: {
+  reason: string
+  requestedBy?: string
+  forced?: boolean
+  createdAt?: Date
+}): NormalizedTaskEvent {
+  const createdAt = args.createdAt ?? new Date()
+  return {
+    eventType: "harbor.cancelled",
+    payload: {
+      reason: args.reason,
+      requestedBy: args.requestedBy ?? "user",
+      ...(args.forced ? { forced: true } : {}),
       ...timestampPayload(createdAt),
     },
     createdAt,

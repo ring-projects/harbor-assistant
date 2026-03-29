@@ -73,10 +73,12 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
     canResume,
     draftAttachments,
     errorMessage,
+    handleCancelTask,
     handleDropFiles,
     handlePasteFiles,
     handleResumeTask,
     inputDisabled,
+    isCancelling,
     isSubmitting,
     removeDraftAttachment,
     updateDraft,
@@ -96,6 +98,12 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
     <div className="min-h-0">
       <ChatInteraction
         canSubmit={canSubmit}
+        actionMode={detail?.status === "running" ? "break" : "send"}
+        actionDisabled={
+          detail?.status === "running"
+            ? isCancelling
+            : undefined
+        }
         inputDisabled={inputDisabled}
         isSubmitting={isSubmitting}
         helperText={queuedHelperText(detail, Boolean(queuedPrompt))}
@@ -150,6 +158,14 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
           void handleDropFiles(files)
         }}
         onSubmit={() => {
+          void handleResumeTask()
+        }}
+        onAction={() => {
+          if (detail?.status === "running") {
+            void handleCancelTask()
+            return
+          }
+
           void handleResumeTask()
         }}
       />

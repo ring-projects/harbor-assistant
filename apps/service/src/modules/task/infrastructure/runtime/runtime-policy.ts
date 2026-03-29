@@ -1,4 +1,5 @@
 import type { AgentRuntimeOptions } from "../../../../lib/agents"
+import type { TaskEffort } from "../../domain/task-effort"
 
 export type TaskRuntimeExecutionMode = "safe" | "connected" | "full-access"
 
@@ -57,6 +58,7 @@ export function createAgentRuntimeOptions(args: {
   workingDirectory: string
   modelId?: string | null
   executionMode?: string | null
+  effort?: TaskEffort | null
   env?: Record<string, string>
 }): AgentRuntimeOptions {
   const policy = RUNTIME_POLICY_PRESETS[
@@ -66,6 +68,7 @@ export function createAgentRuntimeOptions(args: {
   return {
     workingDirectory: args.workingDirectory,
     modelId: args.modelId ?? undefined,
+    effort: args.effort ?? undefined,
     env: args.env,
     sandboxMode: policy.sandboxMode,
     approvalPolicy: policy.approvalPolicy,

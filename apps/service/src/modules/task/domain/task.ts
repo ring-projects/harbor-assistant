@@ -136,3 +136,21 @@ export function assertTaskCanResume(task: Task) {
     )
   }
 }
+
+export function assertTaskCanCancel(task: Task) {
+  if (task.archivedAt) {
+    throw createTaskError().invalidCancelState(
+      "archived tasks cannot be cancelled",
+    )
+  }
+
+  if (isTerminalTaskStatus(task.status)) {
+    return
+  }
+
+  if (task.status !== "running") {
+    throw createTaskError().invalidCancelState(
+      "only running tasks can be cancelled",
+    )
+  }
+}

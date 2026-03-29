@@ -31,6 +31,7 @@ describe("task-payload", () => {
         model: null,
         executor: null,
         executionMode: null,
+        effort: null,
         status: "running",
         archivedAt: null,
         createdAt: "2026-03-18T10:00:00.000Z",
@@ -38,6 +39,22 @@ describe("task-payload", () => {
         finishedAt: null,
       },
     ])
+  })
+
+  it("extracts task effort when present", () => {
+    const task = extractSingleTask({
+      task: {
+        id: "task-2",
+        projectId: "project-2",
+        prompt: "Hello",
+        title: "Hello",
+        effort: "high",
+        status: "queued",
+        createdAt: "2026-03-18T10:00:00.000Z",
+      },
+    })
+
+    expect(task?.effort).toBe("high")
   })
 
   it("extracts a single task from task envelopes", () => {

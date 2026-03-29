@@ -15,9 +15,11 @@ import {
 } from "@/modules/tasks/lib"
 import { getErrorMessage } from "@/modules/tasks/view-models"
 import {
+  useCancelTaskMutation,
   useResumeTaskMutation,
   useUploadTaskInputImageMutation,
 } from "@/modules/tasks/hooks/use-task-queries"
+import { trackTaskEvent } from "@/modules/tasks/telemetry"
 
 export function useTaskSessionResume(args: {
   detail: TaskDetail | null | undefined
@@ -26,6 +28,7 @@ export function useTaskSessionResume(args: {
   projectId: string
   taskId: string | null
 }) {
+  const cancelTaskMutation = useCancelTaskMutation(args.projectId)
   const resumeTaskMutation = useResumeTaskMutation(args.projectId)
   const uploadTaskInputImageMutation = useUploadTaskInputImageMutation(args.projectId)
   const draftAttachments = useTasksSessionStore((state) =>
@@ -46,6 +49,7 @@ export function useTaskSessionResume(args: {
         (args.detail.status === "running" ||
           TERMINAL_TASK_STATUSES.includes(args.detail.status)),
     ) &&
+    !cancelTaskMutation.isPending &&
     !resumeTaskMutation.isPending &&
     !uploadTaskInputImageMutation.isPending
 
@@ -70,7 +74,11 @@ export function useTaskSessionResume(args: {
   const errorMessage = useMemo(
     () => {
       if (uploadTaskInputImageMutation.isError) {
-        return getErrorMessage(uploadTaskInputImageMutation.error)
+      return getErrorMessage(uploadTaskInputImageMutation.error)
+    }
+
+      if (cancelTaskMutation.isError) {
+        return getErrorMessage(cancelTaskMutation.error)
       }
 
       return resumeTaskMutation.isError
@@ -78,6 +86,8 @@ export function useTaskSessionResume(args: {
         : null
     },
     [
+      cancelTaskMutation.error,
+      cancelTaskMutation.isError,
       resumeTaskMutation.error,
       resumeTaskMutation.isError,
       uploadTaskInputImageMutation.error,
@@ -218,6 +228,38 @@ export function useTaskSessionResume(args: {
     })
   }, [args.detail, args.taskId, currentInput, queuedPrompt, submitInput])
 
+  const handleCancelTask = useCallback(async () => {
+    if (!args.taskId || args.detail?.status !== "running" || cancelTaskMutation.isPending) {
+      return
+    }
+
+    trackTaskEvent("task_break_clicked", {
+      projectId: args.projectId,
+      taskId: args.taskId,
+    })
+
+    try {
+      await cancelTaskMutation.mutateAsync({
+        taskId: args.taskId,
+      })
+      trackTaskEvent("task_break_succeeded", {
+        projectId: args.projectId,
+        taskId: args.taskId,
+      })
+    } catch (error) {
+      trackTaskEvent("task_break_failed", {
+        projectId: args.projectId,
+        taskId: args.taskId,
+        message: getErrorMessage(error),
+      })
+    }
+  }, [
+    args.detail?.status,
+    args.projectId,
+    args.taskId,
+    cancelTaskMutation,
+  ])
+
   const uploadFiles = useCallback(
     async (files: File[]) => {
       if (!args.taskId || files.length === 0) {
@@ -310,11 +352,15 @@ export function useTaskSessionResume(args: {
     draftAttachments,
     errorMessage,
     handleDropFiles,
+    handleCancelTask,
     handlePasteFiles,
     handleResumeTask,
     inputDisabled,
     isSubmitting:
-      resumeTaskMutation.isPending || uploadTaskInputImageMutation.isPending,
+      cancelTaskMutation.isPending ||
+      resumeTaskMutation.isPending ||
+      uploadTaskInputImageMutation.isPending,
+    isCancelling: cancelTaskMutation.isPending,
     removeDraftAttachment,
     updateDraft,
   }

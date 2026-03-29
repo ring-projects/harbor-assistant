@@ -10,8 +10,10 @@ import {
   type TaskAgentEvent,
   type TaskAgentEventStream,
   TASK_EXECUTION_MODE_VALUES,
+  TASK_EFFORT_VALUES,
   TASK_STATUS_VALUES,
   type TaskDetail,
+  type TaskEffort,
   type TaskExecutionMode,
   type TaskListItem,
   type TaskStatus,
@@ -23,6 +25,7 @@ import {
 
 const STATUS_SET = new Set<TaskStatus>(TASK_STATUS_VALUES)
 const EXECUTION_MODE_SET = new Set<TaskExecutionMode>(TASK_EXECUTION_MODE_VALUES)
+const EFFORT_SET = new Set<TaskEffort>(TASK_EFFORT_VALUES)
 
 export function toTaskStatus(value: unknown): TaskStatus | null {
   if (typeof value !== "string") {
@@ -40,6 +43,14 @@ function toExecutionMode(value: unknown): TaskExecutionMode | null {
   return EXECUTION_MODE_SET.has(value as TaskExecutionMode)
     ? (value as TaskExecutionMode)
     : null
+}
+
+function toTaskEffort(value: unknown): TaskEffort | null {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  return EFFORT_SET.has(value as TaskEffort) ? (value as TaskEffort) : null
 }
 
 export function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
@@ -68,6 +79,7 @@ export function normalizeTaskCandidate(candidate: unknown): TaskListItem | null 
     model: toStringOrNull(source.model),
     executor: toStringOrNull(source.executor),
     executionMode: toExecutionMode(source.executionMode),
+    effort: toTaskEffort(source.effort),
     status,
     archivedAt: toOptionalIsoDateString(source.archivedAt),
     createdAt: toIsoDateString(source.createdAt),

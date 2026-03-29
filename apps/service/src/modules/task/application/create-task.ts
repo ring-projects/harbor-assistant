@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 
 import type { AgentInputItem } from "../../../lib/agents"
+import { normalizeNullableTaskEffort } from "../domain/task-effort"
 import { createTask } from "../domain/task"
 import { resolveAgentInput, summarizeAgentInput } from "../domain/task-input"
 import { createTaskError } from "../errors"
@@ -15,6 +16,7 @@ import {
 } from "./task-read-models"
 import type { TaskRepository } from "./task-repository"
 import type { TaskRuntimePort } from "./task-runtime-port"
+import { validateTaskEffortSelection } from "./validate-task-effort"
 
 function normalizeNullableString(value: string | null | undefined) {
   const normalized = value?.trim()
@@ -36,6 +38,7 @@ export async function createTaskUseCase(args: {
   executor?: string | null
   model?: string | null
   executionMode?: string | null
+  effort?: string | null
 }): Promise<TaskDetail> {
   const projectId = input.projectId.trim()
   const agentInput = resolveAgentInput(input)
@@ -47,6 +50,11 @@ export async function createTaskUseCase(args: {
 
   if (!agentInput) {
     throw createTaskError().invalidInput("task input is required")
+  }
+
+  const requestedEffort = normalizeNullableTaskEffort(input.effort)
+  if (input.effort !== undefined && input.effort !== null && !requestedEffort) {
+    throw createTaskError().invalidEffort(`invalid effort "${input.effort}"`)
   }
 
   const prompt = summarizeAgentInput(agentInput)
@@ -69,7 +77,9 @@ export async function createTaskUseCase(args: {
       normalizeNullableString(input.executionMode) ??
       project.settings.defaultExecutionMode ??
       "safe",
+    effort: requestedEffort,
   }
+  runtimeConfig.effort = await validateTaskEffortSelection(runtimeConfig)
 
   const task = createTask({
     id: args.idGenerator?.() ?? randomUUID(),

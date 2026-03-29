@@ -28,6 +28,7 @@ describe("in-memory task notification bus", () => {
         executor: "codex",
         model: null,
         executionMode: "safe",
+        effort: null,
         status: "queued",
         archivedAt: null,
         createdAt: new Date("2026-03-25T00:00:00.000Z"),

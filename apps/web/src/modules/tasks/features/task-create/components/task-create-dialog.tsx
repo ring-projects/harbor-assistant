@@ -5,6 +5,7 @@ import {
   ChevronDownIcon,
   PlusIcon,
   Settings2Icon,
+  SparklesIcon,
   WifiIcon,
 } from "lucide-react"
 import { type ReactNode, useMemo, useState } from "react"
@@ -27,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useProjectSettingsQuery } from "@/modules/projects"
+import type { TaskEffort } from "@/modules/tasks/contracts"
 import {
   ChatInteraction,
   TaskInputAttachmentList,
@@ -80,6 +82,23 @@ const EXECUTION_MODE_OPTIONS = [
 
 function formatModelSummary(model: string | null | undefined) {
   return model?.trim() || "Runtime Default"
+}
+
+function formatEffortLabel(effort: TaskEffort | null | undefined) {
+  switch (effort) {
+    case "minimal":
+      return "Minimal"
+    case "low":
+      return "Low"
+    case "medium":
+      return "Medium"
+    case "high":
+      return "High"
+    case "xhigh":
+      return "X-High"
+    default:
+      return "Provider Default"
+  }
 }
 
 type TaskCreateDialogProps = {
@@ -144,6 +163,7 @@ export function TaskCreateDialog({
   const [newTaskExecutionMode, setNewTaskExecutionMode] = useState<
     "safe" | "connected" | "full-access"
   >(defaultExecutionMode)
+  const [selectedEffort, setSelectedEffort] = useState<TaskEffort | null>(null)
   const [createTaskError, setCreateTaskError] = useState<string | null>(null)
 
   const agentCapabilitiesQuery = useAgentCapabilitiesQuery({
@@ -174,6 +194,26 @@ export function TaskCreateDialog({
 
     return null
   }, [selectedExecutorModelIds, selectedExecutorModels.length, selectedModel])
+  const resolvedModelConfig = useMemo(() => {
+    if (resolvedSelectedModel) {
+      return (
+        selectedExecutorModels.find((model) => model.id === resolvedSelectedModel) ?? null
+      )
+    }
+
+    return selectedExecutorModels.find((model) => model.isDefault) ?? null
+  }, [resolvedSelectedModel, selectedExecutorModels])
+  const selectedEffortOptions = useMemo(
+    () => resolvedModelConfig?.efforts ?? [],
+    [resolvedModelConfig],
+  )
+  const resolvedSelectedEffort = useMemo(() => {
+    if (!selectedEffort) {
+      return null
+    }
+
+    return selectedEffortOptions.includes(selectedEffort) ? selectedEffort : null
+  }, [selectedEffort, selectedEffortOptions])
   const createTaskInput = useMemo(
     () =>
       buildTaskInput({
@@ -190,6 +230,7 @@ export function TaskCreateDialog({
     setNewTaskExecutor(defaultExecutor)
     setSelectedModel(readLastSelectedModel(projectId, defaultExecutor))
     setNewTaskExecutionMode(defaultExecutionMode)
+    setSelectedEffort(null)
   }
 
   async function handleCreateTask() {
@@ -207,6 +248,7 @@ export function TaskCreateDialog({
               model: resolvedSelectedModel ?? undefined,
               executor: newTaskExecutor,
               executionMode: newTaskExecutionMode,
+              effort: resolvedSelectedEffort,
             }
           : {
               items: createTaskInput,
@@ -214,6 +256,7 @@ export function TaskCreateDialog({
               model: resolvedSelectedModel ?? undefined,
               executor: newTaskExecutor,
               executionMode: newTaskExecutionMode,
+              effort: resolvedSelectedEffort,
             },
       )
 
@@ -336,6 +379,7 @@ export function TaskCreateDialog({
                       onValueChange={(nextValue) => {
                         setNewTaskExecutor(nextValue)
                         setSelectedModel(readLastSelectedModel(projectId, nextValue))
+                        setSelectedEffort(null)
                       }}
                     >
                       {EXECUTOR_OPTIONS.map((option) => (
@@ -372,11 +416,13 @@ export function TaskCreateDialog({
                       onValueChange={(nextValue) => {
                         if (nextValue === "runtime-default") {
                           setSelectedModel(null)
+                          setSelectedEffort(null)
                           return
                         }
 
                         if (nextValue.startsWith("custom:")) {
                           setSelectedModel(nextValue.slice("custom:".length) || null)
+                          setSelectedEffort(null)
                         }
                       }}
                     >
@@ -392,6 +438,56 @@ export function TaskCreateDialog({
                           {model.isDefault
                             ? `${model.displayName} (${model.id}, default)`
                             : `${model.displayName} (${model.id})`}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 rounded-full border-border/70 bg-background/80 px-3 text-xs font-medium shadow-none"
+                      disabled={createTaskMutation.isPending}
+                    >
+                      <SparklesIcon className="size-3.5" />
+                      <span>{formatEffortLabel(resolvedSelectedEffort)}</span>
+                      <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-72 rounded-2xl p-2">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      Effort
+                    </DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={resolvedSelectedEffort ?? "provider-default"}
+                      onValueChange={(nextValue) => {
+                        if (nextValue === "provider-default") {
+                          setSelectedEffort(null)
+                          return
+                        }
+
+                        if (
+                          nextValue === "minimal" ||
+                          nextValue === "low" ||
+                          nextValue === "medium" ||
+                          nextValue === "high" ||
+                          nextValue === "xhigh"
+                        ) {
+                          setSelectedEffort(nextValue)
+                        }
+                      }}
+                    >
+                      <DropdownMenuRadioItem value="provider-default">
+                        Provider Default
+                      </DropdownMenuRadioItem>
+                      {selectedEffortOptions.length > 0 ? <DropdownMenuSeparator /> : null}
+                      {selectedEffortOptions.map((effort) => (
+                        <DropdownMenuRadioItem key={effort} value={effort}>
+                          {formatEffortLabel(effort)}
                         </DropdownMenuRadioItem>
                       ))}
                     </DropdownMenuRadioGroup>

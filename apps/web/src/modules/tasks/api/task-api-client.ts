@@ -6,6 +6,7 @@ import { parseJsonResponse, pickString } from "@/lib/protocol"
 import {
   type TaskAgentEventStream,
   type TaskDetail,
+  type TaskEffort,
   type TaskListItem,
 } from "@/modules/tasks/contracts"
 import {
@@ -49,11 +50,16 @@ export type CreateTaskInput = {
   model?: string
   executor?: string
   executionMode?: "safe" | "connected" | "full-access"
+  effort?: TaskEffort | null
 }
 
 export type ResumeTaskInput = {
   prompt?: string
   items?: Extract<TaskInput, readonly unknown[]>
+}
+
+export type CancelTaskInput = {
+  reason?: string
 }
 
 export type CreateTaskResult = {
@@ -111,6 +117,10 @@ export async function createTask(
     model: input.model,
     executor: input.executor ?? "codex",
     executionMode: input.executionMode,
+  }
+
+  if ("effort" in input) {
+    body.effort = input.effort ?? null
   }
 
   if (input.items) {
@@ -294,6 +304,41 @@ export async function resumeTask(
   if (!task) {
     throw new TaskApiClientError("Resume succeeded but task payload is invalid.", {
       code: ERROR_CODES.TASK_RESUME_FAILED,
+      status: response.status,
+    })
+  }
+
+  return task
+}
+
+export async function cancelTask(
+  taskId: string,
+  input: CancelTaskInput = {},
+): Promise<TaskDetail> {
+  const response = await fetch(
+    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/cancel`),
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(
+        input.reason?.trim()
+          ? {
+              reason: input.reason.trim(),
+            }
+          : {},
+      ),
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to cancel task.")
+
+  const task = extractSingleTask(payload)
+  if (!task) {
+    throw new TaskApiClientError("Cancel succeeded but task payload is invalid.", {
+      code: ERROR_CODES.TASK_CANCEL_FAILED,
       status: response.status,
     })
   }

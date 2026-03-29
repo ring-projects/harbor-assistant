@@ -21,6 +21,9 @@ function extractAgentModel(candidate: unknown) {
     id: toStringOrEmpty(source?.id),
     displayName: toStringOrNull(source?.name) ?? toStringOrEmpty(source?.id),
     isDefault: source?.isDefault === true,
+    efforts: Array.isArray(source?.efforts)
+      ? source.efforts.filter((effort): effort is string => typeof effort === "string")
+      : [],
   }
 }
 

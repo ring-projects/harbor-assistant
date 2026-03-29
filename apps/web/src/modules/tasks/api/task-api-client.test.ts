@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
+  cancelTask,
   createTask,
   deleteTask,
   resumeTask,
@@ -52,6 +53,7 @@ describe("task-api-client", () => {
         },
       ],
       executor: "codex",
+      effort: "medium",
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -76,6 +78,7 @@ describe("task-api-client", () => {
         },
       ],
       executor: "codex",
+      effort: "medium",
     })
   })
 
@@ -118,6 +121,45 @@ describe("task-api-client", () => {
         },
       ],
     })
+  })
+
+  it("calls the cancel endpoint and returns the updated task", async () => {
+    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        task: {
+          id: "task-1",
+          projectId: "project-1",
+          prompt: "Ship it",
+          title: "Ship it",
+          status: "cancelled",
+          createdAt: "2026-03-28T00:00:00.000Z",
+        },
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const task = await cancelTask("task-1", {
+      reason: "User requested stop",
+    })
+
+    expect(task.status).toBe("cancelled")
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://executor.example.com/v1/tasks/task-1/cancel",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          reason: "User requested stop",
+        }),
+      }),
+    )
   })
 
   it("uploads a task input image as base64 payload", async () => {

@@ -1,9 +1,12 @@
 import { z } from "zod"
 
+import { taskEffortSchema } from "./task"
+
 export const agentModelSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   isDefault: z.boolean(),
+  efforts: z.array(taskEffortSchema).default([]),
 })
 
 export const agentCapabilitiesSchema = z.object({

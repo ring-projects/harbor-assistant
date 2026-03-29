@@ -1,6 +1,7 @@
 import type { Prisma, Task as PrismaTask } from "@prisma/client"
 
 import { createTask, type Task } from "../../domain/task"
+import { normalizeNullableTaskEffort } from "../../domain/task-effort"
 import { attachTaskRuntime, type TaskRecord } from "../../application/task-read-models"
 
 export function toDomainTask(task: PrismaTask): Task {
@@ -26,6 +27,7 @@ type PrismaTaskWithExecution = Prisma.TaskGetPayload<{
         executorType: true
         executorModel: true
         executionMode: true
+        executorEffort: true
       }
     }
   }
@@ -36,5 +38,6 @@ export function toTaskRecord(task: PrismaTaskWithExecution): TaskRecord {
     executor: task.execution?.executorType ?? null,
     model: task.execution?.executorModel ?? null,
     executionMode: task.execution?.executionMode ?? null,
+    effort: normalizeNullableTaskEffort(task.execution?.executorEffort),
   })
 }

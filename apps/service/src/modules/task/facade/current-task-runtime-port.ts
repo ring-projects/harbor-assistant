@@ -10,11 +10,15 @@ import type { TaskNotificationPublisher } from "../application/task-notification
 import type { TaskRepository } from "../application/task-repository"
 import type { TaskRuntimePort } from "../application/task-runtime-port"
 import {
+  createSyntheticCancelledEvent,
+  createSyntheticCancelRequestedEvent,
   createSyntheticErrorEvent,
   createSyntheticUserInputEvent,
   normalizeAgentType,
 } from "../infrastructure/runtime/normalize-agent-events"
+import { normalizeNullableTaskEffort } from "../domain/task-effort"
 import { createTaskExecutionDriver } from "../infrastructure/runtime/task-execution-driver"
+import { createTaskExecutionHandleRegistry } from "../infrastructure/runtime/task-execution-handle-registry"
 import { createTaskExecutionStateStore } from "../infrastructure/runtime/task-execution-state"
 
 export function createCurrentTaskRuntimePort(args: {
@@ -27,10 +31,12 @@ export function createCurrentTaskRuntimePort(args: {
 }): TaskRuntimePort {
   const resolveAgentRuntime =
     args.resolveAgentRuntime ?? ((type: AgentType) => AgentFactory.getRuntime(type))
+  const executionHandleRegistry = createTaskExecutionHandleRegistry()
   const executionDriver = createTaskExecutionDriver({
     prisma: args.prisma,
     taskRepository: args.taskRepository,
     notificationPublisher: args.notificationPublisher,
+    executionHandleRegistry,
     harborApiBaseUrl: args.harborApiBaseUrl,
     logger: args.logger,
   })
@@ -126,6 +132,8 @@ export function createCurrentTaskRuntimePort(args: {
           finishedAt,
           sessionId: executionRecord.sessionId,
           message,
+          expectedExecutionStatuses: ["queued", "running"],
+          expectedTaskStatuses: ["queued", "running"],
         })
 
         throw error
@@ -141,6 +149,7 @@ export function createCurrentTaskRuntimePort(args: {
           executorType: true,
           executorModel: true,
           executionMode: true,
+          executorEffort: true,
           sessionId: true,
         },
       })
@@ -176,11 +185,102 @@ export function createCurrentTaskRuntimePort(args: {
           executor: executionRecord.executorType,
           model: executionRecord.executorModel,
           executionMode: executionRecord.executionMode,
+          effort: normalizeNullableTaskEffort(executionRecord.executorEffort),
         },
         sessionId: executionRecord.sessionId,
         agentType,
         agentRuntime,
       })
+    },
+    async cancelTaskExecution(input) {
+      const executionRecord = await args.prisma.execution.findUnique({
+        where: {
+          ownerId: input.taskId,
+        },
+        select: {
+          id: true,
+          ownerId: true,
+          status: true,
+          sessionId: true,
+          task: {
+            select: {
+              projectId: true,
+              status: true,
+            },
+          },
+        },
+      })
+
+      if (!executionRecord) {
+        throw new Error(`Execution for task ${input.taskId} was not found.`)
+      }
+
+      const handle = executionHandleRegistry.get(input.taskId)
+      if (handle?.cancelRequestedAt) {
+        await handle.completion
+        return
+      }
+
+      if (!handle) {
+        if (
+          executionRecord.status !== "running" ||
+          executionRecord.task.status !== "running"
+        ) {
+          return
+        }
+      }
+
+      const reason = input.reason?.trim() || "User requested stop"
+      const requestedAt = new Date()
+      let nextSequence = await stateStore.getNextSequence(executionRecord.id)
+
+      nextSequence = await stateStore.appendEvents({
+        executionId: executionRecord.id,
+        taskId: input.taskId,
+        projectId: executionRecord.task.projectId,
+        source: "harbor",
+        nextSequence,
+        events: [
+          createSyntheticCancelRequestedEvent({
+            reason,
+            createdAt: requestedAt,
+          }),
+        ],
+      })
+
+      if (!handle) {
+        const finishedAt = new Date()
+        const cancelled = await stateStore.markCancelled({
+          executionId: executionRecord.id,
+          taskId: input.taskId,
+          finishedAt,
+          sessionId: executionRecord.sessionId,
+        })
+
+        if (!cancelled) {
+          return
+        }
+
+        await stateStore.appendEvents({
+          executionId: executionRecord.id,
+          taskId: input.taskId,
+          projectId: executionRecord.task.projectId,
+          source: "harbor",
+          nextSequence,
+          events: [
+            createSyntheticCancelledEvent({
+              reason: `${reason} (forced convergence without runtime handle)`,
+              createdAt: finishedAt,
+              forced: true,
+            }),
+          ],
+        })
+        return
+      }
+
+      handle.cancelRequestedAt = requestedAt
+      handle.abortController.abort(reason)
+      await handle.completion
     },
   }
 }

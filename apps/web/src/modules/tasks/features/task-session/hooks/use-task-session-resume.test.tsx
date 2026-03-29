@@ -7,7 +7,14 @@ import { useTasksSessionStore } from "@/modules/tasks/store"
 import { useTaskSessionResume } from "./use-task-session-resume"
 
 const mutateAsync = vi.fn()
+const cancelMutateAsync = vi.fn()
 const uploadMutateAsync = vi.fn()
+const cancelTaskMutation = {
+  isPending: false,
+  isError: false,
+  error: null as unknown,
+  mutateAsync: cancelMutateAsync,
+}
 const resumeTaskMutation = {
   isPending: false,
   isError: false,
@@ -22,6 +29,7 @@ const uploadTaskInputImageMutation = {
 }
 
 vi.mock("@/modules/tasks/hooks/use-task-queries", () => ({
+  useCancelTaskMutation: vi.fn(() => cancelTaskMutation),
   useResumeTaskMutation: vi.fn(() => resumeTaskMutation),
   useUploadTaskInputImageMutation: vi.fn(() => uploadTaskInputImageMutation),
 }))
@@ -36,6 +44,7 @@ function buildTask(overrides: Partial<TaskDetail> = {}): TaskDetail {
     model: null,
     executor: "codex",
     executionMode: "connected",
+    effort: null,
     status: "queued",
     archivedAt: null,
     createdAt: "2026-03-13T00:00:00.000Z",
@@ -60,7 +69,9 @@ describe("useTaskSessionResume", () => {
   beforeEach(() => {
     resetTasksSessionStore()
     mutateAsync.mockReset()
+    cancelMutateAsync.mockReset()
     uploadMutateAsync.mockReset()
+    cancelMutateAsync.mockResolvedValue(buildTask({ status: "cancelled" }))
     mutateAsync.mockResolvedValue(buildTask({ status: "queued" }))
     uploadMutateAsync.mockResolvedValue({
       path: ".harbor/task-input-images/example.png",
@@ -68,6 +79,9 @@ describe("useTaskSessionResume", () => {
       name: "example.png",
       size: 1024,
     })
+    cancelTaskMutation.isPending = false
+    cancelTaskMutation.isError = false
+    cancelTaskMutation.error = null
     resumeTaskMutation.isPending = false
     resumeTaskMutation.isError = false
     resumeTaskMutation.error = null
@@ -109,6 +123,28 @@ describe("useTaskSessionResume", () => {
         pendingPrompt: null,
       })
     })
+  })
+
+  it("cancels a running task through the break action instead of resuming", async () => {
+    const { result } = renderHook(() =>
+      useTaskSessionResume({
+        detail: buildTask({ status: "running" }),
+        draft: "",
+        lastSequence: 4,
+        projectId: "project-1",
+        taskId: "task-1",
+      }),
+    )
+
+    await act(async () => {
+      await result.current.handleCancelTask()
+    })
+
+    expect(cancelMutateAsync).toHaveBeenCalledWith({
+      taskId: "task-1",
+    })
+    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(result.current.isCancelling).toBe(false)
   })
 
   it("auto-submits a queued prompt when running finishes", async () => {

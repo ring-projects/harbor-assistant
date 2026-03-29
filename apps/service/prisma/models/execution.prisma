@@ -18,6 +18,7 @@ model Execution {
   executorType     String
   executorModel    String?
   executionMode    String?
+  executorEffort   String?
   workingDirectory String
   sessionId        String?
   status           ExecutionStatus    @default(queued)

@@ -27,4 +27,8 @@ export const CHAT_STATUS_META: Record<
     label: "Cancelled",
     badgeClassName: "border-amber-200 bg-amber-100 text-amber-700",
   },
+  archived: {
+    label: "Archived",
+    badgeClassName: "border-zinc-200 bg-zinc-100 text-zinc-700",
+  },
 }

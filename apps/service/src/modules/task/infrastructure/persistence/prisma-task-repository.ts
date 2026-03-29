@@ -18,6 +18,7 @@ const taskReadInclude = {
       executorType: true,
       executorModel: true,
       executionMode: true,
+      executorEffort: true,
     },
   },
 } as const
@@ -50,6 +51,7 @@ export class PrismaTaskRepository implements TaskRepository, TaskRecordStore {
           executorType: input.runtimeConfig.executor,
           executorModel: input.runtimeConfig.model,
           executionMode: input.runtimeConfig.executionMode,
+          executorEffort: input.runtimeConfig.effort,
           workingDirectory: input.projectPath,
           status: "queued",
           createdAt: input.task.createdAt,

@@ -18,6 +18,8 @@ export type {
   TaskListItem,
   DeleteTaskResult,
 } from "./application/task-read-models"
+export type { TaskEffort } from "./domain/task-effort"
+export { TASK_EFFORT_VALUES } from "./domain/task-effort"
 export type {
   GetTaskEventsInput,
   TaskEventProjection,
@@ -27,6 +29,7 @@ export type {
   TaskRepository,
 } from "./application/task-repository"
 export type { TaskRuntimeConfig, TaskRuntimePort } from "./application/task-runtime-port"
+export { cancelTaskUseCase } from "./application/cancel-task"
 export { createCurrentTaskRuntimePort } from "./facade/current-task-runtime-port"
 export { createNoopTaskRuntimePort } from "./facade/noop-task-runtime-port"
 export { InMemoryTaskEventProjection } from "./infrastructure/in-memory-task-event-projection"

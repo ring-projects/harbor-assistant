@@ -25,6 +25,7 @@ export class InMemoryTaskRepository implements TaskRepository, TaskRecordStore {
         executor: input.runtimeConfig.executor,
         model: input.runtimeConfig.model,
         executionMode: input.runtimeConfig.executionMode,
+        effort: input.runtimeConfig.effort,
       }),
     )
   }
@@ -57,6 +58,7 @@ export class InMemoryTaskRepository implements TaskRepository, TaskRecordStore {
         executor: current?.executor ?? null,
         model: current?.model ?? null,
         executionMode: current?.executionMode ?? null,
+        effort: current?.effort ?? null,
       }),
     )
   }

@@ -1,4 +1,9 @@
-import { Prisma, type PrismaClient } from "@prisma/client"
+import {
+  Prisma,
+  type ExecutionStatus,
+  type PrismaClient,
+  type TaskStatus,
+} from "@prisma/client"
 
 import type { TaskNotificationPublisher } from "../../application/task-notification"
 import { toTaskListItem } from "../../application/task-read-models"
@@ -10,6 +15,8 @@ export function createTaskExecutionStateStore(args: {
   taskRepository: Pick<TaskRepository, "findById">
   notificationPublisher: TaskNotificationPublisher
 }) {
+  class TerminalTransitionConflictError extends Error {}
+
   async function publishTaskUpsert(taskId: string) {
     const task = await args.taskRepository.findById(taskId)
     if (!task) {
@@ -81,14 +88,30 @@ export function createTaskExecutionStateStore(args: {
   }) {
     let nextSequence = input.nextSequence
     for (const event of input.events) {
-      await publishNormalizedEvent({
-        executionId: input.executionId,
-        taskId: input.taskId,
-        projectId: input.projectId,
-        sequence: nextSequence,
-        source: input.source,
-        event,
-      })
+      while (true) {
+        try {
+          await publishNormalizedEvent({
+            executionId: input.executionId,
+            taskId: input.taskId,
+            projectId: input.projectId,
+            sequence: nextSequence,
+            source: input.source,
+            event,
+          })
+          break
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            nextSequence = await getNextSequence(input.executionId)
+            continue
+          }
+
+          throw error
+        }
+      }
+
       nextSequence += 1
     }
 
@@ -129,37 +152,90 @@ export function createTaskExecutionStateStore(args: {
     })
   }
 
+  async function transitionTerminalState(input: {
+    executionId: string
+    taskId: string
+    executionData: Prisma.ExecutionUpdateManyMutationInput
+    taskData: Prisma.TaskUpdateManyMutationInput
+    expectedExecutionStatuses?: ExecutionStatus[]
+    expectedTaskStatuses?: TaskStatus[]
+  }) {
+    try {
+      const updated = await args.prisma.$transaction(async (tx) => {
+        const executionResult = await tx.execution.updateMany({
+          where: {
+            id: input.executionId,
+            status: {
+              in: input.expectedExecutionStatuses ?? ["running"],
+            },
+          },
+          data: input.executionData,
+        })
+
+        if (executionResult.count === 0) {
+          return false
+        }
+
+        const taskResult = await tx.task.updateMany({
+          where: {
+            id: input.taskId,
+            status: {
+              in: input.expectedTaskStatuses ?? ["running"],
+            },
+          },
+          data: input.taskData,
+        })
+
+        if (taskResult.count === 0) {
+          throw new TerminalTransitionConflictError()
+        }
+
+        return true
+      })
+
+      return updated
+    } catch (error) {
+      if (error instanceof TerminalTransitionConflictError) {
+        return false
+      }
+
+      throw error
+    }
+  }
+
   async function markCompleted(input: {
     executionId: string
     taskId: string
     finishedAt: Date
     sessionId: string | null
     exitCode: number
+    expectedExecutionStatuses?: ExecutionStatus[]
+    expectedTaskStatuses?: TaskStatus[]
   }) {
-    await args.prisma.execution.update({
-      where: {
-        id: input.executionId,
-      },
-      data: {
+    const updated = await transitionTerminalState({
+      executionId: input.executionId,
+      taskId: input.taskId,
+      executionData: {
         status: "completed",
         finishedAt: input.finishedAt,
         exitCode: input.exitCode,
         errorMessage: null,
         ...(input.sessionId ? { sessionId: input.sessionId } : {}),
       },
-    })
-
-    await args.prisma.task.update({
-      where: {
-        id: input.taskId,
-      },
-      data: {
+      taskData: {
         status: "completed",
         finishedAt: input.finishedAt,
       },
+      expectedExecutionStatuses: input.expectedExecutionStatuses,
+      expectedTaskStatuses: input.expectedTaskStatuses,
     })
 
+    if (!updated) {
+      return false
+    }
+
     await publishTaskUpsert(input.taskId)
+    return true
   }
 
   async function markFailed(input: {
@@ -168,36 +244,73 @@ export function createTaskExecutionStateStore(args: {
     finishedAt: Date
     sessionId: string | null
     message: string
+    expectedExecutionStatuses?: ExecutionStatus[]
+    expectedTaskStatuses?: TaskStatus[]
   }) {
-    await args.prisma.execution.update({
-      where: {
-        id: input.executionId,
-      },
-      data: {
+    const updated = await transitionTerminalState({
+      executionId: input.executionId,
+      taskId: input.taskId,
+      executionData: {
         status: "failed",
         finishedAt: input.finishedAt,
         exitCode: null,
         errorMessage: input.message,
         ...(input.sessionId ? { sessionId: input.sessionId } : {}),
       },
-    })
-
-    await args.prisma.task.update({
-      where: {
-        id: input.taskId,
-      },
-      data: {
+      taskData: {
         status: "failed",
         finishedAt: input.finishedAt,
       },
+      expectedExecutionStatuses: input.expectedExecutionStatuses,
+      expectedTaskStatuses: input.expectedTaskStatuses,
     })
 
+    if (!updated) {
+      return false
+    }
+
     await publishTaskUpsert(input.taskId)
+    return true
+  }
+
+  async function markCancelled(input: {
+    executionId: string
+    taskId: string
+    finishedAt: Date
+    sessionId: string | null
+    expectedExecutionStatuses?: ExecutionStatus[]
+    expectedTaskStatuses?: TaskStatus[]
+  }) {
+    const updated = await transitionTerminalState({
+      executionId: input.executionId,
+      taskId: input.taskId,
+      executionData: {
+        status: "cancelled",
+        finishedAt: input.finishedAt,
+        exitCode: null,
+        errorMessage: null,
+        ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+      },
+      taskData: {
+        status: "cancelled",
+        finishedAt: input.finishedAt,
+      },
+      expectedExecutionStatuses: input.expectedExecutionStatuses,
+      expectedTaskStatuses: input.expectedTaskStatuses,
+    })
+
+    if (!updated) {
+      return false
+    }
+
+    await publishTaskUpsert(input.taskId)
+    return true
   }
 
   return {
     appendEvents,
     getNextSequence,
+    markCancelled,
     markCompleted,
     markExecutionRunning,
     markFailed,

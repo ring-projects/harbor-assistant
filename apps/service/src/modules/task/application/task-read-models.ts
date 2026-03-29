@@ -1,9 +1,11 @@
 import type { Task } from "../domain/task"
+import type { TaskEffort } from "../domain/task-effort"
 
 export type TaskRuntimeSnapshot = {
   executor: string | null
   model: string | null
   executionMode: string | null
+  effort: TaskEffort | null
 }
 
 export type TaskRecord = Task & TaskRuntimeSnapshot
@@ -16,6 +18,7 @@ export type TaskListItem = {
   executor: string | null
   model: string | null
   executionMode: string | null
+  effort: TaskEffort | null
   status: Task["status"]
   archivedAt: Date | null
   createdAt: Date
@@ -57,6 +60,7 @@ export function attachTaskRuntime(
     executor: runtime.executor,
     model: runtime.model,
     executionMode: runtime.executionMode,
+    effort: runtime.effort,
   }
 }
 
@@ -69,6 +73,7 @@ export function toTaskListItem(task: TaskRecord): TaskListItem {
     executor: task.executor,
     model: task.model,
     executionMode: task.executionMode,
+    effort: task.effort,
     status: task.status,
     archivedAt: task.archivedAt,
     createdAt: task.createdAt,

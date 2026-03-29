@@ -1,4 +1,5 @@
 export type {
+  CancelTaskBody,
   CreateTaskBody,
   GetProjectTasksQuery,
   GetTaskEventsQuery,
@@ -10,6 +11,8 @@ export type {
 } from "./task.schema"
 export {
   archiveTaskRouteSchema,
+  cancelTaskBodySchema,
+  cancelTaskRouteSchema,
   createTaskBodySchema,
   createTaskRouteSchema,
   deleteTaskRouteSchema,

@@ -33,6 +33,7 @@ function buildTask(
     model: null,
     executor: "codex",
     executionMode: "connected",
+    effort: null,
     status: "queued",
     archivedAt: null,
     createdAt: "2026-03-13T00:00:00.000Z",

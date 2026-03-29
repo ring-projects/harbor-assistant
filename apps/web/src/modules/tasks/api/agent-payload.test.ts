@@ -13,6 +13,7 @@ describe("agent-payload", () => {
               id: "gpt-5-codex",
               name: "GPT-5 Codex",
               isDefault: true,
+              efforts: ["low", "medium", "high"],
             },
           ],
           supportsResume: true,
@@ -22,6 +23,7 @@ describe("agent-payload", () => {
           models: [
             {
               id: "claude-sonnet",
+              efforts: ["minimal", "low"],
             },
           ],
           supportsResume: false,
@@ -39,6 +41,7 @@ describe("agent-payload", () => {
               id: "gpt-5-codex",
               displayName: "GPT-5 Codex",
               isDefault: true,
+              efforts: ["low", "medium", "high"],
             },
           ],
           supportsResume: true,
@@ -50,6 +53,7 @@ describe("agent-payload", () => {
               id: "claude-sonnet",
               displayName: "claude-sonnet",
               isDefault: false,
+              efforts: ["minimal", "low"],
             },
           ],
           supportsResume: false,

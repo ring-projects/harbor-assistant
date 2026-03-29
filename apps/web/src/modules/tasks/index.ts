@@ -1,6 +1,5 @@
 export * from "./api"
 export * from "./contracts"
-export * from "./features"
 export * from "./lib"
 export * from "./screens"
 export * from "./store"

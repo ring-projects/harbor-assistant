@@ -1,0 +1,70 @@
+import { render, screen } from "@testing-library/react"
+import type { ReactNode } from "react"
+import { describe, expect, it, vi } from "vitest"
+
+import type { TaskListItem as TaskListItemRecord } from "@/modules/tasks/contracts"
+
+vi.mock("@/components/ui/button", () => ({
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <div role="button" {...props}>
+      {children}
+    </div>
+  ),
+}))
+
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: ReactNode }) => <>{children}</>,
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: ReactNode
+    onClick?: () => void
+  }) => (
+    <div role="menuitem" onClick={onClick}>
+      {children}
+    </div>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+}))
+
+import { TaskListItem } from "./task-list-item"
+
+function buildTask(overrides: Partial<TaskListItemRecord> = {}): TaskListItemRecord {
+  return {
+    taskId: "task-1",
+    projectId: "project-1",
+    prompt: "Summarize the current release plan",
+    title:
+      "This is a very long task title meant to verify the task item title only shows up to two lines in the sidebar list",
+    titleSource: "prompt",
+    model: "gpt-5",
+    executor: "codex",
+    executionMode: "connected",
+    effort: null,
+    status: "completed",
+    archivedAt: null,
+    createdAt: "2026-03-13T00:00:00.000Z",
+    startedAt: null,
+    finishedAt: "2026-03-13T00:10:00.000Z",
+    ...overrides,
+  }
+}
+
+describe("TaskListItem", () => {
+  it("clamps the task title to two lines", () => {
+    const task = buildTask()
+
+    render(
+      <TaskListItem
+        task={task}
+        isActive={false}
+        onSelectTask={vi.fn()}
+        onDeleteTask={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(task.title)).toHaveClass("line-clamp-2")
+  })
+})

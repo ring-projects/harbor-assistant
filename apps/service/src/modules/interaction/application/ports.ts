@@ -31,6 +31,7 @@ export type InteractionTaskRecord = {
   executor: string | null
   model: string | null
   executionMode: string | null
+  effort: string | null
   status: InteractionTaskStatus
   archivedAt: string | null
   createdAt: string

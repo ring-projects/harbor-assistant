@@ -21,6 +21,7 @@ function createTask(
     executor: "codex",
     model: null,
     executionMode: "safe",
+    effort: null,
     status: "queued",
     archivedAt: null,
     createdAt: "2026-03-24T00:00:00.000Z",

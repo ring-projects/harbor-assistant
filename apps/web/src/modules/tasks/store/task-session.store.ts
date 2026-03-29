@@ -24,6 +24,7 @@ const TASK_STATUS_PRIORITY: Record<TaskStatus, number> = {
   completed: 2,
   failed: 2,
   cancelled: 2,
+  archived: 3,
 }
 
 function createDefaultChatUiState(): ChatUiState {

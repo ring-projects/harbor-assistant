@@ -87,6 +87,7 @@ describe("TaskSocketManager", () => {
         model: null,
         executor: "codex",
         executionMode: "connected",
+        effort: null,
         status: "completed",
         archivedAt: null,
         createdAt: "2026-03-18T00:00:00.000Z",

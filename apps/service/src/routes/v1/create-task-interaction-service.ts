@@ -39,6 +39,7 @@ function toInteractionTaskRecord(
     executor: task.executor,
     model: task.model,
     executionMode: task.executionMode,
+    effort: task.effort,
     status: task.status,
     archivedAt: toIsoStringOrNull(task.archivedAt),
     createdAt: task.createdAt.toISOString(),

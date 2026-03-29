@@ -24,6 +24,7 @@ describe("createTaskInteractionService", () => {
           executor: "codex",
           model: "gpt-5.3-codex",
           executionMode: "safe",
+          effort: null,
         },
       ),
     ])
@@ -60,6 +61,7 @@ describe("createTaskInteractionService", () => {
         executor: "codex",
         model: "gpt-5.3-codex",
         executionMode: "safe",
+        effort: null,
         status: "completed",
         createdAt: "2026-03-25T00:00:00.000Z",
       }),
@@ -72,6 +74,7 @@ describe("createTaskInteractionService", () => {
         executor: "codex",
         model: "gpt-5.3-codex",
         executionMode: "safe",
+        effort: null,
       }),
     )
 
@@ -136,6 +139,7 @@ describe("createTaskInteractionService", () => {
         executor: "codex",
         model: "gpt-5.3-codex",
         executionMode: "safe",
+        effort: null,
         status: "completed",
         archivedAt: null,
         createdAt: new Date("2026-03-25T00:00:00.000Z"),

@@ -4,5 +4,6 @@ export function createNoopTaskRuntimePort(): TaskRuntimePort {
   return {
     async startTaskExecution() {},
     async resumeTaskExecution() {},
+    async cancelTaskExecution() {},
   }
 }

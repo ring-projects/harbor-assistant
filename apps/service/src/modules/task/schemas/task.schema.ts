@@ -1,4 +1,5 @@
 import type { AgentInputItem } from "../../../lib/agents"
+import { TASK_EFFORT_VALUES, type TaskEffort } from "../domain/task-effort"
 
 export type TaskIdParams = {
   taskId: string
@@ -17,6 +18,10 @@ export type ResumeTaskBody = {
   items?: AgentInputItem[]
 }
 
+export type CancelTaskBody = {
+  reason?: string
+}
+
 export type CreateTaskBody = {
   projectId: string
   prompt?: string
@@ -25,6 +30,7 @@ export type CreateTaskBody = {
   executor?: string | null
   model?: string | null
   executionMode?: string | null
+  effort?: TaskEffort | null
 }
 
 export type UploadTaskInputImageBody = {
@@ -55,6 +61,7 @@ const taskEntitySchema = {
     "executor",
     "model",
     "executionMode",
+    "effort",
     "status",
     "archivedAt",
     "createdAt",
@@ -74,6 +81,12 @@ const taskEntitySchema = {
     executor: { type: ["string", "null"] },
     model: { type: ["string", "null"] },
     executionMode: { type: ["string", "null"] },
+    effort: {
+      anyOf: [
+        { type: "string", enum: TASK_EFFORT_VALUES },
+        { type: "null" },
+      ],
+    },
     status: {
       type: "string",
       enum: ["queued", "running", "completed", "failed", "cancelled"],
@@ -97,6 +110,7 @@ const taskListItemSchema = {
     "executor",
     "model",
     "executionMode",
+    "effort",
     "status",
     "archivedAt",
     "createdAt",
@@ -115,6 +129,12 @@ const taskListItemSchema = {
     executor: { type: ["string", "null"] },
     model: { type: ["string", "null"] },
     executionMode: { type: ["string", "null"] },
+    effort: {
+      anyOf: [
+        { type: "string", enum: TASK_EFFORT_VALUES },
+        { type: "null" },
+      ],
+    },
     status: {
       type: "string",
       enum: ["queued", "running", "completed", "failed", "cancelled"],
@@ -235,6 +255,14 @@ export const resumeTaskBodySchema = {
   },
 } as const
 
+export const cancelTaskBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    reason: { type: "string", minLength: 1 },
+  },
+} as const
+
 export const getTaskEventsQuerySchema = {
   type: "object",
   additionalProperties: false,
@@ -266,6 +294,12 @@ export const createTaskBodySchema = {
     executor: { type: ["string", "null"] },
     model: { type: ["string", "null"] },
     executionMode: { type: ["string", "null"] },
+    effort: {
+      anyOf: [
+        { type: "string", enum: TASK_EFFORT_VALUES },
+        { type: "null" },
+      ],
+    },
   },
 } as const
 
@@ -363,6 +397,22 @@ export const archiveTaskRouteSchema = {
 export const resumeTaskRouteSchema = {
   params: taskIdParamsSchema,
   body: resumeTaskBodySchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "task"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        task: taskEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const cancelTaskRouteSchema = {
+  params: taskIdParamsSchema,
+  body: cancelTaskBodySchema,
   response: {
     200: {
       type: "object",

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import {
   applyNormalizedTaskEvents,
+  createSyntheticCancelledEvent,
+  createSyntheticCancelRequestedEvent,
   createSyntheticUserInputEvent,
   createTaskRunEventState,
   normalizeRawAgentEvent,
@@ -277,6 +279,43 @@ describe("normalizeRawAgentEvent", () => {
       "command.completed",
       "message",
     ])
+  })
+
+  it("creates synthetic cancel events with stable payloads", () => {
+    const requestedAt = new Date("2026-03-29T00:00:00.000Z")
+    const cancelledAt = new Date("2026-03-29T00:00:01.000Z")
+
+    expect(
+      createSyntheticCancelRequestedEvent({
+        reason: "User requested stop",
+        createdAt: requestedAt,
+      }),
+    ).toEqual({
+      eventType: "harbor.cancel_requested",
+      payload: {
+        reason: "User requested stop",
+        requestedBy: "user",
+        timestamp: "2026-03-29T00:00:00.000Z",
+      },
+      createdAt: requestedAt,
+    })
+
+    expect(
+      createSyntheticCancelledEvent({
+        reason: "User requested stop",
+        forced: true,
+        createdAt: cancelledAt,
+      }),
+    ).toEqual({
+      eventType: "harbor.cancelled",
+      payload: {
+        reason: "User requested stop",
+        requestedBy: "user",
+        forced: true,
+        timestamp: "2026-03-29T00:00:01.000Z",
+      },
+      createdAt: cancelledAt,
+    })
   })
 })
 

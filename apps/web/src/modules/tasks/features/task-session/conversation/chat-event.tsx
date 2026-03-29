@@ -33,7 +33,7 @@ function ChatEventView({ block }: ChatEventProps) {
   return (
     <div
       className={cn(
-        "bg-slate-100/55 p-2 text-xs",
+        "bg-slate-100/55 p-2 text-xs break-all",
         block.tone === "success" && "text-emerald-900/75",
         block.tone === "error" && " text-rose-900/75",
         block.tone === "neutral" && " text-slate-600",

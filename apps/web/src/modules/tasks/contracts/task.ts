@@ -10,6 +10,8 @@ export const TASK_STATUS_VALUES = [
 ] as const
 
 export const TASK_AGENT_EVENT_TYPE_VALUES = [
+  "harbor.cancel_requested",
+  "harbor.cancelled",
   "session.started",
   "turn.started",
   "message",
@@ -38,10 +40,18 @@ export const TASK_EXECUTION_MODE_VALUES = [
   "connected",
   "full-access",
 ] as const
+export const TASK_EFFORT_VALUES = [
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const
 
 export const taskStatusSchema = z.enum(TASK_STATUS_VALUES)
 export const taskTimeRangeSchema = z.enum(TASK_TIME_RANGE_VALUES)
 export const taskExecutionModeSchema = z.enum(TASK_EXECUTION_MODE_VALUES)
+export const taskEffortSchema = z.enum(TASK_EFFORT_VALUES)
 
 export const taskFilterSchema = z.object({
   statuses: z.array(taskStatusSchema),
@@ -58,6 +68,7 @@ export const taskListItemSchema = z.object({
   model: z.string().nullable().default(null),
   executor: z.string().nullable().default(null),
   executionMode: taskExecutionModeSchema.nullable().default(null),
+  effort: taskEffortSchema.nullable().default(null),
   status: taskStatusSchema,
   archivedAt: z.string().nullable().default(null),
   createdAt: z.string().min(1),
@@ -86,6 +97,7 @@ export type TaskStatus = z.infer<typeof taskStatusSchema>
 export type TaskAgentEventType = string
 export type TaskTimeRange = z.infer<typeof taskTimeRangeSchema>
 export type TaskExecutionMode = z.infer<typeof taskExecutionModeSchema>
+export type TaskEffort = z.infer<typeof taskEffortSchema>
 export type TaskFilter = z.infer<typeof taskFilterSchema>
 export type TaskListItem = z.infer<typeof taskListItemSchema>
 export type TaskDetail = z.infer<typeof taskDetailSchema>

@@ -20,6 +20,7 @@ function withRuntime(task: ReturnType<typeof createTask>): TaskRecord {
     executor: "codex",
     model: null,
     executionMode: "safe",
+    effort: null,
   })
 }
 
@@ -101,6 +102,19 @@ async function createApp(
               updatedAt: new Date("2026-03-25T01:00:00.000Z"),
             })
           },
+          async cancelTaskExecution(input) {
+            const current = await repository.findById(input.taskId)
+            if (!current) {
+              return
+            }
+
+            await repository.save({
+              ...current,
+              status: "cancelled",
+              finishedAt: new Date("2026-03-29T00:00:00.000Z"),
+              updatedAt: new Date("2026-03-29T00:00:00.000Z"),
+            })
+          },
         },
       })
     },
@@ -140,6 +154,7 @@ describe("task routes", () => {
         executor: "codex",
         model: null,
         executionMode: "safe",
+        effort: null,
         status: "queued",
       },
     })
@@ -176,7 +191,51 @@ describe("task routes", () => {
         executor: "codex",
         model: null,
         executionMode: "safe",
+        effort: null,
         status: "queued",
+      },
+    })
+  })
+
+  it("creates a task with a supported effort and rejects unsupported combinations", async () => {
+    const app = await createApp()
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/tasks",
+      payload: {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        model: "gpt-5.3-codex",
+        effort: "medium",
+      },
+    })
+
+    expect(created.statusCode).toBe(201)
+    expect(created.json()).toMatchObject({
+      ok: true,
+      task: {
+        model: "gpt-5.3-codex",
+        effort: "medium",
+      },
+    })
+
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/v1/tasks",
+      payload: {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        model: "gpt-5.1-codex-mini",
+        effort: "low",
+      },
+    })
+
+    expect(rejected.statusCode).toBe(400)
+    expect(rejected.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_TASK_EFFORT",
       },
     })
   })
@@ -199,6 +258,7 @@ describe("task routes", () => {
         executor: "codex",
         model: null,
         executionMode: "safe",
+        effort: null,
         status: "completed",
       },
     })
@@ -217,6 +277,7 @@ describe("task routes", () => {
           executor: "codex",
           model: null,
           executionMode: "safe",
+          effort: null,
         }),
       ],
     })
@@ -350,6 +411,89 @@ describe("task routes", () => {
         id: "task-1",
         status: "running",
         prompt: "Investigate runtime drift",
+      },
+    })
+  })
+
+  it("cancels a running task and treats terminal cancel as idempotent", async () => {
+    const app = await createApp(
+      "/tmp/harbor-assistant",
+      [
+        withRuntime(createTask({
+          id: "task-running",
+          projectId: "project-1",
+          prompt: "Still running",
+          status: "running",
+        })),
+        withRuntime(createTask({
+          id: "task-cancelled",
+          projectId: "project-1",
+          prompt: "Already cancelled",
+          status: "cancelled",
+        })),
+      ],
+    )
+
+    const cancelled = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-running/cancel",
+      payload: {
+        reason: "User requested stop",
+      },
+    })
+
+    expect(cancelled.statusCode).toBe(200)
+    expect(cancelled.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: "task-running",
+        status: "cancelled",
+      },
+    })
+
+    const idempotent = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-cancelled/cancel",
+      payload: {},
+    })
+
+    expect(idempotent.statusCode).toBe(200)
+    expect(idempotent.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: "task-cancelled",
+        status: "cancelled",
+      },
+    })
+  })
+
+  it("rejects cancelling archived tasks", async () => {
+    const app = await createApp(
+      "/tmp/harbor-assistant",
+      [
+        withRuntime(createTask({
+          id: "task-archived-running",
+          projectId: "project-1",
+          prompt: "Archived task",
+          status: "running",
+          archivedAt: new Date("2026-03-29T00:00:00.000Z"),
+        })),
+      ],
+    )
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-archived-running/cancel",
+      payload: {
+        reason: "User requested stop",
+      },
+    })
+
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_TASK_BREAK_STATE",
       },
     })
   })

@@ -98,6 +98,8 @@ export function createTaskStartupReconciler(args: {
             finishedAt,
             sessionId: execution.sessionId,
             message,
+            expectedExecutionStatuses: ["queued", "running"],
+            expectedTaskStatuses: ["queued", "running"],
           })
 
           args.logger?.warn?.(

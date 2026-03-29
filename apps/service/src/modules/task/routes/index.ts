@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify"
 
 import { archiveTaskUseCase } from "../application/archive-task"
+import { cancelTaskUseCase } from "../application/cancel-task"
 import { createTaskUseCase } from "../application/create-task"
 import { deleteTaskUseCase } from "../application/delete-task"
 import { getTaskDetailUseCase } from "../application/get-task-detail"
@@ -18,12 +19,14 @@ import { updateTaskTitleUseCase } from "../application/update-task-title"
 import { toTaskAppError } from "../task-app-error"
 import {
   archiveTaskRouteSchema,
+  cancelTaskRouteSchema,
   createTaskRouteSchema,
   deleteTaskRouteSchema,
   getProjectTasksRouteSchema,
   getTaskEventsRouteSchema,
   getTaskRouteSchema,
   type CreateTaskBody,
+  type CancelTaskBody,
   type GetProjectTasksQuery,
   type GetTaskEventsQuery,
   type ProjectIdParams,
@@ -168,6 +171,34 @@ export async function registerTaskModuleRoutes(
             taskId: request.params.taskId,
             prompt: request.body.prompt,
             items: request.body.items,
+          },
+        )
+
+        return {
+          ok: true,
+          task,
+        }
+      } catch (error) {
+        throw toTaskAppError(error)
+      }
+    },
+  )
+
+  app.post<{ Params: TaskIdParams; Body: CancelTaskBody }>(
+    "/tasks/:taskId/cancel",
+    {
+      schema: cancelTaskRouteSchema,
+    },
+    async (request) => {
+      try {
+        const task = await cancelTaskUseCase(
+          {
+            repository,
+            runtimePort,
+          },
+          {
+            taskId: request.params.taskId,
+            reason: request.body?.reason,
           },
         )
 

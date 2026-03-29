@@ -10,11 +10,13 @@ import type { TaskRepository } from "../../application/task-repository"
 import type { TaskRuntimeConfig } from "../../application/task-runtime-port"
 import {
   applyNormalizedTaskEvents,
+  createSyntheticCancelledEvent,
   createSyntheticErrorEvent,
   createTaskRunEventState,
   normalizeRawAgentEvent,
 } from "./normalize-agent-events"
 import { createAgentRuntimeOptions } from "./runtime-policy"
+import type { TaskExecutionHandle } from "./task-execution-handle-registry"
 import { createTaskExecutionStateStore } from "./task-execution-state"
 
 function now() {
@@ -25,6 +27,10 @@ export function createTaskExecutionDriver(args: {
   prisma: PrismaClient
   taskRepository: Pick<TaskRepository, "findById">
   notificationPublisher: TaskNotificationPublisher
+  executionHandleRegistry: {
+    register(taskId: string, handle: TaskExecutionHandle): void
+    delete(taskId: string, handle?: TaskExecutionHandle): void
+  }
   harborApiBaseUrl?: string
   logger?: Pick<Console, "error" | "warn">
 }) {
@@ -60,6 +66,7 @@ export function createTaskExecutionDriver(args: {
         executorType: true,
         executorModel: true,
         executionMode: true,
+        executorEffort: true,
         workingDirectory: true,
         sessionId: true,
       },
@@ -83,6 +90,7 @@ export function createTaskExecutionDriver(args: {
     executionRecord: Awaited<ReturnType<typeof loadExecutionRecord>>
     startedAt: Date
     startMode: "start" | "resume"
+    signal: AbortSignal
   }) {
     const state = createTaskRunEventState()
     let nextSequence = await stateStore.getNextSequence(input.executionId)
@@ -92,6 +100,7 @@ export function createTaskExecutionDriver(args: {
         workingDirectory: input.executionRecord.workingDirectory,
         modelId: input.runtimeConfig.model,
         executionMode: input.runtimeConfig.executionMode,
+        effort: input.runtimeConfig.effort,
         env: buildHarborSessionEnv(input),
       })
       const events =
@@ -100,10 +109,12 @@ export function createTaskExecutionDriver(args: {
               input.executionRecord.sessionId ?? "",
               runtimeOptions,
               input.input,
+              input.signal,
             )
           : input.agentRuntime.startSessionAndRun(
               runtimeOptions,
               input.input,
+              input.signal,
             )
 
       for await (const envelope of events) {
@@ -155,6 +166,40 @@ export function createTaskExecutionDriver(args: {
         exitCode: 0,
       })
     } catch (error) {
+      if (input.signal.aborted) {
+        const finishedAt = now()
+        const reason =
+          typeof input.signal.reason === "string" && input.signal.reason.trim()
+            ? input.signal.reason.trim()
+            : "User requested stop"
+
+        const cancelled = await stateStore.markCancelled({
+          executionId: input.executionId,
+          taskId: input.taskId,
+          finishedAt,
+          sessionId: state.sessionId ?? input.executionRecord.sessionId,
+        })
+
+        if (!cancelled) {
+          return
+        }
+
+        await stateStore.appendEvents({
+          executionId: input.executionId,
+          taskId: input.taskId,
+          projectId: input.projectId,
+          source: "harbor",
+          nextSequence,
+          events: [
+            createSyntheticCancelledEvent({
+              reason,
+              createdAt: finishedAt,
+            }),
+          ],
+        })
+        return
+      }
+
       args.logger?.error?.(
         {
           taskId: input.taskId,
@@ -180,10 +225,41 @@ export function createTaskExecutionDriver(args: {
         executionId: input.executionId,
         taskId: input.taskId,
         finishedAt,
-        sessionId: state.sessionId,
+        sessionId: state.sessionId ?? input.executionRecord.sessionId,
         message,
       })
     }
+  }
+
+  function launchExecution(input: {
+    taskId: string
+    projectId: string
+    projectPath: string
+    input: AgentInput
+    runtimeConfig: TaskRuntimeConfig
+    agentType: AgentType
+    agentRuntime: IAgentRuntime
+    executionId: string
+    executionRecord: Awaited<ReturnType<typeof loadExecutionRecord>>
+    startedAt: Date
+    startMode: "start" | "resume"
+  }) {
+    const abortController = new AbortController()
+    const handle: TaskExecutionHandle = {
+      abortController,
+      completion: Promise.resolve(),
+      cancelRequestedAt: null,
+    }
+
+    handle.completion = runInBackground({
+      ...input,
+      signal: abortController.signal,
+    }).finally(() => {
+      args.executionHandleRegistry.delete(input.taskId, handle)
+    })
+
+    args.executionHandleRegistry.register(input.taskId, handle)
+    void handle.completion
   }
 
   return {
@@ -208,6 +284,7 @@ export function createTaskExecutionDriver(args: {
           executorType: input.runtimeConfig.executor,
           executorModel: input.runtimeConfig.model,
           executionMode: input.runtimeConfig.executionMode,
+          executorEffort: input.runtimeConfig.effort,
         },
       })
       await stateStore.markExecutionRunning({
@@ -217,7 +294,7 @@ export function createTaskExecutionDriver(args: {
       })
       await stateStore.markTaskRunning(input.taskId, startedAt)
 
-      void runInBackground({
+      launchExecution({
         ...input,
         executionId: executionRecord.id,
         executionRecord,
@@ -254,7 +331,7 @@ export function createTaskExecutionDriver(args: {
       })
       await stateStore.markTaskRunning(input.taskId, startedAt)
 
-      void runInBackground({
+      launchExecution({
         ...input,
         executionId: executionRecord.id,
         executionRecord: {

@@ -4,6 +4,7 @@ import type { AgentInput } from "../../../lib/agents"
 import { createTask } from "../domain/task"
 import { TASK_ERROR_CODES, type TaskError } from "../errors"
 import { archiveTaskUseCase } from "./archive-task"
+import { cancelTaskUseCase } from "./cancel-task"
 import { createTaskUseCase } from "./create-task"
 import { deleteTaskUseCase } from "./delete-task"
 import { getTaskDetailUseCase } from "./get-task-detail"
@@ -26,12 +27,15 @@ describe("task use cases", () => {
       prompt: "Investigate runtime drift",
       status: "completed",
     }),
-    overrides: Partial<Pick<TaskRecord, "executor" | "model" | "executionMode">> = {},
+    overrides: Partial<
+      Pick<TaskRecord, "executor" | "model" | "executionMode" | "effort">
+    > = {},
   ): TaskRecord {
     return attachTaskRuntime(task, {
       executor: "codex",
       model: null,
       executionMode: "safe",
+      effort: null,
       ...overrides,
     })
   }
@@ -61,6 +65,7 @@ describe("task use cases", () => {
             executor: current?.executor ?? "codex",
             model: current?.model ?? null,
             executionMode: current?.executionMode ?? "safe",
+            effort: current?.effort ?? null,
           }),
         )
       }),
@@ -94,6 +99,7 @@ describe("task use cases", () => {
     return {
       startTaskExecution: vi.fn(async () => undefined),
       resumeTaskExecution: vi.fn(async () => undefined),
+      cancelTaskExecution: vi.fn(async () => undefined),
     }
   }
 
@@ -125,6 +131,7 @@ describe("task use cases", () => {
       executor: "codex",
       model: null,
       executionMode: "safe",
+      effort: null,
       status: "queued",
     })
     expect(repository.create).toHaveBeenCalledWith(
@@ -134,6 +141,7 @@ describe("task use cases", () => {
           executor: "codex",
           executionMode: "safe",
           model: null,
+          effort: null,
         },
       }),
     )
@@ -146,6 +154,7 @@ describe("task use cases", () => {
         executor: "codex",
         model: null,
         executionMode: "safe",
+        effort: null,
       },
     })
     expect(publisher.publish).toHaveBeenCalledOnce()
@@ -202,8 +211,76 @@ describe("task use cases", () => {
         executor: "codex",
         model: null,
         executionMode: "safe",
+        effort: null,
       },
     })
+  })
+
+  it("persists and forwards a supported effort", async () => {
+    const repository = createRepository([])
+    const publisher = createNotificationPublisher()
+    const projectTaskPort = createProjectTaskPort()
+    const runtimePort = createRuntimePort()
+
+    const task = await createTaskUseCase(
+      {
+        projectTaskPort,
+        taskRecordStore: repository,
+        repository,
+        runtimePort,
+        notificationPublisher: publisher,
+        idGenerator: () => "task-created-effort",
+      },
+      {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        model: "gpt-5.3-codex",
+        effort: "medium",
+      },
+    )
+
+    expect(task.effort).toBe("medium")
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runtimeConfig: expect.objectContaining({
+          effort: "medium",
+        }),
+      }),
+    )
+    expect(runtimePort.startTaskExecution).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runtimeConfig: expect.objectContaining({
+          effort: "medium",
+        }),
+      }),
+    )
+  })
+
+  it("rejects unsupported effort and model combinations", async () => {
+    const repository = createRepository([])
+    const publisher = createNotificationPublisher()
+    const projectTaskPort = createProjectTaskPort()
+    const runtimePort = createRuntimePort()
+
+    await expect(
+      createTaskUseCase(
+        {
+          projectTaskPort,
+          taskRecordStore: repository,
+          repository,
+          runtimePort,
+          notificationPublisher: publisher,
+        },
+        {
+          projectId: "project-1",
+          prompt: "Investigate runtime drift",
+          model: "gpt-5.1-codex-mini",
+          effort: "low",
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: TASK_ERROR_CODES.INVALID_EFFORT,
+    } satisfies Partial<TaskError>)
   })
 
   it("fails create when project does not exist", async () => {
@@ -425,6 +502,98 @@ describe("task use cases", () => {
       ),
     ).rejects.toMatchObject({
       code: TASK_ERROR_CODES.INVALID_RESUME_STATE,
+    } satisfies Partial<TaskError>)
+  })
+
+  it("cancels running tasks and returns the converged task detail", async () => {
+    const repository = createRepository([
+      createTaskRecord(createTask({
+        id: "task-running",
+        projectId: "project-1",
+        prompt: "Still running",
+        status: "running",
+      })),
+    ])
+    const runtimePort = createRuntimePort()
+
+    vi.mocked(runtimePort.cancelTaskExecution).mockImplementation(async ({ taskId }) => {
+      const current = await repository.findById(taskId)
+      if (!current) {
+        return
+      }
+
+      await repository.save({
+        ...current,
+        status: "cancelled",
+        finishedAt: new Date("2026-03-29T00:00:00.000Z"),
+        updatedAt: new Date("2026-03-29T00:00:00.000Z"),
+      })
+    })
+
+    const result = await cancelTaskUseCase(
+      {
+        repository,
+        runtimePort,
+      },
+      {
+        taskId: "task-running",
+      },
+    )
+
+    expect(runtimePort.cancelTaskExecution).toHaveBeenCalledWith({
+      taskId: "task-running",
+      reason: "User requested stop",
+    })
+    expect(result.status).toBe("cancelled")
+  })
+
+  it("treats terminal cancel as idempotent and rejects archived cancel", async () => {
+    const runtimePort = createRuntimePort()
+
+    const terminalRepository = createRepository([
+      createTaskRecord(createTask({
+        id: "task-cancelled",
+        projectId: "project-1",
+        prompt: "Already cancelled",
+        status: "cancelled",
+      })),
+    ])
+
+    const result = await cancelTaskUseCase(
+      {
+        repository: terminalRepository,
+        runtimePort,
+      },
+      {
+        taskId: "task-cancelled",
+      },
+    )
+
+    expect(result.status).toBe("cancelled")
+    expect(runtimePort.cancelTaskExecution).not.toHaveBeenCalled()
+
+    const archivedRepository = createRepository([
+      createTaskRecord(createTask({
+        id: "task-archived",
+        projectId: "project-1",
+        prompt: "Archived run",
+        status: "running",
+        archivedAt: new Date("2026-03-29T00:00:00.000Z"),
+      })),
+    ])
+
+    await expect(
+      cancelTaskUseCase(
+        {
+          repository: archivedRepository,
+          runtimePort,
+        },
+        {
+          taskId: "task-archived",
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: TASK_ERROR_CODES.INVALID_CANCEL_STATE,
     } satisfies Partial<TaskError>)
   })
 

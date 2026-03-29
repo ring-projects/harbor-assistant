@@ -208,7 +208,7 @@ export function TaskListItem({
         </div>
       </div>
 
-      <p className=" text-left text-sm wrap-break-words">
+      <p className="line-clamp-2 text-left text-sm wrap-break-words">
         {taskTitle}
       </p>
 
