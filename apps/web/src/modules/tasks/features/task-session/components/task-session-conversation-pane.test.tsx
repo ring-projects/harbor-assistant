@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { useTasksSessionStore } from "@/modules/tasks/store"
@@ -6,9 +6,12 @@ import type { TaskDetail } from "@/modules/tasks/contracts"
 
 import { TaskSessionConversationPane } from "./task-session-conversation-pane"
 
+const mockHandleScroll = vi.fn()
+
 vi.mock("../hooks/use-task-conversation-viewport", () => ({
   useTaskConversationViewport: ({ blocks }: { blocks: unknown[] }) => ({
-    handleScroll: vi.fn(),
+    contentRef: { current: null },
+    handleScroll: mockHandleScroll,
     hiddenBlockCount: 0,
     jumpToLatest: vi.fn(),
     loadEarlier: vi.fn(),
@@ -41,6 +44,7 @@ function buildTaskDetail(overrides: Partial<TaskDetail> = {}): TaskDetail {
 }
 
 afterEach(() => {
+  mockHandleScroll.mockReset()
   useTasksSessionStore.setState({
     tasksById: {},
     taskIdsByProject: {},
@@ -58,5 +62,13 @@ describe("TaskSessionConversationPane", () => {
     expect(
       screen.queryByText("No messages are available for this chat yet."),
     ).not.toBeInTheDocument()
+  })
+
+  it("wires the scroll handler to the conversation scroller", () => {
+    render(<TaskSessionConversationPane taskId="task-1" detail={buildTaskDetail()} />)
+
+    fireEvent.scroll(screen.getByRole("log").parentElement as HTMLElement)
+
+    expect(mockHandleScroll).toHaveBeenCalledTimes(1)
   })
 })

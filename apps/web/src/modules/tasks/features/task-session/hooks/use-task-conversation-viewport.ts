@@ -16,6 +16,7 @@ export function useTaskConversationViewport(args: {
   taskId: string | null
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null)
+  const contentRef = useRef<HTMLDivElement | null>(null)
   const pendingWindowExpansionRef = useRef<{
     previousScrollHeight: number
     previousScrollTop: number
@@ -70,6 +71,30 @@ export function useTaskConversationViewport(args: {
       behavior: "auto",
     })
   }, [args.blocks, args.stickToBottom])
+
+  useEffect(() => {
+    if (!args.stickToBottom) {
+      return
+    }
+
+    const node = scrollerRef.current
+    const contentNode = contentRef.current
+    if (!node || !contentNode || typeof ResizeObserver === "undefined") {
+      return
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      node.scrollTo({
+        top: node.scrollHeight,
+        behavior: "auto",
+      })
+    })
+
+    resizeObserver.observe(contentNode)
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [args.stickToBottom, args.taskId])
 
   const loadEarlier = useCallback(() => {
     if (!args.taskId) {
@@ -139,6 +164,7 @@ export function useTaskConversationViewport(args: {
     hiddenBlockCount,
     jumpToLatest,
     loadEarlier,
+    contentRef,
     scrollerRef,
     visibleBlocks,
   }

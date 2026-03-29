@@ -26,81 +26,69 @@ function ChatCommandGroupView({ block, onOpen }: ChatCommandGroupProps) {
   const statusMeta =
     block.status === "success"
       ? {
-          label: block.exitCode === null ? "Completed" : `Completed (exit ${block.exitCode})`,
-          icon: CheckCircle2Icon,
-          iconClassName: "text-emerald-600",
-          metaClassName: "text-emerald-700",
-        }
+        label: block.exitCode === null ? "Completed" : `Completed (exit ${block.exitCode})`,
+        icon: CheckCircle2Icon,
+        iconClassName: "text-emerald-600",
+        metaClassName: "text-emerald-700",
+      }
       : block.status === "failed"
         ? {
-            label: block.exitCode === null ? "Failed" : `Failed (exit ${block.exitCode})`,
-            icon: XCircleIcon,
-            iconClassName: "text-rose-600",
-            metaClassName: "text-rose-700",
-          }
+          label: block.exitCode === null ? "Failed" : `Failed (exit ${block.exitCode})`,
+          icon: XCircleIcon,
+          iconClassName: "text-rose-600",
+          metaClassName: "text-rose-700",
+        }
         : {
-            label: "Running",
-            icon: LoaderCircleIcon,
-            iconClassName: "animate-spin text-sky-600",
-            metaClassName: "text-sky-700",
-          }
+          label: "Running",
+          icon: LoaderCircleIcon,
+          iconClassName: "animate-spin text-sky-600",
+          metaClassName: "text-sky-700",
+        }
 
   const StatusIcon = statusMeta.icon
 
   return (
-    <div className="flex justify-start">
-      <div className="w-full bg-card p-2">
-        <div className="flex items-start gap-3">
-          <StatusIcon className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)} />
+    <div className="w-full bg-slate-100/55 p-2">
+      <div className="flex items-start gap-3">
+        <StatusIcon className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)} />
 
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate font-mono text-[12px] leading-5 text-foreground/88">
-                {block.command}
-              </p>
-              <span
-                className={cn(
-                  "inline-flex rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium",
-                  block.status === "success" && "border-emerald-200 bg-emerald-50/75 text-emerald-700",
-                  block.status === "failed" && "border-rose-200 bg-rose-50/80 text-rose-700",
-                  block.status === "running" && "border-sky-200 bg-sky-50/75 text-sky-700",
-                )}
-              >
-                {statusMeta.label}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate font-mono text-[12px] leading-5 text-foreground/88">
+              {block.command}
+            </p>
+          </div>
+
+          <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
+            {block.startedAt ? ` · Started ${formatTimeShort(block.startedAt)}` : ""}
+            {hasOutput ? ` · ${block.outputLineCount} lines captured` : " · No output yet"}
+          </p>
+
+          {block.outputPreview ? (
+            <pre className="bg-muted/25 mt-2 overflow-hidden whitespace-pre-wrap break-words rounded-md p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
+              {block.outputPreview}
+            </pre>
+          ) : null}
+
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="text-muted-foreground flex items-center gap-2 font-mono text-[11px] leading-5">
+              <TerminalSquareIcon className="size-3.5" />
+              <span>
+                {block.completedAt
+                  ? `Updated ${formatTimeShort(block.completedAt)}`
+                  : "Waiting for completion"}
               </span>
             </div>
 
-            <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
-              {block.startedAt ? ` · Started ${formatTimeShort(block.startedAt)}` : ""}
-              {hasOutput ? ` · ${block.outputLineCount} lines captured` : " · No output yet"}
-            </p>
-
-            {block.outputPreview ? (
-              <pre className="bg-muted/25 mt-2 overflow-hidden whitespace-pre-wrap break-words rounded-md p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
-                {block.outputPreview}
-              </pre>
-            ) : null}
-
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <div className="text-muted-foreground flex items-center gap-2 font-mono text-[11px] leading-5">
-                <TerminalSquareIcon className="size-3.5" />
-                <span>
-                  {block.completedAt
-                    ? `Updated ${formatTimeShort(block.completedAt)}`
-                    : "Waiting for completion"}
-                </span>
-              </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground h-6 rounded-md px-2 font-mono text-[11px]"
-                onClick={() => onOpen(block)}
-              >
-                View details
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground h-6 rounded-md px-2 font-mono text-[11px]"
+              onClick={() => onOpen(block)}
+            >
+              View details
+            </Button>
           </div>
         </div>
       </div>

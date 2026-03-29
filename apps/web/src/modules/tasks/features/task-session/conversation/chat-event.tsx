@@ -25,15 +25,6 @@ function ChatEventView({ block }: ChatEventProps) {
           block.tone === "neutral" && "text-slate-700",
         )}
       >
-        <div className="flex items-center">
-          <span className="lowercase">{block.label}</span>
-          {block.timestamp ? (
-            <>
-              <span className="opacity-50">·</span>
-              <span>{formatTimeShort(block.timestamp)}</span>
-            </>
-          ) : null}
-        </div>
         <Markdown>{block.content}</Markdown>
       </div>
     )

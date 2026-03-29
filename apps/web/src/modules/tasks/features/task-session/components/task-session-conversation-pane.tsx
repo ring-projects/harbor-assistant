@@ -4,7 +4,6 @@ import { ArrowDownIcon, ArrowUpIcon } from "lucide-react"
 import { memo, useCallback, useMemo } from "react"
 
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   selectChatUi,
   useTasksSessionStore,
@@ -71,6 +70,7 @@ export const TaskSessionConversationPane = memo(
     }, [blocksFromStore, detail])
 
     const {
+      contentRef,
       handleScroll,
       hiddenBlockCount,
       jumpToLatest,
@@ -92,13 +92,18 @@ export const TaskSessionConversationPane = memo(
 
     return (
       <>
-        <div className="relative min-h-0 min-w-0 overflow-y-auto native-thin-scrollbar">
+        <div
+          ref={scrollerRef}
+          onScroll={handleScroll}
+          className="relative min-h-0 min-w-0 overflow-y-auto native-thin-scrollbar"
+        >
           {blocks.length === 0 ? (
             <div className="text-muted-foreground flex min-h-full items-center justify-center font-mono text-[12px]">
               No messages are available for this chat yet.
             </div>
           ) : (
             <div
+              ref={contentRef}
               role="log"
               aria-label="Task conversation"
               aria-live={stickToBottom ? "polite" : "off"}
