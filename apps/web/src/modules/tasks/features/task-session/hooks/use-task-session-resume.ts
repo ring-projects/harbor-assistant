@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react"
 
-import { TERMINAL_TASK_STATUSES, type TaskDetail } from "@/modules/tasks/contracts"
+import {
+  TERMINAL_TASK_STATUSES,
+  type TaskDetail,
+  type TaskEffort,
+} from "@/modules/tasks/contracts"
 import {
   selectChatUi,
   useTasksSessionStore,
@@ -17,8 +21,8 @@ import { getErrorMessage } from "@/modules/tasks/view-models"
 import {
   useCancelTaskMutation,
   useResumeTaskMutation,
-  useUploadTaskInputImageMutation,
 } from "@/modules/tasks/hooks/use-task-queries"
+import { useTaskInputAttachments } from "@/modules/tasks/hooks/use-task-input-attachments"
 import { trackTaskEvent } from "@/modules/tasks/telemetry"
 
 export function useTaskSessionResume(args: {
@@ -27,10 +31,13 @@ export function useTaskSessionResume(args: {
   lastSequence: number
   projectId: string
   taskId: string | null
+  runtimeConfig: {
+    model: string | null
+    effort: TaskEffort | null
+  }
 }) {
   const cancelTaskMutation = useCancelTaskMutation(args.projectId)
   const resumeTaskMutation = useResumeTaskMutation(args.projectId)
-  const uploadTaskInputImageMutation = useUploadTaskInputImageMutation(args.projectId)
   const draftAttachments = useTasksSessionStore((state) =>
     selectChatUi(state, args.taskId).draftAttachments,
   )
@@ -40,18 +47,6 @@ export function useTaskSessionResume(args: {
   const previousStatusRef = useRef<TaskDetail["status"] | null>(
     args.detail?.status ?? null,
   )
-
-  const canResume =
-    Boolean(args.taskId) &&
-    args.detail?.archivedAt === null &&
-    Boolean(
-      args.detail?.status &&
-        (args.detail.status === "running" ||
-          TERMINAL_TASK_STATUSES.includes(args.detail.status)),
-    ) &&
-    !cancelTaskMutation.isPending &&
-    !resumeTaskMutation.isPending &&
-    !uploadTaskInputImageMutation.isPending
 
   const inputDisabled =
     !args.taskId ||
@@ -69,30 +64,6 @@ export function useTaskSessionResume(args: {
         attachments: draftAttachments,
       }),
     [args.draft, draftAttachments],
-  )
-
-  const errorMessage = useMemo(
-    () => {
-      if (uploadTaskInputImageMutation.isError) {
-      return getErrorMessage(uploadTaskInputImageMutation.error)
-    }
-
-      if (cancelTaskMutation.isError) {
-        return getErrorMessage(cancelTaskMutation.error)
-      }
-
-      return resumeTaskMutation.isError
-        ? getErrorMessage(resumeTaskMutation.error)
-        : null
-    },
-    [
-      cancelTaskMutation.error,
-      cancelTaskMutation.isError,
-      resumeTaskMutation.error,
-      resumeTaskMutation.isError,
-      uploadTaskInputImageMutation.error,
-      uploadTaskInputImageMutation.isError,
-    ],
   )
 
   const updateDraft = useCallback(
@@ -156,6 +127,61 @@ export function useTaskSessionResume(args: {
     [args.taskId],
   )
 
+  const {
+    handleDropFiles,
+    handlePasteFiles,
+    isUploading,
+    removeAttachment,
+    uploadTaskInputImageMutation,
+  } = useTaskInputAttachments({
+    canUpload: Boolean(args.taskId),
+    projectId: args.projectId,
+    getAttachments: () => {
+      if (!args.taskId) {
+        return []
+      }
+
+      return useTasksSessionStore.getState().chatUiByTaskId[args.taskId]?.draftAttachments ?? []
+    },
+    onAttachmentsChange: updateDraftAttachments,
+  })
+
+  const canResume =
+    Boolean(args.taskId) &&
+    args.detail?.archivedAt === null &&
+    Boolean(
+      args.detail?.status &&
+        (args.detail.status === "running" ||
+          TERMINAL_TASK_STATUSES.includes(args.detail.status)),
+    ) &&
+    !cancelTaskMutation.isPending &&
+    !resumeTaskMutation.isPending &&
+    !isUploading
+
+  const errorMessage = useMemo(
+    () => {
+      if (uploadTaskInputImageMutation.isError) {
+        return getErrorMessage(uploadTaskInputImageMutation.error)
+      }
+
+      if (cancelTaskMutation.isError) {
+        return getErrorMessage(cancelTaskMutation.error)
+      }
+
+      return resumeTaskMutation.isError
+        ? getErrorMessage(resumeTaskMutation.error)
+        : null
+    },
+    [
+      cancelTaskMutation.error,
+      cancelTaskMutation.isError,
+      resumeTaskMutation.error,
+      resumeTaskMutation.isError,
+      uploadTaskInputImageMutation.error,
+      uploadTaskInputImageMutation.isError,
+    ],
+  )
+
   const submitInput = useCallback(
     async (
       input: TaskInput,
@@ -180,11 +206,15 @@ export function useTaskSessionResume(args: {
           await resumeTaskMutation.mutateAsync({
             taskId: args.taskId,
             prompt: input,
+            model: args.runtimeConfig.model,
+            effort: args.runtimeConfig.effort,
           })
         } else {
           await resumeTaskMutation.mutateAsync({
             taskId: args.taskId,
             items: input,
+            model: args.runtimeConfig.model,
+            effort: args.runtimeConfig.effort,
           })
         }
         store.setDraft(args.taskId, "")
@@ -197,7 +227,7 @@ export function useTaskSessionResume(args: {
         }
       }
     },
-    [args.lastSequence, args.taskId, resumeTaskMutation],
+    [args.lastSequence, args.runtimeConfig.effort, args.runtimeConfig.model, args.taskId, resumeTaskMutation],
   )
 
   const handleResumeTask = useCallback(async () => {
@@ -260,55 +290,11 @@ export function useTaskSessionResume(args: {
     cancelTaskMutation,
   ])
 
-  const uploadFiles = useCallback(
-    async (files: File[]) => {
-      if (!args.taskId || files.length === 0) {
-        return
-      }
-
-      const uploaded = await Promise.all(
-        files.map((file) =>
-          uploadTaskInputImageMutation.mutateAsync({
-            file,
-          }),
-        ),
-      )
-
-      const currentDraftAttachments =
-        useTasksSessionStore.getState().chatUiByTaskId[args.taskId]?.draftAttachments ??
-        draftAttachments
-
-      updateDraftAttachments([...currentDraftAttachments, ...uploaded])
-    },
-    [
-      args.taskId,
-      draftAttachments,
-      updateDraftAttachments,
-      uploadTaskInputImageMutation,
-    ],
-  )
-
-  const handlePasteFiles = useCallback(
-    async (files: File[]) => {
-      await uploadFiles(files)
-    },
-    [uploadFiles],
-  )
-
-  const handleDropFiles = useCallback(
-    async (files: File[]) => {
-      await uploadFiles(files)
-    },
-    [uploadFiles],
-  )
-
   const removeDraftAttachment = useCallback(
     (path: string) => {
-      updateDraftAttachments(
-        draftAttachments.filter((attachment) => attachment.path !== path),
-      )
+      removeAttachment(path)
     },
-    [draftAttachments, updateDraftAttachments],
+    [removeAttachment],
   )
 
   useEffect(() => {
@@ -323,7 +309,7 @@ export function useTaskSessionResume(args: {
       !TERMINAL_TASK_STATUSES.includes(currentStatus) ||
       !queuedPrompt ||
       resumeTaskMutation.isPending ||
-      uploadTaskInputImageMutation.isPending
+      isUploading
     ) {
       return
     }
@@ -344,7 +330,7 @@ export function useTaskSessionResume(args: {
     queuedPrompt,
     resumeTaskMutation.isPending,
     submitInput,
-    uploadTaskInputImageMutation.isPending,
+    isUploading,
   ])
 
   return {
@@ -359,7 +345,7 @@ export function useTaskSessionResume(args: {
     isSubmitting:
       cancelTaskMutation.isPending ||
       resumeTaskMutation.isPending ||
-      uploadTaskInputImageMutation.isPending,
+      isUploading,
     isCancelling: cancelTaskMutation.isPending,
     removeDraftAttachment,
     updateDraft,

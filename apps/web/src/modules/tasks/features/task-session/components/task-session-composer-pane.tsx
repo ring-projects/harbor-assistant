@@ -1,7 +1,6 @@
 "use client"
 
-import { WifiIcon } from "lucide-react"
-import { memo } from "react"
+import { memo, useMemo, useState } from "react"
 
 import {
   selectChatUi,
@@ -9,49 +8,21 @@ import {
   useTasksSessionStore,
 } from "@/modules/tasks/store"
 import {
-  TERMINAL_TASK_STATUSES,
   type TaskDetail,
+  type TaskEffort,
 } from "@/modules/tasks/contracts"
 import { buildTaskInput } from "@/modules/tasks/lib"
+import { useAgentCapabilitiesQuery } from "@/modules/tasks/hooks/use-task-queries"
+
 import {
-  formatExecutionModeLabel,
-  formatExecutorLabel,
-} from "@/modules/tasks/view-models"
-
-import { ChatInteraction, TaskInputAttachmentList } from "../composer"
+  EffortDropdown,
+  ExecutionModeBadge,
+  ExecutorBadge,
+  ModelDropdown,
+  TaskInputAttachmentList,
+  TaskInputComposer,
+} from "@/modules/tasks/components"
 import { useTaskSessionResume } from "../hooks/use-task-session-resume"
-
-function helperText(detail: TaskDetail | null | undefined) {
-  if (!detail) {
-    return "Loading task session details..."
-  }
-
-  if (detail.archivedAt) {
-    return "Archived tasks are read-only and cannot be resumed."
-  }
-
-  if (detail.status === "running") {
-    return "This task is still running. You can draft and queue the next prompt now."
-  }
-
-  if (TERMINAL_TASK_STATUSES.includes(detail.status)) {
-    return ""
-  }
-
-  return "This task is not ready to accept new input yet."
-}
-
-function queuedHelperText(detail: TaskDetail | null | undefined, hasQueuedPrompt: boolean) {
-  if (!hasQueuedPrompt) {
-    return helperText(detail)
-  }
-
-  if (detail?.status === "running") {
-    return "Next prompt is queued. It will send automatically when the current turn finishes."
-  }
-
-  return helperText(detail)
-}
 
 type TaskSessionComposerPaneProps = {
   detail: TaskDetail | null | undefined
@@ -59,16 +30,52 @@ type TaskSessionComposerPaneProps = {
   taskId: string
 }
 
-export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
+type TaskSessionComposerPaneContentProps = TaskSessionComposerPaneProps
+
+const TaskSessionComposerPaneContent = memo(function TaskSessionComposerPaneContent({
   detail,
   projectId,
   taskId,
-}: TaskSessionComposerPaneProps) {
+}: TaskSessionComposerPaneContentProps) {
   const draft = useTasksSessionStore((state) => selectChatUi(state, taskId).draft)
   const queuedPrompt = useTasksSessionStore(
     (state) => selectChatUi(state, taskId).queuedPrompt,
   )
   const lastSequence = useTasksSessionStore((state) => selectLastSequence(state, taskId))
+  const [selectedModel, setSelectedModel] = useState<string | null>(detail?.model ?? null)
+  const [selectedEffort, setSelectedEffort] = useState<TaskEffort | null>(
+    detail?.effort ?? null,
+  )
+  const agentCapabilitiesQuery = useAgentCapabilitiesQuery({
+    enabled: Boolean(detail?.executor),
+  })
+  const selectedExecutorCapabilities = useMemo(() => {
+    if (detail?.executor === "claude-code") {
+      return agentCapabilitiesQuery.data?.agents["claude-code"] ?? null
+    }
+
+    if (detail?.executor === "codex") {
+      return agentCapabilitiesQuery.data?.agents.codex ?? null
+    }
+
+    return null
+  }, [agentCapabilitiesQuery.data?.agents, detail?.executor])
+  const selectedExecutorModels = useMemo(
+    () => selectedExecutorCapabilities?.models ?? [],
+    [selectedExecutorCapabilities],
+  )
+  const resolvedModelConfig = useMemo(() => {
+    if (selectedModel) {
+      return selectedExecutorModels.find((model) => model.id === selectedModel) ?? null
+    }
+
+    return selectedExecutorModels.find((model) => model.isDefault) ?? null
+  }, [selectedExecutorModels, selectedModel])
+  const selectedEffortOptions = useMemo(
+    () => resolvedModelConfig?.efforts ?? [],
+    [resolvedModelConfig],
+  )
+
   const {
     canResume,
     draftAttachments,
@@ -88,6 +95,10 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
     lastSequence,
     projectId,
     taskId,
+    runtimeConfig: {
+      model: selectedModel,
+      effort: selectedEffort,
+    },
   })
   const canSubmit = canResume && Boolean(buildTaskInput({
     text: draft,
@@ -96,7 +107,7 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
 
   return (
     <div className="min-h-0">
-      <ChatInteraction
+      <TaskInputComposer
         canSubmit={canSubmit}
         actionMode={detail?.status === "running" ? "break" : "send"}
         actionDisabled={
@@ -106,7 +117,6 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
         }
         inputDisabled={inputDisabled}
         isSubmitting={isSubmitting}
-        helperText={queuedHelperText(detail, Boolean(queuedPrompt))}
         placeholder={
           detail?.status === "running"
             ? queuedPrompt
@@ -125,28 +135,39 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
         controls={
           detail ? (
             <>
-              {detail.executor ? (
-                <span className="inline-flex h-8 items-center gap-2 rounded-md bg-background/35 px-3 font-mono text-[11px] font-medium text-foreground/80">
-                  <span>{formatExecutorLabel(detail.executor)}</span>
-                </span>
-              ) : null}
-              <span className="inline-flex h-8 items-center gap-2 rounded-md bg-background/35 px-3 font-mono text-[11px] font-medium text-foreground/80">
-                <WifiIcon className="size-3.5 text-muted-foreground" />
-                <span>{formatExecutionModeLabel(detail.executionMode ?? "connected")}</span>
-              </span>
-              {detail.model ? (
-                <span className="inline-flex h-8 items-center gap-2 rounded-md bg-background/35 px-3 font-mono text-[11px] font-medium text-foreground/80">
-                  <span>{detail.model}</span>
-                </span>
-              ) : null}
+              <ExecutorBadge value={detail.executor} />
+              <ExecutionModeBadge value={detail.executionMode} />
+              <ModelDropdown
+                buttonClassName="h-8 rounded-md border-border/70 bg-background/60 px-3 text-[11px] font-medium shadow-none"
+                defaultOptionLabel="Runtime Default"
+                disabled={isSubmitting || inputDisabled}
+                executor={detail.executor ?? "executor"}
+                models={selectedExecutorModels}
+                value={selectedModel}
+                onValueChange={(nextModel) => {
+                  const nextModelConfig = nextModel
+                    ? selectedExecutorModels.find((model) => model.id === nextModel) ?? null
+                    : selectedExecutorModels.find((model) => model.isDefault) ?? null
+
+                  setSelectedModel(nextModel)
+                  if (
+                    selectedEffort &&
+                    nextModelConfig &&
+                    !nextModelConfig.efforts.includes(selectedEffort)
+                  ) {
+                    setSelectedEffort(null)
+                  }
+                }}
+              />
+              <EffortDropdown
+                buttonClassName="h-8 rounded-md border-border/70 bg-background/60 px-3 text-[11px] font-medium shadow-none"
+                defaultOptionLabel="Provider Default"
+                disabled={isSubmitting || inputDisabled}
+                efforts={selectedEffortOptions}
+                value={selectedEffort}
+                onValueChange={setSelectedEffort}
+              />
             </>
-          ) : null
-        }
-        footer={
-          queuedPrompt ? (
-            <p className="font-mono text-[11px] leading-5 text-amber-700">
-              Queued for auto-send. Edits here update the pending next turn.
-            </p>
           ) : null
         }
         errorMessage={errorMessage}
@@ -170,5 +191,20 @@ export const TaskSessionComposerPane = memo(function TaskSessionComposerPane({
         }}
       />
     </div>
+  )
+})
+
+export const TaskSessionComposerPane = memo(function TaskSessionComposerPane(
+  props: TaskSessionComposerPaneProps,
+) {
+  const runtimeSnapshotKey = `${props.taskId}:${props.detail?.model ?? "runtime-default"}:${props.detail?.effort ?? "provider-default"}`
+
+  return (
+    <TaskSessionComposerPaneContent
+      key={runtimeSnapshotKey}
+      detail={props.detail}
+      projectId={props.projectId}
+      taskId={props.taskId}
+    />
   )
 })

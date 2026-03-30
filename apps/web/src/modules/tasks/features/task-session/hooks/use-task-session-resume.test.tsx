@@ -102,6 +102,10 @@ describe("useTaskSessionResume", () => {
         lastSequence: 4,
         projectId: "project-1",
         taskId: "task-1",
+        runtimeConfig: {
+          model: null,
+          effort: null,
+        },
       }),
     )
 
@@ -133,6 +137,10 @@ describe("useTaskSessionResume", () => {
         lastSequence: 4,
         projectId: "project-1",
         taskId: "task-1",
+        runtimeConfig: {
+          model: null,
+          effort: null,
+        },
       }),
     )
 
@@ -164,6 +172,10 @@ describe("useTaskSessionResume", () => {
           lastSequence: 7,
           projectId: "project-1",
           taskId: "task-1",
+          runtimeConfig: {
+            model: "gpt-5.4",
+            effort: "medium",
+          },
         }),
       {
         initialProps: {
@@ -182,6 +194,8 @@ describe("useTaskSessionResume", () => {
       expect(mutateAsync).toHaveBeenCalledWith({
         taskId: "task-1",
         prompt: "continue please",
+        model: "gpt-5.4",
+        effort: "medium",
       })
     })
 
@@ -205,6 +219,10 @@ describe("useTaskSessionResume", () => {
         lastSequence: 2,
         projectId: "project-1",
         taskId: "task-1",
+        runtimeConfig: {
+          model: "gpt-5.4",
+          effort: "high",
+        },
       }),
     )
 
@@ -244,6 +262,8 @@ describe("useTaskSessionResume", () => {
           path: ".harbor/task-input-images/example.png",
         },
       ],
+      model: "gpt-5.4",
+      effort: "high",
     })
     expect(useTasksSessionStore.getState().chatUiByTaskId["task-1"]).toMatchObject({
       draft: "",

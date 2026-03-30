@@ -48,6 +48,28 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 }))
 
 vi.mock("@/modules/tasks/components", () => ({
+  ExecutorDropdown: ({ value }: { value: string }) => (
+    <div>{value === "codex" ? "Codex" : "Claude Code"}</div>
+  ),
+  ModelDropdown: ({ value }: { value: string | null }) => <div>{value}</div>,
+  EffortDropdown: ({ value }: { value: string | null }) => (
+    <div>
+      {value === "medium"
+        ? "Medium"
+        : value === "high"
+          ? "High"
+          : value === "low"
+            ? "Low"
+            : value === "minimal"
+              ? "Minimal"
+              : value === "xhigh"
+                ? "X-High"
+                : value}
+    </div>
+  ),
+  ExecutionModeDropdown: ({ value }: { value: string }) => (
+    <div>{value === "connected" ? "Normal" : value}</div>
+  ),
   TaskInputComposer: ({
     attachments,
     canSubmit,
