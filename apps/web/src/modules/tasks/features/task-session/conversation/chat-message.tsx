@@ -27,14 +27,14 @@ function renderUserAttachments(
   }
 
   return (
-    <div className={styles.attachmentList}>
+    <div className={styles["attachment-list"]}>
       {block.attachments.map((attachment) => (
-        <div key={attachment.path} className={styles.attachmentCard}>
-          <div className={styles.attachmentIconWrap}>
+        <div key={attachment.path} className={styles["attachment-card"]}>
+          <div className={styles["attachment-icon-wrap"]}>
             <ImageIcon className="size-4" />
           </div>
-          <div className={styles.attachmentMeta}>
-            <div className={styles.attachmentName}>
+          <div className={styles["attachment-meta"]}>
+            <div className={styles["attachment-name"]}>
               {getAttachmentDisplayName({
                 path: attachment.path,
                 mediaType: "",
@@ -42,7 +42,7 @@ function renderUserAttachments(
                 size: 0,
               })}
             </div>
-            <div className={styles.attachmentPath}>{attachment.path}</div>
+            <div className={styles["attachment-path"]}>{attachment.path}</div>
           </div>
         </div>
       ))}
@@ -58,14 +58,14 @@ function ChatMessageView({ block }: ChatMessageProps) {
     <div
       className={cn(
         "w-full p-2",
-        block.pending && styles.pendingShell,
+        block.pending && styles["pending-shell"],
         isUser ? "bg-green-500/10" : "bg-sky-400/30",
       )}
       aria-label={`${label} message`}
     >
-      <div className={styles.messageMeta}>
-        <span className={styles.messageLabel}>{label}</span>
-        <span className={styles.messageDivider}>·</span>
+      <div className={styles["message-meta"]}>
+        <span className={styles["message-label"]}>{label}</span>
+        <span className={styles["message-divider"]}>·</span>
         <span>
           {block.pending ? "sending…" : formatTimeShort(block.timestamp)}
         </span>
@@ -73,14 +73,14 @@ function ChatMessageView({ block }: ChatMessageProps) {
 
       <div
         className={cn(
-          styles.messageBody,
-          isUser ? styles.userBody : styles.agentBody,
+          styles["message-body"],
+          isUser ? styles["user-body"] : styles["agent-body"],
         )}
       >
         {isUser ? (
           <>
             {block.content.trim() ? (
-              <pre className={styles.userContent}>{block.content}</pre>
+              <pre className={styles["user-content"]}>{block.content}</pre>
             ) : null}
             {renderUserAttachments(block)}
           </>

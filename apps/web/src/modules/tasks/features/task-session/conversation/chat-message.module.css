@@ -1,4 +1,4 @@
-.messageShell {
+.message-shell {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--border);
@@ -6,20 +6,20 @@
   padding: 0.75rem 1rem 0.95rem;
 }
 
-.userShell {
+.user-shell {
   background: var(--accent);
 }
 
-.agentShell {
+.agent-shell {
   background: var(--card);
 }
 
-.pendingShell {
+.pending-shell {
   opacity: 0.82;
   filter: saturate(0.8);
 }
 
-.messageMeta {
+.message-meta {
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -40,21 +40,21 @@
   text-transform: lowercase;
 }
 
-.messageLabel {
+.message-label {
   color: color-mix(in oklab, var(--foreground) 72%, var(--muted-foreground));
   font-weight: 600;
 }
 
-.messageDivider {
+.message-divider {
   color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
 }
 
-.messageBody {
+.message-body {
   min-width: 0;
   color: var(--foreground);
 }
 
-.userBody {
+.user-body {
   font-family:
     ui-monospace,
     SFMono-Regular,
@@ -66,24 +66,24 @@
     monospace;
 }
 
-.agentBody {
+.agent-body {
   font-family: inherit;
 }
 
-.userContent {
+.user-content {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 13px;
   line-height: 1.7;
 }
 
-.attachmentList {
+.attachment-list {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
 }
 
-.attachmentCard {
+.attachment-card {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -97,7 +97,7 @@
   padding: 0.75rem 0.8rem;
 }
 
-.attachmentIconWrap {
+.attachment-icon-wrap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -109,14 +109,14 @@
   flex: 0 0 auto;
 }
 
-.attachmentMeta {
+.attachment-meta {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
 }
 
-.attachmentName {
+.attachment-name {
   font-size: 12px;
   line-height: 1.45;
   font-weight: 600;
@@ -124,7 +124,7 @@
   overflow-wrap: anywhere;
 }
 
-.attachmentPath {
+.attachment-path {
   font-size: 11px;
   line-height: 1.5;
   color: var(--muted-foreground);

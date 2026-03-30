@@ -1,4 +1,4 @@
-.markdownBody {
+.markdown-body {
   min-width: 0;
   color: inherit;
   font-size: 15px;
@@ -11,18 +11,18 @@
   line-height: 1.6;
 }
 
-.markdownBody :global(a) {
+.markdown-body :global(a) {
   color: color-mix(in oklab, var(--foreground) 82%, var(--primary));
 }
 
-.markdownBody :global(blockquote) {
+.markdown-body :global(blockquote) {
   border-left: 2px solid color-mix(in oklab, var(--border) 75%, transparent);
   padding-left: 0.75rem;
   color: var(--muted-foreground);
   font-style: italic;
 }
 
-.markdownBody :global(:not(pre) > code) {
+.markdown-body :global(:not(pre) > code) {
   background: color-mix(in oklab, var(--muted) 82%, transparent);
   color: var(--foreground);
   border-radius: 8px;
@@ -39,18 +39,18 @@
   font-size: 0.92em;
 }
 
-.markdownBody :global(th),
-.markdownBody :global(td) {
+.markdown-body :global(th),
+.markdown-body :global(td) {
   border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
   padding: 0.5rem 0.75rem;
 }
 
-.markdownBody :global(th) {
+.markdown-body :global(th) {
   background: color-mix(in oklab, var(--muted) 82%, transparent);
   text-align: left;
 }
 
-.markdownBody :global([data-streamdown="code-block"]) {
+.markdown-body :global([data-streamdown="code-block"]) {
   border-color: color-mix(in oklab, var(--border) 75%, transparent);
   background: linear-gradient(
     180deg,
@@ -59,63 +59,63 @@
   );
 }
 
-.markdownBody :global([data-streamdown="code-block-header"]) {
+.markdown-body :global([data-streamdown="code-block-header"]) {
   color: var(--muted-foreground);
 }
 
-.markdownBody :global([data-streamdown="code-block-actions"]) {
+.markdown-body :global([data-streamdown="code-block-actions"]) {
   border-color: color-mix(in oklab, var(--border) 70%, transparent);
 }
 
-.markdownBody :global([data-streamdown="code-block-body"]) {
+.markdown-body :global([data-streamdown="code-block-body"]) {
   border-color: color-mix(in oklab, var(--border) 60%, transparent);
   background: transparent;
 }
 
-.markdownBody :global([data-streamdown="code-block-body"] pre) {
+.markdown-body :global([data-streamdown="code-block-body"] pre) {
   background: transparent;
   color: inherit;
 }
 
-.markdownBody :global([data-streamdown="mermaid-block"]) {
+.markdown-body :global([data-streamdown="mermaid-block"]) {
   border: 0;
   background: transparent;
   padding: 0;
 }
 
-.markdownBody :global([data-streamdown="mermaid-block-actions"]) {
+.markdown-body :global([data-streamdown="mermaid-block-actions"]) {
   border-color: color-mix(in oklab, var(--border) 70%, transparent);
 }
 
-.markdownBody :global([data-streamdown="mermaid-block"] > div:first-child) {
+.markdown-body :global([data-streamdown="mermaid-block"] > div:first-child) {
   display: none;
 }
 
-.markdownBody :global([data-streamdown="mermaid-block"] > div:nth-child(2)) {
+.markdown-body :global([data-streamdown="mermaid-block"] > div:nth-child(2)) {
   top: 0.25rem;
   margin-top: 0;
   margin-bottom: 0.25rem;
 }
 
-.markdownBody :global([data-streamdown="mermaid"]) {
+.markdown-body :global([data-streamdown="mermaid"]) {
   margin-block: 0.5rem 1rem;
 }
 
-.markdownBody :global([data-streamdown="mermaid"] > div) {
+.markdown-body :global([data-streamdown="mermaid"] > div) {
   border: 0;
   background: transparent;
 }
 
-.markdownBody :global([data-streamdown="mermaid"] [role="application"]) {
+.markdown-body :global([data-streamdown="mermaid"] [role="application"]) {
   min-height: 0;
   padding: 0.75rem 0.75rem 0.75rem 2.75rem;
 }
 
-.markdownBody :global([data-streamdown="mermaid"] [role="img"]) {
+.markdown-body :global([data-streamdown="mermaid"] [role="img"]) {
   width: 100%;
 }
 
-.markdownBody :global([data-streamdown="mermaid"] [role="img"] > svg) {
+.markdown-body :global([data-streamdown="mermaid"] [role="img"] > svg) {
   display: block;
   width: 100% !important;
   height: auto !important;
@@ -124,7 +124,7 @@
   background: transparent;
 }
 
-.markdownBody :global(.katex-display) {
+.markdown-body :global(.katex-display) {
   overflow-x: auto;
   overflow-y: hidden;
   padding-block: 0.25rem;

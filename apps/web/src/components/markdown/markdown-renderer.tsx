@@ -9,7 +9,7 @@ import { Streamdown } from "streamdown"
 
 import { cn } from "@/lib/utils"
 
-import styles from "./MarkdownRenderer.module.css"
+import styles from "./markdown-renderer.module.css"
 
 type MarkdownRendererProps = {
   content: string
@@ -88,7 +88,7 @@ function MarkdownRendererView({
   return (
     <Streamdown
       className={cn(
-        styles.markdownBody,
+        styles["markdown-body"],
         compact && styles.compact,
         "space-y-2 [&_a]:underline [&_a]:underline-offset-2 [&_h1]:text-lg [&_h2]:text-base [&_h2]:font-semibold [&_li]:leading-7 [&_ol]:space-y-1 [&_ol]:pl-5 [&_p]:leading-7 [&_table]:w-full [&_table]:border-collapse [&_ul]:space-y-1 [&_ul]:pl-5",
         className,
