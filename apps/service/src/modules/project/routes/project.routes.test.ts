@@ -103,7 +103,8 @@ describe("project routes", () => {
       ok: true,
       settings: {
         execution: {
-          defaultExecutor: "codex",
+          defaultExecutor: null,
+          defaultExecutionMode: null,
           maxConcurrentTasks: 1,
         },
       },

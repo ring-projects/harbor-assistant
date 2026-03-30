@@ -42,6 +42,7 @@ describe("PrismaProjectRepository", () => {
     expect(loaded).not.toBeNull()
     expect(loaded?.name).toBe("Harbor Assistant")
     expect(loaded?.settings.execution.maxConcurrentTasks).toBe(3)
+    expect(loaded?.settings.execution.defaultExecutor).toBeNull()
     expect(loaded?.settings.execution.defaultExecutionMode).toBe("connected")
   })
 

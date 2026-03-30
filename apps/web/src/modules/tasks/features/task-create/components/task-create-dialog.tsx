@@ -12,6 +12,10 @@ import { type ReactNode, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
+  TaskInputAttachmentList,
+  TaskInputComposer,
+} from "@/modules/tasks/components"
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -24,15 +28,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useProjectSettingsQuery } from "@/modules/projects"
 import type { TaskEffort } from "@/modules/tasks/contracts"
-import {
-  ChatInteraction,
-  TaskInputAttachmentList,
-} from "@/modules/tasks/features/task-session/composer"
 import {
   useAgentCapabilitiesQuery,
   useCreateTaskMutation,
@@ -45,7 +43,9 @@ import {
 } from "@/modules/tasks/lib"
 import {
   formatExecutionModeLabel,
+  formatEffortLabel,
   formatExecutorLabel,
+  formatModelSummary,
   getErrorMessage,
 } from "@/modules/tasks/view-models"
 
@@ -80,26 +80,8 @@ const EXECUTION_MODE_OPTIONS = [
   },
 ] as const
 
-function formatModelSummary(model: string | null | undefined) {
-  return model?.trim() || "Runtime Default"
-}
-
-function formatEffortLabel(effort: TaskEffort | null | undefined) {
-  switch (effort) {
-    case "minimal":
-      return "Minimal"
-    case "low":
-      return "Low"
-    case "medium":
-      return "Medium"
-    case "high":
-      return "High"
-    case "xhigh":
-      return "X-High"
-    default:
-      return "Provider Default"
-  }
-}
+const DEFAULT_TASK_EXECUTOR = "codex"
+const DEFAULT_TASK_EXECUTION_MODE = "connected"
 
 type TaskCreateDialogProps = {
   projectId: string
@@ -141,28 +123,52 @@ function writeLastSelectedModel(
   window.localStorage.removeItem(storageKey)
 }
 
+function resolveModelSelection(
+  models: {
+    id: string
+    isDefault: boolean
+  }[],
+  selectedModel: string | null,
+) {
+  if (selectedModel && models.some((model) => model.id === selectedModel)) {
+    return selectedModel
+  }
+
+  return models.find((model) => model.isDefault)?.id ?? models[0]?.id ?? null
+}
+
+function resolveEffortSelection(
+  efforts: readonly TaskEffort[],
+  selectedEffort: TaskEffort | null,
+) {
+  if (selectedEffort && efforts.includes(selectedEffort)) {
+    return selectedEffort
+  }
+
+  if (efforts.includes("medium")) {
+    return "medium"
+  }
+
+  return efforts[0] ?? null
+}
+
 export function TaskCreateDialog({
   projectId,
   onTaskCreated,
   trigger,
 }: TaskCreateDialogProps) {
-  const projectSettingsQuery = useProjectSettingsQuery(projectId)
-  const defaultExecutor =
-    projectSettingsQuery.data?.execution.defaultExecutor ?? "codex"
-  const defaultExecutionMode =
-    projectSettingsQuery.data?.execution.defaultExecutionMode === "full-access"
-      ? "full-access"
-      : "connected"
   const [open, setOpen] = useState(false)
   const [newTaskPrompt, setNewTaskPrompt] = useState("")
   const [newTaskAttachments, setNewTaskAttachments] = useState<
     UploadedTaskInputImage[]
   >([])
-  const [newTaskExecutor, setNewTaskExecutor] = useState<string>(defaultExecutor)
-  const [selectedModel, setSelectedModel] = useState<string | null>(null)
+  const [newTaskExecutor, setNewTaskExecutor] = useState<string>(DEFAULT_TASK_EXECUTOR)
+  const [selectedModel, setSelectedModel] = useState<string | null>(() =>
+    readLastSelectedModel(projectId, DEFAULT_TASK_EXECUTOR),
+  )
   const [newTaskExecutionMode, setNewTaskExecutionMode] = useState<
     "safe" | "connected" | "full-access"
-  >(defaultExecutionMode)
+  >(DEFAULT_TASK_EXECUTION_MODE)
   const [selectedEffort, setSelectedEffort] = useState<TaskEffort | null>(null)
   const [createTaskError, setCreateTaskError] = useState<string | null>(null)
 
@@ -184,16 +190,16 @@ export function TaskCreateDialog({
     [selectedExecutorModels],
   )
   const resolvedSelectedModel = useMemo(() => {
-    if (!selectedModel) {
+    if (selectedExecutorModels.length === 0) {
       return null
     }
 
-    if (selectedExecutorModels.length === 0 || selectedExecutorModelIds.has(selectedModel)) {
+    if (selectedModel && selectedExecutorModelIds.has(selectedModel)) {
       return selectedModel
     }
 
-    return null
-  }, [selectedExecutorModelIds, selectedExecutorModels.length, selectedModel])
+    return resolveModelSelection(selectedExecutorModels, selectedModel)
+  }, [selectedExecutorModelIds, selectedExecutorModels, selectedModel])
   const resolvedModelConfig = useMemo(() => {
     if (resolvedSelectedModel) {
       return (
@@ -201,19 +207,21 @@ export function TaskCreateDialog({
       )
     }
 
-    return selectedExecutorModels.find((model) => model.isDefault) ?? null
+    return null
   }, [resolvedSelectedModel, selectedExecutorModels])
   const selectedEffortOptions = useMemo(
     () => resolvedModelConfig?.efforts ?? [],
     [resolvedModelConfig],
   )
   const resolvedSelectedEffort = useMemo(() => {
-    if (!selectedEffort) {
-      return null
-    }
-
-    return selectedEffortOptions.includes(selectedEffort) ? selectedEffort : null
+    return resolveEffortSelection(selectedEffortOptions, selectedEffort)
   }, [selectedEffort, selectedEffortOptions])
+  const hasResolvedRuntimeConfig = Boolean(
+    resolvedSelectedModel &&
+    resolvedSelectedEffort &&
+    newTaskExecutionMode &&
+    newTaskExecutor,
+  )
   const createTaskInput = useMemo(
     () =>
       buildTaskInput({
@@ -227,9 +235,9 @@ export function TaskCreateDialog({
     setCreateTaskError(null)
     setNewTaskPrompt("")
     setNewTaskAttachments([])
-    setNewTaskExecutor(defaultExecutor)
-    setSelectedModel(readLastSelectedModel(projectId, defaultExecutor))
-    setNewTaskExecutionMode(defaultExecutionMode)
+    setNewTaskExecutor(DEFAULT_TASK_EXECUTOR)
+    setSelectedModel(readLastSelectedModel(projectId, DEFAULT_TASK_EXECUTOR))
+    setNewTaskExecutionMode(DEFAULT_TASK_EXECUTION_MODE)
     setSelectedEffort(null)
   }
 
@@ -239,13 +247,18 @@ export function TaskCreateDialog({
       return
     }
 
+    if (!resolvedSelectedModel || !resolvedSelectedEffort) {
+      setCreateTaskError("Wait for runtime options to load before creating the task.")
+      return
+    }
+
     try {
       setCreateTaskError(null)
       const result = await createTaskMutation.mutateAsync(
         typeof createTaskInput === "string"
           ? {
               prompt: createTaskInput,
-              model: resolvedSelectedModel ?? undefined,
+              model: resolvedSelectedModel,
               executor: newTaskExecutor,
               executionMode: newTaskExecutionMode,
               effort: resolvedSelectedEffort,
@@ -253,7 +266,7 @@ export function TaskCreateDialog({
           : {
               items: createTaskInput,
               title: summarizeTaskInput(createTaskInput),
-              model: resolvedSelectedModel ?? undefined,
+              model: resolvedSelectedModel,
               executor: newTaskExecutor,
               executionMode: newTaskExecutionMode,
               effort: resolvedSelectedEffort,
@@ -306,7 +319,7 @@ export function TaskCreateDialog({
         )}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Create New Task</DialogTitle>
         </DialogHeader>
@@ -318,28 +331,18 @@ export function TaskCreateDialog({
             void handleCreateTask()
           }}
         >
-          <ChatInteraction
+          <TaskInputComposer
             canSubmit={
               !createTaskMutation.isPending &&
               !uploadTaskInputImageMutation.isPending &&
-              Boolean(createTaskInput)
+              Boolean(createTaskInput) &&
+              hasResolvedRuntimeConfig
             }
             inputDisabled={createTaskMutation.isPending}
             isSubmitting={
               createTaskMutation.isPending || uploadTaskInputImageMutation.isPending
             }
             autoFocus
-            helperText={
-              uploadTaskInputImageMutation.isPending
-                ? "Uploading image attachment..."
-                : agentCapabilitiesQuery.isLoading
-                ? `Loading available models for ${formatExecutorLabel(newTaskExecutor)}...`
-                : agentCapabilitiesQuery.isError
-                  ? "Model list unavailable. Task creation still works with the current defaults."
-                  : open && selectedExecutorModels.length === 0
-                    ? `No explicit model list was detected for ${formatExecutorLabel(newTaskExecutor)}.`
-                    : "Press Enter to create the task. Use Shift+Enter for a new line."
-            }
             placeholder="Describe the task you want the agent to start with..."
             value={newTaskPrompt}
             errorMessage={createTaskError}
@@ -412,28 +415,16 @@ export function TaskCreateDialog({
                       Model
                     </DropdownMenuLabel>
                     <DropdownMenuRadioGroup
-                      value={resolvedSelectedModel ? `custom:${resolvedSelectedModel}` : "runtime-default"}
+                      value={resolvedSelectedModel ?? ""}
                       onValueChange={(nextValue) => {
-                        if (nextValue === "runtime-default") {
-                          setSelectedModel(null)
-                          setSelectedEffort(null)
-                          return
-                        }
-
-                        if (nextValue.startsWith("custom:")) {
-                          setSelectedModel(nextValue.slice("custom:".length) || null)
-                          setSelectedEffort(null)
-                        }
+                        setSelectedModel(nextValue || null)
+                        setSelectedEffort(null)
                       }}
                     >
-                      <DropdownMenuRadioItem value="runtime-default">
-                        Runtime Default
-                      </DropdownMenuRadioItem>
-                      {selectedExecutorModels.length > 0 ? <DropdownMenuSeparator /> : null}
                       {selectedExecutorModels.map((model) => (
                         <DropdownMenuRadioItem
                           key={`${newTaskExecutor}:${model.id}`}
-                          value={`custom:${model.id}`}
+                          value={model.id}
                         >
                           {model.isDefault
                             ? `${model.displayName} (${model.id}, default)`
@@ -463,13 +454,8 @@ export function TaskCreateDialog({
                       Effort
                     </DropdownMenuLabel>
                     <DropdownMenuRadioGroup
-                      value={resolvedSelectedEffort ?? "provider-default"}
+                      value={resolvedSelectedEffort ?? ""}
                       onValueChange={(nextValue) => {
-                        if (nextValue === "provider-default") {
-                          setSelectedEffort(null)
-                          return
-                        }
-
                         if (
                           nextValue === "minimal" ||
                           nextValue === "low" ||
@@ -481,10 +467,6 @@ export function TaskCreateDialog({
                         }
                       }}
                     >
-                      <DropdownMenuRadioItem value="provider-default">
-                        Provider Default
-                      </DropdownMenuRadioItem>
-                      {selectedEffortOptions.length > 0 ? <DropdownMenuSeparator /> : null}
                       {selectedEffortOptions.map((effort) => (
                         <DropdownMenuRadioItem key={effort} value={effort}>
                           {formatEffortLabel(effort)}
@@ -533,33 +515,6 @@ export function TaskCreateDialog({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
-            }
-            footer={
-              <div className="flex flex-wrap items-center gap-2">
-                {agentCapabilitiesQuery.isLoading ? (
-                  <span className="inline-flex h-8 items-center rounded-full border border-border/70 bg-muted/30 px-3 text-[11px] font-medium text-foreground/80">
-                    Refreshing runtime capabilities...
-                  </span>
-                ) : null}
-                {agentCapabilitiesQuery.isError ? (
-                  <span className="inline-flex h-8 items-center rounded-full border border-border/70 bg-muted/30 px-3 text-[11px] font-medium text-foreground/80">
-                    Runtime capability check unavailable
-                  </span>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 rounded-full px-3 text-[11px]"
-                  onClick={() => {
-                    setOpen(false)
-                    resetCreateComposer()
-                  }}
-                  disabled={createTaskMutation.isPending}
-                >
-                  Cancel
-                </Button>
-              </div>
             }
             onChange={setNewTaskPrompt}
             onPasteFiles={(files) => {

@@ -13,9 +13,9 @@ model Project {
   description          String?
   status               ProjectStatus @default(active)
   lastOpenedAt         DateTime?
-  defaultExecutor      String?       @default("codex")
+  defaultExecutor      String?
   defaultModel         String?
-  defaultExecutionMode String?       @default("safe")
+  defaultExecutionMode String?
   maxConcurrentTasks   Int           @default(1)
   logRetentionDays     Int?          @default(30)
   eventRetentionDays   Int?          @default(7)

@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto"
 
 import type { AgentInputItem } from "../../../lib/agents"
-import { normalizeNullableTaskEffort } from "../domain/task-effort"
+import {
+  normalizeNullableTaskEffort,
+  type TaskEffort,
+} from "../domain/task-effort"
 import { createTask } from "../domain/task"
 import { resolveAgentInput, summarizeAgentInput } from "../domain/task-input"
 import { createTaskError } from "../errors"
@@ -16,11 +19,23 @@ import {
 } from "./task-read-models"
 import type { TaskRepository } from "./task-repository"
 import type { TaskRuntimePort } from "./task-runtime-port"
-import { validateTaskEffortSelection } from "./validate-task-effort"
+import { validateTaskRuntimeConfig } from "./validate-task-effort"
 
 function normalizeNullableString(value: string | null | undefined) {
   const normalized = value?.trim()
   return normalized ? normalized : null
+}
+
+function requireNonEmptyString(
+  value: string | null | undefined,
+  field: string,
+): string {
+  const normalized = normalizeNullableString(value)
+  if (!normalized) {
+    throw createTaskError().invalidInput(`${field} is required`)
+  }
+
+  return normalized
 }
 
 export async function createTaskUseCase(args: {
@@ -35,10 +50,10 @@ export async function createTaskUseCase(args: {
   prompt?: string | null
   items?: AgentInputItem[] | null
   title?: string
-  executor?: string | null
-  model?: string | null
-  executionMode?: string | null
-  effort?: string | null
+  executor: string
+  model: string
+  executionMode: string
+  effort: TaskEffort
 }): Promise<TaskDetail> {
   const projectId = input.projectId.trim()
   const agentInput = resolveAgentInput(input)
@@ -53,7 +68,7 @@ export async function createTaskUseCase(args: {
   }
 
   const requestedEffort = normalizeNullableTaskEffort(input.effort)
-  if (input.effort !== undefined && input.effort !== null && !requestedEffort) {
+  if (!requestedEffort) {
     throw createTaskError().invalidEffort(`invalid effort "${input.effort}"`)
   }
 
@@ -64,22 +79,15 @@ export async function createTaskUseCase(args: {
     throw createTaskError().projectNotFound()
   }
 
-  const runtimeConfig = {
-    executor:
-      normalizeNullableString(input.executor) ??
-      project.settings.defaultExecutor ??
-      "codex",
-    model:
-      normalizeNullableString(input.model) ??
-      project.settings.defaultModel ??
-      null,
-    executionMode:
-      normalizeNullableString(input.executionMode) ??
-      project.settings.defaultExecutionMode ??
-      "safe",
+  const validatedRuntimeConfig = await validateTaskRuntimeConfig({
+    executor: requireNonEmptyString(input.executor, "executor"),
+    model: requireNonEmptyString(input.model, "model"),
     effort: requestedEffort,
+  })
+  const runtimeConfig = {
+    ...validatedRuntimeConfig,
+    executionMode: requireNonEmptyString(input.executionMode, "executionMode"),
   }
-  runtimeConfig.effort = await validateTaskEffortSelection(runtimeConfig)
 
   const task = createTask({
     id: args.idGenerator?.() ?? randomUUID(),

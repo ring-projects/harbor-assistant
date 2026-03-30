@@ -15,6 +15,15 @@ import errorHandlerPlugin from "../../../plugins/error-handler"
 
 const tempRoots = new Set<string>()
 
+function createExplicitRuntimePayload() {
+  return {
+    executor: "codex",
+    model: "gpt-5.3-codex",
+    executionMode: "safe",
+    effort: "medium",
+  }
+}
+
 function withRuntime(task: ReturnType<typeof createTask>): TaskRecord {
   return attachTaskRuntime(task, {
     executor: "codex",
@@ -75,14 +84,9 @@ async function createApp(
               return null
             }
 
-              return {
+            return {
               projectId,
               rootPath,
-              settings: {
-                defaultExecutor: "codex",
-                defaultModel: null,
-                defaultExecutionMode: "safe",
-              },
             }
           },
         },
@@ -94,13 +98,17 @@ async function createApp(
               return
             }
 
-            await repository.save({
+            const nextTask: TaskRecord = {
               ...current,
+              model: input.runtimeConfig.model,
+              effort: input.runtimeConfig.effort,
               status: "running",
               startedAt: new Date("2026-03-25T01:00:00.000Z"),
               finishedAt: null,
               updatedAt: new Date("2026-03-25T01:00:00.000Z"),
-            })
+            }
+
+            await repository.save(nextTask)
           },
           async cancelTaskExecution(input) {
             const current = await repository.findById(input.taskId)
@@ -141,6 +149,7 @@ describe("task routes", () => {
       payload: {
         projectId: "project-1",
         prompt: "Investigate runtime drift",
+        ...createExplicitRuntimePayload(),
       },
     })
 
@@ -152,9 +161,9 @@ describe("task routes", () => {
         prompt: "Investigate runtime drift",
         title: "Investigate runtime drift",
         executor: "codex",
-        model: null,
+        model: "gpt-5.3-codex",
         executionMode: "safe",
-        effort: null,
+        effort: "medium",
         status: "queued",
       },
     })
@@ -178,6 +187,7 @@ describe("task routes", () => {
             path: ".harbor/task-input-images/example.png",
           },
         ],
+        ...createExplicitRuntimePayload(),
       },
     })
 
@@ -189,12 +199,55 @@ describe("task routes", () => {
         prompt: "Review this screenshot",
         title: "Review this screenshot",
         executor: "codex",
-        model: null,
+        model: "gpt-5.3-codex",
         executionMode: "safe",
-        effort: null,
+        effort: "medium",
         status: "queued",
       },
     })
+  })
+
+  it("requires a complete explicit runtime config on create", async () => {
+    const app = await createApp()
+
+    for (const payload of [
+      {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        model: "gpt-5.3-codex",
+        executionMode: "safe",
+        effort: "medium",
+      },
+      {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        executor: "codex",
+        executionMode: "safe",
+        effort: "medium",
+      },
+      {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        executor: "codex",
+        model: "gpt-5.3-codex",
+        effort: "medium",
+      },
+      {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        executor: "codex",
+        model: "gpt-5.3-codex",
+        executionMode: "safe",
+      },
+    ]) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/v1/tasks",
+        payload,
+      })
+
+      expect(response.statusCode).toBe(400)
+    }
   })
 
   it("creates a task with a supported effort and rejects unsupported combinations", async () => {
@@ -206,7 +259,9 @@ describe("task routes", () => {
       payload: {
         projectId: "project-1",
         prompt: "Investigate runtime drift",
+        executor: "codex",
         model: "gpt-5.3-codex",
+        executionMode: "safe",
         effort: "medium",
       },
     })
@@ -226,7 +281,9 @@ describe("task routes", () => {
       payload: {
         projectId: "project-1",
         prompt: "Investigate runtime drift",
+        executor: "codex",
         model: "gpt-5.1-codex-mini",
+        executionMode: "safe",
         effort: "low",
       },
     })
@@ -382,6 +439,46 @@ describe("task routes", () => {
       },
     })
     expect(archivedResume.statusCode).toBe(409)
+  })
+
+  it("accepts resume runtime overrides and persists the latest snapshot", async () => {
+    const app = await createApp()
+
+    const resumed = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-1/resume",
+      payload: {
+        prompt: "Continue from the previous execution context.",
+        model: "gpt-5.4",
+        effort: "medium",
+      },
+    })
+
+    expect(resumed.statusCode).toBe(200)
+    expect(resumed.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: "task-1",
+        status: "running",
+        model: "gpt-5.4",
+        effort: "medium",
+      },
+    })
+  })
+
+  it("rejects resume payloads that attempt to override executor", async () => {
+    const app = await createApp()
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-1/resume",
+      payload: {
+        prompt: "Continue from the previous execution context.",
+        executor: "claude-code",
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
   })
 
   it("resumes a terminal task from structured input", async () => {

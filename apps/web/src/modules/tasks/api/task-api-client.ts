@@ -47,15 +47,17 @@ export type CreateTaskInput = {
   prompt?: string
   items?: Extract<TaskInput, readonly unknown[]>
   title?: string
-  model?: string
-  executor?: string
-  executionMode?: "safe" | "connected" | "full-access"
-  effort?: TaskEffort | null
+  model: string
+  executor: string
+  executionMode: "safe" | "connected" | "full-access"
+  effort: TaskEffort
 }
 
 export type ResumeTaskInput = {
   prompt?: string
   items?: Extract<TaskInput, readonly unknown[]>
+  model?: string | null
+  effort?: TaskEffort | null
 }
 
 export type CancelTaskInput = {
@@ -115,12 +117,9 @@ export async function createTask(
     projectId,
     title: input.title,
     model: input.model,
-    executor: input.executor ?? "codex",
+    executor: input.executor,
     executionMode: input.executionMode,
-  }
-
-  if ("effort" in input) {
-    body.effort = input.effort ?? null
+    effort: input.effort,
   }
 
   if (input.items) {
@@ -284,7 +283,17 @@ export async function resumeTask(
   taskId: string,
   input: ResumeTaskInput,
 ): Promise<TaskDetail> {
-  const body = input.items ? { items: input.items } : { prompt: input.prompt }
+  const body: Record<string, unknown> = input.items
+    ? { items: input.items }
+    : { prompt: input.prompt }
+
+  if ("model" in input) {
+    body.model = input.model ?? null
+  }
+
+  if ("effort" in input) {
+    body.effort = input.effort ?? null
+  }
 
   const response = await fetch(
     buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/resume`),

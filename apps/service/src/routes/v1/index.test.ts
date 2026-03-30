@@ -50,6 +50,10 @@ describe("registerV1Routes", () => {
       payload: {
         projectId: "project-1",
         prompt: "Investigate runtime drift",
+        executor: "codex",
+        model: "gpt-5.3-codex",
+        executionMode: "safe",
+        effort: "medium",
       },
     })
 
@@ -59,6 +63,10 @@ describe("registerV1Routes", () => {
       task: {
         projectId: "project-1",
         title: "Investigate runtime drift",
+        executor: "codex",
+        model: "gpt-5.3-codex",
+        executionMode: "safe",
+        effort: "medium",
         status: "queued",
       },
     })

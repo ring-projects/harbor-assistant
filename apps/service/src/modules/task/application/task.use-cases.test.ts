@@ -20,6 +20,15 @@ import type { TaskRuntimePort } from "./task-runtime-port"
 import { updateTaskTitleUseCase } from "./update-task-title"
 
 describe("task use cases", () => {
+  function createExplicitRuntimeConfig() {
+    return {
+      executor: "codex" as const,
+      model: "gpt-5.3-codex" as const,
+      executionMode: "safe" as const,
+      effort: "medium" as const,
+    }
+  }
+
   function createTaskRecord(
     task = createTask({
       id: "task-1",
@@ -59,13 +68,22 @@ describe("task use cases", () => {
       }),
       save: vi.fn(async (task) => {
         const current = tasks.get(task.id)
+        const runtime = task as Partial<TaskRecord>
         tasks.set(
           task.id,
           attachTaskRuntime(task, {
-            executor: current?.executor ?? "codex",
-            model: current?.model ?? null,
-            executionMode: current?.executionMode ?? "safe",
-            effort: current?.effort ?? null,
+            executor: Object.prototype.hasOwnProperty.call(runtime, "executor")
+              ? runtime.executor ?? "codex"
+              : current?.executor ?? "codex",
+            model: Object.prototype.hasOwnProperty.call(runtime, "model")
+              ? runtime.model ?? null
+              : current?.model ?? null,
+            executionMode: Object.prototype.hasOwnProperty.call(runtime, "executionMode")
+              ? runtime.executionMode ?? "safe"
+              : current?.executionMode ?? "safe",
+            effort: Object.prototype.hasOwnProperty.call(runtime, "effort")
+              ? runtime.effort ?? null
+              : current?.effort ?? null,
           }),
         )
       }),
@@ -86,11 +104,6 @@ describe("task use cases", () => {
       getProjectForTask: vi.fn(async () => ({
         projectId: "project-1",
         rootPath: "/tmp/harbor-assistant",
-        settings: {
-          defaultExecutor: "codex",
-          defaultModel: null,
-          defaultExecutionMode: "safe",
-        },
       })),
     }
   }
@@ -103,7 +116,7 @@ describe("task use cases", () => {
     }
   }
 
-  it("creates a task from project defaults and starts runtime via port", async () => {
+  it("creates a task from explicit runtime config and starts runtime via port", async () => {
     const repository = createRepository([])
     const publisher = createNotificationPublisher()
     const projectTaskPort = createProjectTaskPort()
@@ -121,6 +134,7 @@ describe("task use cases", () => {
       {
         projectId: "project-1",
         prompt: "Investigate runtime drift",
+        ...createExplicitRuntimeConfig(),
       },
     )
 
@@ -129,9 +143,9 @@ describe("task use cases", () => {
       projectId: "project-1",
       title: "Investigate runtime drift",
       executor: "codex",
-      model: null,
+      model: "gpt-5.3-codex",
       executionMode: "safe",
-      effort: null,
+      effort: "medium",
       status: "queued",
     })
     expect(repository.create).toHaveBeenCalledWith(
@@ -140,8 +154,8 @@ describe("task use cases", () => {
         runtimeConfig: {
           executor: "codex",
           executionMode: "safe",
-          model: null,
-          effort: null,
+          model: "gpt-5.3-codex",
+          effort: "medium",
         },
       }),
     )
@@ -152,9 +166,9 @@ describe("task use cases", () => {
       input: "Investigate runtime drift",
       runtimeConfig: {
         executor: "codex",
-        model: null,
+        model: "gpt-5.3-codex",
         executionMode: "safe",
-        effort: null,
+        effort: "medium",
       },
     })
     expect(publisher.publish).toHaveBeenCalledOnce()
@@ -187,6 +201,7 @@ describe("task use cases", () => {
             path: ".harbor/task-input-images/example.png",
           },
         ],
+        ...createExplicitRuntimeConfig(),
       },
     )
 
@@ -209,9 +224,9 @@ describe("task use cases", () => {
       ],
       runtimeConfig: {
         executor: "codex",
-        model: null,
+        model: "gpt-5.3-codex",
         executionMode: "safe",
-        effort: null,
+        effort: "medium",
       },
     })
   })
@@ -234,7 +249,9 @@ describe("task use cases", () => {
       {
         projectId: "project-1",
         prompt: "Investigate runtime drift",
+        executor: "codex",
         model: "gpt-5.3-codex",
+        executionMode: "safe",
         effort: "medium",
       },
     )
@@ -274,13 +291,75 @@ describe("task use cases", () => {
         {
           projectId: "project-1",
           prompt: "Investigate runtime drift",
+          executor: "codex",
           model: "gpt-5.1-codex-mini",
+          executionMode: "safe",
           effort: "low",
         },
       ),
     ).rejects.toMatchObject({
       code: TASK_ERROR_CODES.INVALID_EFFORT,
     } satisfies Partial<TaskError>)
+  })
+
+  it("rejects unsupported models on create before runtime starts", async () => {
+    const repository = createRepository([])
+    const publisher = createNotificationPublisher()
+    const projectTaskPort = createProjectTaskPort()
+    const runtimePort = createRuntimePort()
+
+    await expect(
+      createTaskUseCase(
+        {
+          projectTaskPort,
+          taskRecordStore: repository,
+          repository,
+          runtimePort,
+          notificationPublisher: publisher,
+        },
+        {
+          projectId: "project-1",
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "missing-model",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: TASK_ERROR_CODES.INVALID_INPUT,
+    } satisfies Partial<TaskError>)
+  })
+
+  it("requires a complete explicit runtime config on create", async () => {
+    const repository = createRepository([])
+    const publisher = createNotificationPublisher()
+    const projectTaskPort = createProjectTaskPort()
+    const runtimePort = createRuntimePort()
+
+    await expect(
+      createTaskUseCase(
+        {
+          projectTaskPort,
+          taskRecordStore: repository,
+          repository,
+          runtimePort,
+          notificationPublisher: publisher,
+        },
+        {
+          projectId: "project-1",
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: TASK_ERROR_CODES.INVALID_INPUT,
+    } satisfies Partial<TaskError>)
+
+    expect(runtimePort.startTaskExecution).not.toHaveBeenCalled()
   })
 
   it("fails create when project does not exist", async () => {
@@ -303,6 +382,7 @@ describe("task use cases", () => {
         {
           projectId: "missing",
           prompt: "Investigate runtime drift",
+          ...createExplicitRuntimeConfig(),
         },
       ),
     ).rejects.toMatchObject({
@@ -386,19 +466,29 @@ describe("task use cases", () => {
       projectId: string
       projectPath: string
       input: AgentInput
+      runtimeConfig: {
+        executor: string
+        model: string | null
+        executionMode: string | null
+        effort: string | null
+      }
     }) => {
       const current = await repository.findById(input.taskId)
       if (!current) {
         return
       }
 
-      await repository.save({
+      const nextTask: TaskRecord = {
         ...current,
+        model: input.runtimeConfig.model,
+        effort: input.runtimeConfig.effort as TaskRecord["effort"],
         status: "running",
         startedAt: new Date("2026-03-25T00:00:00.000Z"),
         finishedAt: null,
         updatedAt: new Date("2026-03-25T00:00:00.000Z"),
-      })
+      }
+
+      await repository.save(nextTask)
     })
 
     const task = await resumeTaskUseCase(
@@ -421,8 +511,92 @@ describe("task use cases", () => {
       projectId: "project-1",
       projectPath: "/tmp/harbor-assistant",
       input: "Continue with the unresolved failures.",
+      runtimeConfig: {
+        executor: "codex",
+        model: null,
+        executionMode: "safe",
+        effort: null,
+      },
     })
     expect(task.status).toBe("running")
+  })
+
+  it("resolves resume runtime overrides and updates the task snapshot", async () => {
+    const repository = createRepository([
+      createTaskRecord(
+        createTask({
+          id: "task-1",
+          projectId: "project-1",
+          prompt: "Investigate runtime drift",
+          status: "completed",
+        }),
+        {
+          model: "gpt-5.3-codex",
+          effort: "high",
+        },
+      ),
+    ])
+    const resumeTaskExecution = vi.fn(async (input: {
+      taskId: string
+      projectId: string
+      projectPath: string
+      input: AgentInput
+      runtimeConfig: {
+        executor: string
+        model: string | null
+        executionMode: string | null
+        effort: string | null
+      }
+    }) => {
+      const current = await repository.findById(input.taskId)
+      if (!current) {
+        return
+      }
+
+      const nextTask: TaskRecord = {
+        ...current,
+        model: input.runtimeConfig.model,
+        effort: input.runtimeConfig.effort as TaskRecord["effort"],
+        status: "running",
+        startedAt: new Date("2026-03-25T00:00:00.000Z"),
+        finishedAt: null,
+        updatedAt: new Date("2026-03-25T00:00:00.000Z"),
+      }
+
+      await repository.save(nextTask)
+    })
+
+    const task = await resumeTaskUseCase(
+      {
+        projectTaskPort: createProjectTaskPort(),
+        repository,
+        runtimePort: {
+          ...createRuntimePort(),
+          resumeTaskExecution,
+        },
+      },
+      {
+        taskId: "task-1",
+        prompt: "Continue with a cheaper model.",
+        model: null,
+        effort: null,
+      },
+    )
+
+    expect(resumeTaskExecution).toHaveBeenCalledWith({
+      taskId: "task-1",
+      projectId: "project-1",
+      projectPath: "/tmp/harbor-assistant",
+      input: "Continue with a cheaper model.",
+      runtimeConfig: {
+        executor: "codex",
+        model: null,
+        executionMode: "safe",
+        effort: null,
+      },
+    })
+    expect(task.model).toBeNull()
+    expect(task.effort).toBeNull()
   })
 
   it("resumes a terminal task with structured input without changing task prompt", async () => {
@@ -474,8 +648,45 @@ describe("task use cases", () => {
           path: ".harbor/task-input-images/example.png",
         },
       ],
+      runtimeConfig: {
+        executor: "codex",
+        model: null,
+        executionMode: "safe",
+        effort: null,
+      },
     })
     expect(task.prompt).toBe("Original summary")
+  })
+
+  it("rejects invalid resume model overrides before the runtime call", async () => {
+    const repository = createRepository([
+      createTaskRecord(createTask({
+        id: "task-1",
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+        status: "completed",
+      })),
+    ])
+    const runtimePort = createRuntimePort()
+
+    await expect(
+      resumeTaskUseCase(
+        {
+          projectTaskPort: createProjectTaskPort(),
+          repository,
+          runtimePort,
+        },
+        {
+          taskId: "task-1",
+          prompt: "Continue",
+          model: "missing-model",
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: TASK_ERROR_CODES.INVALID_INPUT,
+    } satisfies Partial<TaskError>)
+
+    expect(runtimePort.resumeTaskExecution).not.toHaveBeenCalled()
   })
 
   it("rejects resume for non-terminal tasks", async () => {

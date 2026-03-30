@@ -70,9 +70,9 @@ export function deriveProjectSlug(name: string): string {
 
 const DEFAULT_SETTINGS: ProjectSettings = {
   execution: {
-    defaultExecutor: "codex",
+    defaultExecutor: null,
     defaultModel: null,
-    defaultExecutionMode: "safe",
+    defaultExecutionMode: null,
     maxConcurrentTasks: 1,
   },
   retention: {

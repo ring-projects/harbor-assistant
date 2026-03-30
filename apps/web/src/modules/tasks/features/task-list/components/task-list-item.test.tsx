@@ -5,8 +5,26 @@ import { describe, expect, it, vi } from "vitest"
 import type { TaskListItem as TaskListItemRecord } from "@/modules/tasks/contracts"
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <div role="button" {...props}>
+  Button: ({
+    "aria-label": ariaLabel,
+    children,
+    className,
+    disabled,
+    onClick,
+  }: {
+    "aria-label"?: string
+    children: ReactNode
+    className?: string
+    disabled?: boolean
+    onClick?: () => void
+  }) => (
+    <div
+      role="button"
+      aria-label={ariaLabel}
+      aria-disabled={disabled}
+      className={className}
+      onClick={onClick}
+    >
       {children}
     </div>
   ),

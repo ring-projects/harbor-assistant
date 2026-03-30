@@ -16,6 +16,8 @@ export type UpdateTaskTitleBody = {
 export type ResumeTaskBody = {
   prompt?: string
   items?: AgentInputItem[]
+  model?: string | null
+  effort?: TaskEffort | null
 }
 
 export type CancelTaskBody = {
@@ -27,10 +29,10 @@ export type CreateTaskBody = {
   prompt?: string
   items?: AgentInputItem[]
   title?: string
-  executor?: string | null
-  model?: string | null
-  executionMode?: string | null
-  effort?: TaskEffort | null
+  executor: string
+  model: string
+  executionMode: string
+  effort: TaskEffort
 }
 
 export type UploadTaskInputImageBody = {
@@ -248,10 +250,25 @@ const taskInputItemsSchema = {
 export const resumeTaskBodySchema = {
   type: "object",
   additionalProperties: false,
+  allOf: [
+    {
+      not: {
+        required: ["executor"],
+      },
+    },
+  ],
   anyOf: [{ required: ["prompt"] }, { required: ["items"] }],
   properties: {
     prompt: { type: "string", minLength: 1 },
     items: taskInputItemsSchema,
+    executor: { type: "null" },
+    model: { type: ["string", "null"] },
+    effort: {
+      anyOf: [
+        { type: "string", enum: TASK_EFFORT_VALUES },
+        { type: "null" },
+      ],
+    },
   },
 } as const
 
@@ -284,22 +301,17 @@ export const getProjectTasksQuerySchema = {
 export const createTaskBodySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["projectId"],
+  required: ["projectId", "executor", "model", "executionMode", "effort"],
   anyOf: [{ required: ["prompt"] }, { required: ["items"] }],
   properties: {
     projectId: { type: "string", minLength: 1 },
     prompt: { type: "string", minLength: 1 },
     items: taskInputItemsSchema,
     title: { type: "string", minLength: 1 },
-    executor: { type: ["string", "null"] },
-    model: { type: ["string", "null"] },
-    executionMode: { type: ["string", "null"] },
-    effort: {
-      anyOf: [
-        { type: "string", enum: TASK_EFFORT_VALUES },
-        { type: "null" },
-      ],
-    },
+    executor: { type: "string", minLength: 1 },
+    model: { type: "string", minLength: 1 },
+    executionMode: { type: "string", minLength: 1 },
+    effort: { type: "string", enum: TASK_EFFORT_VALUES },
   },
 } as const
 

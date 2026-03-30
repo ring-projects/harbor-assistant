@@ -53,6 +53,8 @@ describe("task-api-client", () => {
         },
       ],
       executor: "codex",
+      model: "gpt-5.3-codex",
+      executionMode: "connected",
       effort: "medium",
     })
 
@@ -78,6 +80,8 @@ describe("task-api-client", () => {
         },
       ],
       executor: "codex",
+      model: "gpt-5.3-codex",
+      executionMode: "connected",
       effort: "medium",
     })
   })
@@ -120,6 +124,41 @@ describe("task-api-client", () => {
           path: ".harbor/task-input-images/example.png",
         },
       ],
+    })
+  })
+
+  it("serializes resume runtime overrides including explicit null resets", async () => {
+    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        task: {
+          id: "task-1",
+          projectId: "project-1",
+          prompt: "Ship it",
+          title: "Ship it",
+          status: "running",
+          createdAt: "2026-03-28T00:00:00.000Z",
+        },
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await resumeTask("task-1", {
+      prompt: "Continue with runtime defaults.",
+      model: null,
+      effort: null,
+    })
+
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toEqual({
+      prompt: "Continue with runtime defaults.",
+      model: null,
+      effort: null,
     })
   })
 

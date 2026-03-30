@@ -11,9 +11,9 @@ export function toDomainProjectSettings(
 ): ProjectSettings {
   return {
     execution: {
-      defaultExecutor: project.defaultExecutor ?? "codex",
+      defaultExecutor: project.defaultExecutor ?? null,
       defaultModel: project.defaultModel ?? null,
-      defaultExecutionMode: project.defaultExecutionMode ?? "safe",
+      defaultExecutionMode: project.defaultExecutionMode ?? null,
       maxConcurrentTasks: project.maxConcurrentTasks,
     },
     retention: {

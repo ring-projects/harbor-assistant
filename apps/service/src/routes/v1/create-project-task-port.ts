@@ -14,11 +14,6 @@ export function createProjectTaskPort(args: {
       return {
         projectId: project.id,
         rootPath: project.rootPath,
-        settings: {
-          defaultExecutor: project.settings.execution.defaultExecutor,
-          defaultModel: project.settings.execution.defaultModel,
-          defaultExecutionMode: project.settings.execution.defaultExecutionMode,
-        },
       }
     },
   }
