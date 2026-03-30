@@ -12,12 +12,7 @@ import {
   toOptionalIsoDateString,
   toStringOrNull,
 } from "@/lib/protocol"
-import type {
-  Project,
-  ProjectExecutionMode,
-  ProjectExecutor,
-  ProjectSettings,
-} from "@/modules/projects/types"
+import type { Project, ProjectSettings } from "@/modules/projects/types"
 
 const projectApiErrorSchema = z.object({
   code: z.string(),
@@ -70,12 +65,6 @@ export type DeleteProjectResult = {
 
 export type UpdateProjectSettingsInput = {
   projectId: string
-  execution?: Partial<{
-    defaultExecutor: ProjectExecutor | null
-    defaultModel: string | null
-    defaultExecutionMode: ProjectExecutionMode | null
-    maxConcurrentTasks: number
-  }>
   retention?: Partial<{
     logRetentionDays: number | null
     eventRetentionDays: number | null
@@ -84,16 +73,6 @@ export type UpdateProjectSettingsInput = {
     harborSkillsEnabled: boolean
     harborSkillProfile: string | null
   }>
-}
-
-function toProjectExecutor(value: unknown): ProjectExecutor | null {
-  return value === "codex" || value === "claude-code" ? value : null
-}
-
-function toExecutionMode(value: unknown): ProjectExecutionMode | null {
-  return value === "safe" || value === "connected" || value === "full-access"
-    ? value
-    : null
 }
 
 async function parseJson(response: Response): Promise<ProjectEnvelopePayload | null> {
@@ -128,28 +107,20 @@ function extractProjectSettings(candidate: unknown): ProjectSettings | null {
     return null
   }
 
-  const execution = asRecord(source.execution)
   const retention = asRecord(source.retention)
   const skills = asRecord(source.skills)
 
-  if (!execution || !retention || !skills) {
+  if (!retention || !skills) {
     return null
   }
 
-  const maxConcurrentTasks = toIntegerOrNull(execution.maxConcurrentTasks)
   const harborSkillsEnabled = toBooleanOrNull(skills.harborSkillsEnabled)
 
-  if (maxConcurrentTasks === null || harborSkillsEnabled === null) {
+  if (harborSkillsEnabled === null) {
     return null
   }
 
   return {
-    execution: {
-      defaultExecutor: toProjectExecutor(execution.defaultExecutor),
-      defaultModel: toStringOrNull(execution.defaultModel),
-      defaultExecutionMode: toExecutionMode(execution.defaultExecutionMode),
-      maxConcurrentTasks,
-    },
     retention: {
       logRetentionDays: toIntegerOrNull(retention.logRetentionDays),
       eventRetentionDays: toIntegerOrNull(retention.eventRetentionDays),
@@ -383,7 +354,6 @@ export async function updateProjectSettings(
         accept: "application/json",
       },
       body: JSON.stringify({
-        execution: input.execution,
         retention: input.retention,
         skills: input.skills,
       }),

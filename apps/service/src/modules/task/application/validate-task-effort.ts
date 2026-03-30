@@ -6,56 +6,74 @@ import {
 import { TASK_EFFORT_VALUES, type TaskEffort } from "../domain/task-effort"
 import { createTaskError } from "../errors"
 
-function findDefaultModel(capabilities: AgentCapabilities) {
-  return capabilities.models.find((model) => model.isDefault) ?? null
+function normalizeNullableString(value: string | null | undefined) {
+  const normalized = value?.trim()
+  return normalized ? normalized : null
 }
 
-export async function validateTaskEffortSelection(input: {
+async function getExecutorCapabilities(input: {
   executor: string
-  model: string | null
-  effort: TaskEffort | null
   inspectCapabilities?: (type: AgentType) => Promise<AgentCapabilities>
-}): Promise<TaskEffort | null> {
-  if (!input.effort) {
-    return null
-  }
-
+}) {
   const executor = input.executor.trim()
   if (!AgentFactory.has(executor as AgentType)) {
-    throw createTaskError().invalidEffort(
-      `unable to validate effort "${input.effort}" for executor "${executor}"`,
-    )
+    throw createTaskError().invalidInput(`executor "${executor}" is not supported`)
   }
 
   const inspectCapabilities =
     input.inspectCapabilities ??
     ((type: AgentType) => AgentFactory.getCapability(type).inspect())
-  const capabilities = await inspectCapabilities(executor as AgentType)
-  const modelId = input.model?.trim() || findDefaultModel(capabilities)?.id || null
 
-  if (!modelId) {
-    throw createTaskError().invalidEffort(
-      `unable to resolve a model for effort "${input.effort}" on executor "${executor}"`,
-    )
+  return {
+    executor,
+    capabilities: await inspectCapabilities(executor as AgentType),
   }
+}
 
-  const model = capabilities.models.find((candidate) => candidate.id === modelId)
-  if (!model) {
-    throw createTaskError().invalidEffort(
+export async function validateTaskRuntimeConfig(input: {
+  executor: string
+  model: string | null
+  effort: TaskEffort | null
+  inspectCapabilities?: (type: AgentType) => Promise<AgentCapabilities>
+}): Promise<{
+  executor: string
+  model: string | null
+  effort: TaskEffort | null
+}> {
+  const { executor, capabilities } = await getExecutorCapabilities(input)
+  const modelId = normalizeNullableString(input.model)
+  const model = modelId
+    ? capabilities.models.find((candidate) => candidate.id === modelId) ?? null
+    : null
+
+  if (modelId && !model) {
+    throw createTaskError().invalidInput(
       `model "${modelId}" is not available for executor "${executor}"`,
     )
   }
 
-  const supportedEfforts = model.efforts.filter(
-    (effort): effort is TaskEffort =>
-      (TASK_EFFORT_VALUES as readonly string[]).includes(effort),
-  )
-
-  if (!supportedEfforts.includes(input.effort)) {
+  if (input.effort && !model) {
     throw createTaskError().invalidEffort(
-      `effort "${input.effort}" is not supported by model "${model.id}"`,
+      `effort "${input.effort}" requires an explicit model on executor "${executor}"`,
     )
   }
 
-  return input.effort
+  if (input.effort && model) {
+    const supportedEfforts = model.efforts.filter(
+      (effort): effort is TaskEffort =>
+        (TASK_EFFORT_VALUES as readonly string[]).includes(effort),
+    )
+
+    if (!supportedEfforts.includes(input.effort)) {
+      throw createTaskError().invalidEffort(
+        `effort "${input.effort}" is not supported by model "${model.id}"`,
+      )
+    }
+  }
+
+  return {
+    executor,
+    model: modelId,
+    effort: input.effort,
+  }
 }

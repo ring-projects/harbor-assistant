@@ -9,11 +9,9 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { parseNullablePositiveInteger } from "@/lib/utils"
 import {
   getProjectActionError,
-  type ProjectExecutionMode,
-  type ProjectExecutor,
   type ProjectSettings,
   useDeleteProjectMutation,
   useProjectSettingsQuery,
@@ -27,70 +25,12 @@ type ProjectSettingsViewProps = {
 }
 
 type SettingsDraft = {
-  defaultExecutor: ProjectExecutor
-  defaultExecutionMode: ProjectExecutionMode
-  maxConcurrentTasks: string
   logRetentionDays: string
   eventRetentionDays: string
 }
 
-const EXECUTOR_OPTIONS: Array<{
-  value: ProjectExecutor
-  label: string
-  description: string
-}> = [
-  {
-    value: "codex",
-    label: "Codex",
-    description: "OpenAI Codex runtime",
-  },
-  {
-    value: "claude-code",
-    label: "Claude Code",
-    description: "Anthropic Claude Code runtime",
-  },
-]
-
-const EXECUTION_MODE_OPTIONS: Array<{
-  value: ProjectExecutionMode
-  label: string
-  description: string
-}> = [
-  {
-    value: "safe",
-    label: "Safe",
-    description: "Write workspace, no shell network, cached search",
-  },
-  {
-    value: "connected",
-    label: "Normal",
-    description: "Write workspace, allow network, live search",
-  },
-  {
-    value: "full-access",
-    label: "Full Access",
-    description: "Minimal restrictions, highest risk",
-  },
-]
-
-function formatExecutionModeLabel(value: ProjectExecutionMode | null) {
-  switch (value) {
-    case "safe":
-      return "Safe"
-    case "connected":
-      return "Normal"
-    case "full-access":
-      return "Full Access"
-    default:
-      return "-"
-  }
-}
-
 function toDraft(settings: ProjectSettings): SettingsDraft {
   return {
-    defaultExecutor: settings.execution.defaultExecutor ?? "codex",
-    defaultExecutionMode: settings.execution.defaultExecutionMode ?? "connected",
-    maxConcurrentTasks: String(settings.execution.maxConcurrentTasks),
     logRetentionDays:
       settings.retention.logRetentionDays === null
         ? ""
@@ -100,21 +40,6 @@ function toDraft(settings: ProjectSettings): SettingsDraft {
         ? ""
         : String(settings.retention.eventRetentionDays),
   }
-}
-
-function parsePositiveInteger(value: string, fallback: number) {
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
-}
-
-function parseNullablePositiveInteger(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return null
-  }
-
-  const parsed = Number(trimmed)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
 
 function SettingsField(props: {
@@ -181,11 +106,6 @@ export function ProjectSettingsView({
     try {
       setSaveError(null)
       const nextProject = await updateMutation.mutateAsync({
-        execution: {
-          defaultExecutor: draft.defaultExecutor,
-          defaultExecutionMode: draft.defaultExecutionMode,
-          maxConcurrentTasks: parsePositiveInteger(draft.maxConcurrentTasks, 1),
-        },
         retention: {
           logRetentionDays: parseNullablePositiveInteger(draft.logRetentionDays),
           eventRetentionDays: parseNullablePositiveInteger(draft.eventRetentionDays),
@@ -234,7 +154,7 @@ export function ProjectSettingsView({
             </span>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
-            Define project-level defaults for executor selection, execution mode, and retention policies.
+            Manage project-level retention policies for Harbor task data.
           </p>
         </div>
 
@@ -259,20 +179,6 @@ export function ProjectSettingsView({
 
               {summary ? (
                 <dl className="grid gap-3 text-sm">
-                  <div className="grid gap-1">
-                    <dt className="text-muted-foreground text-xs">Default Executor</dt>
-                    <dd className="font-medium">{summary.defaultExecutor}</dd>
-                  </div>
-                  <div className="grid gap-1">
-                    <dt className="text-muted-foreground text-xs">Execution Mode</dt>
-                    <dd className="font-medium">
-                      {formatExecutionModeLabel(summary.defaultExecutionMode)}
-                    </dd>
-                  </div>
-                  <div className="grid gap-1">
-                    <dt className="text-muted-foreground text-xs">Concurrency</dt>
-                    <dd className="font-medium">{summary.maxConcurrentTasks}</dd>
-                  </div>
                   <div className="grid gap-1">
                     <dt className="text-muted-foreground text-xs">Log Retention</dt>
                     <dd className="font-medium">
@@ -300,9 +206,9 @@ export function ProjectSettingsView({
             </Card>
 
             <Card className="p-4">
-              <p className="text-sm font-semibold">Runtime Strategy</p>
+              <p className="text-sm font-semibold">Retention Policy</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                The current default uses a pre-authorized runtime flow instead of in-run approval as the primary path. These values are the project-level baseline.
+                These values control how long Harbor keeps task logs and task events for this project.
               </p>
             </Card>
 
@@ -365,7 +271,6 @@ export function ProjectSettingsView({
           <Card className="min-h-0 p-4">
             {settingsQuery.isLoading && !draft ? (
               <div className="grid gap-4">
-                <Skeleton className="h-10 w-72" />
                 <Skeleton className="h-28 w-full" />
                 <Skeleton className="h-28 w-full" />
               </div>
@@ -377,167 +282,46 @@ export function ProjectSettingsView({
                 </p>
               </div>
             ) : draft ? (
-              <Tabs defaultValue="general" className="flex h-full min-h-0 flex-col gap-4">
-                <TabsList className="w-full justify-start">
-                  <TabsTrigger value="general">General</TabsTrigger>
-                  <TabsTrigger value="execution">Execution</TabsTrigger>
-                  <TabsTrigger value="retention">Retention</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="general" className="mt-0 flex-1 space-y-4">
-                  <div className="grid gap-2">
-                    <p className="text-sm font-medium">Default Executor</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {EXECUTOR_OPTIONS.map((option) => {
-                        const isActive = draft.defaultExecutor === option.value
-
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => {
-                              setSaveError(null)
-                              setSaveSuccessMessage(null)
-                              setDraftOverride((current) =>
-                                current
-                                  ? { ...current, defaultExecutor: option.value }
-                                  : baselineDraft
-                                    ? { ...baselineDraft, defaultExecutor: option.value }
-                                    : current,
-                              )
-                            }}
-                            disabled={updateMutation.isPending}
-                            className={[
-                              "rounded-xl border px-3 py-3 text-left transition-colors",
-                              isActive
-                                ? "border-primary bg-primary/5"
-                                : "hover:border-muted-foreground/40",
-                            ].join(" ")}
-                          >
-                            <p className="text-sm font-medium">{option.label}</p>
-                            <p className="text-muted-foreground pt-1 text-xs">
-                              {option.description}
-                            </p>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                </TabsContent>
-
-                <TabsContent value="execution" className="mt-0 flex-1 space-y-4">
-                  <div className="grid gap-2">
-                    <p className="text-sm font-medium">Default Execution Mode</p>
-                    <div className="grid gap-2">
-                      {EXECUTION_MODE_OPTIONS.map((option) => {
-                        const isActive = draft.defaultExecutionMode === option.value
-
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => {
-                              setSaveError(null)
-                              setSaveSuccessMessage(null)
-                              setDraftOverride((current) =>
-                                current
-                                  ? {
-                                      ...current,
-                                      defaultExecutionMode: option.value,
-                                    }
-                                  : baselineDraft
-                                    ? {
-                                        ...baselineDraft,
-                                        defaultExecutionMode: option.value,
-                                      }
-                                    : current,
-                              )
-                            }}
-                            disabled={updateMutation.isPending}
-                            className={[
-                              "rounded-xl border px-3 py-3 text-left transition-colors",
-                              isActive
-                                ? "border-primary bg-primary/5"
-                                : "hover:border-muted-foreground/40",
-                            ].join(" ")}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="text-sm font-medium">{option.label}</p>
-                              <span className="text-muted-foreground text-[11px] uppercase tracking-wide">
-                                {option.label}
-                              </span>
-                            </div>
-                            <p className="text-muted-foreground pt-1 text-xs">
-                              {option.description}
-                            </p>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
+              <div className="grid gap-4">
+                <div className="grid gap-4 lg:grid-cols-2">
                   <SettingsField
-                    label="Max Concurrent Tasks"
-                    description="Limit how many tasks can run concurrently for the current project."
-                    value={draft.maxConcurrentTasks}
+                    label="Log Retention Days"
+                    description="How many days to retain aggregated stdout and stderr content. Leave empty for no limit."
+                    value={draft.logRetentionDays}
                     onChange={(value) => {
                       setSaveError(null)
                       setSaveSuccessMessage(null)
                       setDraftOverride((current) =>
                         current
-                          ? { ...current, maxConcurrentTasks: value }
+                          ? { ...current, logRetentionDays: value }
                           : baselineDraft
-                            ? { ...baselineDraft, maxConcurrentTasks: value }
+                            ? { ...baselineDraft, logRetentionDays: value }
                             : current,
                       )
                     }}
                     type="number"
-                    placeholder="1"
+                    placeholder="30"
                   />
-                </TabsContent>
-
-                <TabsContent value="retention" className="mt-0 flex-1 space-y-4">
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <SettingsField
-                      label="Log Retention Days"
-                      description="How many days to retain aggregated stdout and stderr content. Leave empty for no limit."
-                      value={draft.logRetentionDays}
-                      onChange={(value) => {
-                        setSaveError(null)
-                        setSaveSuccessMessage(null)
-                        setDraftOverride((current) =>
-                          current
-                            ? { ...current, logRetentionDays: value }
-                            : baselineDraft
-                              ? { ...baselineDraft, logRetentionDays: value }
-                              : current,
-                        )
-                      }}
-                      type="number"
-                      placeholder="30"
-                    />
-                    <SettingsField
-                      label="Event Retention Days"
-                      description="How many days to retain agent events. Leave empty for no limit."
-                      value={draft.eventRetentionDays}
-                      onChange={(value) => {
-                        setSaveError(null)
-                        setSaveSuccessMessage(null)
-                        setDraftOverride((current) =>
-                          current
-                            ? { ...current, eventRetentionDays: value }
-                            : baselineDraft
-                              ? { ...baselineDraft, eventRetentionDays: value }
-                              : current,
-                        )
-                      }}
-                      type="number"
-                      placeholder="7"
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
+                  <SettingsField
+                    label="Event Retention Days"
+                    description="How many days to retain agent events. Leave empty for no limit."
+                    value={draft.eventRetentionDays}
+                    onChange={(value) => {
+                      setSaveError(null)
+                      setSaveSuccessMessage(null)
+                      setDraftOverride((current) =>
+                        current
+                          ? { ...current, eventRetentionDays: value }
+                          : baselineDraft
+                            ? { ...baselineDraft, eventRetentionDays: value }
+                            : current,
+                      )
+                    }}
+                    type="number"
+                    placeholder="7"
+                  />
+                </div>
+              </div>
             ) : null}
           </Card>
         </div>

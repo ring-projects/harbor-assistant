@@ -2,13 +2,6 @@ import { createProjectError, ProjectError } from "../errors"
 
 export type ProjectStatus = "active" | "archived" | "missing"
 
-export type ProjectExecutionPolicy = {
-  defaultExecutor: string | null
-  defaultModel: string | null
-  defaultExecutionMode: string | null
-  maxConcurrentTasks: number
-}
-
 export type ProjectRetentionPolicy = {
   logRetentionDays: number | null
   eventRetentionDays: number | null
@@ -20,7 +13,6 @@ export type ProjectSkillPolicy = {
 }
 
 export type ProjectSettings = {
-  execution: ProjectExecutionPolicy
   retention: ProjectRetentionPolicy
   skills: ProjectSkillPolicy
 }
@@ -50,7 +42,6 @@ export type CreateProjectInput = {
 }
 
 export type UpdateProjectSettingsInput = Partial<{
-  execution: Partial<ProjectExecutionPolicy>
   retention: Partial<ProjectRetentionPolicy>
   skills: Partial<ProjectSkillPolicy>
 }>
@@ -69,12 +60,6 @@ export function deriveProjectSlug(name: string): string {
 }
 
 const DEFAULT_SETTINGS: ProjectSettings = {
-  execution: {
-    defaultExecutor: null,
-    defaultModel: null,
-    defaultExecutionMode: null,
-    maxConcurrentTasks: 1,
-  },
   retention: {
     logRetentionDays: 30,
     eventRetentionDays: 7,
@@ -106,24 +91,11 @@ function assertNullablePositiveInteger(value: number | null, field: string) {
 }
 
 function validateSettings(settings: ProjectSettings) {
-  assertPositiveInteger(
-    settings.execution.maxConcurrentTasks,
-    "maxConcurrentTasks",
-  )
   assertNullablePositiveInteger(settings.retention.logRetentionDays, "logRetentionDays")
   assertNullablePositiveInteger(
     settings.retention.eventRetentionDays,
     "eventRetentionDays",
   )
-
-  if (
-    settings.execution.defaultModel &&
-    !settings.execution.defaultExecutor
-  ) {
-    throw createProjectError().invalidInput(
-      "defaultModel requires defaultExecutor to be set",
-    )
-  }
 }
 
 export function createProject(input: CreateProjectInput): Project {
@@ -168,10 +140,6 @@ export function updateProjectSettings(
     ...project,
     updatedAt: now,
     settings: {
-      execution: {
-        ...project.settings.execution,
-        ...input.execution,
-      },
       retention: {
         ...project.settings.retention,
         ...input.retention,

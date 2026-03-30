@@ -21,23 +21,6 @@ import type { TaskRepository } from "./task-repository"
 import type { TaskRuntimePort } from "./task-runtime-port"
 import { validateTaskRuntimeConfig } from "./validate-task-effort"
 
-function normalizeNullableString(value: string | null | undefined) {
-  const normalized = value?.trim()
-  return normalized ? normalized : null
-}
-
-function requireNonEmptyString(
-  value: string | null | undefined,
-  field: string,
-): string {
-  const normalized = normalizeNullableString(value)
-  if (!normalized) {
-    throw createTaskError().invalidInput(`${field} is required`)
-  }
-
-  return normalized
-}
-
 export async function createTaskUseCase(args: {
   projectTaskPort: ProjectTaskPort
   taskRecordStore: TaskRecordStore
@@ -72,6 +55,22 @@ export async function createTaskUseCase(args: {
     throw createTaskError().invalidEffort(`invalid effort "${input.effort}"`)
   }
 
+  const executor = input.executor.trim()
+  const model = input.model.trim()
+  const executionMode = input.executionMode.trim()
+
+  if (!executor) {
+    throw createTaskError().invalidInput("executor is required")
+  }
+
+  if (!model) {
+    throw createTaskError().invalidInput("model is required")
+  }
+
+  if (!executionMode) {
+    throw createTaskError().invalidInput("executionMode is required")
+  }
+
   const prompt = summarizeAgentInput(agentInput)
 
   const project = await args.projectTaskPort.getProjectForTask(projectId)
@@ -80,13 +79,13 @@ export async function createTaskUseCase(args: {
   }
 
   const validatedRuntimeConfig = await validateTaskRuntimeConfig({
-    executor: requireNonEmptyString(input.executor, "executor"),
-    model: requireNonEmptyString(input.model, "model"),
+    executor,
+    model,
     effort: requestedEffort,
   })
   const runtimeConfig = {
     ...validatedRuntimeConfig,
-    executionMode: requireNonEmptyString(input.executionMode, "executionMode"),
+    executionMode,
   }
 
   const task = createTask({

@@ -28,9 +28,8 @@ describe("PrismaProjectRepository", () => {
         now: new Date("2026-03-24T00:00:00.000Z"),
       }),
       {
-        execution: {
-          maxConcurrentTasks: 3,
-          defaultExecutionMode: "connected",
+        retention: {
+          logRetentionDays: 14,
         },
       },
     )
@@ -41,9 +40,8 @@ describe("PrismaProjectRepository", () => {
 
     expect(loaded).not.toBeNull()
     expect(loaded?.name).toBe("Harbor Assistant")
-    expect(loaded?.settings.execution.maxConcurrentTasks).toBe(3)
-    expect(loaded?.settings.execution.defaultExecutor).toBeNull()
-    expect(loaded?.settings.execution.defaultExecutionMode).toBe("connected")
+    expect(loaded?.settings.retention.logRetentionDays).toBe(14)
+    expect(loaded?.settings.skills.harborSkillsEnabled).toBe(false)
   })
 
   it("lists projects from the real database", async () => {

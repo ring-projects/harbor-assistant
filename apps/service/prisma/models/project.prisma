@@ -13,10 +13,6 @@ model Project {
   description          String?
   status               ProjectStatus @default(active)
   lastOpenedAt         DateTime?
-  defaultExecutor      String?
-  defaultModel         String?
-  defaultExecutionMode String?
-  maxConcurrentTasks   Int           @default(1)
   logRetentionDays     Int?          @default(30)
   eventRetentionDays   Int?          @default(7)
   harborSkillsEnabled  Boolean       @default(false)

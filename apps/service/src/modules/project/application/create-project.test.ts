@@ -41,8 +41,8 @@ describe("createProjectUseCase", () => {
     expect(project.name).toBe("Harbor Assistant")
     expect(project.normalizedPath).toBe("/resolved/harbor-assistant")
     expect(project.rootPath).toBe("/resolved/harbor-assistant")
-    expect(project.settings.execution.defaultExecutor).toBeNull()
-    expect(project.settings.execution.defaultExecutionMode).toBeNull()
+    expect(project.settings.retention.logRetentionDays).toBe(30)
+    expect(project.settings.skills.harborSkillProfile).toBe("default")
   })
 
   it("rejects duplicate normalized path", async () => {
@@ -61,12 +61,6 @@ describe("createProjectUseCase", () => {
         archivedAt: null,
         lastOpenedAt: null,
         settings: {
-          execution: {
-            defaultExecutor: null,
-            defaultModel: null,
-            defaultExecutionMode: null,
-            maxConcurrentTasks: 1,
-          },
           retention: {
             logRetentionDays: 30,
             eventRetentionDays: 7,

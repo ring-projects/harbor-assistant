@@ -13,17 +13,6 @@ export type Project = {
   settings: ProjectSettings
 }
 
-export type ProjectExecutor = "codex" | "claude-code"
-
-export type ProjectExecutionMode = "safe" | "connected" | "full-access"
-
-export type ProjectExecutionPolicy = {
-  defaultExecutor: ProjectExecutor | null
-  defaultModel: string | null
-  defaultExecutionMode: ProjectExecutionMode | null
-  maxConcurrentTasks: number
-}
-
 export type ProjectRetentionPolicy = {
   logRetentionDays: number | null
   eventRetentionDays: number | null
@@ -35,7 +24,6 @@ export type ProjectSkillPolicy = {
 }
 
 export type ProjectSettings = {
-  execution: ProjectExecutionPolicy
   retention: ProjectRetentionPolicy
   skills: ProjectSkillPolicy
 }

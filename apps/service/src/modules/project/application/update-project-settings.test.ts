@@ -25,17 +25,15 @@ describe("updateProjectSettingsUseCase", () => {
     const updated = await updateProjectSettingsUseCase(repository, {
       projectId: "project-1",
       changes: {
-        execution: {
-          maxConcurrentTasks: 3,
-          defaultExecutionMode: "connected",
+        retention: {
+          logRetentionDays: 14,
         },
       },
     })
 
     expect(repository.findById).toHaveBeenCalledWith("project-1")
     expect(repository.save).toHaveBeenCalledOnce()
-    expect(updated.settings.execution.maxConcurrentTasks).toBe(3)
-    expect(updated.settings.execution.defaultExecutionMode).toBe("connected")
+    expect(updated.settings.retention.logRetentionDays).toBe(14)
   })
 
   it("fails when the project does not exist", async () => {
@@ -52,8 +50,8 @@ describe("updateProjectSettingsUseCase", () => {
       updateProjectSettingsUseCase(repository, {
         projectId: "missing",
         changes: {
-          execution: {
-            maxConcurrentTasks: 2,
+          retention: {
+            logRetentionDays: 14,
           },
         },
       }),

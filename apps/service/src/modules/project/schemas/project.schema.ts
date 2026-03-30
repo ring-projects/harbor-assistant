@@ -21,12 +21,6 @@ export type UpdateProjectBody = {
 }
 
 export type UpdateProjectSettingsBody = Partial<{
-  execution: Partial<{
-    defaultExecutor: string | null
-    defaultModel: string | null
-    defaultExecutionMode: string | null
-    maxConcurrentTasks: number
-  }>
   retention: Partial<{
     logRetentionDays: number | null
     eventRetentionDays: number | null
@@ -40,24 +34,8 @@ export type UpdateProjectSettingsBody = Partial<{
 const projectSettingsSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["execution", "retention", "skills"],
+  required: ["retention", "skills"],
   properties: {
-    execution: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "defaultExecutor",
-        "defaultModel",
-        "defaultExecutionMode",
-        "maxConcurrentTasks",
-      ],
-      properties: {
-        defaultExecutor: { type: ["string", "null"] },
-        defaultModel: { type: ["string", "null"] },
-        defaultExecutionMode: { type: ["string", "null"] },
-        maxConcurrentTasks: { type: "integer", minimum: 1 },
-      },
-    },
     retention: {
       type: "object",
       additionalProperties: false,
@@ -155,22 +133,6 @@ export const updateProjectSettingsBodySchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    execution: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        defaultExecutor: { type: ["string", "null"] },
-        defaultModel: { type: ["string", "null"] },
-        defaultExecutionMode: { type: ["string", "null"] },
-        maxConcurrentTasks: { type: "integer", minimum: 1 },
-      },
-      anyOf: [
-        { required: ["defaultExecutor"] },
-        { required: ["defaultModel"] },
-        { required: ["defaultExecutionMode"] },
-        { required: ["maxConcurrentTasks"] },
-      ],
-    },
     retention: {
       type: "object",
       additionalProperties: false,
@@ -197,7 +159,6 @@ export const updateProjectSettingsBodySchema = {
     },
   },
   anyOf: [
-    { required: ["execution"] },
     { required: ["retention"] },
     { required: ["skills"] },
   ],

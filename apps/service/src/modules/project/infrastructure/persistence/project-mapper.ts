@@ -10,12 +10,6 @@ export function toDomainProjectSettings(
   project: PrismaProject,
 ): ProjectSettings {
   return {
-    execution: {
-      defaultExecutor: project.defaultExecutor ?? null,
-      defaultModel: project.defaultModel ?? null,
-      defaultExecutionMode: project.defaultExecutionMode ?? null,
-      maxConcurrentTasks: project.maxConcurrentTasks,
-    },
     retention: {
       logRetentionDays: project.logRetentionDays ?? 30,
       eventRetentionDays: project.eventRetentionDays ?? 7,

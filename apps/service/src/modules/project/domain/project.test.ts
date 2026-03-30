@@ -24,11 +24,8 @@ describe("project domain", () => {
     expect(project.slug).toBe("harbor-assistant")
     expect(project.status).toBe("active")
     expect(project.createdAt).toBe(now)
-    expect(project.settings.execution.defaultExecutor).toBeNull()
-    expect(project.settings.execution.defaultModel).toBeNull()
-    expect(project.settings.execution.defaultExecutionMode).toBeNull()
-    expect(project.settings.execution.maxConcurrentTasks).toBe(1)
     expect(project.settings.retention.logRetentionDays).toBe(30)
+    expect(project.settings.skills.harborSkillsEnabled).toBe(false)
   })
 
   it("rejects invalid settings updates", () => {
@@ -40,24 +37,7 @@ describe("project domain", () => {
 
     expect(() =>
       updateProjectSettings(project, {
-        execution: { maxConcurrentTasks: 0 },
-      }),
-    ).toThrow(ProjectError)
-  })
-
-  it("rejects default model without executor", () => {
-    const project = createProject({
-      id: "project-1",
-      name: "Harbor Assistant",
-      normalizedPath: "/tmp/harbor-assistant",
-    })
-
-    expect(() =>
-      updateProjectSettings(project, {
-        execution: {
-          defaultExecutor: null,
-          defaultModel: "gpt-5-codex",
-        },
+        retention: { logRetentionDays: 0 },
       }),
     ).toThrow(ProjectError)
   })

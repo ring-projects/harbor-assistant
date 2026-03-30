@@ -102,10 +102,9 @@ describe("project routes", () => {
     expect(settings.json()).toMatchObject({
       ok: true,
       settings: {
-        execution: {
-          defaultExecutor: null,
-          defaultExecutionMode: null,
-          maxConcurrentTasks: 1,
+        retention: {
+          logRetentionDays: 30,
+          eventRetentionDays: 7,
         },
       },
     })
@@ -114,8 +113,8 @@ describe("project routes", () => {
       method: "PATCH",
       url: "/v1/projects/project-1/settings",
       payload: {
-        execution: {
-          maxConcurrentTasks: 4,
+        retention: {
+          logRetentionDays: 14,
         },
       },
     })
@@ -126,8 +125,8 @@ describe("project routes", () => {
       project: {
         id: "project-1",
         settings: {
-          execution: {
-            maxConcurrentTasks: 4,
+          retention: {
+            logRetentionDays: 14,
           },
         },
       },
@@ -340,8 +339,8 @@ describe("project routes", () => {
       method: "PATCH",
       url: "/v1/projects/project-1/settings",
       payload: {
-        execution: {
-          maxConcurrentTasks: 0,
+        retention: {
+          logRetentionDays: 0,
         },
       },
     })
