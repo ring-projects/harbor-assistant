@@ -3,6 +3,12 @@
 @import "shadcn/tailwind.css";
 @import "react-diff-view/style/index.css";
 
+@source "../../../node_modules/streamdown/dist/*.js";
+@source "../../../node_modules/@streamdown/cjk/dist/*.js";
+@source "../../../node_modules/@streamdown/code/dist/*.js";
+@source "../../../node_modules/@streamdown/math/dist/*.js";
+@source "../../../node_modules/@streamdown/mermaid/dist/*.js";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -137,8 +143,8 @@
   .native-thin-scrollbar {
     scrollbar-gutter: stable;
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent)
-      transparent;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 24%, var(--muted))
+      var(--muted);
   }
 
   .native-thin-scrollbar::-webkit-scrollbar {
@@ -147,18 +153,18 @@
   }
 
   .native-thin-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--muted);
   }
 
   .native-thin-scrollbar::-webkit-scrollbar-thumb {
-    border: 2px solid transparent;
+    border: 2px solid var(--muted);
     border-radius: 9999px;
-    background: color-mix(in oklab, var(--foreground) 18%, transparent);
+    background: color-mix(in oklab, var(--foreground) 20%, var(--muted));
     background-clip: content-box;
   }
 
   .native-thin-scrollbar:hover::-webkit-scrollbar-thumb {
-    background: color-mix(in oklab, var(--foreground) 28%, transparent);
+    background: color-mix(in oklab, var(--foreground) 30%, var(--muted));
     background-clip: content-box;
   }
 }

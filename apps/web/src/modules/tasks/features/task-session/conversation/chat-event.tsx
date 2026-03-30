@@ -2,11 +2,11 @@
 
 import { memo } from "react"
 
+import { MarkdownRenderer } from "@/components/markdown"
 import { formatTimeShort } from "@/lib/date-time"
 import { cn } from "@/lib/utils"
 
 import type { ChatConversationBlock } from "@/modules/tasks/view-models"
-import Markdown from "react-markdown"
 
 type ChatEventProps = {
   block: Extract<ChatConversationBlock, { type: "event" }>
@@ -19,13 +19,13 @@ function ChatEventView({ block }: ChatEventProps) {
     return (
       <div
         className={cn(
-          "w-full min-w-0 bg-slate-100/55 p-2 text-xs whitespace-pre-wrap break-all",
+          "w-full min-w-0 bg-slate-100/55 p-2 text-xs break-all whitespace-pre-wrap",
           block.tone === "success" && "text-emerald-900/80",
           block.tone === "error" && "text-rose-900/80",
           block.tone === "neutral" && "text-slate-700",
         )}
       >
-        <Markdown>{block.content}</Markdown>
+        <MarkdownRenderer compact content={block.content} />
       </div>
     )
   }
@@ -35,8 +35,8 @@ function ChatEventView({ block }: ChatEventProps) {
       className={cn(
         "bg-slate-100/55 p-2 text-xs break-all",
         block.tone === "success" && "text-emerald-900/75",
-        block.tone === "error" && " text-rose-900/75",
-        block.tone === "neutral" && " text-slate-600",
+        block.tone === "error" && "text-rose-900/75",
+        block.tone === "neutral" && "text-slate-600",
       )}
     >
       <span className="lowercase">{block.label}</span>
