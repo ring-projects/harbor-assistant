@@ -128,7 +128,8 @@ export function useAgentCapabilitiesQuery(args?: { enabled?: boolean }) {
     queryKey: taskQueryKeys.agentCapabilities(),
     queryFn: readAgentCapabilities,
     enabled: args?.enabled ?? true,
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   })
 }
 

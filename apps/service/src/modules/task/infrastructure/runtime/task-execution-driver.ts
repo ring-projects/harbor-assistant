@@ -321,6 +321,10 @@ export function createTaskExecutionDriver(args: {
         },
         data: {
           workingDirectory: input.projectPath,
+          executorType: input.runtimeConfig.executor,
+          executorModel: input.runtimeConfig.model,
+          executionMode: input.runtimeConfig.executionMode,
+          executorEffort: input.runtimeConfig.effort,
           status: "running",
           startedAt,
           finishedAt: null,

@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest"
 
-import { useAppStore } from "./app.store"
+import { DEFAULT_TASK_CREATION_DEFAULTS, useAppStore } from "./app.store"
 
 afterEach(() => {
   useAppStore.setState({
     activeProjectId: null,
+    taskCreationDefaults: DEFAULT_TASK_CREATION_DEFAULTS,
   })
 })
 
@@ -18,5 +19,101 @@ describe("useAppStore", () => {
     useAppStore.getState().setActiveProjectId("demo-project")
     useAppStore.getState().clearActiveProjectId()
     expect(useAppStore.getState().activeProjectId).toBeNull()
+  })
+
+  it("updates task creation executor defaults", () => {
+    useAppStore.getState().updateTaskCreationDefaults({
+      executor: "claude-code",
+    })
+
+    expect(useAppStore.getState().taskCreationDefaults).toEqual({
+      ...DEFAULT_TASK_CREATION_DEFAULTS,
+      executor: "claude-code",
+    })
+  })
+
+  it("updates task creation runtime defaults without replacing other runtimes", () => {
+    useAppStore.getState().updateTaskCreationDefaults({
+      runtimes: {
+        codex: {
+          model: "gpt-5",
+          effort: "high",
+        },
+      },
+    })
+
+    expect(useAppStore.getState().taskCreationDefaults).toEqual({
+      ...DEFAULT_TASK_CREATION_DEFAULTS,
+      runtimes: {
+        codex: {
+          model: "gpt-5",
+          effort: "high",
+          executionMode: "connected",
+        },
+        "claude-code": {
+          model: null,
+          effort: null,
+          executionMode: "connected",
+        },
+      },
+    })
+  })
+
+  it("merges nested runtime updates", () => {
+    useAppStore.getState().updateTaskCreationDefaults({
+      runtimes: {
+        codex: {
+          model: "gpt-5",
+        },
+      },
+    })
+
+    useAppStore.getState().updateTaskCreationDefaults({
+      runtimes: {
+        codex: {
+          effort: "medium",
+        },
+      },
+    })
+
+    expect(useAppStore.getState().taskCreationDefaults.runtimes.codex).toEqual({
+      model: "gpt-5",
+      effort: "medium",
+      executionMode: "connected",
+    })
+  })
+
+  it("updates task creation execution mode defaults", () => {
+    useAppStore.getState().updateTaskCreationDefaults({
+      runtimes: {
+        codex: {
+          executionMode: "full-access",
+        },
+      },
+    })
+
+    expect(useAppStore.getState().taskCreationDefaults.runtimes.codex).toEqual({
+      model: null,
+      effort: null,
+      executionMode: "full-access",
+    })
+  })
+
+  it("resets task creation defaults", () => {
+    useAppStore.getState().updateTaskCreationDefaults({
+      executor: "claude-code",
+      runtimes: {
+        "claude-code": {
+          model: "claude-sonnet-4",
+          effort: "low",
+        },
+      },
+    })
+
+    useAppStore.getState().resetTaskCreationDefaults()
+
+    expect(useAppStore.getState().taskCreationDefaults).toEqual(
+      DEFAULT_TASK_CREATION_DEFAULTS,
+    )
   })
 })

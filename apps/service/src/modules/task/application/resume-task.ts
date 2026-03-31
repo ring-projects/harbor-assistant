@@ -1,4 +1,5 @@
 import type { AgentInputItem } from "../../../lib/agents"
+import { normalizeNullableTaskEffort } from "../domain/task-effort"
 import { assertTaskCanResume } from "../domain/task"
 import { resolveAgentInput } from "../domain/task-input"
 import { createTaskError } from "../errors"
@@ -6,6 +7,12 @@ import type { ProjectTaskPort } from "./project-task-port"
 import { toTaskDetail, type TaskDetail } from "./task-read-models"
 import type { TaskRepository } from "./task-repository"
 import type { TaskRuntimePort } from "./task-runtime-port"
+import { validateTaskRuntimeConfig } from "./validate-task-effort"
+
+function normalizeNullableString(value: string | null | undefined) {
+  const normalized = value?.trim()
+  return normalized ? normalized : null
+}
 
 export async function resumeTaskUseCase(args: {
   projectTaskPort: ProjectTaskPort
@@ -15,6 +22,8 @@ export async function resumeTaskUseCase(args: {
   taskId: string
   prompt?: string | null
   items?: AgentInputItem[] | null
+  model?: string | null
+  effort?: string | null
 }): Promise<TaskDetail> {
   const taskId = input.taskId.trim()
   const agentInput = resolveAgentInput(input)
@@ -39,12 +48,36 @@ export async function resumeTaskUseCase(args: {
     throw createTaskError().projectNotFound()
   }
 
+  const requestedEffort = normalizeNullableTaskEffort(input.effort)
+  if (input.effort !== undefined && input.effort !== null && !requestedEffort) {
+    throw createTaskError().invalidEffort(`invalid effort "${input.effort}"`)
+  }
+
+  const hasModelOverride = Object.prototype.hasOwnProperty.call(input, "model")
+  const hasEffortOverride = Object.prototype.hasOwnProperty.call(input, "effort")
+
+  const runtimeConfig = {
+    ...(await validateTaskRuntimeConfig({
+      executor: task.executor ?? "",
+      model:
+        hasModelOverride && input.model !== undefined
+          ? normalizeNullableString(input.model)
+          : task.model,
+      effort:
+        hasEffortOverride && input.effort !== undefined
+          ? requestedEffort
+          : task.effort,
+    })),
+    executionMode: task.executionMode,
+  }
+
   try {
     await args.runtimePort.resumeTaskExecution({
       taskId: task.id,
       projectId: task.projectId,
       projectPath: project.rootPath,
       input: agentInput,
+      runtimeConfig,
     })
   } catch (error) {
     throw createTaskError().resumeFailed(

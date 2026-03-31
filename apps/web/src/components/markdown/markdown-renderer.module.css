@@ -23,7 +23,7 @@
 }
 
 .markdown-body :global(:not(pre) > code) {
-  background: color-mix(in oklab, var(--muted) 82%, transparent);
+  background: transparent;
   color: var(--foreground);
   border-radius: 8px;
   padding: 0.1rem 0.35rem;
@@ -51,12 +51,9 @@
 }
 
 .markdown-body :global([data-streamdown="code-block"]) {
-  border-color: color-mix(in oklab, var(--border) 75%, transparent);
-  background: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--muted) 88%, var(--background)) 0%,
-    color-mix(in oklab, var(--card) 78%, var(--background)) 100%
-  );
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .markdown-body :global([data-streamdown="code-block-header"]) {
@@ -64,17 +61,28 @@
 }
 
 .markdown-body :global([data-streamdown="code-block-actions"]) {
-  border-color: color-mix(in oklab, var(--border) 70%, transparent);
+  border: 0;
+  background: transparent;
+  padding-inline: 0;
 }
 
 .markdown-body :global([data-streamdown="code-block-body"]) {
-  border-color: color-mix(in oklab, var(--border) 60%, transparent);
+  border: 0;
   background: transparent;
+  font-size: 14px;
+  padding: 0;
 }
 
 .markdown-body :global([data-streamdown="code-block-body"] pre) {
   background: transparent;
   color: inherit;
+  min-width: max-content;
+  line-height: 1.8;
+}
+
+.markdown-body :global([data-streamdown="code-block-body"] code) {
+  display: block;
+  line-height: 1.8;
 }
 
 .markdown-body :global([data-streamdown="mermaid-block"]) {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { describe, expect, it, vi } from "vitest"
 
@@ -84,5 +84,46 @@ describe("TaskListItem", () => {
     )
 
     expect(screen.getByText(task.title)).toHaveClass("line-clamp-2")
+  })
+
+  it("supports keyboard selection on the task item", () => {
+    const task = buildTask()
+    const onSelectTask = vi.fn()
+
+    render(
+      <TaskListItem
+        task={task}
+        isActive={false}
+        onSelectTask={onSelectTask}
+        onDeleteTask={vi.fn()}
+      />,
+    )
+
+    const taskItem = screen.getByRole("button", { name: task.title })
+
+    fireEvent.keyDown(taskItem, { key: "Enter" })
+    fireEvent.keyDown(taskItem, { key: " " })
+
+    expect(onSelectTask).toHaveBeenCalledTimes(2)
+    expect(onSelectTask).toHaveBeenNthCalledWith(1, task.taskId)
+    expect(onSelectTask).toHaveBeenNthCalledWith(2, task.taskId)
+  })
+
+  it("does not select the task when opening the actions menu", () => {
+    const task = buildTask()
+    const onSelectTask = vi.fn()
+
+    render(
+      <TaskListItem
+        task={task}
+        isActive={false}
+        onSelectTask={onSelectTask}
+        onDeleteTask={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText(`Task actions for ${task.title}`))
+
+    expect(onSelectTask).not.toHaveBeenCalled()
   })
 })

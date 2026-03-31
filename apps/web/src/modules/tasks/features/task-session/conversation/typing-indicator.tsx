@@ -5,7 +5,7 @@ import { memo } from "react"
 function TypingIndicatorView(props: { label: string }) {
   return (
     <div className="flex justify-start">
-      <div className="w-full rounded-lg bg-muted/18 px-3 py-2">
+      <div className="w-full rounded-lg bg-slate-100/55 p-2">
         <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1">
             <span className="size-2 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />

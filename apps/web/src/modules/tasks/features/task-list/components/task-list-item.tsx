@@ -1,5 +1,6 @@
 "use client"
 
+import type { KeyboardEvent, MouseEvent, PointerEvent } from "react"
 import {
   ArchiveIcon,
   Trash2Icon,
@@ -95,6 +96,12 @@ function TaskListItemActions({
   task,
   taskTitle,
 }: TaskListItemActionsProps) {
+  const stopItemSelection = (
+    event: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>,
+  ) => {
+    event.stopPropagation()
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -107,6 +114,8 @@ function TaskListItemActions({
             className,
           )}
           aria-label={`Task actions for ${taskTitle}`}
+          onClick={stopItemSelection}
+          onPointerDown={stopItemSelection}
         >
           <Trash2Icon className="size-4 text-red-500/50" />
         </Button>
@@ -164,13 +173,25 @@ export function TaskListItem({
     : task.finishedAt ?? task.startedAt ?? task.createdAt
   const executorLabel = formatExecutorLabel(task.executor)
   const modelLabel = task.model?.trim() || "-"
+  const handleSelect = () => onSelectTask(task.taskId)
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return
+    }
+
+    event.preventDefault()
+    onSelectTask(task.taskId)
+  }
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelectTask(task.taskId)}
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={taskTitle}
+      onClick={handleSelect}
+      onKeyDown={handleKeyDown}
       className={cn(
-        "p-2 relative w-full flex flex-col gap-2 overflow-hidden rounded-md transition-all",
+        "p-2 relative w-full flex flex-col gap-2 overflow-hidden rounded-md text-left outline-none transition-all focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
         isArchived && "border border-dashed",
         isActive
           ? "bg-primary/10"
@@ -226,7 +247,7 @@ export function TaskListItem({
           </span>
         </span>
       </div>
-    </button>
+    </div>
 
   )
 }

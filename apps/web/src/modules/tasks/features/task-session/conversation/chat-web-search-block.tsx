@@ -2,9 +2,8 @@
 
 import { memo } from "react"
 
-import { ArrowUpRightIcon, NavigationIcon, SearchIcon, WebhookIcon } from "lucide-react"
+import { SearchIcon } from "lucide-react"
 
-import { formatTimeShort } from "@/lib/date-time"
 import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatWebSearchBlockProps = {

@@ -92,7 +92,6 @@ export function CreateProject(props: CreateProjectProps) {
       <DirectoryPicker
         className="border-border/70"
         title={null}
-        helperText="Browse service-accessible directories"
         confirmLabel={createMutation.isPending ? "Creating..." : submitLabel}
         cancelLabel={cancelLabel}
         initialPath={props.defaultPath}

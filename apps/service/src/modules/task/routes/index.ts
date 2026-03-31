@@ -171,6 +171,8 @@ export async function registerTaskModuleRoutes(
             taskId: request.params.taskId,
             prompt: request.body.prompt,
             items: request.body.items,
+            model: request.body.model,
+            effort: request.body.effort,
           },
         )
 

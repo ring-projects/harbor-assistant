@@ -21,11 +21,12 @@
 7. [service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
 8. [task-event-storage-model.md](./task-event-storage-model.md)
 9. [task-break-requirements-2026-03-29.md](./task-break-requirements-2026-03-29.md)
-10. [task-api.md](./task-api.md)
-11. [project-api.md](./project-api.md)
-12. [service-module-standard-based-on-project.md](./service-module-standard-based-on-project.md)
-13. [service-error-handling-guide.md](./service-error-handling-guide.md)
-14. [agent-event-projection-design-2026-03-25.md](./agent-event-projection-design-2026-03-25.md)
+10. [task-explicit-runtime-config-requirements-2026-03-30.md](./task-explicit-runtime-config-requirements-2026-03-30.md)
+11. [task-api.md](./task-api.md)
+12. [project-api.md](./project-api.md)
+13. [service-module-standard-based-on-project.md](./service-module-standard-based-on-project.md)
+14. [service-error-handling-guide.md](./service-error-handling-guide.md)
+15. [agent-event-projection-design-2026-03-25.md](./agent-event-projection-design-2026-03-25.md)
 
 如果你要按 TDD 推进模块开发，再继续看：
 
@@ -36,6 +37,7 @@
 5. [tdd/task.md](./tdd/task.md)
 6. [tdd/task-structured-input.md](./tdd/task-structured-input.md)
 7. [tdd/task-break.md](./tdd/task-break.md)
+8. [tdd/task-explicit-runtime-config.md](./tdd/task-explicit-runtime-config.md)
 
 如果你在做前端，再继续看：
 
@@ -89,6 +91,10 @@
   - task break current turn / cancel task execution 的当前需求文档
   - 当前 break 的 task-facing API、terminal 语义与 cancel race 约束以这份文档为准
 
+- [task-explicit-runtime-config-requirements-2026-03-30.md](./task-explicit-runtime-config-requirements-2026-03-30.md)
+  - 删除 project runtime 默认配置、收敛 create task 显式 runtime contract 的当前需求文档
+  - 当前 task runtime config source-of-truth 收敛方向以这份文档为准
+
 ### 当前接口契约
 
 - [task-api.md](./task-api.md)
@@ -129,6 +135,9 @@
 
 - [tdd/task-break.md](./tdd/task-break.md)
   - task break / cancel current turn 的专项红绿灯计划
+
+- [tdd/task-explicit-runtime-config.md](./tdd/task-explicit-runtime-config.md)
+  - 删除 project runtime 默认配置、收敛 create task 显式 runtime contract 的专项红绿灯计划
 
 - [frontend-testing.md](./frontend-testing.md)
   - `apps/web` 测试策略与实践指南

@@ -16,7 +16,6 @@ import {
   createSyntheticUserInputEvent,
   normalizeAgentType,
 } from "../infrastructure/runtime/normalize-agent-events"
-import { normalizeNullableTaskEffort } from "../domain/task-effort"
 import { createTaskExecutionDriver } from "../infrastructure/runtime/task-execution-driver"
 import { createTaskExecutionHandleRegistry } from "../infrastructure/runtime/task-execution-handle-registry"
 import { createTaskExecutionStateStore } from "../infrastructure/runtime/task-execution-state"
@@ -147,9 +146,6 @@ export function createCurrentTaskRuntimePort(args: {
         select: {
           id: true,
           executorType: true,
-          executorModel: true,
-          executionMode: true,
-          executorEffort: true,
           sessionId: true,
         },
       })
@@ -160,6 +156,12 @@ export function createCurrentTaskRuntimePort(args: {
 
       if (!executionRecord.sessionId) {
         throw new Error(`Execution for task ${input.taskId} has no resumable session.`)
+      }
+
+      if (executionRecord.executorType !== input.runtimeConfig.executor) {
+        throw new Error(
+          `Execution for task ${input.taskId} cannot resume with executor "${input.runtimeConfig.executor}".`,
+        )
       }
 
       await persistUserInputEvent({
@@ -181,12 +183,7 @@ export function createCurrentTaskRuntimePort(args: {
         projectId: input.projectId,
         projectPath: input.projectPath,
         input: input.input,
-        runtimeConfig: {
-          executor: executionRecord.executorType,
-          model: executionRecord.executorModel,
-          executionMode: executionRecord.executionMode,
-          effort: normalizeNullableTaskEffort(executionRecord.executorEffort),
-        },
+        runtimeConfig: input.runtimeConfig,
         sessionId: executionRecord.sessionId,
         agentType,
         agentRuntime,

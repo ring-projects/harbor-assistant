@@ -21,6 +21,7 @@ export interface TaskRuntimePort {
     projectId: string
     projectPath: string
     input: AgentInput
+    runtimeConfig: TaskRuntimeConfig
   }): Promise<void>
   cancelTaskExecution(input: {
     taskId: string

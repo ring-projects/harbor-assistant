@@ -52,13 +52,22 @@ export class InMemoryTaskRepository implements TaskRepository, TaskRecordStore {
 
   async save(task: Task): Promise<void> {
     const current = this.tasks.get(task.id)
+    const nextRuntime = task as Partial<TaskRecord>
     this.tasks.set(
       task.id,
       attachTaskRuntime(task, {
-        executor: current?.executor ?? null,
-        model: current?.model ?? null,
-        executionMode: current?.executionMode ?? null,
-        effort: current?.effort ?? null,
+        executor: Object.prototype.hasOwnProperty.call(nextRuntime, "executor")
+          ? nextRuntime.executor ?? null
+          : current?.executor ?? null,
+        model: Object.prototype.hasOwnProperty.call(nextRuntime, "model")
+          ? nextRuntime.model ?? null
+          : current?.model ?? null,
+        executionMode: Object.prototype.hasOwnProperty.call(nextRuntime, "executionMode")
+          ? nextRuntime.executionMode ?? null
+          : current?.executionMode ?? null,
+        effort: Object.prototype.hasOwnProperty.call(nextRuntime, "effort")
+          ? nextRuntime.effort ?? null
+          : current?.effort ?? null,
       }),
     )
   }

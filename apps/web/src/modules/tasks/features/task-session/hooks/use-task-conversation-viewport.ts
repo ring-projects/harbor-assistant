@@ -17,6 +17,7 @@ export function useTaskConversationViewport(args: {
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
+  const stickToBottomRef = useRef(args.stickToBottom)
   const pendingWindowExpansionRef = useRef<{
     previousScrollHeight: number
     previousScrollTop: number
@@ -38,6 +39,10 @@ export function useTaskConversationViewport(args: {
     [args.blocks, conversationWindowStart],
   )
   const hiddenBlockCount = Math.max(0, args.blocks.length - visibleBlocks.length)
+
+  useLayoutEffect(() => {
+    stickToBottomRef.current = args.stickToBottom
+  }, [args.stickToBottom])
 
   useLayoutEffect(() => {
     const pendingExpansion = pendingWindowExpansionRef.current
@@ -84,6 +89,10 @@ export function useTaskConversationViewport(args: {
     }
 
     const resizeObserver = new ResizeObserver(() => {
+      if (!stickToBottomRef.current) {
+        return
+      }
+
       node.scrollTo({
         top: node.scrollHeight,
         behavior: "auto",
@@ -125,6 +134,8 @@ export function useTaskConversationViewport(args: {
       return
     }
 
+    stickToBottomRef.current = true
+
     node.scrollTo({
       top: node.scrollHeight,
       behavior: "smooth",
@@ -146,9 +157,11 @@ export function useTaskConversationViewport(args: {
     }
 
     const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight
+    const nextStickToBottom = distanceFromBottom < 48
+    stickToBottomRef.current = nextStickToBottom
     useTasksSessionStore
       .getState()
-      .setStickToBottom(args.taskId, distanceFromBottom < 48)
+      .setStickToBottom(args.taskId, nextStickToBottom)
 
     if (
       node.scrollTop <= CHAT_WINDOW_TOP_LOAD_THRESHOLD &&

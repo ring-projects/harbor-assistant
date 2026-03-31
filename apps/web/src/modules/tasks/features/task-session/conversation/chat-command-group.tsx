@@ -59,27 +59,7 @@ function ChatCommandGroupView({ block, onOpen }: ChatCommandGroupProps) {
             </p>
           </div>
 
-          <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
-            {block.startedAt ? ` · Started ${formatTimeShort(block.startedAt)}` : ""}
-            {hasOutput ? ` · ${block.outputLineCount} lines captured` : " · No output yet"}
-          </p>
-
-          {block.outputPreview ? (
-            <pre className="bg-muted/25 mt-2 overflow-hidden whitespace-pre-wrap break-words rounded-md p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
-              {block.outputPreview}
-            </pre>
-          ) : null}
-
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="text-muted-foreground flex items-center gap-2 font-mono text-[11px] leading-5">
-              <TerminalSquareIcon className="size-3.5" />
-              <span>
-                {block.completedAt
-                  ? `Updated ${formatTimeShort(block.completedAt)}`
-                  : "Waiting for completion"}
-              </span>
-            </div>
-
+          {/* <div className="mt-2 flex items-center justify-between gap-3">
             <Button
               type="button"
               variant="ghost"
@@ -89,7 +69,7 @@ function ChatCommandGroupView({ block, onOpen }: ChatCommandGroupProps) {
             >
               View details
             </Button>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

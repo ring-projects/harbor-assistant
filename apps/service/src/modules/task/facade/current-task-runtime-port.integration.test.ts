@@ -112,7 +112,7 @@ describe("Current task runtime port", () => {
     expect(events[1]?.source).toBe("harbor")
   })
 
-  it("reuses persisted effort when resuming an execution", async () => {
+  it("uses the supplied runtime snapshot when resuming an execution", async () => {
     database = await createTestDatabase()
     const { prisma } = database
 
@@ -190,15 +190,38 @@ describe("Current task runtime port", () => {
       projectId: "project-1",
       projectPath: "/tmp/project-1",
       input: "Continue from the saved execution state.",
+      runtimeConfig: {
+        executor: "codex",
+        model: null,
+        executionMode: "safe",
+        effort: null,
+      },
     })
 
     await expect(resumeCall).resolves.toMatchObject({
       sessionId: "session-1",
       input: "Continue from the saved execution state.",
       options: expect.objectContaining({
-        modelId: "gpt-5.3-codex",
-        effort: "high",
+        modelId: undefined,
+        effort: undefined,
       }),
+    })
+
+    await expect.poll(async () => {
+      const execution = await prisma.execution.findUnique({
+        where: {
+          ownerId: "task-1",
+        },
+        select: {
+          executorModel: true,
+          executorEffort: true,
+        },
+      })
+
+      return execution
+    }).toEqual({
+      executorModel: null,
+      executorEffort: null,
     })
 
     await expect.poll(async () => {

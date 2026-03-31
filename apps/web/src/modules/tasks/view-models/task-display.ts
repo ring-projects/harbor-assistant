@@ -1,4 +1,4 @@
-import type { TaskStatus } from "@/modules/tasks/contracts"
+import type { TaskEffort, TaskStatus } from "@/modules/tasks/contracts"
 
 export const STATUS_META: Record<
   TaskStatus,
@@ -95,5 +95,26 @@ export function formatExecutionModeLabel(executionMode: string | null | undefine
       return "Full Access"
     default:
       return "-"
+  }
+}
+
+export function formatModelSummary(model: string | null | undefined) {
+  return model?.trim() || "Runtime Default"
+}
+
+export function formatEffortLabel(effort: TaskEffort | null | undefined) {
+  switch (effort) {
+    case "minimal":
+      return "Minimal"
+    case "low":
+      return "Low"
+    case "medium":
+      return "Medium"
+    case "high":
+      return "High"
+    case "xhigh":
+      return "X-High"
+    default:
+      return "Provider Default"
   }
 }
