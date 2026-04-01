@@ -51,7 +51,7 @@ import { TaskListItem } from "./task-list-item"
 
 function buildTask(overrides: Partial<TaskListItemRecord> = {}): TaskListItemRecord {
   return {
-    taskId: "task-1",
+    id: "task-1",
     projectId: "project-1",
     orchestrationId: "orch-1",
     prompt: "Summarize the current release plan",
@@ -106,8 +106,8 @@ describe("TaskListItem", () => {
     fireEvent.keyDown(taskItem, { key: " " })
 
     expect(onSelectTask).toHaveBeenCalledTimes(2)
-    expect(onSelectTask).toHaveBeenNthCalledWith(1, task.taskId)
-    expect(onSelectTask).toHaveBeenNthCalledWith(2, task.taskId)
+    expect(onSelectTask).toHaveBeenNthCalledWith(1, task.id)
+    expect(onSelectTask).toHaveBeenNthCalledWith(2, task.id)
   })
 
   it("does not select the task when opening the actions menu", () => {

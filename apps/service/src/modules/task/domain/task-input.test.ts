@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  extractLocalAttachments,
   extractLocalImageAttachments,
   normalizeAgentInputItems,
   resolveAgentInput,
@@ -29,6 +30,10 @@ describe("task input helpers", () => {
             type: "local_image",
             path: "  .harbor/task-input-images/example.png  ",
           },
+          {
+            type: "local_file",
+            path: "  .harbor/task-input-files/notes.md  ",
+          },
         ],
       }),
     ).toEqual([
@@ -40,10 +45,14 @@ describe("task input helpers", () => {
         type: "local_image",
         path: ".harbor/task-input-images/example.png",
       },
+      {
+        type: "local_file",
+        path: ".harbor/task-input-files/notes.md",
+      },
     ])
   })
 
-  it("drops empty text items and keeps normalized local images", () => {
+  it("drops empty text items and keeps normalized local attachments", () => {
     expect(
       normalizeAgentInputItems([
         {
@@ -54,16 +63,24 @@ describe("task input helpers", () => {
           type: "local_image",
           path: "  .harbor/task-input-images/example.png  ",
         },
+        {
+          type: "local_file",
+          path: "  .harbor/task-input-files/spec.md  ",
+        },
       ]),
     ).toEqual([
       {
         type: "local_image",
         path: ".harbor/task-input-images/example.png",
       },
+      {
+        type: "local_file",
+        path: ".harbor/task-input-files/spec.md",
+      },
     ])
   })
 
-  it("summarizes text input and image-only input", () => {
+  it("summarizes text input and attachment-only input", () => {
     expect(summarizeAgentInput("  Run tests  ")).toBe("Run tests")
     expect(
       summarizeAgentInput([
@@ -89,24 +106,67 @@ describe("task input helpers", () => {
         },
       ]),
     ).toBe("Attached 2 images")
-  })
-
-  it("extracts local image attachments from structured input", () => {
     expect(
-      extractLocalImageAttachments([
+      summarizeAgentInput([
         {
-          type: "text",
-          text: "Review this screenshot",
+          type: "local_file",
+          path: ".harbor/task-input-files/spec.md",
         },
+        {
+          type: "local_file",
+          path: ".harbor/task-input-files/notes.txt",
+        },
+      ]),
+    ).toBe("Attached 2 files")
+    expect(
+      summarizeAgentInput([
         {
           type: "local_image",
           path: ".harbor/task-input-images/example.png",
         },
+        {
+          type: "local_file",
+          path: ".harbor/task-input-files/spec.md",
+        },
       ]),
-    ).toEqual([
+    ).toBe("Attached 1 image and 1 file")
+  })
+
+  it("extracts local attachments from structured input", () => {
+    const input = [
+      {
+        type: "text" as const,
+        text: "Review this screenshot",
+      },
+      {
+        type: "local_image" as const,
+        path: ".harbor/task-input-images/example.png",
+      },
+      {
+        type: "local_file" as const,
+        path: ".harbor/task-input-files/spec.md",
+      },
+    ]
+
+    expect(extractLocalAttachments(input)).toEqual([
       {
         type: "local_image",
         path: ".harbor/task-input-images/example.png",
+      },
+      {
+        type: "local_file",
+        path: ".harbor/task-input-files/spec.md",
+      },
+    ])
+
+    expect(extractLocalImageAttachments(input)).toEqual([
+      {
+        type: "local_image",
+        path: ".harbor/task-input-images/example.png",
+      },
+      {
+        type: "local_file",
+        path: ".harbor/task-input-files/spec.md",
       },
     ])
   })

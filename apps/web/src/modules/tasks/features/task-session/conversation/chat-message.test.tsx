@@ -52,4 +52,30 @@ describe("ChatMessage", () => {
     expect(screen.getByText("only-image.png")).toBeInTheDocument()
     expect(screen.queryByText(/^Attached 1 image$/)).not.toBeInTheDocument()
   })
+
+  it("renders user file attachments as dedicated attachment blocks", () => {
+    render(
+      <ChatMessage
+        block={{
+          id: "message-3",
+          type: "message",
+          role: "user",
+          content: "Review this spec",
+          attachments: [
+            {
+              type: "local_file",
+              path: ".harbor/task-input-files/spec.md",
+            },
+          ],
+          timestamp: "2026-03-11T00:00:00.000Z",
+        }}
+      />,
+    )
+
+    expect(screen.getByText("Review this spec")).toBeInTheDocument()
+    expect(screen.getByText("spec.md")).toBeInTheDocument()
+    expect(
+      screen.getByText(".harbor/task-input-files/spec.md"),
+    ).toBeInTheDocument()
+  })
 })

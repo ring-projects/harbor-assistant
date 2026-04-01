@@ -1,9 +1,28 @@
 export type InteractionTopicKind = "task" | "task-events" | "project-git"
 
-export type InteractionTopic = {
-  kind: InteractionTopicKind
-  id: string
-}
+export type InteractionTopic =
+  | {
+      kind: "task"
+      id: string
+    }
+  | {
+      kind: "task-events"
+      id: string
+    }
+  | {
+      kind: "project-git"
+      id: string
+    }
+
+export type InteractionTaskTopic =
+  | {
+      kind: "task"
+      id: string
+    }
+  | {
+      kind: "task-events"
+      id: string
+    }
 
 export type InteractionSubscribeRequest = {
   topic: InteractionTopic
@@ -52,36 +71,73 @@ export type InteractionTaskEventStream = {
   nextSequence: number
 }
 
-export type InteractionTaskStreamEvent =
+export type InteractionTaskSnapshotMessage = {
+  kind: "snapshot"
+  name: "task"
+  data: {
+    task: InteractionTaskRecord
+  }
+}
+
+export type InteractionTaskEventsSnapshotMessage = {
+  kind: "snapshot"
+  name: "task_events"
+  data: {
+    status: InteractionTaskStatus
+    afterSequence: number
+    items: InteractionTaskEventItem[]
+    nextSequence: number
+    terminal: boolean
+  }
+}
+
+export type InteractionTaskStreamMessage =
   | {
-      type: "agent_event"
-      taskId: string
-      event: InteractionTaskEventItem
+      kind: "event"
+      name: "task_upsert"
+      data: {
+        task: InteractionTaskRecord
+      }
     }
   | {
-      type: "task_status"
-      taskId: string
-      status: InteractionTaskStatus
+      kind: "event"
+      name: "task_deleted"
+      data: {
+        taskId: string
+        projectId?: string
+        orchestrationId?: string
+      }
     }
   | {
-      type: "task_end"
-      taskId: string
-      status: Extract<
-        InteractionTaskStatus,
-        "completed" | "failed" | "cancelled"
-      >
-      cursor: number
+      kind: "event"
+      name: "task_status_changed"
+      data: {
+        status: InteractionTaskStatus
+      }
     }
   | {
-      type: "task_upsert"
-      task: InteractionTaskRecord
+      kind: "event"
+      name: "task_ended"
+      data: {
+        status: Extract<
+          InteractionTaskStatus,
+          "completed" | "failed" | "cancelled"
+        >
+        cursor: number
+      }
     }
   | {
-      type: "task_deleted"
-      projectId: string
-      orchestrationId: string
-      taskId: string
+      kind: "event"
+      name: "task_event"
+      data: {
+        event: InteractionTaskEventItem
+      }
     }
+
+export type InteractionTaskMessage =
+  | InteractionTaskSnapshotMessage
+  | InteractionTaskEventsSnapshotMessage
+  | InteractionTaskStreamMessage
 
 export type InteractionProjectGitChangeEvent = {
   projectId: string
@@ -89,16 +145,12 @@ export type InteractionProjectGitChangeEvent = {
 }
 
 export interface TaskInteractionQueries {
-  getTaskDetail(taskId: string): Promise<InteractionTaskRecord>
-  getTaskEvents(input: {
+  getTaskSnapshot(taskId: string): Promise<InteractionTaskSnapshotMessage>
+  getTaskEventsSnapshot(input: {
     taskId: string
     afterSequence?: number
     limit?: number
-  }): Promise<{
-    task: InteractionTaskRecord
-    events: InteractionTaskEventStream
-    isTerminal: boolean
-  }>
+  }): Promise<InteractionTaskEventsSnapshotMessage>
 }
 
 export interface TaskInteractionSubscriptionHandle {
@@ -107,12 +159,12 @@ export interface TaskInteractionSubscriptionHandle {
 
 export interface TaskInteractionSubscription {
   subscribe(
-    listener: (event: InteractionTaskStreamEvent) => void,
+    listener: (message: InteractionTaskStreamMessage) => void,
   ): TaskInteractionSubscriptionHandle
 }
 
 export interface TaskInteractionStream {
-  selectTask(taskId: string): TaskInteractionSubscription
+  selectTopic(topic: InteractionTaskTopic): TaskInteractionSubscription
 }
 
 export interface ProjectGitInteractionWatcher {

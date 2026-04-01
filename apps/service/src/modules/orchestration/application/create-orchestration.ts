@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto"
 import type { ProjectRepository } from "../../project/application/project-repository"
 import { createProjectError } from "../../project/errors"
 import { createOrchestration } from "../domain/orchestration"
+import { toOrchestrationReadModel } from "./orchestration-read-models"
 import type { OrchestrationRepository } from "./orchestration-repository"
-import { buildOrchestrationDetail } from "./shared"
 
 export async function createOrchestrationUseCase(
   args: {
@@ -40,5 +40,5 @@ export async function createOrchestrationUseCase(
   })
 
   await args.repository.save(orchestration)
-  return buildOrchestrationDetail(orchestration, [])
+  return toOrchestrationReadModel(orchestration)
 }

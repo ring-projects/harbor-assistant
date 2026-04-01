@@ -4,16 +4,17 @@ import { archiveTaskUseCase } from "../application/archive-task"
 import { cancelTaskUseCase } from "../application/cancel-task"
 import { createTaskUseCase } from "../application/create-task"
 import { deleteTaskUseCase } from "../application/delete-task"
-import { getTaskDetailUseCase } from "../application/get-task-detail"
+import { getTaskUseCase } from "../application/get-task"
 import { getTaskEventsUseCase } from "../application/get-task-events"
 import type { ProjectTaskPort } from "../application/project-task-port"
 import { resumeTaskUseCase } from "../application/resume-task"
 import type { TaskEventProjection } from "../application/task-event-projection"
+import type { TaskInputFileStore } from "../application/task-input-image-store"
 import type { TaskNotificationPublisher } from "../application/task-notification"
 import type { TaskRecordStore } from "../application/task-record-store"
 import type { TaskRepository } from "../application/task-repository"
 import type { TaskRuntimePort } from "../application/task-runtime-port"
-import { uploadTaskInputImageUseCase } from "../application/upload-task-input-image"
+import { uploadTaskInputFileUseCase } from "../application/upload-task-input-image"
 import { updateTaskTitleUseCase } from "../application/update-task-title"
 import { toTaskAppError } from "../task-app-error"
 import {
@@ -42,6 +43,7 @@ export async function registerTaskModuleRoutes(
     eventProjection: TaskEventProjection
     notificationPublisher: TaskNotificationPublisher
     projectTaskPort: ProjectTaskPort
+    taskInputFileStore: TaskInputFileStore
     runtimePort: TaskRuntimePort
   },
 ) {
@@ -51,8 +53,44 @@ export async function registerTaskModuleRoutes(
     eventProjection,
     notificationPublisher,
     projectTaskPort,
+    taskInputFileStore,
     runtimePort,
   } = options
+
+  async function handleTaskInputFileUpload(
+    request: {
+      params: ProjectIdParams
+      body: UploadTaskInputImageBody
+    },
+  ) {
+    try {
+      const result = await uploadTaskInputFileUseCase(
+        {
+          projectTaskPort,
+          taskInputFileStore,
+        },
+        {
+          projectId: request.params.projectId,
+          ...request.body,
+        },
+      )
+
+      return {
+        ok: true,
+        ...result,
+      }
+    } catch (error) {
+      throw toTaskAppError(error)
+    }
+  }
+
+  app.post<{ Params: ProjectIdParams; Body: UploadTaskInputImageBody }>(
+    "/projects/:projectId/task-input-files",
+    {
+      schema: uploadTaskInputImageRouteSchema,
+    },
+    handleTaskInputFileUpload,
+  )
 
   app.post<{ Params: ProjectIdParams; Body: UploadTaskInputImageBody }>(
     "/projects/:projectId/task-input-images",
@@ -61,20 +99,7 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const result = await uploadTaskInputImageUseCase(
-          {
-            projectTaskPort,
-          },
-          {
-            projectId: request.params.projectId,
-            ...request.body,
-          },
-        )
-
-        return {
-          ok: true,
-          ...result,
-        }
+        return await handleTaskInputFileUpload(request)
       } catch (error) {
         throw toTaskAppError(error)
       }
@@ -88,7 +113,7 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const task = await getTaskDetailUseCase(repository, request.params.taskId)
+        const task = await getTaskUseCase(repository, request.params.taskId)
         return {
           ok: true,
           task,

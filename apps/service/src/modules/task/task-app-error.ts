@@ -45,6 +45,12 @@ export function toTaskAppError(error: unknown): AppError {
         return new AppError(ERROR_CODES.TASK_START_FAILED, 500, error.message)
       case TASK_ERROR_CODES.RESUME_FAILED:
         return new AppError(ERROR_CODES.TASK_RESUME_FAILED, 500, error.message)
+      case TASK_ERROR_CODES.UPLOAD_INPUT_IMAGE_FAILED:
+        return new AppError(
+          ERROR_CODES.TASK_INPUT_IMAGE_UPLOAD_FAILED,
+          500,
+          error.message,
+        )
     }
   }
 

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest"
 
-import { createTask } from "../../modules/task/domain/task"
 import { attachTaskRuntime } from "../../modules/task/application/task-read-models"
+import { createTask } from "../../modules/task/domain/task"
 import { InMemoryTaskEventProjection } from "../../modules/task/infrastructure/in-memory-task-event-projection"
 import { InMemoryTaskRepository } from "../../modules/task/infrastructure/in-memory-task-repository"
 import { createInMemoryTaskNotificationBus } from "../../modules/task/infrastructure/notification/in-memory-task-notification-bus"
 import { createTaskInteractionService } from "./create-task-interaction-service"
 
 describe("createTaskInteractionService", () => {
-  it("maps task read models to interaction queries", async () => {
+  it("maps task read models to interaction snapshots", async () => {
     const repository = new InMemoryTaskRepository([
       attachTaskRuntime(
         createTask({
@@ -51,32 +51,34 @@ describe("createTaskInteractionService", () => {
       notificationSubscriber: notificationBus.subscriber,
     })
 
-    await expect(service.queries.getTaskDetail("task-1")).resolves.toEqual(
-      expect.objectContaining({
-        id: "task-1",
-        orchestrationId: "orch-1",
-        prompt: "Investigate runtime drift",
-        executor: "codex",
-        model: "gpt-5.3-codex",
-        executionMode: "safe",
-        effort: null,
-      }),
-    )
+    await expect(service.queries.getTaskSnapshot("task-1")).resolves.toEqual({
+      kind: "snapshot",
+      name: "task",
+      data: {
+        task: expect.objectContaining({
+          id: "task-1",
+          orchestrationId: "orch-1",
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: null,
+        }),
+      },
+    })
 
     await expect(
-      service.queries.getTaskEvents({
+      service.queries.getTaskEventsSnapshot({
         taskId: "task-1",
         afterSequence: 0,
         limit: 50,
       }),
     ).resolves.toEqual({
-      task: expect.objectContaining({
-        id: "task-1",
-        orchestrationId: "orch-1",
+      kind: "snapshot",
+      name: "task_events",
+      data: {
         status: "completed",
-      }),
-      events: {
-        taskId: "task-1",
+        afterSequence: 0,
         items: [
           {
             id: "event-1",
@@ -90,12 +92,12 @@ describe("createTaskInteractionService", () => {
           },
         ],
         nextSequence: 2,
+        terminal: true,
       },
-      isTerminal: true,
     })
   })
 
-  it("maps task notifications into interaction streams", async () => {
+  it("maps task notifications into topic-specific interaction streams", async () => {
     const repository = new InMemoryTaskRepository()
     const eventProjection = new InMemoryTaskEventProjection()
     const notificationBus = createInMemoryTaskNotificationBus()
@@ -105,10 +107,20 @@ describe("createTaskInteractionService", () => {
       notificationSubscriber: notificationBus.subscriber,
     })
 
-    const taskEvents: unknown[] = []
+    const taskMessages: unknown[] = []
+    const taskEventMessages: unknown[] = []
     const taskSubscription = service.stream
-      .selectTask("task-1")
-      .subscribe((event) => taskEvents.push(event))
+      .selectTopic({
+        kind: "task",
+        id: "task-1",
+      })
+      .subscribe((message) => taskMessages.push(message))
+    const taskEventsSubscription = service.stream
+      .selectTopic({
+        kind: "task-events",
+        id: "task-1",
+      })
+      .subscribe((message) => taskEventMessages.push(message))
 
     await notificationBus.publisher.publish({
       type: "task_upserted",
@@ -154,47 +166,80 @@ describe("createTaskInteractionService", () => {
     })
 
     await taskSubscription.unsubscribe()
+    await taskEventsSubscription.unsubscribe()
 
-    expect(taskEvents).toEqual([
+    expect(taskMessages).toEqual([
       {
-        type: "task_upsert",
-        task: expect.objectContaining({
-          id: "task-1",
-          orchestrationId: "orch-1",
-          executor: "codex",
-          status: "completed",
-        }),
-      },
-      {
-        type: "task_status",
-        taskId: "task-1",
-        status: "completed",
-      },
-      {
-        type: "task_end",
-        taskId: "task-1",
-        status: "completed",
-        cursor: 0,
-      },
-      {
-        type: "agent_event",
-        taskId: "task-1",
-        event: {
-          id: "event-1",
-          taskId: "task-1",
-          sequence: 1,
-          eventType: "message",
-          payload: {
-            content: "hello",
-          },
-          createdAt: "2026-03-25T00:06:00.000Z",
+        kind: "event",
+        name: "task_upsert",
+        data: {
+          task: expect.objectContaining({
+            id: "task-1",
+            orchestrationId: "orch-1",
+            executor: "codex",
+            status: "completed",
+          }),
         },
       },
       {
-        type: "task_deleted",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        taskId: "task-1",
+        kind: "event",
+        name: "task_status_changed",
+        data: {
+          status: "completed",
+        },
+      },
+      {
+        kind: "event",
+        name: "task_ended",
+        data: {
+          status: "completed",
+          cursor: 0,
+        },
+      },
+      {
+        kind: "event",
+        name: "task_deleted",
+        data: {
+          taskId: "task-1",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+        },
+      },
+    ])
+
+    expect(taskEventMessages).toEqual([
+      {
+        kind: "event",
+        name: "task_ended",
+        data: {
+          status: "completed",
+          cursor: 0,
+        },
+      },
+      {
+        kind: "event",
+        name: "task_event",
+        data: {
+          event: {
+            id: "event-1",
+            taskId: "task-1",
+            sequence: 1,
+            eventType: "message",
+            payload: {
+              content: "hello",
+            },
+            createdAt: "2026-03-25T00:06:00.000Z",
+          },
+        },
+      },
+      {
+        kind: "event",
+        name: "task_deleted",
+        data: {
+          taskId: "task-1",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+        },
       },
     ])
   })

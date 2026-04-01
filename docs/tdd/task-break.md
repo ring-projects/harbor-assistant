@@ -1,5 +1,12 @@
 # Task Break TDD Plan
 
+> [!WARNING]
+> **状态：已过时（Outdated）**
+> 当前系统主模型已调整为 `Orchestration -> N Tasks`。
+> 这些文档仍可作为历史背景参考，但不应再作为最新设计依据。
+> 请优先参考：`docs/orchestration-requirements-2026-03-31.md` 与 `docs/tdd/orchestration.md`。
+
+
 ## 1. 文档信息
 
 - 文档名称：Task Break TDD Plan

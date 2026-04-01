@@ -51,10 +51,6 @@ const orchestrationEntitySchema = {
     "archivedAt",
     "createdAt",
     "updatedAt",
-    "taskCount",
-    "activeTaskCount",
-    "latestTaskSummary",
-    "latestTaskUpdatedAt",
   ],
   properties: {
     id: { type: "string", minLength: 1 },
@@ -65,15 +61,11 @@ const orchestrationEntitySchema = {
     config: jsonObjectSchema,
     status: {
       type: "string",
-      enum: ["active", "paused", "archived"],
+      enum: ["active", "archived"],
     },
     archivedAt: { type: ["string", "null"], format: "date-time" },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
-    taskCount: { type: "integer", minimum: 0 },
-    activeTaskCount: { type: "integer", minimum: 0 },
-    latestTaskSummary: { type: ["string", "null"] },
-    latestTaskUpdatedAt: { type: ["string", "null"], format: "date-time" },
   },
 } as const
 
@@ -97,11 +89,25 @@ const taskInputLocalImageItemSchema = {
   },
 } as const
 
+const taskInputLocalFileItemSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "path"],
+  properties: {
+    type: { type: "string", const: "local_file" },
+    path: { type: "string", minLength: 1 },
+  },
+} as const
+
 const taskInputItemsSchema = {
   type: "array",
   minItems: 1,
   items: {
-    oneOf: [taskInputTextItemSchema, taskInputLocalImageItemSchema],
+    oneOf: [
+      taskInputTextItemSchema,
+      taskInputLocalImageItemSchema,
+      taskInputLocalFileItemSchema,
+    ],
   },
 } as const
 

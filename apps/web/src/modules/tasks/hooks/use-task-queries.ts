@@ -175,7 +175,7 @@ export function useCreateTaskMutation(args: {
         useTasksSessionStore.getState().applyTaskUpsert(result.task)
       }
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.events(result.taskId),
+        queryKey: taskQueryKeys.events(result.id),
       })
     },
   })
@@ -207,10 +207,10 @@ export function useCancelTaskMutation(projectId: string) {
         queryKey: taskQueryKeys.byOrchestration(task.orchestrationId),
       })
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.detail(task.taskId),
+        queryKey: taskQueryKeys.detail(task.id),
       })
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.events(task.taskId),
+        queryKey: taskQueryKeys.events(task.id),
       })
 
       useTasksSessionStore.getState().applyTaskUpsert(task)
@@ -229,10 +229,10 @@ export function useResumeTaskMutation(projectId: string) {
         queryKey: taskQueryKeys.byOrchestration(task.orchestrationId),
       })
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.detail(task.taskId),
+        queryKey: taskQueryKeys.detail(task.id),
       })
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.events(task.taskId),
+        queryKey: taskQueryKeys.events(task.id),
       })
 
       useTasksSessionStore.getState().applyTaskUpsert(task)

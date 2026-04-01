@@ -6,7 +6,9 @@ import type {
   InteractionProjectGitChangeEvent,
   InteractionSubscribeRequest,
   InteractionTaskRecord,
-  InteractionTaskStreamEvent,
+  InteractionTaskSnapshotMessage,
+  InteractionTaskStreamMessage,
+  InteractionTaskTopic,
   InteractionTopic,
   ProjectGitInteractionLifecycle,
   TaskInteractionQueries,
@@ -52,29 +54,38 @@ function createTask(
   }
 }
 
-function createTaskStreamSource(args: {
-  listeners: Set<(event: InteractionTaskStreamEvent) => void>
-  onUnsubscribe?: () => void
-}) {
+function createTaskSnapshotMessage(
+  overrides: Partial<InteractionTaskRecord> = {},
+): InteractionTaskSnapshotMessage {
   return {
-    subscribe(listener: (event: InteractionTaskStreamEvent) => void) {
-      args.listeners.add(listener)
-      return {
-        unsubscribe() {
-          args.listeners.delete(listener)
-          args.onUnsubscribe?.()
-        },
-      }
+    kind: "snapshot",
+    name: "task",
+    data: {
+      task: createTask(overrides),
     },
   }
 }
 
-function emitStreamEvent(
-  listeners: Set<(event: InteractionTaskStreamEvent) => void>,
-  event: InteractionTaskStreamEvent,
-) {
-  for (const listener of listeners) {
-    listener(event)
+function createTaskStreamSource(args: {
+  listeners: Set<(message: InteractionTaskStreamMessage) => void>
+  selectedTopics?: InteractionTaskTopic[]
+  onUnsubscribe?: () => void
+}) {
+  return {
+    selectTopic(topic: InteractionTaskTopic) {
+      args.selectedTopics?.push(topic)
+      return {
+        subscribe(listener: (message: InteractionTaskStreamMessage) => void) {
+          args.listeners.add(listener)
+          return {
+            unsubscribe() {
+              args.listeners.delete(listener)
+              args.onUnsubscribe?.()
+            },
+          }
+        },
+      }
+    },
   }
 }
 
@@ -184,26 +195,28 @@ async function createLiveGatewayApp(args?: {
   projectGitWatcher?: ProjectGitInteractionLifecycle
 }) {
   const app = Fastify({ logger: false })
-  const taskListeners = new Set<(event: InteractionTaskStreamEvent) => void>()
+  const taskListeners = new Set<(message: InteractionTaskStreamMessage) => void>()
 
   const taskQueries: TaskInteractionQueries = args?.taskQueries ?? {
-    getTaskDetail: async () => createTask(),
-    getTaskEvents: async () => ({
-      task: createTask(),
-      events: {
-        taskId: "task-1",
+    getTaskSnapshot: async () => createTaskSnapshotMessage(),
+    getTaskEventsSnapshot: async () => ({
+      kind: "snapshot",
+      name: "task_events",
+      data: {
+        status: "queued",
+        afterSequence: 0,
         items: [],
         nextSequence: 0,
+        terminal: false,
       },
-      isTerminal: false,
     }),
   }
 
   const taskStream: TaskInteractionStream = args?.taskStream ?? {
-    selectTask: () =>
+    selectTopic: (topic) =>
       createTaskStreamSource({
         listeners: taskListeners,
-      }),
+      }).selectTopic(topic),
   }
 
   const projectGitWatcher: ProjectGitInteractionLifecycle =
@@ -331,6 +344,7 @@ describe("createInteractionSocketGateway", () => {
 
   it("cleans task stream subscriptions when a real websocket client disconnects", async () => {
     let unsubscribeCount = 0
+    const selectedTopics: InteractionTaskTopic[] = []
     const topic: InteractionTopic = {
       kind: "task",
       id: "task-1",
@@ -338,13 +352,14 @@ describe("createInteractionSocketGateway", () => {
 
     const { app, url } = await createLiveGatewayApp({
       taskStream: {
-        selectTask: () =>
+        selectTopic: (taskTopic) =>
           createTaskStreamSource({
             listeners: new Set(),
+            selectedTopics,
             onUnsubscribe() {
               unsubscribeCount += 1
             },
-          }),
+          }).selectTopic(taskTopic),
       },
     })
 
@@ -365,14 +380,9 @@ describe("createInteractionSocketGateway", () => {
 
       await expect(snapshotPromise).resolves.toEqual({
         topic,
-        message: {
-          kind: "snapshot",
-          name: "task",
-          data: {
-            task: createTask(),
-          },
-        },
+        message: createTaskSnapshotMessage(),
       })
+      expect(selectedTopics).toEqual([topic])
 
       client.close()
 

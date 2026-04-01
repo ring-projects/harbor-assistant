@@ -121,11 +121,13 @@
 
 .markdown-body :global([data-streamdown="mermaid"] [role="img"]) {
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .markdown-body :global([data-streamdown="mermaid"] [role="img"] > svg) {
   display: block;
-  width: 100% !important;
+  width: 70% !important;
   height: auto !important;
   max-width: none;
   margin-inline: auto;

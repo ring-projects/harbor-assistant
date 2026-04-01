@@ -33,13 +33,13 @@ export function OrchestrationList({
     if (
       selectedOrchestrationId &&
       orchestrations.some(
-        (item) => item.orchestrationId === selectedOrchestrationId,
+        (item) => item.id === selectedOrchestrationId,
       )
     ) {
       return selectedOrchestrationId
     }
 
-    return orchestrations[0]?.orchestrationId ?? null
+    return orchestrations[0]?.id ?? null
   }, [orchestrations, selectedOrchestrationId])
 
   useEffect(() => {
@@ -92,17 +92,13 @@ export function OrchestrationList({
 
             {!query.isLoading && !query.isError
               ? orchestrations.map((orchestration) => {
-                  const isActive =
-                    orchestration.orchestrationId ===
-                    resolvedSelectedOrchestrationId
+                  const isActive = orchestration.id === resolvedSelectedOrchestrationId
 
                   return (
                     <button
-                      key={orchestration.orchestrationId}
+                      key={orchestration.id}
                       type="button"
-                      onClick={() =>
-                        onSelectOrchestration(orchestration.orchestrationId)
-                      }
+                      onClick={() => onSelectOrchestration(orchestration.id)}
                       className={[
                         "w-full rounded-lg border p-3 text-left transition-colors",
                         isActive
@@ -116,8 +112,7 @@ export function OrchestrationList({
                             {orchestration.title}
                           </p>
                           <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
-                            {orchestration.latestTaskSummary ??
-                              orchestration.description ??
+                            {orchestration.description ??
                               orchestration.initPrompt ??
                               "No activity yet."}
                           </p>
@@ -125,11 +120,6 @@ export function OrchestrationList({
                         <span className="text-muted-foreground shrink-0 text-[11px] uppercase">
                           {orchestration.status}
                         </span>
-                      </div>
-
-                      <div className="text-muted-foreground mt-3 flex items-center gap-3 text-[11px]">
-                        <span>{orchestration.taskCount} tasks</span>
-                        <span>{orchestration.activeTaskCount} active</span>
                       </div>
                     </button>
                   )

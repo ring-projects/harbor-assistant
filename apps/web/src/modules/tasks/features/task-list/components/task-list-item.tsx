@@ -28,9 +28,9 @@ type TaskListItemProps = {
   isArchived?: boolean
   archiveDisabled?: boolean
   deleteDisabled?: boolean
-  onSelectTask: (taskId: string) => void
-  onArchiveTask?: (taskId: string) => void
-  onDeleteTask: (task: { taskId: string; title: string }) => void
+  onSelectTask: (id: string) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask: (task: { id: string; title: string }) => void
 }
 
 type TaskListItemActionsProps = {
@@ -39,8 +39,8 @@ type TaskListItemActionsProps = {
   className?: string
   deleteDisabled: boolean
   isArchived: boolean
-  onArchiveTask?: (taskId: string) => void
-  onDeleteTask: (task: { taskId: string; title: string }) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask: (task: { id: string; title: string }) => void
   task: TaskListItemRecord
   taskTitle: string
 }
@@ -124,7 +124,7 @@ function TaskListItemActions({
         {!isArchived ? (
           <DropdownMenuItem
             disabled={!canManageTask || archiveDisabled}
-            onClick={() => onArchiveTask?.(task.taskId)}
+            onClick={() => onArchiveTask?.(task.id)}
           >
             <ArchiveIcon className="mr-2 size-4" />
             Archive
@@ -134,7 +134,7 @@ function TaskListItemActions({
           disabled={!canManageTask || deleteDisabled}
           onClick={() => {
             onDeleteTask({
-              taskId: task.taskId,
+              id: task.id,
               title: taskTitle,
             })
           }}
@@ -173,14 +173,14 @@ export function TaskListItem({
     : task.finishedAt ?? task.startedAt ?? task.createdAt
   const executorLabel = formatExecutorLabel(task.executor)
   const modelLabel = task.model?.trim() || "-"
-  const handleSelect = () => onSelectTask(task.taskId)
+  const handleSelect = () => onSelectTask(task.id)
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Enter" && event.key !== " ") {
       return
     }
 
     event.preventDefault()
-    onSelectTask(task.taskId)
+    onSelectTask(task.id)
   }
 
   return (

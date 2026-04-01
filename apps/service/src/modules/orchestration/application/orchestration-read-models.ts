@@ -1,6 +1,6 @@
 import type { Orchestration } from "../domain/orchestration"
 
-export type OrchestrationListItem = {
+export type OrchestrationReadModel = {
   id: string
   projectId: string
   title: string
@@ -11,37 +11,23 @@ export type OrchestrationListItem = {
   archivedAt: Date | null
   createdAt: Date
   updatedAt: Date
-  taskCount: number
-  activeTaskCount: number
-  latestTaskSummary: string | null
-  latestTaskUpdatedAt: Date | null
 }
 
-export type OrchestrationDetail = OrchestrationListItem
-
-export function toOrchestrationListItem(args: {
-  orchestration: Orchestration
-  taskCount: number
-  activeTaskCount: number
-  latestTaskSummary: string | null
-  latestTaskUpdatedAt: Date | null
-}): OrchestrationListItem {
+export function toOrchestrationReadModel(
+  orchestration: Orchestration,
+): OrchestrationReadModel {
   return {
-    id: args.orchestration.id,
-    projectId: args.orchestration.projectId,
-    title: args.orchestration.title,
-    description: args.orchestration.description,
-    initPrompt: args.orchestration.initPrompt,
-    config: args.orchestration.config
-      ? structuredClone(args.orchestration.config)
+    id: orchestration.id,
+    projectId: orchestration.projectId,
+    title: orchestration.title,
+    description: orchestration.description,
+    initPrompt: orchestration.initPrompt,
+    config: orchestration.config
+      ? structuredClone(orchestration.config)
       : null,
-    status: args.orchestration.status,
-    archivedAt: args.orchestration.archivedAt,
-    createdAt: args.orchestration.createdAt,
-    updatedAt: args.orchestration.updatedAt,
-    taskCount: args.taskCount,
-    activeTaskCount: args.activeTaskCount,
-    latestTaskSummary: args.latestTaskSummary,
-    latestTaskUpdatedAt: args.latestTaskUpdatedAt,
+    status: orchestration.status,
+    archivedAt: orchestration.archivedAt,
+    createdAt: orchestration.createdAt,
+    updatedAt: orchestration.updatedAt,
   }
 }

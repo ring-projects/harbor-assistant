@@ -132,26 +132,6 @@ export function createTaskExecutionStateStore(args: {
     await publishTaskUpsert(taskId)
   }
 
-  async function markExecutionRunning(input: {
-    executionId: string
-    startedAt: Date
-    command: string
-  }) {
-    await args.prisma.execution.update({
-      where: {
-        id: input.executionId,
-      },
-      data: {
-        status: "running",
-        startedAt: input.startedAt,
-        finishedAt: null,
-        exitCode: null,
-        errorMessage: null,
-        command: input.command,
-      },
-    })
-  }
-
   async function transitionTerminalState(input: {
     executionId: string
     taskId: string
@@ -312,7 +292,6 @@ export function createTaskExecutionStateStore(args: {
     getNextSequence,
     markCancelled,
     markCompleted,
-    markExecutionRunning,
     markFailed,
     markTaskRunning,
     publishTaskUpsert,

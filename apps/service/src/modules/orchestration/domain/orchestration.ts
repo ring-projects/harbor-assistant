@@ -1,6 +1,6 @@
 import { createOrchestrationError } from "../errors"
 
-export type OrchestrationStatus = "active" | "paused" | "archived"
+export type OrchestrationStatus = "active" | "archived"
 
 export type Orchestration = {
   id: string

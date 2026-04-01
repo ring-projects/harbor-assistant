@@ -1,6 +1,6 @@
 "use client"
 
-import { ImageIcon } from "lucide-react"
+import { PaperclipIcon } from "lucide-react"
 import {
   useId,
   useRef,
@@ -34,13 +34,13 @@ type TaskInputComposerProps = {
   onSubmit: () => void
 }
 
-function extractImageFiles(items: DataTransferItemList | null) {
+function extractFiles(items: DataTransferItemList | null) {
   if (!items) {
     return []
   }
 
   return Array.from(items)
-    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+    .filter((item) => item.kind === "file")
     .flatMap((item) => {
       const file = item.getAsFile()
       return file ? [file] : []
@@ -52,7 +52,7 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
   const errorTextId = useId()
   const isComposingRef = useRef(false)
   const dragDepthRef = useRef(0)
-  const [isDraggingImage, setIsDraggingImage] = useState(false)
+  const [isDraggingFile, setIsDraggingFile] = useState(false)
   const actionMode = props.actionMode ?? "send"
   const actionDisabled =
     props.actionDisabled ?? (!props.canSubmit || props.isSubmitting)
@@ -93,7 +93,7 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
       return
     }
 
-    const files = extractImageFiles(event.clipboardData.items)
+    const files = extractFiles(event.clipboardData.items)
 
     if (files.length === 0) {
       return
@@ -107,13 +107,13 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
       return
     }
 
-    const files = extractImageFiles(event.dataTransfer.items)
+    const files = extractFiles(event.dataTransfer.items)
     if (files.length === 0) {
       return
     }
 
     dragDepthRef.current += 1
-    setIsDraggingImage(true)
+    setIsDraggingFile(true)
     event.preventDefault()
   }
 
@@ -122,7 +122,7 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
       return
     }
 
-    const files = extractImageFiles(event.dataTransfer.items)
+    const files = extractFiles(event.dataTransfer.items)
     if (files.length === 0) {
       return
     }
@@ -136,14 +136,14 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
       return
     }
 
-    const files = extractImageFiles(event.dataTransfer.items)
+    const files = extractFiles(event.dataTransfer.items)
     if (files.length === 0) {
       return
     }
 
     dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
     if (dragDepthRef.current === 0) {
-      setIsDraggingImage(false)
+      setIsDraggingFile(false)
     }
 
     event.preventDefault()
@@ -154,9 +154,9 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
       return
     }
 
-    const files = extractImageFiles(event.dataTransfer.items)
+    const files = extractFiles(event.dataTransfer.items)
     dragDepthRef.current = 0
-    setIsDraggingImage(false)
+    setIsDraggingFile(false)
 
     if (files.length === 0) {
       return
@@ -170,18 +170,18 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
     <div
       className={cn(
         "relative overflow-hidden rounded-xl bg-muted/80 transition-colors",
-        isDraggingImage && "bg-muted/34 ring-1 ring-foreground/12",
+        isDraggingFile && "bg-muted/34 ring-1 ring-foreground/12",
       )}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {isDraggingImage ? (
+      {isDraggingFile ? (
         <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg bg-background/90 backdrop-blur-sm">
           <div className="flex items-center gap-2 rounded-md bg-muted/55 px-3 py-2 font-mono text-[12px] text-foreground">
-            <ImageIcon className="size-4 text-muted-foreground" />
-            <span>Drop images to attach</span>
+            <PaperclipIcon className="size-4 text-muted-foreground" />
+            <span>Drop files to attach</span>
           </div>
         </div>
       ) : null}

@@ -1,6 +1,5 @@
 enum OrchestrationStatus {
   active
-  paused
   archived
 }
 

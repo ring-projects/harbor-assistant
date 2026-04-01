@@ -596,6 +596,8 @@ function getTaskEvents(input: {
 行为说明：
 
 - 文件会写入 project 根目录下的 `.harbor/task-input-images`
+- route / use case 只负责 project 校验、类型校验和大小限制
+- 真实目录创建、文件命名与写盘由 task image storage boundary 负责，不直接写在 application use case 中
 - 当前支持：
   - `image/png`
   - `image/jpeg`

@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createTask } from "../../task/domain/task"
 import { attachTaskRuntime } from "../../task/application/task-read-models"
+import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
 import { InMemoryOrchestrationRepository } from "../infrastructure/in-memory-orchestration-repository"
 import { createOrchestration } from "../domain/orchestration"
 import { createOrchestrationTaskUseCase } from "./create-orchestration-task"
 import { createOrchestrationUseCase } from "./create-orchestration"
-import { getOrchestrationDetailUseCase } from "./get-orchestration-detail"
+import { getOrchestrationUseCase } from "./get-orchestration"
 import { listOrchestrationTasksUseCase } from "./list-orchestration-tasks"
 import { listProjectOrchestrationsUseCase } from "./list-project-orchestrations"
 
@@ -37,7 +38,7 @@ describe("orchestration use cases", () => {
     }
   }
 
-  it("creates and aggregates project orchestrations from task summaries", async () => {
+  it("lists project orchestrations without task summaries", async () => {
     const repository = new InMemoryOrchestrationRepository([
       createOrchestration({
         id: "orch-1",
@@ -50,49 +51,10 @@ describe("orchestration use cases", () => {
         id === "project-1" ? createProject("project-1") : null,
       ),
     }
-    const taskRepository = {
-      listByProject: vi.fn(async () => [
-        attachTaskRuntime(
-          createTask({
-            id: "task-2",
-            projectId: "project-1",
-            orchestrationId: "orch-1",
-            prompt: "Summarize runtime drift",
-            status: "completed",
-            updatedAt: new Date("2026-04-01T00:20:00.000Z"),
-          }),
-          {
-            executor: "codex",
-            model: "gpt-5.3-codex",
-            executionMode: "safe",
-            effort: "medium",
-          },
-        ),
-        attachTaskRuntime(
-          createTask({
-            id: "task-1",
-            projectId: "project-1",
-            orchestrationId: "orch-1",
-            prompt: "Investigate runtime drift",
-            status: "running",
-            updatedAt: new Date("2026-04-01T00:10:00.000Z"),
-          }),
-          {
-            executor: "codex",
-            model: "gpt-5.3-codex",
-            executionMode: "safe",
-            effort: "medium",
-          },
-        ),
-      ]),
-      listByOrchestration: vi.fn(async () => []),
-    }
-
     const orchestrations = await listProjectOrchestrationsUseCase(
       {
         repository,
         projectRepository,
-        taskRepository,
       },
       "project-1",
     )
@@ -101,14 +63,11 @@ describe("orchestration use cases", () => {
       expect.objectContaining({
         id: "orch-1",
         projectId: "project-1",
-        taskCount: 2,
-        activeTaskCount: 1,
-        latestTaskSummary: "Summarize runtime drift",
       }),
     ])
   })
 
-  it("creates an orchestration task through the delegated task port", async () => {
+  it("creates an orchestration task through the task use case", async () => {
     const repository = new InMemoryOrchestrationRepository([
       createOrchestration({
         id: "orch-1",
@@ -116,32 +75,29 @@ describe("orchestration use cases", () => {
         title: "Runtime cleanup",
       }),
     ])
-    const taskPort = {
-      createTaskForOrchestration: vi.fn(async (input) => ({
-        id: "task-1",
-        projectId: input.projectId,
-        orchestrationId: input.orchestrationId,
-        prompt: "Investigate runtime drift",
-        title: "Investigate runtime drift",
-        titleSource: "prompt" as const,
-        executor: input.executor,
-        model: input.model,
-        executionMode: input.executionMode,
-        effort: input.effort,
-        status: "queued" as const,
-        archivedAt: null,
-        createdAt: new Date("2026-04-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-        startedAt: null,
-        finishedAt: null,
+    const taskRepository = new InMemoryTaskRepository()
+    const projectTaskPort = {
+      getProjectForTask: vi.fn(async (projectId: string) => ({
+        projectId,
+        rootPath: "/tmp/harbor-assistant",
       })),
-      listTasksForOrchestration: vi.fn(async () => []),
+    }
+    const runtimePort = {
+      startTaskExecution: vi.fn(async () => {}),
+      resumeTaskExecution: vi.fn(async () => {}),
+      cancelTaskExecution: vi.fn(async () => {}),
+    }
+    const notificationPublisher = {
+      publish: vi.fn(async () => {}),
     }
 
     const task = await createOrchestrationTaskUseCase(
       {
         repository,
-        taskPort,
+        projectTaskPort,
+        taskRepository,
+        runtimePort,
+        notificationPublisher,
       },
       {
         orchestrationId: "orch-1",
@@ -153,13 +109,55 @@ describe("orchestration use cases", () => {
       },
     )
 
-    expect(taskPort.createTaskForOrchestration).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-      }),
-    )
+    expect(projectTaskPort.getProjectForTask).toHaveBeenCalledWith("project-1")
+    expect(runtimePort.startTaskExecution).toHaveBeenCalledTimes(1)
     expect(task.orchestrationId).toBe("orch-1")
+  })
+
+  it("rejects creating tasks for archived orchestrations", async () => {
+    const repository = new InMemoryOrchestrationRepository([
+      createOrchestration({
+        id: "orch-archived",
+        projectId: "project-1",
+        title: "Runtime cleanup",
+        status: "archived",
+        archivedAt: new Date("2026-04-01T00:00:00.000Z"),
+      }),
+    ])
+    const taskRepository = new InMemoryTaskRepository()
+    const projectTaskPort = {
+      getProjectForTask: vi.fn(),
+    }
+    const runtimePort = {
+      startTaskExecution: vi.fn(async () => {}),
+      resumeTaskExecution: vi.fn(async () => {}),
+      cancelTaskExecution: vi.fn(async () => {}),
+    }
+    const notificationPublisher = {
+      publish: vi.fn(async () => {}),
+    }
+
+    await expect(
+      createOrchestrationTaskUseCase(
+        {
+          repository,
+          projectTaskPort,
+          taskRepository,
+          runtimePort,
+          notificationPublisher,
+        },
+        {
+          orchestrationId: "orch-archived",
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      ),
+    ).rejects.toThrow("archived orchestrations cannot accept new tasks")
+    expect(projectTaskPort.getProjectForTask).not.toHaveBeenCalled()
+    expect(runtimePort.startTaskExecution).not.toHaveBeenCalled()
   })
 
   it("returns orchestration detail and task list from delegated dependencies", async () => {
@@ -186,30 +184,17 @@ describe("orchestration use cases", () => {
       },
     )
 
-    const taskRepository = {
-      listByOrchestration: vi.fn(async () => [task]),
-    }
-    const taskPort = {
-      createTaskForOrchestration: vi.fn(),
-      listTasksForOrchestration: vi.fn(async () => [
-        {
-          ...task,
-          title: task.title,
-        },
-      ]),
-    }
-
-    const detail = await getOrchestrationDetailUseCase(
+    const taskRepository = new InMemoryTaskRepository([task])
+    const detail = await getOrchestrationUseCase(
       {
         repository,
-        taskRepository,
       },
       "orch-1",
     )
     const tasks = await listOrchestrationTasksUseCase(
       {
         repository,
-        taskPort,
+        taskRepository,
       },
       {
         orchestrationId: "orch-1",
@@ -218,8 +203,6 @@ describe("orchestration use cases", () => {
 
     expect(detail).toMatchObject({
       id: "orch-1",
-      taskCount: 1,
-      activeTaskCount: 1,
     })
     expect(tasks).toHaveLength(1)
     expect(tasks[0]?.orchestrationId).toBe("orch-1")
@@ -249,7 +232,6 @@ describe("orchestration use cases", () => {
       id: "orch-created-1",
       projectId: "project-1",
       title: "Refactor runtime boundaries",
-      taskCount: 0,
     })
   })
 })

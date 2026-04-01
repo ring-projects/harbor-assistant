@@ -1,6 +1,6 @@
 "use client"
 
-import { ImageIcon, XIcon } from "lucide-react"
+import { FileTextIcon, ImageIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -30,7 +30,11 @@ export function TaskInputAttachmentList({
           key={attachment.path}
           className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/75 px-3 py-1.5 font-mono text-[11px] text-foreground/85"
         >
-          <ImageIcon className="size-3.5 text-muted-foreground" />
+          {attachment.mediaType.startsWith("image/") ? (
+            <ImageIcon className="size-3.5 text-muted-foreground" />
+          ) : (
+            <FileTextIcon className="size-3.5 text-muted-foreground" />
+          )}
           <span className="max-w-56 truncate">{getAttachmentDisplayName(attachment)}</span>
           <span className="text-muted-foreground/90">
             {Math.max(1, Math.round(attachment.size / 1024))} KB

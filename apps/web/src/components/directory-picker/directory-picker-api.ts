@@ -178,6 +178,7 @@ export async function readBootstrapDirectoryEntries(input: {
   return {
     ok: true,
     rootId: payload.listing.rootId,
+    rootLabel: root.label,
     rootPath: payload.listing.rootPath,
     path: payload.listing.absolutePath,
     parentPath:

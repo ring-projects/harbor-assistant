@@ -1,8 +1,10 @@
 import Fastify from "fastify"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 
 import type { ServiceConfig } from "../../config"
 import errorHandlerPlugin from "../../plugins/error-handler"
+import prismaPlugin from "../../plugins/prisma"
+import { createTestDatabase, type TestDatabase } from "../../../test/helpers/test-database"
 import { registerV1Routes } from "."
 
 function createConfig(): ServiceConfig {
@@ -21,9 +23,21 @@ function createConfig(): ServiceConfig {
 }
 
 describe("registerV1Routes", () => {
+  let testDatabase: TestDatabase | null = null
+
+  afterEach(async () => {
+    await testDatabase?.cleanup()
+    testDatabase = null
+  })
+
   it("shares the new project and task wiring through the v1 composition root", async () => {
+    testDatabase = await createTestDatabase()
     const app = Fastify({ logger: false })
     await app.register(errorHandlerPlugin)
+    await app.register(prismaPlugin, {
+      datasourceUrl: testDatabase.databaseUrl,
+      log: [],
+    })
     await app.register(
       async (instance) => {
         await registerV1Routes(instance, createConfig())
@@ -112,11 +126,24 @@ describe("registerV1Routes", () => {
         expect.objectContaining({
           id: orchestrationId,
           projectId: "project-1",
-          taskCount: 1,
         }),
       ],
     })
 
     await app.close()
+  })
+
+  it("fails fast when prisma is not registered", async () => {
+    const app = Fastify({ logger: false })
+    await app.register(errorHandlerPlugin)
+
+    await expect(
+      app.register(
+        async (instance) => {
+          await registerV1Routes(instance, createConfig())
+        },
+        { prefix: "/v1" },
+      ),
+    ).rejects.toThrow("registerV1Routes requires app.prisma to be registered")
   })
 })

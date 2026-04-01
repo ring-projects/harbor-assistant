@@ -1,11 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query"
 
-import { pickString } from "@/lib/protocol"
+import { toStringOrNull } from "@/lib/protocol"
 import { gitQueryKeys } from "@/modules/git"
 import { useTasksSessionStore } from "@/modules/tasks/store"
 import {
   extractTaskEvents,
-  extractTaskList,
   normalizeTaskCandidate,
   normalizeTaskEvent,
   toTaskStatus,
@@ -85,9 +84,9 @@ export class TaskRealtimeMessageHandler {
         return
       }
       case "task_deleted": {
-        const taskId = pickString(data, "taskId")
+        const taskId = toStringOrNull(data.taskId)
         const orchestrationId =
-          pickString(data, "orchestrationId") ??
+          toStringOrNull(data.orchestrationId) ??
           useTasksSessionStore.getState().tasksById[topic.id]?.orchestrationId
 
         if (!taskId || !orchestrationId) {

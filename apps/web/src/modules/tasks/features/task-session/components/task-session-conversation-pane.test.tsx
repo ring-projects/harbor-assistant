@@ -26,7 +26,7 @@ vi.mock("./chat-detail-drawer", () => ({
 
 function buildTaskDetail(overrides: Partial<TaskDetail> = {}): TaskDetail {
   return {
-    taskId: "task-1",
+    id: "task-1",
     projectId: "project-1",
     orchestrationId: "orch-1",
     prompt: "Ship it",

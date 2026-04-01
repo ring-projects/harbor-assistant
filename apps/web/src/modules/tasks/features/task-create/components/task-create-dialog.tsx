@@ -35,7 +35,7 @@ type TaskCreateDialogProps = {
   projectId: string
   orchestrationId: string | null
   disabled?: boolean
-  onTaskCreated: (taskId: string) => void
+  onTaskCreated: (id: string) => void
   trigger?: ReactNode
 }
 
@@ -118,7 +118,7 @@ export function TaskCreateDialog({
       )
       resetCreateComposer()
       setOpen(false)
-      onTaskCreated(result.taskId)
+      onTaskCreated(result.id)
     } catch (error) {
       setCreateTaskError(getErrorMessage(error))
     }

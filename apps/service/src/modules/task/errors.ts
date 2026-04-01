@@ -11,6 +11,7 @@ export const TASK_ERROR_CODES = {
   CANCEL_FAILED: "CANCEL_FAILED",
   START_FAILED: "START_FAILED",
   RESUME_FAILED: "RESUME_FAILED",
+  UPLOAD_INPUT_IMAGE_FAILED: "UPLOAD_INPUT_IMAGE_FAILED",
 } as const
 
 export type TaskErrorCode =
@@ -63,6 +64,9 @@ export function createTaskError() {
     },
     resumeFailed(message = "task runtime failed to resume") {
       return new TaskError(TASK_ERROR_CODES.RESUME_FAILED, message)
+    },
+    uploadInputImageFailed(message = "task input image upload failed") {
+      return new TaskError(TASK_ERROR_CODES.UPLOAD_INPUT_IMAGE_FAILED, message)
     },
   }
 }

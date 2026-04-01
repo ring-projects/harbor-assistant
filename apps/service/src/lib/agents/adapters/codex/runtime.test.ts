@@ -138,6 +138,59 @@ describe("CodexAdapter", () => {
     ])
   })
 
+  it("serializes local files into text while preserving local images", async () => {
+    let receivedInput: unknown = null
+
+    const adapter = new CodexAdapter(() => ({
+      startThread: () => ({
+        runStreamed: async (input: AgentInput) => {
+          receivedInput = input
+          return {
+            events: buildStandardCodexEvents(),
+          }
+        },
+      }) as never,
+      resumeThread: () => {
+        throw new Error("resumeThread should not be called in this test")
+      },
+    }))
+
+    for await (const _event of adapter.startSessionAndRun(
+      {
+        workingDirectory: "/tmp/project",
+        approvalPolicy: "never",
+      },
+      [
+        {
+          type: "text",
+          text: "Review these references",
+        },
+        {
+          type: "local_file",
+          path: ".harbor/task-input-files/spec.md",
+        },
+        {
+          type: "local_image",
+          path: ".harbor/task-input-images/reference.png",
+        },
+      ],
+    )) {
+      // drain stream
+    }
+
+    expect(receivedInput).toEqual([
+      {
+        type: "text",
+        text:
+          "Review these references\n\nAttached local files:\n- .harbor/task-input-files/spec.md",
+      },
+      {
+        type: "local_image",
+        path: ".harbor/task-input-images/reference.png",
+      },
+    ])
+  })
+
   it("emits provider-native codex events without Harbor prompt synthesis", async () => {
     const adapter = new CodexAdapter(() => ({
       startThread: () => ({

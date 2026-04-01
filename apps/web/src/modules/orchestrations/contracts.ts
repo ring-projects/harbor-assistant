@@ -2,14 +2,13 @@ import { z } from "zod"
 
 export const ORCHESTRATION_STATUS_VALUES = [
   "active",
-  "paused",
   "archived",
 ] as const
 
 export const orchestrationStatusSchema = z.enum(ORCHESTRATION_STATUS_VALUES)
 
 export const orchestrationListItemSchema = z.object({
-  orchestrationId: z.string().min(1),
+  id: z.string().min(1),
   projectId: z.string().min(1),
   title: z.string().min(1),
   description: z.string().nullable().default(null),
@@ -19,10 +18,6 @@ export const orchestrationListItemSchema = z.object({
   archivedAt: z.string().nullable().default(null),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
-  taskCount: z.number().int().nonnegative(),
-  activeTaskCount: z.number().int().nonnegative(),
-  latestTaskSummary: z.string().nullable().default(null),
-  latestTaskUpdatedAt: z.string().nullable().default(null),
 })
 
 export const orchestrationDetailSchema = orchestrationListItemSchema

@@ -235,12 +235,21 @@ function formatUserInputContent(payload: Record<string, unknown> | null) {
   const attachmentBlocks = payload.input
     .map((item) => {
       const source = asRecord(item)
-      if (!source || source.type !== "local_image") {
+      if (
+        !source ||
+        (source.type !== "local_image" && source.type !== "local_file")
+      ) {
         return null
       }
 
-      const imagePath = toStringOrNull(source.path)?.trim()
-      return imagePath ? `Attached image: ${imagePath}` : null
+      const attachmentPath = toStringOrNull(source.path)?.trim()
+      if (!attachmentPath) {
+        return null
+      }
+
+      return source.type === "local_image"
+        ? `Attached image: ${attachmentPath}`
+        : `Attached file: ${attachmentPath}`
     })
     .filter((item): item is string => Boolean(item))
 
@@ -262,7 +271,10 @@ function parseUserInputAttachments(payload: Record<string, unknown> | null) {
   return attachmentSources
     .map((item) => {
       const source = asRecord(item)
-      if (!source || source.type !== "local_image") {
+      if (
+        !source ||
+        (source.type !== "local_image" && source.type !== "local_file")
+      ) {
         return null
       }
 
@@ -272,11 +284,18 @@ function parseUserInputAttachments(payload: Record<string, unknown> | null) {
       }
 
       return {
-        type: "local_image" as const,
+        type: source.type === "local_image" ? "local_image" : "local_file",
         path,
       }
     })
-    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .filter(
+      (
+        item,
+      ): item is {
+        type: "local_image" | "local_file"
+        path: string
+      } => Boolean(item),
+    )
 }
 
 function parseUserInputText(payload: Record<string, unknown> | null) {

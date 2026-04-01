@@ -9,6 +9,7 @@ import { attachTaskRuntime, type TaskRecord } from "../application/task-read-mod
 import { createTask } from "../domain/task"
 import { InMemoryTaskEventProjection } from "../infrastructure/in-memory-task-event-projection"
 import { InMemoryTaskRepository } from "../infrastructure/in-memory-task-repository"
+import { createNodeTaskInputImageStore } from "../infrastructure/node-task-input-image-store"
 import { createInMemoryTaskNotificationBus } from "../infrastructure/notification/in-memory-task-notification-bus"
 import { registerTaskModuleRoutes } from "."
 import errorHandlerPlugin from "../../../plugins/error-handler"
@@ -61,6 +62,7 @@ async function createApp(
     ],
   })
   const notificationBus = createInMemoryTaskNotificationBus()
+  const taskInputFileStore = createNodeTaskInputImageStore()
 
   const app = Fastify({ logger: false })
   await app.register(errorHandlerPlugin)
@@ -83,6 +85,7 @@ async function createApp(
             }
           },
         },
+        taskInputFileStore,
         runtimePort: {
           async startTaskExecution() {},
           async resumeTaskExecution(input) {
@@ -502,5 +505,40 @@ describe("task routes", () => {
     expect(body.path).toMatch(/^\.harbor\/task-input-images\/.+-screenshot\.png$/)
     const stored = await readFile(path.join(rootPath, body.path))
     expect(stored.toString()).toBe("test-image")
+  })
+
+  it("uploads a task input document into the project workspace", async () => {
+    const rootPath = await mkdtemp(path.join(os.tmpdir(), "harbor-task-input-"))
+    tempRoots.add(rootPath)
+    const app = await createApp(rootPath)
+
+    const uploaded = await app.inject({
+      method: "POST",
+      url: "/v1/projects/project-1/task-input-files",
+      payload: {
+        name: "spec.md",
+        mediaType: "text/markdown",
+        dataBase64: Buffer.from("# spec").toString("base64"),
+      },
+    })
+
+    expect(uploaded.statusCode).toBe(200)
+    expect(uploaded.json()).toMatchObject({
+      ok: true,
+      mediaType: "text/markdown",
+      name: "spec.md",
+      size: 6,
+    })
+
+    const body = uploaded.json() as {
+      path: string
+      mediaType: string
+      name: string
+      size: number
+    }
+
+    expect(body.path).toMatch(/^\.harbor\/task-input-files\/.+-spec\.md$/)
+    const stored = await readFile(path.join(rootPath, body.path))
+    expect(stored.toString()).toBe("# spec")
   })
 })

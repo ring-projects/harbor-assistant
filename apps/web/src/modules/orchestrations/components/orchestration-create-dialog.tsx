@@ -56,7 +56,7 @@ export function OrchestrationCreateDialog({
       })
       reset()
       setOpen(false)
-      onCreated(orchestration.orchestrationId)
+      onCreated(orchestration.id)
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     }

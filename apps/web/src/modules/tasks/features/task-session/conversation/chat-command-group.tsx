@@ -20,8 +20,7 @@ type ChatCommandGroupProps = {
   onOpen: (block: Extract<ChatConversationBlock, { type: "command-group" }>) => void
 }
 
-function ChatCommandGroupView({ block, onOpen }: ChatCommandGroupProps) {
-  const hasOutput = Boolean(block.outputPreview)
+function ChatCommandGroupView({ block }: ChatCommandGroupProps) {
 
   const statusMeta =
     block.status === "success"

@@ -5,7 +5,6 @@ import { buildExecutorApiUrl } from "@/lib/executor-service-url"
 import {
   asRecord,
   parseJsonResponse,
-  pickString,
   toIntegerOrNull,
   toIsoDateString,
   toOptionalIsoDateString,
@@ -102,22 +101,17 @@ function normalizeOrchestrationCandidate(
     return null
   }
 
-  const orchestrationId = pickString(
-    source,
-    "orchestrationId",
-    "id",
-    "orchestration_id",
-  )
-  const projectId = pickString(source, "projectId", "project_id")
+  const id = toStringOrNull(source.id)
+  const projectId = toStringOrNull(source.projectId)
   const title = toStringOrNull(source.title)
   const status = toOrchestrationStatus(source.status)
 
-  if (!orchestrationId || !projectId || !title || !status) {
+  if (!id || !projectId || !title || !status) {
     return null
   }
 
   const parsed = orchestrationListItemSchema.safeParse({
-    orchestrationId,
+    id,
     projectId,
     title,
     description: toStringOrNull(source.description),
@@ -130,10 +124,6 @@ function normalizeOrchestrationCandidate(
     archivedAt: toOptionalIsoDateString(source.archivedAt),
     createdAt: toIsoDateString(source.createdAt),
     updatedAt: toIsoDateString(source.updatedAt),
-    taskCount: toIntegerOrNull(source.taskCount) ?? 0,
-    activeTaskCount: toIntegerOrNull(source.activeTaskCount) ?? 0,
-    latestTaskSummary: toStringOrNull(source.latestTaskSummary),
-    latestTaskUpdatedAt: toOptionalIsoDateString(source.latestTaskUpdatedAt, null),
   })
 
   return parsed.success ? parsed.data : null

@@ -1,25 +1,23 @@
-import { randomUUID } from "node:crypto"
-import { mkdir, writeFile } from "node:fs/promises"
-import path from "node:path"
-
-import { createTaskError } from "../errors"
+import { createTaskError, isTaskError } from "../errors"
 import type { ProjectTaskPort } from "./project-task-port"
+import type { TaskInputFileStore } from "./task-input-image-store"
 
-const TASK_INPUT_IMAGE_DIRECTORY = ".harbor/task-input-images"
-const TASK_INPUT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
-const SUPPORTED_TASK_INPUT_IMAGE_MEDIA_TYPES = new Set([
+const TASK_INPUT_FILE_MAX_BYTES = 10 * 1024 * 1024
+const SUPPORTED_TASK_INPUT_FILE_MEDIA_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/webp",
   "image/gif",
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "application/yaml",
+  "application/x-yaml",
+  "text/yaml",
+  "text/x-yaml",
 ])
-
-function sanitizeFileName(name: string) {
-  const trimmed = path.basename(name.trim())
-  const fallback = "image"
-  const normalized = (trimmed || fallback).replace(/[^A-Za-z0-9._-]+/g, "-")
-  return normalized.replace(/-+/g, "-") || fallback
-}
 
 function decodeBase64(value: string) {
   const normalized = value.trim()
@@ -30,12 +28,9 @@ function decodeBase64(value: string) {
   return Buffer.from(normalized, "base64")
 }
 
-function toRelativeOutputPath(fileName: string) {
-  return `${TASK_INPUT_IMAGE_DIRECTORY}/${fileName}`
-}
-
-export async function uploadTaskInputImageUseCase(args: {
+export async function uploadTaskInputFileUseCase(args: {
   projectTaskPort: ProjectTaskPort
+  taskInputFileStore: TaskInputFileStore
 }, input: {
   projectId: string
   name: string
@@ -57,8 +52,8 @@ export async function uploadTaskInputImageUseCase(args: {
   if (!name) {
     throw createTaskError().invalidInput("name is required")
   }
-  if (!SUPPORTED_TASK_INPUT_IMAGE_MEDIA_TYPES.has(mediaType)) {
-    throw createTaskError().invalidInput("unsupported image media type")
+  if (!SUPPORTED_TASK_INPUT_FILE_MEDIA_TYPES.has(mediaType)) {
+    throw createTaskError().invalidInput("unsupported task input file media type")
   }
 
   const project = await args.projectTaskPort.getProjectForTask(projectId)
@@ -68,25 +63,40 @@ export async function uploadTaskInputImageUseCase(args: {
 
   const content = decodeBase64(input.dataBase64)
   if (content.length === 0) {
-    throw createTaskError().invalidInput("image payload is empty")
+    throw createTaskError().invalidInput("file payload is empty")
   }
-  if (content.length > TASK_INPUT_IMAGE_MAX_BYTES) {
-    throw createTaskError().invalidInput("image payload exceeds 10MB limit")
+  if (content.length > TASK_INPUT_FILE_MAX_BYTES) {
+    throw createTaskError().invalidInput("file payload exceeds 10MB limit")
   }
 
-  const sanitizedName = sanitizeFileName(name)
-  const storedFileName = `${randomUUID()}-${sanitizedName}`
-  const relativePath = toRelativeOutputPath(storedFileName)
-  const absoluteDirectory = path.join(project.rootPath, TASK_INPUT_IMAGE_DIRECTORY)
-  const absolutePath = path.join(project.rootPath, relativePath)
+  let storedImage: {
+    path: string
+    size: number
+  }
 
-  await mkdir(absoluteDirectory, { recursive: true })
-  await writeFile(absolutePath, content)
+  try {
+    storedImage = await args.taskInputFileStore.save({
+      projectPath: project.rootPath,
+      name,
+      mediaType,
+      content,
+    })
+  } catch (error) {
+    if (isTaskError(error)) {
+      throw error
+    }
+
+    throw createTaskError().uploadInputImageFailed(
+      error instanceof Error ? error.message : "task input image upload failed",
+    )
+  }
 
   return {
-    path: relativePath,
+    path: storedImage.path,
     mediaType,
     name,
-    size: content.length,
+    size: storedImage.size,
   }
 }
+
+export const uploadTaskInputImageUseCase = uploadTaskInputFileUseCase

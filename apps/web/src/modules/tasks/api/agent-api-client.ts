@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "@/constants"
 import { buildExecutorApiUrl } from "@/lib/executor-service-url"
-import { asRecord, parseJsonResponse, pickString } from "@/lib/protocol"
+import { parseJsonResponse } from "@/lib/protocol"
 import { type AgentCapabilityResult } from "@/modules/tasks/contracts"
 
 import { TaskApiClientError } from "./task-api-client"
@@ -22,13 +22,12 @@ export async function readAgentCapabilities(): Promise<AgentCapabilityResult> {
   })
 
   const payload = await parseJsonResponse<AgentCapabilitiesEnvelope>(response)
-  const error = asRecord(payload?.error)
 
   if (!response.ok || payload?.ok === false) {
     throw new TaskApiClientError(
-      pickString(error, "message") ?? "Failed to load agent capabilities.",
+      payload?.error?.message ?? "Failed to load agent capabilities.",
       {
-        code: pickString(error, "code") ?? ERROR_CODES.INTERNAL_ERROR,
+        code: payload?.error?.code ?? ERROR_CODES.INTERNAL_ERROR,
         status: response.status,
       },
     )

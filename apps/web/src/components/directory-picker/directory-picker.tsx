@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, type KeyboardEvent } from "react"
+import { Fragment, useEffect, useMemo, type KeyboardEvent } from "react"
 import { FolderIcon } from "lucide-react"
 
 import {
@@ -62,6 +62,7 @@ function DirectoryPickerInner({
     [query.data?.entries],
   )
   const currentResolvedPath = query.data?.path ?? currentPath
+  const rootLabel = query.data?.rootLabel ?? null
 
   useEffect(() => {
     if (query.data && !rootPath) {
@@ -84,9 +85,9 @@ function DirectoryPickerInner({
   const breadcrumbSegments = useMemo(
     () =>
       currentResolvedPath
-        ? buildBreadcrumbSegments(currentResolvedPath, rootPath)
+        ? buildBreadcrumbSegments(currentResolvedPath, rootPath, rootLabel)
         : [],
-    [currentResolvedPath, rootPath],
+    [currentResolvedPath, rootLabel, rootPath],
   )
 
   async function handleConfirm() {
@@ -187,25 +188,27 @@ function DirectoryPickerInner({
               {breadcrumbSegments.map((segment, index) => {
                 const isLast = index === breadcrumbSegments.length - 1
                 return (
-                  <BreadcrumbItem key={segment.path}>
-                    {isLast ? (
-                      <BreadcrumbPage className="text-sm">
-                        {segment.label}
-                      </BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink asChild>
-                        <button
-                          type="button"
-                          className="cursor-pointer text-sm"
-                          onClick={() => handleEnterDirectory(segment.path)}
-                          disabled={disabled || isSubmitting}
-                        >
+                  <Fragment key={segment.path}>
+                    <BreadcrumbItem>
+                      {isLast ? (
+                        <BreadcrumbPage className="text-sm">
                           {segment.label}
-                        </button>
-                      </BreadcrumbLink>
-                    )}
+                        </BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink asChild>
+                          <button
+                            type="button"
+                            className="cursor-pointer text-sm"
+                            onClick={() => handleEnterDirectory(segment.path)}
+                            disabled={disabled || isSubmitting}
+                          >
+                            {segment.label}
+                          </button>
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
                     {!isLast ? <BreadcrumbSeparator>/</BreadcrumbSeparator> : null}
-                  </BreadcrumbItem>
+                  </Fragment>
                 )
               })}
             </BreadcrumbList>

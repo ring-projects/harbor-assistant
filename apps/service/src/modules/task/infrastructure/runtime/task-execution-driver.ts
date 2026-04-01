@@ -5,8 +5,6 @@ import type {
   AgentType,
   IAgentRuntime,
 } from "../../../../lib/agents"
-import type { TaskNotificationPublisher } from "../../application/task-notification"
-import type { TaskRepository } from "../../application/task-repository"
 import type { TaskRuntimeConfig } from "../../application/task-runtime-port"
 import {
   applyNormalizedTaskEvents,
@@ -17,16 +15,26 @@ import {
 } from "./normalize-agent-events"
 import { createAgentRuntimeOptions } from "./runtime-policy"
 import type { TaskExecutionHandle } from "./task-execution-handle-registry"
-import { createTaskExecutionStateStore } from "./task-execution-state"
+import type { createTaskExecutionStateStore } from "./task-execution-state"
 
 function now() {
   return new Date()
 }
 
+type TaskExecutionRecord = {
+  id: string
+  ownerId: string
+  executorType: string | null
+  executorModel: string | null
+  executionMode: string | null
+  executorEffort: string | null
+  workingDirectory: string
+  sessionId: string | null
+}
+
 export function createTaskExecutionDriver(args: {
   prisma: PrismaClient
-  taskRepository: Pick<TaskRepository, "findById">
-  notificationPublisher: TaskNotificationPublisher
+  stateStore: ReturnType<typeof createTaskExecutionStateStore>
   executionHandleRegistry: {
     register(taskId: string, handle: TaskExecutionHandle): void
     delete(taskId: string, handle?: TaskExecutionHandle): void
@@ -34,12 +42,6 @@ export function createTaskExecutionDriver(args: {
   harborApiBaseUrl?: string
   logger?: Pick<Console, "error" | "warn">
 }) {
-  const stateStore = createTaskExecutionStateStore({
-    prisma: args.prisma,
-    taskRepository: args.taskRepository,
-    notificationPublisher: args.notificationPublisher,
-  })
-
   function buildHarborSessionEnv(input: {
     projectId: string
     taskId: string
@@ -55,30 +57,6 @@ export function createTaskExecutionDriver(args: {
     }
   }
 
-  async function loadExecutionRecord(taskId: string) {
-    const executionRecord = await args.prisma.execution.findUnique({
-      where: {
-        ownerId: taskId,
-      },
-      select: {
-        id: true,
-        ownerId: true,
-        executorType: true,
-        executorModel: true,
-        executionMode: true,
-        executorEffort: true,
-        workingDirectory: true,
-        sessionId: true,
-      },
-    })
-
-    if (!executionRecord) {
-      throw new Error(`Execution for task ${taskId} was not found before runtime start.`)
-    }
-
-    return executionRecord
-  }
-
   async function runInBackground(input: {
     executionId: string
     taskId: string
@@ -87,13 +65,13 @@ export function createTaskExecutionDriver(args: {
     runtimeConfig: TaskRuntimeConfig
     agentType: AgentType
     agentRuntime: IAgentRuntime
-    executionRecord: Awaited<ReturnType<typeof loadExecutionRecord>>
+    executionRecord: TaskExecutionRecord
     startedAt: Date
     startMode: "start" | "resume"
     signal: AbortSignal
   }) {
     const state = createTaskRunEventState()
-    let nextSequence = await stateStore.getNextSequence(input.executionId)
+    let nextSequence = await args.stateStore.getNextSequence(input.executionId)
 
     try {
       const runtimeOptions = createAgentRuntimeOptions({
@@ -126,7 +104,7 @@ export function createTaskExecutionDriver(args: {
           continue
         }
 
-        nextSequence = await stateStore.appendEvents({
+        nextSequence = await args.stateStore.appendEvents({
           executionId: input.executionId,
           taskId: input.taskId,
           projectId: input.projectId,
@@ -158,7 +136,7 @@ export function createTaskExecutionDriver(args: {
       }
 
       const finishedAt = now()
-      await stateStore.markCompleted({
+      await args.stateStore.markCompleted({
         executionId: input.executionId,
         taskId: input.taskId,
         finishedAt,
@@ -173,7 +151,7 @@ export function createTaskExecutionDriver(args: {
             ? input.signal.reason.trim()
             : "User requested stop"
 
-        const cancelled = await stateStore.markCancelled({
+        const cancelled = await args.stateStore.markCancelled({
           executionId: input.executionId,
           taskId: input.taskId,
           finishedAt,
@@ -184,7 +162,7 @@ export function createTaskExecutionDriver(args: {
           return
         }
 
-        await stateStore.appendEvents({
+        await args.stateStore.appendEvents({
           executionId: input.executionId,
           taskId: input.taskId,
           projectId: input.projectId,
@@ -210,7 +188,7 @@ export function createTaskExecutionDriver(args: {
 
       const message = error instanceof Error ? error.message : String(error)
       if (!state.hasTerminalErrorEvent) {
-        await stateStore.appendEvents({
+        await args.stateStore.appendEvents({
           executionId: input.executionId,
           taskId: input.taskId,
           projectId: input.projectId,
@@ -221,7 +199,7 @@ export function createTaskExecutionDriver(args: {
       }
 
       const finishedAt = now()
-      await stateStore.markFailed({
+      await args.stateStore.markFailed({
         executionId: input.executionId,
         taskId: input.taskId,
         finishedAt,
@@ -234,13 +212,12 @@ export function createTaskExecutionDriver(args: {
   function launchExecution(input: {
     taskId: string
     projectId: string
-    projectPath: string
     input: AgentInput
     runtimeConfig: TaskRuntimeConfig
     agentType: AgentType
     agentRuntime: IAgentRuntime
     executionId: string
-    executionRecord: Awaited<ReturnType<typeof loadExecutionRecord>>
+    executionRecord: TaskExecutionRecord
     startedAt: Date
     startMode: "start" | "resume"
   }) {
@@ -263,89 +240,19 @@ export function createTaskExecutionDriver(args: {
   }
 
   return {
-    async startExecution(input: {
+    launchExecution(input: {
       taskId: string
       projectId: string
-      projectPath: string
       input: AgentInput
       runtimeConfig: TaskRuntimeConfig
       agentType: AgentType
       agentRuntime: IAgentRuntime
+      executionId: string
+      executionRecord: TaskExecutionRecord
+      startedAt: Date
+      startMode: "start" | "resume"
     }) {
-      const executionRecord = await loadExecutionRecord(input.taskId)
-      const startedAt = now()
-
-      await args.prisma.execution.update({
-        where: {
-          id: executionRecord.id,
-        },
-        data: {
-          workingDirectory: input.projectPath,
-          executorType: input.runtimeConfig.executor,
-          executorModel: input.runtimeConfig.model,
-          executionMode: input.runtimeConfig.executionMode,
-          executorEffort: input.runtimeConfig.effort,
-        },
-      })
-      await stateStore.markExecutionRunning({
-        executionId: executionRecord.id,
-        startedAt,
-        command: "agent.startSession",
-      })
-      await stateStore.markTaskRunning(input.taskId, startedAt)
-
-      launchExecution({
-        ...input,
-        executionId: executionRecord.id,
-        executionRecord,
-        startedAt,
-        startMode: "start",
-      })
-    },
-    async resumeExecution(input: {
-      taskId: string
-      projectId: string
-      projectPath: string
-      input: AgentInput
-      runtimeConfig: TaskRuntimeConfig
-      sessionId: string
-      agentType: AgentType
-      agentRuntime: IAgentRuntime
-    }) {
-      const executionRecord = await loadExecutionRecord(input.taskId)
-      const startedAt = now()
-
-      await args.prisma.execution.update({
-        where: {
-          id: executionRecord.id,
-        },
-        data: {
-          workingDirectory: input.projectPath,
-          executorType: input.runtimeConfig.executor,
-          executorModel: input.runtimeConfig.model,
-          executionMode: input.runtimeConfig.executionMode,
-          executorEffort: input.runtimeConfig.effort,
-          status: "running",
-          startedAt,
-          finishedAt: null,
-          exitCode: null,
-          errorMessage: null,
-          sessionId: input.sessionId,
-        },
-      })
-      await stateStore.markTaskRunning(input.taskId, startedAt)
-
-      launchExecution({
-        ...input,
-        executionId: executionRecord.id,
-        executionRecord: {
-          ...executionRecord,
-          workingDirectory: input.projectPath,
-          sessionId: input.sessionId,
-        },
-        startedAt,
-        startMode: "resume",
-      })
+      launchExecution(input)
     },
   }
 }

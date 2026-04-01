@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog"
 
 export type PendingTaskDelete = {
-  taskId: string
+  id: string
   title: string
 }
 
@@ -34,12 +34,17 @@ export function DeleteTaskDialog({
 }: DeleteTaskDialogProps) {
   return (
     <Dialog open={Boolean(pendingTaskDelete)} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Delete Task</DialogTitle>
           <DialogDescription>
-            Delete &quot;{pendingTaskDelete?.title ?? "this task"}&quot;
-            permanently? This also removes its event history from Harbor.
+            <span className="block">Delete</span>
+            <span className="text-foreground line-clamp-2 block font-medium wrap-break-words">
+              &quot;{pendingTaskDelete?.title ?? "this task"}&quot;
+            </span>
+            <span className="block">
+              permanently? This also removes its event history from Harbor.
+            </span>
           </DialogDescription>
         </DialogHeader>
 

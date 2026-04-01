@@ -7,13 +7,13 @@ import {
 } from "./task-payload"
 
 describe("task-payload", () => {
-  it("extracts task lists from envelope variants", () => {
+  it("extracts task lists from the service id contract", () => {
     const tasks = extractTaskList({
       data: [
         {
-          task_id: "task-1",
-          project_id: "project-1",
-          orchestration_id: "orch-1",
+          id: "task-1",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Ship it",
           title: "Ship it",
           status: "running",
@@ -24,7 +24,7 @@ describe("task-payload", () => {
 
     expect(tasks).toEqual([
       {
-        taskId: "task-1",
+        id: "task-1",
         projectId: "project-1",
         orchestrationId: "orch-1",
         prompt: "Ship it",
@@ -41,6 +41,24 @@ describe("task-payload", () => {
         finishedAt: null,
       },
     ])
+  })
+
+  it("drops legacy snake_case task payloads", () => {
+    const tasks = extractTaskList({
+      data: [
+        {
+          task_id: "task-legacy",
+          project_id: "project-1",
+          orchestration_id: "orch-1",
+          prompt: "Ship it",
+          title: "Ship it",
+          status: "running",
+          createdAt: "2026-03-18T10:00:00.000Z",
+        },
+      ],
+    })
+
+    expect(tasks).toEqual([])
   })
 
   it("extracts task effort when present", () => {
@@ -73,7 +91,7 @@ describe("task-payload", () => {
       },
     })
 
-    expect(task?.taskId).toBe("task-2")
+    expect(task?.id).toBe("task-2")
     expect(task?.projectId).toBe("project-2")
     expect(task?.status).toBe("queued")
   })
@@ -133,5 +151,17 @@ describe("task-payload", () => {
       ],
       nextSequence: 1,
     })
+  })
+
+  it("rejects legacy snake_case task event payload ids", () => {
+    const stream = extractTaskEvents({
+      task_id: "task-legacy",
+      events: {
+        items: [],
+        nextSequence: 1,
+      },
+    })
+
+    expect(stream).toBeNull()
   })
 })

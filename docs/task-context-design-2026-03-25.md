@@ -1,5 +1,12 @@
 # Task Context Design
 
+> [!WARNING]
+> **状态：已过时（Outdated）**
+> 当前系统主模型已调整为 `Orchestration -> N Tasks`。
+> 这些文档仍可作为历史背景参考，但不应再作为最新设计依据。
+> 请优先参考：`docs/orchestration-requirements-2026-03-31.md` 与 `docs/tdd/orchestration.md`。
+
+
 ## 1. 文档信息
 
 - 文档名称：Task Context Design
@@ -396,6 +403,7 @@ task command
 
 1. 让 `task` 直接修改 `Project`
 2. 把 project repository 暴露给 `task`
+3. 承担 task input image 这类文件落盘职责
 
 推荐方向：
 
@@ -414,7 +422,39 @@ type ProjectTaskPort = {
 }
 ```
 
-### 11.2 `TaskRuntimePort`
+### 11.2 `TaskInputImageStore`
+
+用途：
+
+1. 把 task 输入图片保存到 project workspace
+2. 返回可直接作为 `local_image.path` 的相对路径
+3. 隔离文件命名、目录创建、写盘失败等基础设施细节
+
+它不负责：
+
+1. 验证 project 是否存在
+2. 决定 media type 是否允许
+3. 处理 route / request body 校验
+
+推荐方向：
+
+```ts
+type TaskInputImageStore = {
+  save(input: {
+    projectPath: string
+    name: string
+    content: Buffer
+  }): Promise<{
+    path: string
+    size: number
+  }>
+}
+```
+
+这样 `uploadTaskInputImageUseCase` 只负责应用规则编排，Node `fs` / `path` / `mkdir` / `writeFile`
+全部留在 infrastructure implementation。
+
+### 11.3 `TaskRuntimePort`
 
 用途：
 

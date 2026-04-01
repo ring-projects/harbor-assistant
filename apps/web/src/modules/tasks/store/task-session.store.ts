@@ -187,11 +187,11 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
       const tasksById = { ...state.tasksById }
 
       for (const task of tasks) {
-        tasksById[task.taskId] = mergeTaskRecord(tasksById[task.taskId], task)
+        tasksById[task.id] = mergeTaskRecord(tasksById[task.id], task)
       }
 
       const nextTaskIds = sortTaskIdsByCreatedAt(
-        tasks.map((task) => task.taskId),
+        tasks.map((task) => task.id),
         tasksById,
       )
 
@@ -242,7 +242,7 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
   },
 
   applyTaskUpsert(task) {
-    const normalizedTaskId = task.taskId.trim()
+    const normalizedTaskId = task.id.trim()
     const normalizedOrchestrationId = task.orchestrationId.trim()
     if (!normalizedTaskId || !normalizedOrchestrationId) {
       return

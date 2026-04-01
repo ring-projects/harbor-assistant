@@ -79,7 +79,7 @@ describe("TaskSocketManager", () => {
   it("removes a task from store when a task deletion event arrives", async () => {
     useTasksSessionStore.getState().hydrateOrchestrationTasks("orch-1", [
       {
-        taskId: "task-1",
+        id: "task-1",
         projectId: "project-1",
         orchestrationId: "orch-1",
         prompt: "Delete me",

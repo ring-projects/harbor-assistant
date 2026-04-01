@@ -1,14 +1,12 @@
-import type { TaskRepository } from "../../task/application/task-repository"
 import type { ProjectRepository } from "../../project/application/project-repository"
 import { createProjectError } from "../../project/errors"
+import { toOrchestrationReadModel } from "./orchestration-read-models"
 import type { OrchestrationRepository } from "./orchestration-repository"
-import { buildOrchestrationListItem } from "./shared"
 
 export async function listProjectOrchestrationsUseCase(
   args: {
     repository: Pick<OrchestrationRepository, "listByProject">
     projectRepository: Pick<ProjectRepository, "findById">
-    taskRepository: Pick<TaskRepository, "listByProject">
   },
   projectId: string,
 ) {
@@ -22,25 +20,7 @@ export async function listProjectOrchestrationsUseCase(
     throw createProjectError().notFound()
   }
 
-  const [orchestrations, tasks] = await Promise.all([
-    args.repository.listByProject(normalizedProjectId),
-    args.taskRepository.listByProject({
-      projectId: normalizedProjectId,
-      includeArchived: true,
-    }),
-  ])
+  const orchestrations = await args.repository.listByProject(normalizedProjectId)
 
-  const tasksByOrchestration = new Map<string, typeof tasks>()
-  for (const task of tasks) {
-    const items = tasksByOrchestration.get(task.orchestrationId) ?? []
-    items.push(task)
-    tasksByOrchestration.set(task.orchestrationId, items)
-  }
-
-  return orchestrations.map((orchestration) =>
-    buildOrchestrationListItem(
-      orchestration,
-      tasksByOrchestration.get(orchestration.id) ?? [],
-    ),
-  )
+  return orchestrations.map((orchestration) => toOrchestrationReadModel(orchestration))
 }

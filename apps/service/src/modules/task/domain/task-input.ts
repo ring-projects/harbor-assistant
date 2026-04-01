@@ -4,8 +4,23 @@ function isNonEmpty(value: string) {
   return value.trim().length > 0
 }
 
-function formatImageSummary(imageCount: number) {
-  return imageCount === 1 ? "Attached 1 image" : `Attached ${imageCount} images`
+function formatAttachmentSummary(args: {
+  imageCount: number
+  fileCount: number
+}) {
+  const parts: string[] = []
+
+  if (args.imageCount > 0) {
+    parts.push(
+      args.imageCount === 1 ? "1 image" : `${args.imageCount} images`,
+    )
+  }
+
+  if (args.fileCount > 0) {
+    parts.push(args.fileCount === 1 ? "1 file" : `${args.fileCount} files`)
+  }
+
+  return parts.length > 0 ? `Attached ${parts.join(" and ")}` : ""
 }
 
 export function normalizeAgentInputItems(
@@ -22,7 +37,15 @@ export function normalizeAgentInputItems(
     }
 
     const path = item.path.trim()
-    return isNonEmpty(path) ? [{ type: "local_image", path }] : []
+    if (!isNonEmpty(path)) {
+      return []
+    }
+
+    if (item.type === "local_image") {
+      return [{ type: "local_image", path }]
+    }
+
+    return [{ type: "local_file", path }]
   })
 }
 
@@ -44,8 +67,14 @@ export function summarizeAgentInput(input: AgentInput): string {
   const imageCount = normalizedItems.filter(
     (item) => item.type === "local_image",
   ).length
+  const fileCount = normalizedItems.filter(
+    (item) => item.type === "local_file",
+  ).length
 
-  return imageCount > 0 ? formatImageSummary(imageCount) : ""
+  return formatAttachmentSummary({
+    imageCount,
+    fileCount,
+  })
 }
 
 export function resolveAgentInput(args: {
@@ -66,18 +95,22 @@ export function resolveAgentInput(args: {
   return null
 }
 
-export function extractLocalImageAttachments(input: AgentInput) {
+export function extractLocalAttachments(input: AgentInput) {
   if (typeof input === "string") {
     return []
   }
 
   return normalizeAgentInputItems(input)
     .filter(
-      (item): item is Extract<AgentInputItem, { type: "local_image" }> =>
-        item.type === "local_image",
+      (
+        item,
+      ): item is Extract<AgentInputItem, { type: "local_image" | "local_file" }> =>
+        item.type === "local_image" || item.type === "local_file",
     )
     .map((item) => ({
       type: item.type,
       path: item.path,
     }))
 }
+
+export const extractLocalImageAttachments = extractLocalAttachments

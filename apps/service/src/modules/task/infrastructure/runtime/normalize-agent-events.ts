@@ -4,7 +4,7 @@ import type {
   RawAgentEventEnvelope,
 } from "../../../../lib/agents"
 import {
-  extractLocalImageAttachments,
+  extractLocalAttachments,
   normalizeAgentInputItems,
   summarizeAgentInput,
 } from "../../domain/task-input"
@@ -772,7 +772,7 @@ export function createSyntheticUserInputEvent(args: {
   }
 
   const createdAt = args.createdAt ?? new Date()
-  const attachments = extractLocalImageAttachments(input)
+  const attachments = extractLocalAttachments(input)
   return {
     eventType: "message",
     payload: {

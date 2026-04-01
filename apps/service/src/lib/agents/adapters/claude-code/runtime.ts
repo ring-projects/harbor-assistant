@@ -36,16 +36,27 @@ function serializeAgentInput(input: AgentInput) {
       item.type === "local_image" ? [`- ${item.path}`] : [],
     )
     .join("\n")
+  const files = input
+    .flatMap((item) =>
+      item.type === "local_file" ? [`- ${item.path}`] : [],
+    )
+    .join("\n")
+  const attachmentSections = [
+    images ? `Attached local images:\n${images}` : null,
+    files ? `Attached local files:\n${files}` : null,
+  ]
+    .filter((section): section is string => Boolean(section))
+    .join("\n\n")
 
-  if (!images) {
+  if (!attachmentSections) {
     return text
   }
 
   if (!text) {
-    return `Attached local images:\n${images}`
+    return attachmentSections
   }
 
-  return `${text}\n\nAttached local images:\n${images}`
+  return `${text}\n\n${attachmentSections}`
 }
 
 function createRawEventEnvelope(args: {

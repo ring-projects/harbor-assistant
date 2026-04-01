@@ -73,7 +73,7 @@ vi.mock("./task-list-item", () => ({
 
 function buildTask(overrides: Partial<TaskListItem> = {}): TaskListItem {
   return {
-    taskId: "task-1",
+    id: "task-1",
     projectId: "project-1",
     orchestrationId: "orch-1",
     prompt: "Ship it",
@@ -110,16 +110,31 @@ afterEach(() => {
 })
 
 describe("TaskList", () => {
+  it("renders an empty state when no orchestration is selected", () => {
+    render(
+      <TaskList
+        projectId="project-1"
+        orchestrationId={null}
+        selectedTaskId={null}
+        onSelectTask={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByText("Select an orchestration to view its tasks."),
+    ).toBeInTheDocument()
+  })
+
   it("excludes archived tasks from the all tab while keeping them in archived", () => {
     act(() => {
       useTasksSessionStore.getState().hydrateOrchestrationTasks("orch-1", [
         buildTask({
-          taskId: "task-active",
+          id: "task-active",
           title: "Active task",
           archivedAt: null,
         }),
         buildTask({
-          taskId: "task-archived",
+          id: "task-archived",
           title: "Archived task",
           archivedAt: "2026-03-18T08:00:00.000Z",
         }),

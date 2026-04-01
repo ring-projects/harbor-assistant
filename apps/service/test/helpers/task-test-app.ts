@@ -5,6 +5,7 @@ import errorHandlerPlugin from "../../src/plugins/error-handler"
 import { createCurrentTaskRuntimePort } from "../../src/modules/task/facade/current-task-runtime-port"
 import { PrismaTaskEventProjection } from "../../src/modules/task/infrastructure/projection/prisma-task-event-projection"
 import { PrismaTaskRepository } from "../../src/modules/task/infrastructure/persistence/prisma-task-repository"
+import { createNodeTaskInputImageStore } from "../../src/modules/task/infrastructure/node-task-input-image-store"
 import { createInMemoryTaskNotificationBus } from "../../src/modules/task/infrastructure/notification/in-memory-task-notification-bus"
 import { registerTaskModuleRoutes } from "../../src/modules/task/routes"
 import { PrismaProjectRepository } from "../../src/modules/project/infrastructure/persistence/prisma-project-repository"
@@ -26,6 +27,7 @@ export async function createTaskTestAppWithOptions(
   const projectTaskPort = createProjectTaskPort({
     projectRepository: new PrismaProjectRepository(prisma),
   })
+  const taskInputFileStore = createNodeTaskInputImageStore()
   const runtimePort = createCurrentTaskRuntimePort({
     prisma,
     taskRepository,
@@ -46,6 +48,7 @@ export async function createTaskTestAppWithOptions(
         eventProjection,
         notificationPublisher: notificationBus.publisher,
         projectTaskPort,
+        taskInputFileStore,
         runtimePort,
       })
     },

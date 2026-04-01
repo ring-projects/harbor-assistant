@@ -7,15 +7,44 @@ export type TaskInputItem =
       type: "local_image"
       path: string
     }
+  | {
+      type: "local_file"
+      path: string
+    }
 
 export type TaskInput = string | TaskInputItem[]
-export type TaskInputImageAttachment = Extract<TaskInputItem, { type: "local_image" }>
+export type TaskInputAttachment = Extract<
+  TaskInputItem,
+  { type: "local_image" | "local_file" }
+>
 
-export type UploadedTaskInputImage = {
+export type UploadedTaskInputAttachment = {
   path: string
   mediaType: string
   name: string
   size: number
+}
+
+export type TaskInputImageAttachment = TaskInputAttachment
+export type UploadedTaskInputImage = UploadedTaskInputAttachment
+
+function formatAttachmentSummary(args: {
+  imageCount: number
+  fileCount: number
+}) {
+  const parts: string[] = []
+
+  if (args.imageCount > 0) {
+    parts.push(
+      args.imageCount === 1 ? "1 image" : `${args.imageCount} images`,
+    )
+  }
+
+  if (args.fileCount > 0) {
+    parts.push(args.fileCount === 1 ? "1 file" : `${args.fileCount} files`)
+  }
+
+  return parts.length > 0 ? `Attached ${parts.join(" and ")}` : ""
 }
 
 export function summarizeTaskInput(input: TaskInput): string {
@@ -34,11 +63,11 @@ export function summarizeTaskInput(input: TaskInput): string {
   }
 
   const imageCount = input.filter((item) => item.type === "local_image").length
-  if (imageCount === 0) {
-    return ""
-  }
-
-  return imageCount === 1 ? "Attached 1 image" : `Attached ${imageCount} images`
+  const fileCount = input.filter((item) => item.type === "local_file").length
+  return formatAttachmentSummary({
+    imageCount,
+    fileCount,
+  })
 }
 
 export function extractTaskInputText(input: TaskInput): string {
@@ -55,16 +84,16 @@ export function extractTaskInputText(input: TaskInput): string {
 
 export function extractTaskInputAttachments(
   input: TaskInput,
-): TaskInputImageAttachment[] {
+): TaskInputAttachment[] {
   if (typeof input === "string") {
     return []
   }
 
   return input.flatMap((item) =>
-    item.type === "local_image" && item.path.trim()
+    (item.type === "local_image" || item.type === "local_file") && item.path.trim()
       ? [
           {
-            type: "local_image" as const,
+            type: item.type,
             path: item.path.trim(),
           },
         ]
@@ -74,7 +103,7 @@ export function extractTaskInputAttachments(
 
 export function buildTaskInput(args: {
   text: string
-  attachments?: UploadedTaskInputImage[]
+  attachments?: UploadedTaskInputAttachment[]
 }): TaskInput | null {
   const text = args.text.trim()
   const attachments = args.attachments ?? []
@@ -93,7 +122,9 @@ export function buildTaskInput(args: {
 
   for (const attachment of attachments) {
     items.push({
-      type: "local_image",
+      type: attachment.mediaType.startsWith("image/")
+        ? "local_image"
+        : "local_file",
       path: attachment.path,
     })
   }
@@ -101,6 +132,6 @@ export function buildTaskInput(args: {
   return items.length > 0 ? items : null
 }
 
-export function getAttachmentDisplayName(attachment: UploadedTaskInputImage) {
+export function getAttachmentDisplayName(attachment: UploadedTaskInputAttachment) {
   return attachment.name.trim() || attachment.path.split("/").at(-1) || attachment.path
 }

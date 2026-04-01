@@ -10,6 +10,7 @@ import {
 } from "@/modules/tasks/hooks/use-task-queries"
 import {
   selectOrchestrationTasks,
+  type TaskRecord,
   useTasksSessionStore,
 } from "@/modules/tasks/store"
 import { getErrorMessage } from "@/modules/tasks/view-models"
@@ -19,6 +20,8 @@ import {
 } from "./delete-task-dialog"
 import { TaskListHeader, type TaskListTab } from "./task-list-header"
 import { TaskListItem } from "./task-list-item"
+
+const EMPTY_ORCHESTRATION_TASKS: TaskRecord[] = []
 
 type TaskListProps = {
   projectId: string
@@ -39,7 +42,9 @@ export function TaskList({
   const deleteTaskMutation = useDeleteTaskMutation(projectId)
   const listQuery = useOrchestrationTaskListQuery({ orchestrationId })
   const orchestrationTasks = useTasksSessionStore((state) =>
-    orchestrationId ? selectOrchestrationTasks(state, orchestrationId) : [],
+    orchestrationId
+      ? selectOrchestrationTasks(state, orchestrationId)
+      : EMPTY_ORCHESTRATION_TASKS,
   )
   const [selectedTab, setSelectedTab] = useState<TaskListTab>("all")
 
@@ -89,12 +94,12 @@ export function TaskList({
 
     if (
       selectedTaskId &&
-      visibleTasks.some((task) => task.taskId === selectedTaskId)
+      visibleTasks.some((task) => task.id === selectedTaskId)
     ) {
       return selectedTaskId
     }
 
-    return visibleTasks[0]?.taskId ?? null
+    return visibleTasks[0]?.id ?? null
   }, [selectedTaskId, visibleTasks])
 
   const emptyStateMessage = useMemo(() => {
@@ -140,7 +145,7 @@ export function TaskList({
     }
 
     try {
-      await deleteTaskMutation.mutateAsync(taskPendingDelete.taskId)
+      await deleteTaskMutation.mutateAsync(taskPendingDelete.id)
       setTaskPendingDelete(null)
     } catch (error) {
       console.log(error)
@@ -200,9 +205,9 @@ export function TaskList({
             {!listQuery.isLoading && !listQuery.isError
               ? visibleTasks.map((task) => (
                   <TaskListItem
-                    key={task.taskId}
+                    key={task.id}
                     task={task}
-                    isActive={task.taskId === resolvedSelectedTaskId}
+                    isActive={task.id === resolvedSelectedTaskId}
                     isArchived={selectedTab === "archived"}
                     archiveDisabled={archiveTaskMutation.isPending}
                     deleteDisabled={deleteTaskMutation.isPending}

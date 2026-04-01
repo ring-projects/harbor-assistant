@@ -1,8 +1,8 @@
 import type {
   InteractionProjectGitChangeEvent,
   InteractionSubscribeRequest,
-  InteractionTaskStatus,
-  InteractionTaskStreamEvent,
+  InteractionTaskMessage,
+  InteractionTaskTopic,
   InteractionTopic,
   ProjectGitInteractionWatcher,
   TaskInteractionQueries,
@@ -11,20 +11,15 @@ import type {
 import {
   interactionTopicKey,
   interactionTopicRoom,
+  type ParsedInteractionSubscription,
   parseInteractionSubscription,
 } from "../domain/subscription-topics"
 import {
   emitWebSocketMessage,
   errorEnvelope,
+  interactionMessageEnvelope,
   projectGitChangedEventEnvelope,
   subscribedEnvelope,
-  taskDeletedEventEnvelope,
-  taskEndedEventEnvelope,
-  taskEventEnvelope,
-  taskEventsSnapshotEnvelope,
-  taskSnapshotEnvelope,
-  taskStatusChangedEventEnvelope,
-  taskUpsertEventEnvelope,
   unsubscribedEnvelope,
 } from "../domain/websocket-contract"
 import {
@@ -53,70 +48,16 @@ function emitInteractionError(
   )
 }
 
-function emitTaskStreamEvent(
+function emitTaskMessage(
   socket: Pick<SocketSessionLike, "emit">,
-  topic: InteractionTopic,
-  event: InteractionTaskStreamEvent,
-) {
-  switch (event.type) {
-    case "task_upsert":
-      emitWebSocketMessage(
-        socket,
-        taskUpsertEventEnvelope({
-          topic,
-          task: event.task,
-        }),
-      )
-      return
-    case "task_status":
-      emitWebSocketMessage(
-        socket,
-        taskStatusChangedEventEnvelope({
-          topic,
-          status: event.status,
-        }),
-      )
-      return
-    case "task_end":
-      emitWebSocketMessage(
-        socket,
-        taskEndedEventEnvelope({
-          topic,
-          status: event.status,
-          cursor: event.cursor,
-        }),
-      )
-      return
-    case "agent_event":
-      emitWebSocketMessage(
-        socket,
-        taskEventEnvelope({
-          topic,
-          event: event.event,
-        }),
-      )
-      return
-    case "task_deleted":
-      return
-  }
-}
-
-function emitTaskDeleted(
-  socket: Pick<SocketSessionLike, "emit">,
-  topic: InteractionTopic,
-  event: {
-    taskId: string
-    projectId: string
-    orchestrationId: string
-  },
+  topic: InteractionTaskTopic,
+  message: InteractionTaskMessage,
 ) {
   emitWebSocketMessage(
     socket,
-    taskDeletedEventEnvelope({
+    interactionMessageEnvelope({
       topic,
-      taskId: event.taskId,
-      projectId: event.projectId,
-      orchestrationId: event.orchestrationId,
+      message,
     }),
   )
 }
@@ -137,7 +78,7 @@ function emitProjectGitChanged(
 
 async function replayTaskSnapshot(args: {
   socket: SocketSessionLike
-  taskQueries: Pick<TaskInteractionQueries, "getTaskDetail">
+  taskQueries: Pick<TaskInteractionQueries, "getTaskSnapshot">
   request: InteractionSubscribeRequest
 }) {
   const parsed = parseInteractionSubscription(args.request)
@@ -152,16 +93,10 @@ async function replayTaskSnapshot(args: {
   try {
     const topic = parsed.topic
     args.socket.join(parsed.room)
-    const task = await args.taskQueries.getTaskDetail(topic.id)
+    const snapshot = await args.taskQueries.getTaskSnapshot(topic.id)
 
     emitWebSocketMessage(args.socket, subscribedEnvelope(topic))
-    emitWebSocketMessage(
-      args.socket,
-      taskSnapshotEnvelope({
-        topic,
-        task,
-      }),
-    )
+    emitTaskMessage(args.socket, topic, snapshot)
   } catch (error) {
     emitInteractionError(args.socket, error, parsed.topic)
   }
@@ -169,7 +104,7 @@ async function replayTaskSnapshot(args: {
 
 async function replayTaskEventsSnapshot(args: {
   socket: SocketSessionLike
-  taskQueries: Pick<TaskInteractionQueries, "getTaskEvents">
+  taskQueries: Pick<TaskInteractionQueries, "getTaskEventsSnapshot">
   request: InteractionSubscribeRequest
 }) {
   const parsed = parseInteractionSubscription(args.request)
@@ -182,34 +117,24 @@ async function replayTaskEventsSnapshot(args: {
   }
 
   try {
-    const taskEventsSubscription = parsed as {
-      topic: InteractionTopic & {
-        kind: "task-events"
+    const taskEventsSubscription = parsed as Extract<
+      ParsedInteractionSubscription,
+      {
+        topic: {
+          kind: "task-events"
+        }
       }
-      room: string
-      afterSequence: number
-      limit: number
-    }
-    const topic = taskEventsSubscription.topic
-    args.socket.join(taskEventsSubscription.room)
-    const { task, events, isTerminal } = await args.taskQueries.getTaskEvents({
+    >
+    const topic = parsed.topic
+    args.socket.join(parsed.room)
+    const snapshot = await args.taskQueries.getTaskEventsSnapshot({
       taskId: topic.id,
       afterSequence: taskEventsSubscription.afterSequence,
       limit: taskEventsSubscription.limit,
     })
 
     emitWebSocketMessage(args.socket, subscribedEnvelope(topic))
-    emitWebSocketMessage(
-      args.socket,
-      taskEventsSnapshotEnvelope({
-        topic,
-        status: task.status,
-        afterSequence: taskEventsSubscription.afterSequence,
-        items: events.items,
-        nextSequence: events.nextSequence,
-        terminal: isTerminal,
-      }),
-    )
+    emitTaskMessage(args.socket, topic, snapshot)
   } catch (error) {
     emitInteractionError(args.socket, error, parsed.topic)
   }
@@ -282,54 +207,34 @@ export function bindWebSocketSession(args: {
         })
         return
       case "task":
-        if (!taskStreamSubscriptions.has(topicKey)) {
-          const subscription = args.taskStream
-            .selectTask(parsed.topic.id)
-            .subscribe((event) => {
-              if (
-                event.type === "task_upsert" ||
-                event.type === "task_status" ||
-                event.type === "task_end"
-              ) {
-                emitTaskStreamEvent(args.socket, parsed.topic, event)
-                return
-              }
-
-              if (event.type === "task_deleted") {
-                emitTaskDeleted(args.socket, parsed.topic, event)
-              }
-            })
-          taskStreamSubscriptions.set(topicKey, () => subscription.unsubscribe())
-        }
-
-        void replayTaskSnapshot({
-          socket: args.socket,
-          taskQueries: args.taskQueries,
-          request,
-        })
-        return
       case "task-events":
-        if (!taskStreamSubscriptions.has(topicKey)) {
-          const subscription = args.taskStream
-            .selectTask(parsed.topic.id)
-            .subscribe((event) => {
-              if (event.type === "agent_event" || event.type === "task_end") {
-                emitTaskStreamEvent(args.socket, parsed.topic, event)
-                return
-              }
+        {
+          const topic = parsed.topic
 
-              if (event.type === "task_deleted") {
-                emitTaskDeleted(args.socket, parsed.topic, event)
-              }
+          if (!taskStreamSubscriptions.has(topicKey)) {
+            const subscription = args.taskStream
+              .selectTopic(topic)
+              .subscribe((message) => {
+                emitTaskMessage(args.socket, topic, message)
+              })
+            taskStreamSubscriptions.set(topicKey, () => subscription.unsubscribe())
+          }
+
+          if (topic.kind === "task") {
+            void replayTaskSnapshot({
+              socket: args.socket,
+              taskQueries: args.taskQueries,
+              request,
             })
-          taskStreamSubscriptions.set(topicKey, () => subscription.unsubscribe())
-        }
+            return
+          }
 
-        void replayTaskEventsSnapshot({
-          socket: args.socket,
-          taskQueries: args.taskQueries,
-          request,
-        })
+          void replayTaskEventsSnapshot({
+            socket: args.socket,
+            taskQueries: args.taskQueries,
+            request,
+          })
+        }
     }
   })
 

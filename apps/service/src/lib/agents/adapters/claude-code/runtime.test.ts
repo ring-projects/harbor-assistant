@@ -198,4 +198,42 @@ describe("ClaudeCodeAdapter", () => {
       }),
     })
   })
+
+  it("serializes local files into the Claude prompt", async () => {
+    const queryStub = createQueryStub()
+    const createQuery = vi.fn(() => queryStub)
+
+    const adapter = new ClaudeCodeAdapter(createQuery)
+
+    for await (const _event of adapter.startSessionAndRun(
+      {
+        workingDirectory: "/tmp/project",
+        approvalPolicy: "never",
+      },
+      [
+        {
+          type: "text",
+          text: "Review these references",
+        },
+        {
+          type: "local_file",
+          path: ".harbor/task-input-files/spec.md",
+        },
+        {
+          type: "local_image",
+          path: ".harbor/task-input-images/reference.png",
+        },
+      ],
+    )) {
+      // drain
+    }
+
+    expect(createQuery).toHaveBeenCalledWith({
+      prompt:
+        "Review these references\n\nAttached local images:\n- .harbor/task-input-images/reference.png\n\nAttached local files:\n- .harbor/task-input-files/spec.md",
+      options: expect.objectContaining({
+        cwd: "/tmp/project",
+      }),
+    })
+  })
 })

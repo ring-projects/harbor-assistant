@@ -227,11 +227,31 @@ const taskInputLocalImageItemSchema = {
   },
 } as const
 
+const taskInputLocalFileItemSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "path"],
+  properties: {
+    type: {
+      type: "string",
+      const: "local_file",
+    },
+    path: {
+      type: "string",
+      minLength: 1,
+    },
+  },
+} as const
+
 const taskInputItemsSchema = {
   type: "array",
   minItems: 1,
   items: {
-    oneOf: [taskInputTextItemSchema, taskInputLocalImageItemSchema],
+    oneOf: [
+      taskInputTextItemSchema,
+      taskInputLocalImageItemSchema,
+      taskInputLocalFileItemSchema,
+    ],
   },
 } as const
 

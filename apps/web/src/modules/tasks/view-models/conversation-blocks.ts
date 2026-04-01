@@ -14,7 +14,7 @@ export type ChatConversationBlock =
       role: ChatMessageRole
       content: string
       attachments?: Array<{
-        type: "local_image"
+        type: "local_image" | "local_file"
         path: string
       }>
       timestamp: string | null

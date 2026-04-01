@@ -320,7 +320,6 @@ Runtime 负责执行 Task 对应的内部运行。
 6. `config`
 7. `status`
    - `active`
-   - `paused`
    - `archived`
 8. `createdAt`
 9. `updatedAt`
@@ -404,7 +403,6 @@ Runtime 负责执行 Task 对应的内部运行。
 2. `orchestrationId`
 3. `status`
    - `active`
-   - `paused`
    - `archived`
 4. `triggerRule`
 5. `timezone`
@@ -427,14 +425,18 @@ Runtime 负责执行 Task 对应的内部运行。
 
 建议 orchestration 列表读模型至少包括：
 
-1. `orchestrationId`
+1. `id`
 2. `title`
 3. `status`
-4. `taskCount`
-5. `activeTaskCount`
-6. `latestTaskSummary`
-7. `latestTaskUpdatedAt`
-8. `scheduleCount`
+4. `scheduleCount`
+
+当前不建议把 task 统计字段作为 orchestration 列表读模型的一部分。
+
+原因：
+
+1. 当前产品不需要在 orchestration 列表或详情里展示 task 数量摘要
+2. 这些字段会引入额外的聚合接口与投影复杂度
+3. 如果后续确实需要恢复，应先有明确的 UI/产品消费方，再决定聚合边界
 
 建议 task 列表读模型至少包括：
 
@@ -688,7 +690,12 @@ runtime / raw events -> 继续作为 Task 的内部执行实现细节
 1. 保留 `TaskRepository`
 2. `listProjectTasks` 逐步演化为 `listOrchestrationTasks` 或补充 orchestration 维度查询
 3. `TaskListItem` / `TaskDetail` 继续作为主读模型
-4. orchestration 读模型新增聚合字段，例如 `taskCount`、`activeTaskCount`、`latestTaskSummary`
+4. orchestration 读模型保持轻量，不额外聚合 task 统计字段
+
+补充约束：
+
+1. 当前 orchestration 模块不暴露 task summary / task stats 投影
+2. 如果以后要恢复 task 统计或 latest-task 类字段，必须先有明确消费场景，再决定是在 orchestration 侧聚合还是在查询层拼装
 
 在读模型层，当前 task 已经包含：
 

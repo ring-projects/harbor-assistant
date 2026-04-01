@@ -57,16 +57,14 @@ function upsertOrchestration(
   }
 
   const found = current.some(
-    (item) => item.orchestrationId === orchestration.orchestrationId,
+    (item) => item.id === orchestration.id,
   )
 
   if (!found) {
     return [orchestration, ...current]
   }
 
-  return current.map((item) =>
-    item.orchestrationId === orchestration.orchestrationId ? orchestration : item,
-  )
+  return current.map((item) => (item.id === orchestration.id ? orchestration : item))
 }
 
 export function useCreateOrchestrationMutation(projectId: string) {
@@ -84,7 +82,7 @@ export function useCreateOrchestrationMutation(projectId: string) {
         (current) => upsertOrchestration(current, orchestration),
       )
       queryClient.setQueryData(
-        orchestrationQueryKeys.detail(orchestration.orchestrationId),
+        orchestrationQueryKeys.detail(orchestration.id),
         orchestration,
       )
     },

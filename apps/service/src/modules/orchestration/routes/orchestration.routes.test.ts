@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import errorHandlerPlugin from "../../../plugins/error-handler"
 import { createTask } from "../../task/domain/task"
 import { attachTaskRuntime } from "../../task/application/task-read-models"
+import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
 import { InMemoryOrchestrationRepository } from "../infrastructure/in-memory-orchestration-repository"
 import { createOrchestration } from "../domain/orchestration"
 import { registerOrchestrationModuleRoutes } from "."
@@ -60,37 +61,21 @@ async function createApp() {
       effort: "medium",
     },
   )
-  const taskRepository = {
-    listByProject: vi.fn(async () => [task]),
-    listByOrchestration: vi.fn(async () => [task]),
-  }
-  const taskPort = {
-    createTaskForOrchestration: vi.fn(async () => ({
-      ...task,
-      id: "task-created-1",
-      prompt: "Investigate runtime drift",
+  const taskRepository = new InMemoryTaskRepository([task])
+  const projectTaskPort = {
+    getProjectForTask: vi.fn(async (projectId: string) => ({
+      projectId,
+      rootPath: "/tmp/harbor-assistant",
     })),
-    listTasksForOrchestration: vi.fn(async () => [
-      {
-        id: task.id,
-        projectId: task.projectId,
-        orchestrationId: task.orchestrationId,
-        title: task.title,
-        titleSource: task.titleSource,
-        executor: task.executor,
-        model: task.model,
-        executionMode: task.executionMode,
-        effort: task.effort,
-        status: task.status,
-        archivedAt: task.archivedAt,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
-        startedAt: task.startedAt,
-        finishedAt: task.finishedAt,
-      },
-    ]),
   }
-
+  const runtimePort = {
+    startTaskExecution: vi.fn(async () => {}),
+    resumeTaskExecution: vi.fn(async () => {}),
+    cancelTaskExecution: vi.fn(async () => {}),
+  }
+  const notificationPublisher = {
+    publish: vi.fn(async () => {}),
+  }
   const app = Fastify({ logger: false })
   await app.register(errorHandlerPlugin)
   await app.register(
@@ -98,8 +83,10 @@ async function createApp() {
       await registerOrchestrationModuleRoutes(instance, {
         repository,
         projectRepository,
+        projectTaskPort,
         taskRepository,
-        taskPort,
+        runtimePort,
+        notificationPublisher,
       })
     },
     { prefix: "/v1" },
@@ -155,7 +142,6 @@ describe("orchestration routes", () => {
       ok: true,
       orchestration: {
         id: "orch-1",
-        taskCount: 1,
       },
     })
 
@@ -174,8 +160,8 @@ describe("orchestration routes", () => {
     expect(createdTask.json()).toMatchObject({
       ok: true,
       task: {
-        id: "task-created-1",
         orchestrationId: "orch-1",
+        projectId: "project-1",
       },
     })
 
@@ -186,12 +172,12 @@ describe("orchestration routes", () => {
     expect(listedTasks.statusCode).toBe(200)
     expect(listedTasks.json()).toMatchObject({
       ok: true,
-      tasks: [
+      tasks: expect.arrayContaining([
         expect.objectContaining({
           id: "task-1",
           orchestrationId: "orch-1",
         }),
-      ],
+      ]),
     })
 
     await app.close()

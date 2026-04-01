@@ -25,7 +25,7 @@ function buildTask(
   overrides: Partial<TaskDetail & TaskListItem> = {},
 ): TaskDetail {
   return {
-    taskId: "task-1",
+    id: "task-1",
     projectId: "project-1",
     orchestrationId: "orch-1",
     prompt: "Ship it",
@@ -83,13 +83,13 @@ describe("tasks session store", () => {
 
     store.getState().applyTaskUpsert(
       buildTask({
-        taskId: "task-1",
+        id: "task-1",
         status: "running",
       }),
     )
     store.getState().applyTaskUpsert(
       buildTask({
-        taskId: "task-1",
+        id: "task-1",
         status: "queued",
       }),
     )
@@ -101,12 +101,12 @@ describe("tasks session store", () => {
     const store = createTasksStore()
 
     store.getState().applyTaskUpsert(buildTask({
-      taskId: "task-1",
+      id: "task-1",
       orchestrationId: "project-1",
     }))
 
     store.getState().applyTaskUpsert(buildTask({
-      taskId: "task-1",
+      id: "task-1",
       orchestrationId: "orch-1",
     }))
 
@@ -183,17 +183,17 @@ describe("tasks session store", () => {
 
     store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
-        taskId: "task-1",
+        id: "task-1",
         createdAt: "2026-03-13T00:00:00.000Z",
       }),
       buildTask({
-        taskId: "task-2",
+        id: "task-2",
         createdAt: "2026-03-13T00:01:00.000Z",
       }),
     ])
 
     expect(
-      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.taskId),
+      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.id),
     ).toEqual([
       "task-2",
       "task-1",
@@ -205,7 +205,7 @@ describe("tasks session store", () => {
 
     store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
-        taskId: "task-1",
+        id: "task-1",
       }),
     ])
 
@@ -290,7 +290,7 @@ describe("tasks session store", () => {
 
     store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
-        taskId: "task-1",
+        id: "task-1",
       }),
     ])
 
@@ -321,21 +321,21 @@ describe("tasks session store", () => {
 
     store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
-        taskId: "task-1",
+        id: "task-1",
       }),
       buildTask({
-        taskId: "task-2",
+        id: "task-2",
       }),
     ])
 
     store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
-        taskId: "task-2",
+        id: "task-2",
       }),
     ])
 
     expect(
-      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.taskId),
+      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.id),
     ).toEqual(["task-2"])
   })
 
@@ -344,17 +344,17 @@ describe("tasks session store", () => {
 
     store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
-        taskId: "task-1",
+        id: "task-1",
       }),
     ])
 
     store.getState().applyTaskUpsert(buildTask({
-      taskId: "task-1",
+      id: "task-1",
       archivedAt: "2026-03-18T08:00:00.000Z",
     }))
 
     expect(
-      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.taskId),
+      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.id),
     ).toEqual(["task-1"])
     expect(store.getState().tasksById["task-1"]?.archivedAt).toBe(
       "2026-03-18T08:00:00.000Z",
@@ -366,7 +366,7 @@ describe("tasks session store", () => {
 
     store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
-        taskId: "task-1",
+        id: "task-1",
       }),
     ])
     store.getState().hydrateTaskEvents("task-1", buildStream({

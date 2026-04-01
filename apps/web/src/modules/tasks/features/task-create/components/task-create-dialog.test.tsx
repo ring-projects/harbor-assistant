@@ -152,7 +152,7 @@ describe("TaskCreateDialog", () => {
 
   it("initializes explicit runtime defaults and submits the full runtime config", async () => {
     createTaskMutateAsync.mockResolvedValue({
-      taskId: "task-1",
+      id: "task-1",
     })
 
     const onTaskCreated = vi.fn()

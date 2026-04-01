@@ -3,9 +3,9 @@ import { afterEach, describe, expect, it } from "vitest"
 import { createTestDatabase, type TestDatabase } from "../../../../../test/helpers/test-database"
 import { createInMemoryTaskNotificationBus } from "../notification/in-memory-task-notification-bus"
 import { PrismaTaskRepository } from "../persistence/prisma-task-repository"
-import { createTaskStartupReconciler } from "./task-startup-reconciler"
+import { createTaskExecutionLifecycle } from "./task-execution-lifecycle"
 
-describe("Task startup reconciler", () => {
+describe("Task execution lifecycle", () => {
   let database: TestDatabase | null = null
 
   afterEach(async () => {
@@ -77,13 +77,13 @@ describe("Task startup reconciler", () => {
     })
 
     const bus = createInMemoryTaskNotificationBus()
-    const reconciler = createTaskStartupReconciler({
+    const lifecycle = createTaskExecutionLifecycle({
       prisma,
       taskRepository: new PrismaTaskRepository(prisma),
       notificationPublisher: bus.publisher,
     })
 
-    await expect(reconciler.reconcileOrphanedExecutions()).resolves.toBe(2)
+    await expect(lifecycle.reconcileOrphanedExecutions()).resolves.toBe(2)
 
     const [runningTask, queuedTask] = await Promise.all([
       prisma.task.findUniqueOrThrow({

@@ -9,24 +9,19 @@ import { createGitCommandRepository } from "../../modules/git/infrastructure/git
 import { createNodeGitPathWatcher } from "../../modules/git/infrastructure/node-git-path-watcher"
 import { registerGitModuleRoutes } from "../../modules/git/routes"
 import { createInteractionSocketGateway } from "../../modules/interaction/infrastructure/socket-io-gateway"
-import { InMemoryOrchestrationRepository } from "../../modules/orchestration/infrastructure/in-memory-orchestration-repository"
 import { PrismaOrchestrationRepository } from "../../modules/orchestration/infrastructure/persistence/prisma-orchestration-repository"
 import { registerOrchestrationModuleRoutes } from "../../modules/orchestration/routes"
-import { InMemoryProjectRepository } from "../../modules/project/infrastructure/in-memory-project-repository"
 import { createNodeProjectPathPolicy } from "../../modules/project/infrastructure/node-project-path-policy"
 import { PrismaProjectRepository } from "../../modules/project/infrastructure/persistence/prisma-project-repository"
 import { registerProjectModuleRoutes } from "../../modules/project/routes"
 import { createCurrentTaskRuntimePort } from "../../modules/task/facade/current-task-runtime-port"
-import { createNoopTaskRuntimePort } from "../../modules/task/facade/noop-task-runtime-port"
-import { InMemoryTaskEventProjection } from "../../modules/task/infrastructure/in-memory-task-event-projection"
-import { InMemoryTaskRepository } from "../../modules/task/infrastructure/in-memory-task-repository"
+import { createNodeTaskInputFileStore } from "../../modules/task/infrastructure/node-task-input-image-store"
 import { createInMemoryTaskNotificationBus } from "../../modules/task/infrastructure/notification/in-memory-task-notification-bus"
 import { PrismaTaskRepository } from "../../modules/task/infrastructure/persistence/prisma-task-repository"
 import { PrismaTaskEventProjection } from "../../modules/task/infrastructure/projection/prisma-task-event-projection"
-import { createTaskStartupReconciler } from "../../modules/task/infrastructure/runtime/task-startup-reconciler"
+import { createTaskExecutionLifecycle } from "../../modules/task/infrastructure/runtime/task-execution-lifecycle"
 import { registerTaskModuleRoutes } from "../../modules/task/routes"
 import { createProjectGitInteractionLifecycle } from "./create-project-git-interaction-lifecycle"
-import { createOrchestrationTaskPort } from "./create-orchestration-task-port"
 import { createTaskInteractionService } from "./create-task-interaction-service"
 import { createProjectTaskPort } from "./create-project-task-port"
 
@@ -36,60 +31,51 @@ function resolveHarborApiBaseUrl(config: ServiceConfig) {
   return `http://${normalizedHost}:${config.port}/v1`
 }
 
+function getRequiredPrismaClient(app: FastifyInstance): PrismaClient {
+  const prisma = (app as FastifyInstance & { prisma?: PrismaClient }).prisma
+
+  if (!prisma) {
+    throw new Error("registerV1Routes requires app.prisma to be registered")
+  }
+
+  return prisma
+}
+
 export async function registerV1Routes(
   app: FastifyInstance,
   config: ServiceConfig,
 ) {
-  const prisma = (app as FastifyInstance & { prisma?: PrismaClient }).prisma
-  const projectRepository = prisma
-    ? new PrismaProjectRepository(prisma)
-    : new InMemoryProjectRepository()
-  const orchestrationRepository = prisma
-    ? new PrismaOrchestrationRepository(prisma)
-    : new InMemoryOrchestrationRepository()
-  const taskRepository = prisma
-    ? new PrismaTaskRepository(prisma)
-    : new InMemoryTaskRepository()
-  const taskEventProjection = prisma
-    ? new PrismaTaskEventProjection(prisma)
-    : new InMemoryTaskEventProjection()
+  const prisma = getRequiredPrismaClient(app)
+  const projectRepository = new PrismaProjectRepository(prisma)
+  const orchestrationRepository = new PrismaOrchestrationRepository(prisma)
+  const taskRepository = new PrismaTaskRepository(prisma)
+  const taskEventProjection = new PrismaTaskEventProjection(prisma)
   const taskNotificationBus = createInMemoryTaskNotificationBus()
   const projectTaskPort = createProjectTaskPort({
     projectRepository,
   })
-  const taskRuntimePort = prisma
-    ? createCurrentTaskRuntimePort({
-        prisma,
-        taskRepository,
-        notificationPublisher: taskNotificationBus.publisher,
-        harborApiBaseUrl: resolveHarborApiBaseUrl(config),
-        logger: app.log,
-      })
-    : createNoopTaskRuntimePort()
-  const orchestrationTaskPort = createOrchestrationTaskPort({
-    projectTaskPort,
-    taskRecordStore: taskRepository,
-    repository: taskRepository,
-    runtimePort: taskRuntimePort,
+  const taskInputFileStore = createNodeTaskInputFileStore()
+  const taskRuntimePort = createCurrentTaskRuntimePort({
+    prisma,
+    taskRepository,
     notificationPublisher: taskNotificationBus.publisher,
+    harborApiBaseUrl: resolveHarborApiBaseUrl(config),
+    logger: app.log,
   })
-
-  if (prisma) {
-    try {
-      await createTaskStartupReconciler({
-        prisma,
-        taskRepository,
-        notificationPublisher: taskNotificationBus.publisher,
-        logger: app.log,
-      }).reconcileOrphanedExecutions()
-    } catch (error) {
-      app.log.error(
-        {
-          error,
-        },
-        "Failed to reconcile orphaned task executions during service startup",
-      )
-    }
+  try {
+    await createTaskExecutionLifecycle({
+      prisma,
+      taskRepository,
+      notificationPublisher: taskNotificationBus.publisher,
+      logger: app.log,
+    }).reconcileOrphanedExecutions()
+  } catch (error) {
+    app.log.error(
+      {
+        error,
+      },
+      "Failed to reconcile orphaned task executions during service startup",
+    )
   }
 
   const taskInteractionService = createTaskInteractionService({
@@ -122,8 +108,10 @@ export async function registerV1Routes(
   await registerOrchestrationModuleRoutes(app, {
     repository: orchestrationRepository,
     projectRepository,
+    projectTaskPort,
     taskRepository,
-    taskPort: orchestrationTaskPort,
+    runtimePort: taskRuntimePort,
+    notificationPublisher: taskNotificationBus.publisher,
   })
   await registerGitModuleRoutes(app, {
     projectRepository,
@@ -140,6 +128,7 @@ export async function registerV1Routes(
     eventProjection: taskEventProjection,
     notificationPublisher: taskNotificationBus.publisher,
     projectTaskPort,
+    taskInputFileStore,
     runtimePort: taskRuntimePort,
   })
   createInteractionSocketGateway({

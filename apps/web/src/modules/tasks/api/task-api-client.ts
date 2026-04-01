@@ -2,7 +2,7 @@ import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
 import { buildExecutorApiUrl } from "@/lib/executor-service-url"
-import { parseJsonResponse, pickString } from "@/lib/protocol"
+import { parseJsonResponse } from "@/lib/protocol"
 import {
   type TaskAgentEventStream,
   type TaskDetail,
@@ -30,6 +30,19 @@ type TaskEnvelopePayload = {
   ok?: boolean
   error?: TaskApiError
 } & Record<string, unknown>
+
+type UploadTaskInputImageEnvelopePayload = TaskEnvelopePayload & {
+  path?: string
+  mediaType?: string
+  name?: string
+  size?: number
+}
+
+type DeleteTaskEnvelopePayload = TaskEnvelopePayload & {
+  taskId?: string
+  projectId?: string
+  orchestrationId?: string
+}
 
 export class TaskApiClientError extends Error {
   code: string
@@ -65,7 +78,7 @@ export type CancelTaskInput = {
 }
 
 export type CreateTaskResult = {
-  taskId: string
+  id: string
   task?: TaskDetail
 }
 
@@ -84,8 +97,52 @@ export type UploadTaskInputImageInput = {
   file: File
 }
 
-async function parseJson(response: Response): Promise<TaskEnvelopePayload | null> {
-  return parseJsonResponse<TaskEnvelopePayload>(response)
+const TASK_INPUT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
+const TASK_INPUT_FILE_MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+  yml: "application/yaml",
+  yaml: "application/yaml",
+}
+const SUPPORTED_TASK_INPUT_IMAGE_MEDIA_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "application/yaml",
+  "application/x-yaml",
+  "text/yaml",
+  "text/x-yaml",
+])
+
+function inferTaskInputFileMediaType(file: File) {
+  const explicit = file.type.trim().toLowerCase()
+  if (SUPPORTED_TASK_INPUT_IMAGE_MEDIA_TYPES.has(explicit)) {
+    return explicit
+  }
+
+  const extension = file.name.split(".").at(-1)?.trim().toLowerCase() ?? ""
+  return TASK_INPUT_FILE_MEDIA_TYPE_BY_EXTENSION[extension] ?? explicit
+}
+
+async function parseJson<T extends TaskEnvelopePayload = TaskEnvelopePayload>(
+  response: Response,
+): Promise<T | null> {
+  return parseJsonResponse<T>(response)
 }
 
 function throwIfFailed(
@@ -148,17 +205,17 @@ export async function createTask(args: {
   throwIfFailed(response, payload, "Failed to create task.")
 
   const task = extractSingleTask(payload)
-  const taskId = pickString(payload, "taskId", "id") ?? task?.taskId ?? null
+  const id = task?.id ?? null
 
-  if (!taskId) {
-    throw new TaskApiClientError("Task created but taskId is missing.", {
+  if (!id) {
+    throw new TaskApiClientError("Task created but id is missing.", {
       code: ERROR_CODES.TASK_START_FAILED,
       status: response.status,
     })
   }
 
   return {
-    taskId,
+    id,
     task: task ?? undefined,
   }
 }
@@ -405,11 +462,51 @@ export async function uploadTaskInputImage(
   input: UploadTaskInputImageInput,
 ): Promise<UploadedTaskInputImage> {
   const file = input.file
+  const mediaType = inferTaskInputFileMediaType(file)
+
+  if (!SUPPORTED_TASK_INPUT_IMAGE_MEDIA_TYPES.has(mediaType)) {
+    throw new TaskApiClientError(
+      "Only PNG, JPEG, WebP, GIF, PDF, TXT, Markdown, CSV, JSON, and YAML files are supported.",
+      {
+        code: ERROR_CODES.INVALID_REQUEST_BODY,
+        status: 400,
+      },
+    )
+  }
+
+  if (typeof file.size === "number" && file.size <= 0) {
+    throw new TaskApiClientError("File payload is empty.", {
+      code: ERROR_CODES.INVALID_REQUEST_BODY,
+      status: 400,
+    })
+  }
+
+  if (typeof file.size === "number" && file.size > TASK_INPUT_IMAGE_MAX_BYTES) {
+    throw new TaskApiClientError("File payload exceeds 10MB limit.", {
+      code: ERROR_CODES.INVALID_REQUEST_BODY,
+      status: 400,
+    })
+  }
+
   const bytes = await readFileBytes(file)
+
+  if (bytes.length === 0) {
+    throw new TaskApiClientError("File payload is empty.", {
+      code: ERROR_CODES.INVALID_REQUEST_BODY,
+      status: 400,
+    })
+  }
+
+  if (bytes.length > TASK_INPUT_IMAGE_MAX_BYTES) {
+    throw new TaskApiClientError("File payload exceeds 10MB limit.", {
+      code: ERROR_CODES.INVALID_REQUEST_BODY,
+      status: 400,
+    })
+  }
 
   const response = await fetch(
     buildExecutorApiUrl(
-      `/v1/projects/${encodeURIComponent(projectId)}/task-input-images`,
+      `/v1/projects/${encodeURIComponent(projectId)}/task-input-files`,
     ),
     {
       method: "POST",
@@ -418,24 +515,25 @@ export async function uploadTaskInputImage(
       },
       body: JSON.stringify({
         name: file.name,
-        mediaType: file.type,
+        mediaType,
         dataBase64: encodeBytesToBase64(bytes),
       }),
     },
   )
 
-  const payload = await parseJson(response)
+  const payload = await parseJson<UploadTaskInputImageEnvelopePayload>(response)
   throwIfFailed(response, payload, "Failed to upload task input image.")
 
-  const path = pickString(payload, "path")
-  const mediaType = pickString(payload, "mediaType")
-  const name = pickString(payload, "name")
+  const path = typeof payload?.path === "string" ? payload.path : null
+  const uploadedMediaType =
+    typeof payload?.mediaType === "string" ? payload.mediaType : null
+  const name = typeof payload?.name === "string" ? payload.name : null
   const size =
     typeof payload?.size === "number" && Number.isFinite(payload.size)
       ? payload.size
       : null
 
-  if (!path || !mediaType || !name || size === null) {
+  if (!path || !uploadedMediaType || !name || size === null) {
     throw new TaskApiClientError("Task input image payload is invalid.", {
       code: ERROR_CODES.INTERNAL_ERROR,
       status: response.status,
@@ -444,7 +542,7 @@ export async function uploadTaskInputImage(
 
   return {
     path,
-    mediaType,
+    mediaType: uploadedMediaType,
     name,
     size,
   }
@@ -458,12 +556,16 @@ export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {
     },
   )
 
-  const payload = await parseJson(response)
+  const payload = await parseJson<DeleteTaskEnvelopePayload>(response)
   throwIfFailed(response, payload, "Failed to delete task.")
 
-  const nextTaskId = pickString(payload, "taskId", "id")
-  const projectId = pickString(payload, "projectId")
-  const orchestrationId = pickString(payload, "orchestrationId")
+  const nextTaskId = typeof payload?.taskId === "string" ? payload.taskId : null
+  const projectId =
+    typeof payload?.projectId === "string" ? payload.projectId : null
+  const orchestrationId =
+    typeof payload?.orchestrationId === "string"
+      ? payload.orchestrationId
+      : null
 
   if (!nextTaskId || !projectId || !orchestrationId) {
     throw new TaskApiClientError("Delete succeeded but payload is invalid.", {

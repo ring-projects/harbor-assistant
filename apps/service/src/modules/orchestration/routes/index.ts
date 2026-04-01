@@ -2,14 +2,17 @@ import type { FastifyInstance } from "fastify"
 
 import { createOrchestrationUseCase } from "../application/create-orchestration"
 import { createOrchestrationTaskUseCase } from "../application/create-orchestration-task"
-import { getOrchestrationDetailUseCase } from "../application/get-orchestration-detail"
+import { getOrchestrationUseCase } from "../application/get-orchestration"
 import { listOrchestrationTasksUseCase } from "../application/list-orchestration-tasks"
 import { listProjectOrchestrationsUseCase } from "../application/list-project-orchestrations"
 import type { OrchestrationRepository } from "../application/orchestration-repository"
-import type { OrchestrationTaskPort } from "../application/orchestration-task-port"
 import { toOrchestrationAppError } from "../orchestration-app-error"
 import type { ProjectRepository } from "../../project/application/project-repository"
+import type { ProjectTaskPort } from "../../task/application/project-task-port"
+import type { TaskNotificationPublisher } from "../../task/application/task-notification"
+import type { TaskRecordStore } from "../../task/application/task-record-store"
 import type { TaskRepository } from "../../task/application/task-repository"
+import type { TaskRuntimePort } from "../../task/application/task-runtime-port"
 import {
   createOrchestrationRouteSchema,
   createOrchestrationTaskRouteSchema,
@@ -28,15 +31,19 @@ export async function registerOrchestrationModuleRoutes(
   options: {
     repository: OrchestrationRepository
     projectRepository: Pick<ProjectRepository, "findById">
-    taskRepository: Pick<TaskRepository, "listByProject" | "listByOrchestration">
-    taskPort: OrchestrationTaskPort
+    projectTaskPort: ProjectTaskPort
+    taskRepository: TaskRepository & TaskRecordStore
+    runtimePort: TaskRuntimePort
+    notificationPublisher: TaskNotificationPublisher
   },
 ) {
   const {
     repository,
     projectRepository,
+    projectTaskPort,
     taskRepository,
-    taskPort,
+    runtimePort,
+    notificationPublisher,
   } = options
 
   app.post<{ Body: CreateOrchestrationBody }>(
@@ -75,7 +82,6 @@ export async function registerOrchestrationModuleRoutes(
           {
             repository,
             projectRepository,
-            taskRepository,
           },
           request.params.projectId,
         )
@@ -97,10 +103,9 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request) => {
       try {
-        const orchestration = await getOrchestrationDetailUseCase(
+        const orchestration = await getOrchestrationUseCase(
           {
             repository,
-            taskRepository,
           },
           request.params.orchestrationId,
         )
@@ -125,7 +130,10 @@ export async function registerOrchestrationModuleRoutes(
         const task = await createOrchestrationTaskUseCase(
           {
             repository,
-            taskPort,
+            projectTaskPort,
+            taskRepository,
+            runtimePort,
+            notificationPublisher,
           },
           {
             orchestrationId: request.params.orchestrationId,
@@ -153,7 +161,7 @@ export async function registerOrchestrationModuleRoutes(
         const tasks = await listOrchestrationTasksUseCase(
           {
             repository,
-            taskPort,
+            taskRepository,
           },
           {
             orchestrationId: request.params.orchestrationId,

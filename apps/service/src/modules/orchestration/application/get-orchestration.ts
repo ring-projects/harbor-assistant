@@ -1,12 +1,10 @@
-import type { TaskRepository } from "../../task/application/task-repository"
 import { createOrchestrationError } from "../errors"
+import { toOrchestrationReadModel } from "./orchestration-read-models"
 import type { OrchestrationRepository } from "./orchestration-repository"
-import { buildOrchestrationDetail } from "./shared"
 
-export async function getOrchestrationDetailUseCase(
+export async function getOrchestrationUseCase(
   args: {
     repository: Pick<OrchestrationRepository, "findById">
-    taskRepository: Pick<TaskRepository, "listByOrchestration">
   },
   orchestrationId: string,
 ) {
@@ -20,10 +18,5 @@ export async function getOrchestrationDetailUseCase(
     throw createOrchestrationError().notFound()
   }
 
-  const tasks = await args.taskRepository.listByOrchestration({
-    orchestrationId: normalizedId,
-    includeArchived: true,
-  })
-
-  return buildOrchestrationDetail(orchestration, tasks)
+  return toOrchestrationReadModel(orchestration)
 }

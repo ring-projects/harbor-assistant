@@ -32,6 +32,7 @@ describe("task-api-client", () => {
         task: {
           id: "task-1",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Review this screenshot",
           title: "Review this screenshot",
           status: "queued",
@@ -41,7 +42,7 @@ describe("task-api-client", () => {
     })
     vi.stubGlobal("fetch", fetchMock)
 
-    await createTask({
+    const result = await createTask({
       projectId: "project-1",
       orchestrationId: "orch-1",
       input: {
@@ -61,6 +62,8 @@ describe("task-api-client", () => {
         effort: "medium",
       },
     })
+
+    expect(result.id).toBe("task-1")
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
@@ -102,6 +105,7 @@ describe("task-api-client", () => {
         task: {
           id: "task-1",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Ship it",
           title: "Ship it",
           status: "running",
@@ -143,6 +147,7 @@ describe("task-api-client", () => {
         task: {
           id: "task-1",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Ship it",
           title: "Ship it",
           status: "running",
@@ -178,6 +183,7 @@ describe("task-api-client", () => {
         task: {
           id: "task-1",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Ship it",
           title: "Ship it",
           status: "cancelled",
@@ -206,7 +212,7 @@ describe("task-api-client", () => {
     )
   })
 
-  it("uploads a task input image as base64 payload", async () => {
+  it("uploads a task input attachment as base64 payload", async () => {
     process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
@@ -243,6 +249,85 @@ describe("task-api-client", () => {
       mediaType: "image/png",
       dataBase64: "AQIDBA==",
     })
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://executor.example.com/v1/projects/project-1/task-input-files",
+      expect.any(Object),
+    )
+  })
+
+  it("infers media type for markdown attachments from file extension", async () => {
+    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        path: ".harbor/task-input-files/spec.md",
+        mediaType: "text/markdown",
+        name: "spec.md",
+        size: 11,
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const file = new File(["hello world"], "spec.md")
+
+    await uploadTaskInputImage("project-1", {
+      file,
+    })
+
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toMatchObject({
+      name: "spec.md",
+      mediaType: "text/markdown",
+    })
+  })
+
+  it("rejects unsupported task input attachment types before uploading", async () => {
+    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+
+    const fetchMock = vi.fn()
+    vi.stubGlobal("fetch", fetchMock)
+
+    const file = new File(["svg"], "example.svg", {
+      type: "image/svg+xml",
+    })
+
+    await expect(
+      uploadTaskInputImage("project-1", {
+        file,
+      }),
+    ).rejects.toMatchObject({
+      message:
+        "Only PNG, JPEG, WebP, GIF, PDF, TXT, Markdown, CSV, JSON, and YAML files are supported.",
+      status: 400,
+    })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("rejects task input attachments larger than 10MB before uploading", async () => {
+    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+
+    const fetchMock = vi.fn()
+    vi.stubGlobal("fetch", fetchMock)
+
+    const file = new File([new Uint8Array(10 * 1024 * 1024 + 1)], "large.png", {
+      type: "image/png",
+    })
+
+    await expect(
+      uploadTaskInputImage("project-1", {
+        file,
+      }),
+    ).rejects.toMatchObject({
+      message: "File payload exceeds 10MB limit.",
+      status: 400,
+    })
+
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it("deletes a task and returns task/project ids", async () => {

@@ -2,7 +2,7 @@ import { createTaskError } from "../errors"
 import type { TaskRepository } from "./task-repository"
 import { toTaskDetail, type TaskDetail } from "./task-read-models"
 
-export async function getTaskDetailUseCase(
+export async function getTaskUseCase(
   repository: Pick<TaskRepository, "findById">,
   taskId: string,
 ): Promise<TaskDetail> {

@@ -1,6 +1,6 @@
 "use client"
 
-import { ImageIcon } from "lucide-react"
+import { FileTextIcon, ImageIcon } from "lucide-react"
 import { memo } from "react"
 
 import { MarkdownRenderer } from "@/components/markdown"
@@ -31,7 +31,11 @@ function renderUserAttachments(
       {block.attachments.map((attachment) => (
         <div key={attachment.path} className={styles["attachment-card"]}>
           <div className={styles["attachment-icon-wrap"]}>
-            <ImageIcon className="size-4" />
+            {attachment.type === "local_image" ? (
+              <ImageIcon className="size-4" />
+            ) : (
+              <FileTextIcon className="size-4" />
+            )}
           </div>
           <div className={styles["attachment-meta"]}>
             <div className={styles["attachment-name"]}>

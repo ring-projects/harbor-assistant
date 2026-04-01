@@ -12,6 +12,10 @@ export type AgentInputItem =
       type: "local_image"
       path: string
     }
+  | {
+      type: "local_file"
+      path: string
+    }
 
 export type AgentInput = string | AgentInputItem[]
 

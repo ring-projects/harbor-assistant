@@ -7,15 +7,17 @@ import { archiveTaskUseCase } from "./archive-task"
 import { cancelTaskUseCase } from "./cancel-task"
 import { createTaskUseCase } from "./create-task"
 import { deleteTaskUseCase } from "./delete-task"
-import { getTaskDetailUseCase } from "./get-task-detail"
+import { getTaskUseCase } from "./get-task"
 import { getTaskEventsUseCase } from "./get-task-events"
 import type { ProjectTaskPort } from "./project-task-port"
 import { resumeTaskUseCase } from "./resume-task"
+import type { TaskInputImageStore } from "./task-input-image-store"
 import type { TaskNotificationPublisher } from "./task-notification"
 import type { TaskRecordStore } from "./task-record-store"
 import type { TaskRepository } from "./task-repository"
 import { attachTaskRuntime, type TaskRecord } from "./task-read-models"
 import type { TaskRuntimePort } from "./task-runtime-port"
+import { uploadTaskInputImageUseCase } from "./upload-task-input-image"
 import { updateTaskTitleUseCase } from "./update-task-title"
 
 describe("task use cases", () => {
@@ -121,6 +123,15 @@ describe("task use cases", () => {
       startTaskExecution: vi.fn(async () => undefined),
       resumeTaskExecution: vi.fn(async () => undefined),
       cancelTaskExecution: vi.fn(async () => undefined),
+    }
+  }
+
+  function createTaskInputImageStore(): TaskInputImageStore {
+    return {
+      save: vi.fn(async ({ name, content, mediaType }) => ({
+        path: `${mediaType.startsWith("image/") ? ".harbor/task-input-images" : ".harbor/task-input-files"}/stored-${name}`,
+        size: content.length,
+      })),
     }
   }
 
@@ -240,6 +251,47 @@ describe("task use cases", () => {
         effort: "medium",
       },
     })
+  })
+
+  it("creates a task from file-only structured input while keeping prompt as summary", async () => {
+    const repository = createRepository([])
+    const publisher = createNotificationPublisher()
+    const projectTaskPort = createProjectTaskPort()
+    const runtimePort = createRuntimePort()
+
+    const task = await createTaskUseCase(
+      {
+        projectTaskPort,
+        taskRecordStore: repository,
+        repository,
+        runtimePort,
+        notificationPublisher: publisher,
+        idGenerator: () => "task-created-3",
+      },
+      {
+        projectId: "project-1",
+        orchestrationId: "orch-1",
+        items: [
+          {
+            type: "local_file",
+            path: ".harbor/task-input-files/spec.md",
+          },
+        ],
+        ...createExplicitRuntimeConfig(),
+      },
+    )
+
+    expect(task.prompt).toBe("Attached 1 file")
+    expect(runtimePort.startTaskExecution).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: [
+          {
+            type: "local_file",
+            path: ".harbor/task-input-files/spec.md",
+          },
+        ],
+      }),
+    )
   })
 
   it("persists and forwards a supported effort", async () => {
@@ -406,13 +458,127 @@ describe("task use cases", () => {
     } satisfies Partial<TaskError>)
   })
 
+  it("uploads task input attachments through the storage port", async () => {
+    const projectTaskPort = createProjectTaskPort()
+    const taskInputImageStore = createTaskInputImageStore()
+
+    const result = await uploadTaskInputImageUseCase(
+      {
+        projectTaskPort,
+        taskInputFileStore: taskInputImageStore,
+      },
+      {
+        projectId: "project-1",
+        name: " screenshot.png ",
+        mediaType: " IMAGE/PNG ",
+        dataBase64: Buffer.from("test-image").toString("base64"),
+      },
+    )
+
+    expect(taskInputImageStore.save).toHaveBeenCalledWith({
+      projectPath: "/tmp/harbor-assistant",
+      name: "screenshot.png",
+      mediaType: "image/png",
+      content: Buffer.from("test-image"),
+    })
+    expect(result).toEqual({
+      path: ".harbor/task-input-images/stored-screenshot.png",
+      mediaType: "image/png",
+      name: "screenshot.png",
+      size: 10,
+    })
+  })
+
+  it("uploads task input documents through the storage port", async () => {
+    const projectTaskPort = createProjectTaskPort()
+    const taskInputImageStore = createTaskInputImageStore()
+
+    const result = await uploadTaskInputImageUseCase(
+      {
+        projectTaskPort,
+        taskInputFileStore: taskInputImageStore,
+      },
+      {
+        projectId: "project-1",
+        name: " spec.md ",
+        mediaType: " text/markdown ",
+        dataBase64: Buffer.from("# spec").toString("base64"),
+      },
+    )
+
+    expect(taskInputImageStore.save).toHaveBeenCalledWith({
+      projectPath: "/tmp/harbor-assistant",
+      name: "spec.md",
+      mediaType: "text/markdown",
+      content: Buffer.from("# spec"),
+    })
+    expect(result).toEqual({
+      path: ".harbor/task-input-files/stored-spec.md",
+      mediaType: "text/markdown",
+      name: "spec.md",
+      size: 6,
+    })
+  })
+
+  it("fails upload when project does not exist", async () => {
+    const taskInputImageStore = createTaskInputImageStore()
+
+    await expect(
+      uploadTaskInputImageUseCase(
+        {
+          projectTaskPort: {
+            getProjectForTask: vi.fn().mockResolvedValue(null),
+          },
+          taskInputFileStore: taskInputImageStore,
+        },
+        {
+          projectId: "missing",
+          name: "screenshot.png",
+          mediaType: "image/png",
+          dataBase64: Buffer.from("test-image").toString("base64"),
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: TASK_ERROR_CODES.PROJECT_NOT_FOUND,
+    } satisfies Partial<TaskError>)
+
+    expect(taskInputImageStore.save).not.toHaveBeenCalled()
+  })
+
+  it("translates storage failures into a task upload error", async () => {
+    const projectTaskPort = createProjectTaskPort()
+    const taskInputImageStore: TaskInputImageStore = {
+      save: vi.fn(async () => {
+        throw new Error("disk full")
+      }),
+    }
+
+    await expect(
+      uploadTaskInputImageUseCase(
+        {
+          projectTaskPort,
+          taskInputFileStore: taskInputImageStore,
+        },
+        {
+          projectId: "project-1",
+          name: "screenshot.png",
+          mediaType: "image/png",
+          dataBase64: Buffer.from("test-image").toString("base64"),
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: TASK_ERROR_CODES.UPLOAD_INPUT_IMAGE_FAILED,
+      message: "disk full",
+    } satisfies Partial<TaskError>)
+  })
+
   it("gets task detail and fails for missing task", async () => {
     const repository = createRepository()
 
-    const task = await getTaskDetailUseCase(repository, "task-1")
+    const task = await getTaskUseCase(repository, "task-1")
     expect(task.title).toBe("Investigate runtime drift")
 
-    await expect(getTaskDetailUseCase(repository, "missing")).rejects.toMatchObject({
+    await expect(getTaskUseCase(repository, "missing")).rejects.toMatchObject({
       code: TASK_ERROR_CODES.NOT_FOUND,
     } satisfies Partial<TaskError>)
   })

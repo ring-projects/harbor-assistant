@@ -1,9 +1,12 @@
 import type {
-  InteractionTopic,
   InteractionProjectGitChangeEvent,
   InteractionTaskEventItem,
+  InteractionTaskEventsSnapshotMessage,
+  InteractionTaskMessage,
   InteractionTaskRecord,
+  InteractionTaskSnapshotMessage,
   InteractionTaskStatus,
+  InteractionTopic,
 } from "../application/ports"
 import type { InteractionMessageError } from "../errors"
 
@@ -21,34 +24,11 @@ export type WebSocketInteractionMessage = {
     | {
         kind: "unsubscribed"
       }
-    | {
-        kind: "snapshot"
-        name: "task"
-        data: {
-          task: InteractionTaskRecord
-        }
-      }
-    | {
-        kind: "snapshot"
-        name: "task_events"
-        data: {
-          status: InteractionTaskStatus
-          afterSequence: number
-          items: InteractionTaskEventItem[]
-          nextSequence: number
-          terminal: boolean
-        }
-      }
+    | InteractionTaskMessage
     | {
         kind: "event"
-        name:
-          | "task_upsert"
-          | "task_deleted"
-          | "task_status_changed"
-          | "task_ended"
-          | "task_event"
-          | "project_git_changed"
-        data: unknown
+        name: "project_git_changed"
+        data: Pick<InteractionProjectGitChangeEvent, "changedAt">
       }
     | {
         kind: "error"
@@ -63,7 +43,7 @@ export function emitWebSocketMessage(
   socket.emit(envelope.event, envelope.payload)
 }
 
-function messageEnvelope(
+export function interactionMessageEnvelope(
   payload: WebSocketInteractionMessage,
 ): WebSocketInteractionEnvelope {
   return {
@@ -75,7 +55,7 @@ function messageEnvelope(
 export function subscribedEnvelope(
   topic: InteractionTopic,
 ): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return interactionMessageEnvelope({
     topic,
     message: {
       kind: "subscribed",
@@ -86,7 +66,7 @@ export function subscribedEnvelope(
 export function unsubscribedEnvelope(
   topic: InteractionTopic,
 ): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return interactionMessageEnvelope({
     topic,
     message: {
       kind: "unsubscribed",
@@ -94,19 +74,31 @@ export function unsubscribedEnvelope(
   })
 }
 
+function taskMessageEnvelope(args: {
+  topic: InteractionTopic
+  message: InteractionTaskMessage
+}): WebSocketInteractionEnvelope {
+  return interactionMessageEnvelope({
+    topic: args.topic,
+    message: args.message,
+  })
+}
+
 export function taskSnapshotEnvelope(args: {
   topic: InteractionTopic
   task: InteractionTaskRecord
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
-    topic: args.topic,
-    message: {
-      kind: "snapshot",
-      name: "task",
-      data: {
-        task: args.task,
-      },
+  const message: InteractionTaskSnapshotMessage = {
+    kind: "snapshot",
+    name: "task",
+    data: {
+      task: args.task,
     },
+  }
+
+  return taskMessageEnvelope({
+    topic: args.topic,
+    message,
   })
 }
 
@@ -118,19 +110,21 @@ export function taskEventsSnapshotEnvelope(args: {
   nextSequence: number
   terminal: boolean
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
-    topic: args.topic,
-    message: {
-      kind: "snapshot",
-      name: "task_events",
-      data: {
-        status: args.status,
-        afterSequence: args.afterSequence,
-        items: args.items,
-        nextSequence: args.nextSequence,
-        terminal: args.terminal,
-      },
+  const message: InteractionTaskEventsSnapshotMessage = {
+    kind: "snapshot",
+    name: "task_events",
+    data: {
+      status: args.status,
+      afterSequence: args.afterSequence,
+      items: args.items,
+      nextSequence: args.nextSequence,
+      terminal: args.terminal,
     },
+  }
+
+  return taskMessageEnvelope({
+    topic: args.topic,
+    message,
   })
 }
 
@@ -138,7 +132,7 @@ export function taskUpsertEventEnvelope(args: {
   topic: InteractionTopic
   task: InteractionTaskRecord
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return taskMessageEnvelope({
     topic: args.topic,
     message: {
       kind: "event",
@@ -156,7 +150,7 @@ export function taskDeletedEventEnvelope(args: {
   projectId?: string
   orchestrationId?: string
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return taskMessageEnvelope({
     topic: args.topic,
     message: {
       kind: "event",
@@ -176,7 +170,7 @@ export function taskStatusChangedEventEnvelope(args: {
   topic: InteractionTopic
   status: InteractionTaskStatus
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return taskMessageEnvelope({
     topic: args.topic,
     message: {
       kind: "event",
@@ -193,7 +187,7 @@ export function taskEndedEventEnvelope(args: {
   status: Extract<InteractionTaskStatus, "completed" | "failed" | "cancelled">
   cursor: number
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return taskMessageEnvelope({
     topic: args.topic,
     message: {
       kind: "event",
@@ -210,7 +204,7 @@ export function taskEventEnvelope(args: {
   topic: InteractionTopic
   event: InteractionTaskEventItem
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return taskMessageEnvelope({
     topic: args.topic,
     message: {
       kind: "event",
@@ -226,7 +220,7 @@ export function projectGitChangedEventEnvelope(args: {
   topic: InteractionTopic
   changedAt: string
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return interactionMessageEnvelope({
     topic: args.topic,
     message: {
       kind: "event",
@@ -242,7 +236,7 @@ export function errorEnvelope(args: {
   topic?: InteractionTopic
   error: InteractionMessageError
 }): WebSocketInteractionEnvelope {
-  return messageEnvelope({
+  return interactionMessageEnvelope({
     ...(args.topic ? { topic: args.topic } : {}),
     message: {
       kind: "error",

@@ -18,6 +18,7 @@ export type DirectoryRoot = {
 export type DirectoryListSuccessResponse = {
   ok: true
   rootId: string
+  rootLabel: string
   rootPath: string
   path: string
   parentPath: string | null

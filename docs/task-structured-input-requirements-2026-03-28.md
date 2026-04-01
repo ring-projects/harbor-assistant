@@ -240,6 +240,7 @@ task create 与 task resume composer 都必须支持：
 1. 文件写入 project 根目录下的 `.harbor/task-input-images`
 2. 返回相对 project root 的路径
 3. 返回值可直接作为 `local_image.path`
+4. `task` application layer 只做校验与编排，真实写盘必须经由独立 storage port，下沉到 infrastructure
 
 #### FR-11 图片类型与大小限制
 

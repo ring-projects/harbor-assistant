@@ -3,14 +3,6 @@ type BreadcrumbSegment = {
   path: string
 }
 
-function splitPathSegments(pathValue: string) {
-  if (pathValue === "/") {
-    return []
-  }
-
-  return normalizePathForCompare(pathValue).split("/").filter(Boolean)
-}
-
 function appendPathSegment(parentPath: string, segment: string) {
   if (parentPath === "/") {
     return `/${segment}`
@@ -40,9 +32,10 @@ function isSameOrChildPath(path: string, parentPath: string) {
 export function buildBreadcrumbSegments(
   currentPath: string,
   rootPath: string | null,
+  rootLabel?: string | null,
 ): BreadcrumbSegment[] {
   if (!rootPath || !isSameOrChildPath(currentPath, rootPath)) {
-    return [{ label: "home", path: currentPath }]
+    return [{ label: rootLabel?.trim() || "home", path: currentPath }]
   }
 
   const normalizedCurrent = normalizePathForCompare(currentPath)
@@ -50,17 +43,9 @@ export function buildBreadcrumbSegments(
   const relative = normalizedCurrent
     .slice(normalizedRoot.length)
     .replace(/^\/+/, "")
-  const rootParts = splitPathSegments(normalizedRoot)
-  const rootLeafName = rootParts.at(-1) ?? "workspace"
-
-  const segments: BreadcrumbSegment[] = [{ label: "home", path: normalizedRoot }]
-
-  if (rootLeafName.toLowerCase() !== "home") {
-    segments.push({
-      label: rootLeafName,
-      path: normalizedRoot,
-    })
-  }
+  const segments: BreadcrumbSegment[] = [
+    { label: rootLabel?.trim() || "home", path: normalizedRoot },
+  ]
 
   if (!relative) {
     return segments

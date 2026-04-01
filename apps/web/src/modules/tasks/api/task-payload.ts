@@ -1,6 +1,5 @@
 import {
   asRecord,
-  pickString,
   toIsoDateString,
   toOptionalIsoDateString,
   toStringOrEmpty,
@@ -59,21 +58,17 @@ export function normalizeTaskCandidate(candidate: unknown): TaskListItem | null 
     return null
   }
 
-  const taskId = pickString(source, "taskId", "id", "task_id")
-  const projectId = pickString(source, "projectId", "project_id")
-  const orchestrationId = pickString(
-    source,
-    "orchestrationId",
-    "orchestration_id",
-  )
+  const id = toStringOrNull(source.id)
+  const projectId = toStringOrNull(source.projectId)
+  const orchestrationId = toStringOrNull(source.orchestrationId)
   const status = toTaskStatus(source.status)
 
-  if (!taskId || !projectId || !orchestrationId || !status) {
+  if (!id || !projectId || !orchestrationId || !status) {
     return null
   }
 
   const parsed = taskListItemSchema.safeParse({
-    taskId,
+    id,
     projectId,
     orchestrationId,
     prompt: toStringOrEmpty(source.prompt),
@@ -176,8 +171,8 @@ export function extractTaskEvents(
 
   const root = asRecord(source.events) ?? source
   const taskId =
-    pickString(root, "taskId") ??
-    pickString(source, "taskId", "task_id") ??
+    toStringOrNull(root.taskId) ??
+    toStringOrNull(source.taskId) ??
     options?.fallbackTaskId ??
     null
 
