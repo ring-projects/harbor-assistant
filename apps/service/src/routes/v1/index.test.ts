@@ -44,11 +44,22 @@ describe("registerV1Routes", () => {
 
     expect(createdProject.statusCode).toBe(201)
 
-    const createdTask = await app.inject({
+    const createdOrchestration = await app.inject({
       method: "POST",
-      url: "/v1/tasks",
+      url: "/v1/orchestrations",
       payload: {
         projectId: "project-1",
+        title: "Runtime cleanup",
+      },
+    })
+
+    expect(createdOrchestration.statusCode).toBe(201)
+    const orchestrationId = createdOrchestration.json().orchestration.id
+
+    const createdTask = await app.inject({
+      method: "POST",
+      url: `/v1/orchestrations/${orchestrationId}/tasks`,
+      payload: {
         prompt: "Investigate runtime drift",
         executor: "codex",
         model: "gpt-5.3-codex",
@@ -62,6 +73,7 @@ describe("registerV1Routes", () => {
       ok: true,
       task: {
         projectId: "project-1",
+        orchestrationId,
         title: "Investigate runtime drift",
         executor: "codex",
         model: "gpt-5.3-codex",
@@ -71,18 +83,36 @@ describe("registerV1Routes", () => {
       },
     })
 
-    const projectTasks = await app.inject({
+    const orchestrationTasks = await app.inject({
       method: "GET",
-      url: "/v1/projects/project-1/tasks",
+      url: `/v1/orchestrations/${orchestrationId}/tasks`,
     })
 
-    expect(projectTasks.statusCode).toBe(200)
-    expect(projectTasks.json()).toEqual({
+    expect(orchestrationTasks.statusCode).toBe(200)
+    expect(orchestrationTasks.json()).toEqual({
       ok: true,
       tasks: [
         expect.objectContaining({
           projectId: "project-1",
+          orchestrationId,
           title: "Investigate runtime drift",
+        }),
+      ],
+    })
+
+    const projectOrchestrations = await app.inject({
+      method: "GET",
+      url: "/v1/projects/project-1/orchestrations",
+    })
+
+    expect(projectOrchestrations.statusCode).toBe(200)
+    expect(projectOrchestrations.json()).toEqual({
+      ok: true,
+      orchestrations: [
+        expect.objectContaining({
+          id: orchestrationId,
+          projectId: "project-1",
+          taskCount: 1,
         }),
       ],
     })

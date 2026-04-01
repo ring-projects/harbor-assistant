@@ -7,9 +7,16 @@ export type ListProjectTasksInput = {
   limit?: number
 }
 
+export type ListOrchestrationTasksInput = {
+  orchestrationId: string
+  includeArchived?: boolean
+  limit?: number
+}
+
 export interface TaskRepository {
   findById(id: string): Promise<TaskRecord | null>
   listByProject(input: ListProjectTasksInput): Promise<TaskRecord[]>
+  listByOrchestration(input: ListOrchestrationTasksInput): Promise<TaskRecord[]>
   save(task: Task): Promise<void>
   delete(taskId: string): Promise<void>
 }

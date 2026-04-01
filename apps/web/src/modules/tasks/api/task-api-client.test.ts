@@ -41,21 +41,25 @@ describe("task-api-client", () => {
     })
     vi.stubGlobal("fetch", fetchMock)
 
-    await createTask("project-1", {
-      items: [
-        {
-          type: "text",
-          text: "Review this screenshot",
-        },
-        {
-          type: "local_image",
-          path: ".harbor/task-input-images/example.png",
-        },
-      ],
-      executor: "codex",
-      model: "gpt-5.3-codex",
-      executionMode: "connected",
-      effort: "medium",
+    await createTask({
+      projectId: "project-1",
+      orchestrationId: "orch-1",
+      input: {
+        items: [
+          {
+            type: "text",
+            text: "Review this screenshot",
+          },
+          {
+            type: "local_image",
+            path: ".harbor/task-input-images/example.png",
+          },
+        ],
+        executor: "codex",
+        model: "gpt-5.3-codex",
+        executionMode: "connected",
+        effort: "medium",
+      },
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -69,6 +73,7 @@ describe("task-api-client", () => {
       JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
     ).toMatchObject({
       projectId: "project-1",
+      orchestrationId: "orch-1",
       items: [
         {
           type: "text",
@@ -250,6 +255,7 @@ describe("task-api-client", () => {
         ok: true,
         taskId: "task-1",
         projectId: "project-1",
+        orchestrationId: "orch-1",
       }),
     })
     vi.stubGlobal("fetch", fetchMock)
@@ -259,6 +265,7 @@ describe("task-api-client", () => {
     expect(result).toEqual({
       taskId: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
     })
     expect(fetchMock).toHaveBeenCalledWith(
       "http://executor.example.com/v1/tasks/task-1",

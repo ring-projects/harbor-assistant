@@ -15,15 +15,6 @@ import errorHandlerPlugin from "../../../plugins/error-handler"
 
 const tempRoots = new Set<string>()
 
-function createExplicitRuntimePayload() {
-  return {
-    executor: "codex",
-    model: "gpt-5.3-codex",
-    executionMode: "safe",
-    effort: "medium",
-  }
-}
-
 function withRuntime(task: ReturnType<typeof createTask>): TaskRecord {
   return attachTaskRuntime(task, {
     executor: "codex",
@@ -41,12 +32,14 @@ async function createApp(
     withRuntime(createTask({
       id: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Investigate runtime drift",
       status: "completed",
     })),
     withRuntime(createTask({
       id: "task-2",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Summarize runtime drift",
       status: "failed",
       archivedAt: new Date("2026-03-25T00:00:00.000Z"),
@@ -140,164 +133,7 @@ describe("task routes", () => {
     }
   })
 
-  it("creates a task", async () => {
-    const app = await createApp()
-
-    const created = await app.inject({
-      method: "POST",
-      url: "/v1/tasks",
-      payload: {
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        ...createExplicitRuntimePayload(),
-      },
-    })
-
-    expect(created.statusCode).toBe(201)
-    expect(created.json()).toMatchObject({
-      ok: true,
-      task: {
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        title: "Investigate runtime drift",
-        executor: "codex",
-        model: "gpt-5.3-codex",
-        executionMode: "safe",
-        effort: "medium",
-        status: "queued",
-      },
-    })
-  })
-
-  it("creates a task from structured input and keeps prompt as summary", async () => {
-    const app = await createApp()
-
-    const created = await app.inject({
-      method: "POST",
-      url: "/v1/tasks",
-      payload: {
-        projectId: "project-1",
-        items: [
-          {
-            type: "text",
-            text: "Review this screenshot",
-          },
-          {
-            type: "local_image",
-            path: ".harbor/task-input-images/example.png",
-          },
-        ],
-        ...createExplicitRuntimePayload(),
-      },
-    })
-
-    expect(created.statusCode).toBe(201)
-    expect(created.json()).toMatchObject({
-      ok: true,
-      task: {
-        projectId: "project-1",
-        prompt: "Review this screenshot",
-        title: "Review this screenshot",
-        executor: "codex",
-        model: "gpt-5.3-codex",
-        executionMode: "safe",
-        effort: "medium",
-        status: "queued",
-      },
-    })
-  })
-
-  it("requires a complete explicit runtime config on create", async () => {
-    const app = await createApp()
-
-    for (const payload of [
-      {
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        model: "gpt-5.3-codex",
-        executionMode: "safe",
-        effort: "medium",
-      },
-      {
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        executor: "codex",
-        executionMode: "safe",
-        effort: "medium",
-      },
-      {
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        executor: "codex",
-        model: "gpt-5.3-codex",
-        effort: "medium",
-      },
-      {
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        executor: "codex",
-        model: "gpt-5.3-codex",
-        executionMode: "safe",
-      },
-    ]) {
-      const response = await app.inject({
-        method: "POST",
-        url: "/v1/tasks",
-        payload,
-      })
-
-      expect(response.statusCode).toBe(400)
-    }
-  })
-
-  it("creates a task with a supported effort and rejects unsupported combinations", async () => {
-    const app = await createApp()
-
-    const created = await app.inject({
-      method: "POST",
-      url: "/v1/tasks",
-      payload: {
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        executor: "codex",
-        model: "gpt-5.3-codex",
-        executionMode: "safe",
-        effort: "medium",
-      },
-    })
-
-    expect(created.statusCode).toBe(201)
-    expect(created.json()).toMatchObject({
-      ok: true,
-      task: {
-        model: "gpt-5.3-codex",
-        effort: "medium",
-      },
-    })
-
-    const rejected = await app.inject({
-      method: "POST",
-      url: "/v1/tasks",
-      payload: {
-        projectId: "project-1",
-        prompt: "Investigate runtime drift",
-        executor: "codex",
-        model: "gpt-5.1-codex-mini",
-        executionMode: "safe",
-        effort: "low",
-      },
-    })
-
-    expect(rejected.statusCode).toBe(400)
-    expect(rejected.json()).toMatchObject({
-      ok: false,
-      error: {
-        code: "INVALID_TASK_EFFORT",
-      },
-    })
-  })
-
-  it("gets task detail and project task list", async () => {
+  it("gets task detail", async () => {
     const app = await createApp()
 
     const detail = await app.inject({
@@ -318,25 +154,6 @@ describe("task routes", () => {
         effort: null,
         status: "completed",
       },
-    })
-
-    const list = await app.inject({
-      method: "GET",
-      url: "/v1/projects/project-1/tasks",
-    })
-
-    expect(list.statusCode).toBe(200)
-    expect(list.json()).toEqual({
-      ok: true,
-      tasks: [
-        expect.objectContaining({
-          id: "task-1",
-          executor: "codex",
-          model: null,
-          executionMode: "safe",
-          effort: null,
-        }),
-      ],
     })
   })
 
@@ -381,6 +198,7 @@ describe("task routes", () => {
       ok: true,
       taskId: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
     })
   })
 
@@ -391,6 +209,7 @@ describe("task routes", () => {
         withRuntime(createTask({
           id: "task-running",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Still running",
           status: "running",
         })),
@@ -519,12 +338,14 @@ describe("task routes", () => {
         withRuntime(createTask({
           id: "task-running",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Still running",
           status: "running",
         })),
         withRuntime(createTask({
           id: "task-cancelled",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Already cancelled",
           status: "cancelled",
         })),
@@ -571,6 +392,7 @@ describe("task routes", () => {
         withRuntime(createTask({
           id: "task-archived-running",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Archived task",
           status: "running",
           archivedAt: new Date("2026-03-29T00:00:00.000Z"),
@@ -630,19 +452,6 @@ describe("task routes", () => {
       ok: false,
       error: {
         code: "TASK_NOT_FOUND",
-      },
-    })
-
-    const invalid = await app.inject({
-      method: "POST",
-      url: "/v1/tasks",
-      payload: {},
-    })
-    expect(invalid.statusCode).toBe(400)
-    expect(invalid.json()).toMatchObject({
-      ok: false,
-      error: {
-        code: "INVALID_REQUEST_BODY",
       },
     })
 

@@ -1,5 +1,11 @@
 # Task Structured Input Requirements
 
+> [!WARNING]
+> **状态：Partially Superseded**
+> 本文档中的 create task 示例仍使用早期 `POST /v1/tasks`。
+> 结构化输入能力本身仍有效，但当前 create task 的 canonical contract 已迁移到
+> `POST /v1/orchestrations/:orchestrationId/tasks`。
+
 ## 1. 文档信息
 
 - 文档名称：Task Structured Input Requirements

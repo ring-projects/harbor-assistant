@@ -11,7 +11,6 @@ import { getTaskDetailUseCase } from "./get-task-detail"
 import { getTaskEventsUseCase } from "./get-task-events"
 import type { ProjectTaskPort } from "./project-task-port"
 import { resumeTaskUseCase } from "./resume-task"
-import { listProjectTasksUseCase } from "./list-project-tasks"
 import type { TaskNotificationPublisher } from "./task-notification"
 import type { TaskRecordStore } from "./task-record-store"
 import type { TaskRepository } from "./task-repository"
@@ -33,6 +32,7 @@ describe("task use cases", () => {
     task = createTask({
       id: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Investigate runtime drift",
       status: "completed",
     }),
@@ -61,6 +61,14 @@ describe("task use cases", () => {
       listByProject: vi.fn(async ({ projectId, includeArchived, limit }) => {
         const items = [...tasks.values()]
           .filter((task) => task.projectId === projectId)
+          .filter((task) => includeArchived || task.archivedAt === null)
+          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+
+        return limit === undefined ? items : items.slice(0, limit)
+      }),
+      listByOrchestration: vi.fn(async ({ orchestrationId, includeArchived, limit }) => {
+        const items = [...tasks.values()]
+          .filter((task) => task.orchestrationId === orchestrationId)
           .filter((task) => includeArchived || task.archivedAt === null)
           .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
 
@@ -133,6 +141,7 @@ describe("task use cases", () => {
       },
       {
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Investigate runtime drift",
         ...createExplicitRuntimeConfig(),
       },
@@ -141,6 +150,7 @@ describe("task use cases", () => {
     expect(task).toMatchObject({
       id: "task-created-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       title: "Investigate runtime drift",
       executor: "codex",
       model: "gpt-5.3-codex",
@@ -191,6 +201,7 @@ describe("task use cases", () => {
       },
       {
         projectId: "project-1",
+        orchestrationId: "orch-1",
         items: [
           {
             type: "text",
@@ -248,6 +259,7 @@ describe("task use cases", () => {
       },
       {
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Investigate runtime drift",
         executor: "codex",
         model: "gpt-5.3-codex",
@@ -290,6 +302,7 @@ describe("task use cases", () => {
         },
         {
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Investigate runtime drift",
           executor: "codex",
           model: "gpt-5.1-codex-mini",
@@ -319,6 +332,7 @@ describe("task use cases", () => {
         },
         {
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Investigate runtime drift",
           executor: "codex",
           model: "missing-model",
@@ -348,6 +362,7 @@ describe("task use cases", () => {
         },
         {
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Investigate runtime drift",
           executor: "codex",
           model: "",
@@ -381,6 +396,7 @@ describe("task use cases", () => {
         },
         {
           projectId: "missing",
+          orchestrationId: "orch-1",
           prompt: "Investigate runtime drift",
           ...createExplicitRuntimeConfig(),
         },
@@ -399,40 +415,6 @@ describe("task use cases", () => {
     await expect(getTaskDetailUseCase(repository, "missing")).rejects.toMatchObject({
       code: TASK_ERROR_CODES.NOT_FOUND,
     } satisfies Partial<TaskError>)
-  })
-
-  it("lists project tasks with archived filtering", async () => {
-    const repository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-1",
-        projectId: "project-1",
-        prompt: "First",
-        status: "completed",
-      })),
-      createTaskRecord(createTask({
-        id: "task-2",
-        projectId: "project-1",
-        prompt: "Second",
-        status: "failed",
-        archivedAt: new Date("2026-03-25T00:00:00.000Z"),
-      })),
-    ])
-
-    const activeOnly = await listProjectTasksUseCase(repository, {
-      projectId: "project-1",
-    })
-    expect(activeOnly.map((task) => task.id)).toEqual(["task-1"])
-    expect(activeOnly[0]).toMatchObject({
-      executor: "codex",
-      model: null,
-      executionMode: "safe",
-    })
-
-    const withArchived = await listProjectTasksUseCase(repository, {
-      projectId: "project-1",
-      includeArchived: true,
-    })
-    expect(withArchived.map((task) => task.id)).toEqual(["task-1", "task-2"])
   })
 
   it("archives and renames a task while publishing notifications", async () => {
@@ -457,6 +439,7 @@ describe("task use cases", () => {
       createTaskRecord(createTask({
         id: "task-1",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Investigate runtime drift",
         status: "completed",
       })),
@@ -527,6 +510,7 @@ describe("task use cases", () => {
         createTask({
           id: "task-1",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Investigate runtime drift",
           status: "completed",
         }),
@@ -604,6 +588,7 @@ describe("task use cases", () => {
       createTaskRecord(createTask({
         id: "task-1",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Original summary",
         status: "completed",
       })),
@@ -663,6 +648,7 @@ describe("task use cases", () => {
       createTaskRecord(createTask({
         id: "task-1",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Investigate runtime drift",
         status: "completed",
       })),
@@ -694,6 +680,7 @@ describe("task use cases", () => {
       createTaskRecord(createTask({
         id: "task-running",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Still running",
         status: "running",
       })),
@@ -721,6 +708,7 @@ describe("task use cases", () => {
       createTaskRecord(createTask({
         id: "task-running",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Still running",
         status: "running",
       })),
@@ -765,6 +753,7 @@ describe("task use cases", () => {
       createTaskRecord(createTask({
         id: "task-cancelled",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Already cancelled",
         status: "cancelled",
       })),
@@ -787,6 +776,7 @@ describe("task use cases", () => {
       createTaskRecord(createTask({
         id: "task-archived",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Archived run",
         status: "running",
         archivedAt: new Date("2026-03-29T00:00:00.000Z"),
@@ -813,6 +803,7 @@ describe("task use cases", () => {
       createTaskRecord(createTask({
         id: "task-running",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "First",
         status: "running",
       })),
@@ -830,6 +821,7 @@ describe("task use cases", () => {
     expect(result).toEqual({
       taskId: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
     })
   })
 

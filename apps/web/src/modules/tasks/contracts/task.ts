@@ -62,6 +62,7 @@ export const taskFilterSchema = z.object({
 export const taskListItemSchema = z.object({
   taskId: z.string().min(1),
   projectId: z.string().min(1),
+  orchestrationId: z.string().min(1),
   prompt: z.string().default(""),
   title: z.string().default(""),
   titleSource: z.enum(["prompt", "agent", "user"]).default("prompt"),

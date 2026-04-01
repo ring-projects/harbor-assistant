@@ -25,11 +25,19 @@ describe("task execution state store", () => {
         normalizedPath: "/tmp/project-1",
       },
     })
+    await prisma.orchestration.create({
+      data: {
+        id: "orchestration-1",
+        projectId: "project-1",
+        title: "Project 1",
+      },
+    })
 
     await prisma.task.create({
       data: {
         id: "task-1",
         projectId: "project-1",
+        orchestrationId: "orchestration-1",
         prompt: "Investigate runtime failure",
         title: "Investigate runtime failure",
         status: "running",

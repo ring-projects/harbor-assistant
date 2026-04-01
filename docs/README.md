@@ -2,6 +2,16 @@
 
 本文档用于整理 `docs/` 目录的用途、阅读顺序和当前状态。
 
+> [!WARNING]
+> **旧 Task Create/List API 已废弃**
+> 当前 task create/list 的 canonical contract 已迁移到 orchestration 维度：
+> - `POST /v1/orchestrations/:orchestrationId/tasks`
+> - `GET /v1/orchestrations/:orchestrationId/tasks`
+> 以下旧接口不应再作为当前实现依据：
+> - `POST /v1/tasks`
+> - `GET /v1/projects/:projectId/tasks`
+> task detail / events / resume / cancel / archive / delete 仍保持 task 维度。
+
 目标只有三个：
 
 1. 明确哪些文档是当前主文档
@@ -22,11 +32,12 @@
 8. [task-event-storage-model.md](./task-event-storage-model.md)
 9. [task-break-requirements-2026-03-29.md](./task-break-requirements-2026-03-29.md)
 10. [task-explicit-runtime-config-requirements-2026-03-30.md](./task-explicit-runtime-config-requirements-2026-03-30.md)
-11. [task-api.md](./task-api.md)
-12. [project-api.md](./project-api.md)
-13. [service-module-standard-based-on-project.md](./service-module-standard-based-on-project.md)
-14. [service-error-handling-guide.md](./service-error-handling-guide.md)
-15. [agent-event-projection-design-2026-03-25.md](./agent-event-projection-design-2026-03-25.md)
+11. [orchestration-requirements-2026-03-31.md](./orchestration-requirements-2026-03-31.md)
+12. [task-api.md](./task-api.md)
+13. [project-api.md](./project-api.md)
+14. [service-module-standard-based-on-project.md](./service-module-standard-based-on-project.md)
+15. [service-error-handling-guide.md](./service-error-handling-guide.md)
+16. [agent-event-projection-design-2026-03-25.md](./agent-event-projection-design-2026-03-25.md)
 
 如果你要按 TDD 推进模块开发，再继续看：
 
@@ -38,14 +49,16 @@
 6. [tdd/task-structured-input.md](./tdd/task-structured-input.md)
 7. [tdd/task-break.md](./tdd/task-break.md)
 8. [tdd/task-explicit-runtime-config.md](./tdd/task-explicit-runtime-config.md)
+9. [tdd/orchestration.md](./tdd/orchestration.md)
 
 如果你在做前端，再继续看：
 
 1. [frd-frontend.md](./frd-frontend.md)
 2. [frd-task-frontend.md](./frd-task-frontend.md)
 3. [frd-chat-frontend.md](./frd-chat-frontend.md)
-4. [chat-visual-style-guardrails-2026-03-29.md](./chat-visual-style-guardrails-2026-03-29.md)
-5. [frontend-testing.md](./frontend-testing.md)
+4. [file-quick-preview-design-2026-04-01.md](./file-quick-preview-design-2026-04-01.md)
+5. [chat-visual-style-guardrails-2026-03-29.md](./chat-visual-style-guardrails-2026-03-29.md)
+6. [frontend-testing.md](./frontend-testing.md)
 
 ## 分类
 
@@ -95,10 +108,15 @@
   - 删除 project runtime 默认配置、收敛 create task 显式 runtime contract 的当前需求文档
   - 当前 task runtime config source-of-truth 收敛方向以这份文档为准
 
+- [orchestration-requirements-2026-03-31.md](./orchestration-requirements-2026-03-31.md)
+  - 编排中心产品与执行架构的当前目标文档
+  - 当前 `orchestration / task / runtime` 最终职责划分与主产品对象收敛方向以这份文档为准
+
 ### 当前接口契约
 
 - [task-api.md](./task-api.md)
-  - 当前 task service / HTTP API / event query 行为基线
+  - 当前 task detail / events / command API 行为基线
+  - task create/list 的 project 维度接口已被 orchestration 维度接口替代
 
 - [project-api.md](./project-api.md)
   - 当前 project service / API 行为基线
@@ -154,12 +172,15 @@
 - [prd-executor-service.md](./prd-executor-service.md)
   - 早期执行层产品需求文档
   - 用于理解产品目标与非功能要求
+  - 其中 task create/list/break/retry 的旧接口设计不可直接视为当前 contract
 
 - [frd-frontend.md](./frd-frontend.md)
-  - 前端总体需求文档
+  - 早期前端总体需求文档
+  - 部分 task API 依赖已经过时，应与 orchestration 文档交叉核对
 
 - [frd-task-frontend.md](./frd-task-frontend.md)
-  - task 工作台前端需求文档
+  - 早期 task 工作台前端需求文档
+  - 其中 `POST /v1/tasks`、`GET /v1/projects/:projectId/tasks`、`followup / retry / break` 均不是当前 canonical contract
 
 - [frd-chat-frontend.md](./frd-chat-frontend.md)
   - chat 面板前端需求文档

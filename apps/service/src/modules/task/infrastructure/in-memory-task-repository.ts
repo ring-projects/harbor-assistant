@@ -50,6 +50,26 @@ export class InMemoryTaskRepository implements TaskRepository, TaskRecordStore {
     return tasks.slice(0, limit)
   }
 
+  async listByOrchestration(input: {
+    orchestrationId: string
+    includeArchived?: boolean
+    limit?: number
+  }): Promise<TaskRecord[]> {
+    const includeArchived = input.includeArchived ?? false
+    const limit = input.limit
+
+    const tasks = [...this.tasks.values()]
+      .filter((task) => task.orchestrationId === input.orchestrationId)
+      .filter((task) => includeArchived || task.archivedAt === null)
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+
+    if (limit === undefined) {
+      return tasks
+    }
+
+    return tasks.slice(0, limit)
+  }
+
   async save(task: Task): Promise<void> {
     const current = this.tasks.get(task.id)
     const nextRuntime = task as Partial<TaskRecord>

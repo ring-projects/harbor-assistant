@@ -18,8 +18,7 @@ vi.mock("@/modules/tasks/hooks/use-task-queries", () => ({
     isPending: false,
     mutateAsync: deleteMutateAsync,
   })),
-  useProjectTaskListStream: vi.fn(),
-  useTaskListQuery: vi.fn(() => ({
+  useOrchestrationTaskListQuery: vi.fn(() => ({
     isLoading: false,
     isError: false,
     error: null,
@@ -76,6 +75,7 @@ function buildTask(overrides: Partial<TaskListItem> = {}): TaskListItem {
   return {
     taskId: "task-1",
     projectId: "project-1",
+    orchestrationId: "orch-1",
     prompt: "Ship it",
     title: "Ship it",
     titleSource: "prompt",
@@ -96,7 +96,7 @@ function resetTasksSessionStore() {
   act(() => {
     useTasksSessionStore.setState({
       tasksById: {},
-      taskIdsByProject: {},
+      taskIdsByOrchestration: {},
       eventStreamsByTaskId: {},
       chatUiByTaskId: {},
     })
@@ -112,7 +112,7 @@ afterEach(() => {
 describe("TaskList", () => {
   it("excludes archived tasks from the all tab while keeping them in archived", () => {
     act(() => {
-      useTasksSessionStore.getState().hydrateProjectTasks("project-1", [
+      useTasksSessionStore.getState().hydrateOrchestrationTasks("orch-1", [
         buildTask({
           taskId: "task-active",
           title: "Active task",
@@ -129,6 +129,7 @@ describe("TaskList", () => {
     render(
       <TaskList
         projectId="project-1"
+        orchestrationId="orch-1"
         selectedTaskId={null}
         onSelectTask={vi.fn()}
       />,

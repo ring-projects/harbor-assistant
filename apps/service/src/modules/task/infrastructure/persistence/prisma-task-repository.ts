@@ -32,6 +32,7 @@ export class PrismaTaskRepository implements TaskRepository, TaskRecordStore {
         data: {
           id: input.task.id,
           projectId: input.task.projectId,
+          orchestrationId: input.task.orchestrationId,
           prompt: input.task.prompt,
           title: input.task.title,
           titleSource: input.task.titleSource,
@@ -84,6 +85,24 @@ export class PrismaTaskRepository implements TaskRepository, TaskRecordStore {
     return tasks.map(toTaskRecord)
   }
 
+  async listByOrchestration(input: {
+    orchestrationId: string
+    includeArchived?: boolean
+    limit?: number
+  }): Promise<TaskRecord[]> {
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        orchestrationId: input.orchestrationId,
+        ...(input.includeArchived ? {} : { archivedAt: null }),
+      },
+      include: taskReadInclude,
+      orderBy: [{ createdAt: "desc" }],
+      ...(input.limit === undefined ? {} : { take: input.limit }),
+    })
+
+    return tasks.map(toTaskRecord)
+  }
+
   async save(task: Task): Promise<void> {
     await this.prisma.task.update({
       where: { id: task.id },
@@ -92,6 +111,7 @@ export class PrismaTaskRepository implements TaskRepository, TaskRecordStore {
         title: task.title,
         titleSource: task.titleSource,
         status: task.status,
+        orchestrationId: task.orchestrationId,
         archivedAt: task.archivedAt,
         updatedAt: task.updatedAt,
         startedAt: task.startedAt,

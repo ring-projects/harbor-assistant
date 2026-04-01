@@ -1,5 +1,11 @@
 # Product Requirements Document (PRD)
 
+> [!WARNING]
+> **状态：Partially Superseded**
+> 本文档保留了早期 executor-service 产品接口设想。
+> 其中与 task create/list 相关的 project-scoped API 已不再是当前 canonical contract。
+> 当前请优先参考 `docs/orchestration-requirements-2026-03-31.md` 与 `docs/task-api.md`。
+
 ## Product
 
 Harbor Assistant — Executor Service (TypeScript-first)

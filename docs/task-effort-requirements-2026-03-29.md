@@ -1,5 +1,11 @@
 # Task Effort Requirements
 
+> [!WARNING]
+> **状态：Partially Superseded**
+> 本文档中的 `POST /v1/tasks` 示例保留了 orchestration 引入前的 create API 表达。
+> 当前 create task 的 canonical contract 已迁移到 `POST /v1/orchestrations/:orchestrationId/tasks`。
+> `effort` 语义本身仍有效，但接口路径请以最新 task/orchestration 文档为准。
+
 ## 1. 文档信息
 
 - 文档名称：Task Effort Requirements

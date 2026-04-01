@@ -1,10 +1,21 @@
 # Task 接口文档
 
+> [!WARNING]
+> **状态：部分过时（Partially Superseded）**
+> 当前系统主模型已调整为 `Orchestration -> N Tasks`。
+> 其中 task detail / task events / resume / cancel / archive / delete 仍可作为当前 contract 参考，
+> 但 task create 与 task list 的 project 维度入口已经失效。
+> 请优先参考：`docs/orchestration-requirements-2026-03-31.md` 与 `docs/tdd/orchestration.md`。
+
+
 本文档描述当前 `task` 模块的真实 HTTP contract 与 resume 语义，用于前端对接、联调和后续重构基线。
 
 注意：
 
 - 当前 canonical 模块路径是 `apps/service/src/modules/task`
+- 当前 canonical create/list 入口已经是 orchestration 维度：
+  - `POST /v1/orchestrations/:orchestrationId/tasks`
+  - `GET /v1/orchestrations/:orchestrationId/tasks`
 - 早期 `followup / retry / break / task-input-images` 相关接口已经不再是当前 contract
 - 当前“继续执行”的唯一 canonical 语义是：`resume` 在同一个 `Execution` 上继续运行
 - service 启动时会把 orphaned `queued` / `running` execution 收敛到 `failed`
@@ -192,25 +203,30 @@ Claude runtime：
 - `apps/service/src/modules/task/routes/index.ts`
 - `apps/service/src/modules/task/application/*`
 
-### 4.1 `POST /v1/tasks`
+### 4.1 `POST /v1/orchestrations/:orchestrationId/tasks`
 
 ```ts
 function createTask(input: {
+  orchestrationId: string
   projectId: string
-  prompt: string
+  prompt?: string
+  items?: AgentInputItem[]
   title?: string
-  executor?: string | null
-  model?: string | null
-  executionMode?: string | null
+  executor: string
+  model: string
+  executionMode: string
+  effort: TaskEffort
 }): Promise<Task>
 ```
 
 行为：
 
+- `orchestrationId.trim()` 为空时抛 `INVALID_REQUEST_BODY`
 - `projectId.trim()` 为空时抛 `INVALID_REQUEST_BODY`
-- `prompt.trim()` 为空时抛 `INVALID_REQUEST_BODY`
+- `prompt / items` 至少提供一个
 - 若项目不存在，抛 `PROJECT_NOT_FOUND`
-- `executor / model / executionMode` 为空时回退到项目默认设置
+- orchestration 必须存在且属于对应 project
+- `executor / model / executionMode / effort` 必须显式传入
 - 创建 task record 后立即启动 runtime execution
 - 若 runtime 无法开始，`task` 与 `execution` 会一起收敛为 `failed`
 - route 响应返回 task 本身；实时状态变化依赖 websocket / query 刷新
@@ -349,25 +365,28 @@ function getTaskEvents(input: {
 
 来源：
 
-- [tasks.routes.ts](../apps/service/src/modules/tasks/routes/tasks.routes.ts)
-- [tasks.schema.ts](../apps/service/src/modules/tasks/schemas/tasks.schema.ts)
+- `apps/service/src/modules/orchestration/routes/index.ts`
+- `apps/service/src/modules/task/routes/index.ts`
+- `apps/service/src/modules/task/schemas/task.schema.ts`
 
 以下路径均以 `/v1` 为前缀。
 
-### 5.1 `POST /v1/tasks`
+### 5.1 `POST /v1/orchestrations/:orchestrationId/tasks`
 
 请求体：
 
 ```json
 {
+  "orchestrationId": "orch-id",
   "projectId": "project-id",
-  "input": [
+  "items": [
     { "type": "text", "text": "Run tests" },
     { "type": "local_image", "path": ".harbor/task-input-images/example.png" }
   ],
   "model": "gpt-5",
   "executor": "codex",
-  "executionMode": "connected"
+  "executionMode": "connected",
+  "effort": "medium"
 }
 ```
 
@@ -383,11 +402,10 @@ function getTaskEvents(input: {
 常见错误：
 
 - `400 INVALID_REQUEST_BODY`
-- `400 INVALID_PROJECT_ID`
-- `400 INVALID_PROMPT`
-- `400 INVALID_TASK_MODEL`
-- `400 UNSUPPORTED_EXECUTOR`
+- `400 INVALID_INPUT`
+- `400 INVALID_TASK_EFFORT`
 - `404 PROJECT_NOT_FOUND`
+- `404 ORCHESTRATION_NOT_FOUND`
 - `500 TASK_START_FAILED`
 
 ### 5.2 `GET /v1/tasks/:taskId`
@@ -519,7 +537,8 @@ function getTaskEvents(input: {
 {
   "ok": true,
   "taskId": "task-id",
-  "projectId": "project-id"
+  "projectId": "project-id",
+  "orchestrationId": "orch-id"
 }
 ```
 
@@ -529,7 +548,7 @@ function getTaskEvents(input: {
 - `409 INVALID_TASK_DELETE_STATE`
 - `500 TASK_DELETE_FAILED`
 
-### 5.10 `GET /v1/projects/:projectId/tasks`
+### 5.10 `GET /v1/orchestrations/:orchestrationId/tasks`
 
 查询参数：
 
@@ -544,6 +563,11 @@ function getTaskEvents(input: {
   "tasks": [{ "...": "CodexTask" }]
 }
 ```
+
+说明：
+
+- 旧的 `GET /v1/projects/:projectId/tasks` 兼容接口已移除
+- 当前 task 列表只通过 orchestration 维度读取
 
 ### 5.11 `POST /v1/projects/:projectId/task-input-images`
 

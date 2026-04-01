@@ -53,6 +53,7 @@ function buildTask(overrides: Partial<TaskListItemRecord> = {}): TaskListItemRec
   return {
     taskId: "task-1",
     projectId: "project-1",
+    orchestrationId: "orch-1",
     prompt: "Summarize the current release plan",
     title:
       "This is a very long task title meant to verify the task item title only shows up to two lines in the sidebar list",

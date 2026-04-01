@@ -14,6 +14,7 @@ describe("createTaskInteractionService", () => {
         createTask({
           id: "task-1",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           prompt: "Investigate runtime drift",
           status: "completed",
           createdAt: new Date("2026-03-25T00:00:00.000Z"),
@@ -49,23 +50,6 @@ describe("createTaskInteractionService", () => {
       eventProjection,
       notificationSubscriber: notificationBus.subscriber,
     })
-
-    await expect(
-      service.queries.listProjectTasks({
-        projectId: "project-1",
-      }),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        id: "task-1",
-        projectId: "project-1",
-        executor: "codex",
-        model: "gpt-5.3-codex",
-        executionMode: "safe",
-        effort: null,
-        status: "completed",
-        createdAt: "2026-03-25T00:00:00.000Z",
-      }),
-    ])
 
     await expect(service.queries.getTaskDetail("task-1")).resolves.toEqual(
       expect.objectContaining({
@@ -109,7 +93,7 @@ describe("createTaskInteractionService", () => {
     })
   })
 
-  it("maps project and task notifications into interaction streams", async () => {
+  it("maps task notifications into interaction streams", async () => {
     const repository = new InMemoryTaskRepository()
     const eventProjection = new InMemoryTaskEventProjection()
     const notificationBus = createInMemoryTaskNotificationBus()
@@ -119,11 +103,7 @@ describe("createTaskInteractionService", () => {
       notificationSubscriber: notificationBus.subscriber,
     })
 
-    const projectEvents: unknown[] = []
     const taskEvents: unknown[] = []
-    const projectSubscription = service.stream
-      .selectProject("project-1")
-      .subscribe((event) => projectEvents.push(event))
     const taskSubscription = service.stream
       .selectTask("task-1")
       .subscribe((event) => taskEvents.push(event))
@@ -134,6 +114,7 @@ describe("createTaskInteractionService", () => {
       task: {
         id: "task-1",
         projectId: "project-1",
+        orchestrationId: "project-1",
         title: "Investigate runtime drift",
         titleSource: "prompt",
         executor: "codex",
@@ -169,25 +150,7 @@ describe("createTaskInteractionService", () => {
       taskId: "task-1",
     })
 
-    await projectSubscription.unsubscribe()
     await taskSubscription.unsubscribe()
-
-    expect(projectEvents).toEqual([
-      {
-        type: "task_upsert",
-        projectId: "project-1",
-        task: expect.objectContaining({
-          id: "task-1",
-          executor: "codex",
-          status: "completed",
-        }),
-      },
-      {
-        type: "task_deleted",
-        projectId: "project-1",
-        taskId: "task-1",
-      },
-    ])
 
     expect(taskEvents).toEqual([
       {

@@ -1,5 +1,14 @@
 # Harbor Assistant Task 前端需求文档（FRD）
 
+> [!WARNING]
+> **状态：Partially Superseded**
+> 本文档保留大量早期 task 工作台设计。
+> 当前已失效或不再 canonical 的内容包括：
+> - `POST /v1/tasks`
+> - `GET /v1/projects/:projectId/tasks`
+> - `followup / break / retry` 作为主交互 API
+> 当前真实 contract 应以 `docs/orchestration-requirements-2026-03-31.md` 与 `docs/task-api.md` 为准。
+
 ## 1. 文档信息
 
 - 文档名称：Task Frontend Requirements Document
@@ -227,13 +236,13 @@ conversation 区需展示：
 
 ## 6.1 v1 任务 API 依赖
 
-1. `POST /v1/tasks`
-2. `GET /v1/projects/:projectId/tasks`
+1. `POST /v1/orchestrations/:orchestrationId/tasks`
+2. `GET /v1/orchestrations/:orchestrationId/tasks`
 3. `GET /v1/tasks/:taskId`
 4. `GET /v1/tasks/:taskId/events`
-5. `POST /v1/tasks/:taskId/followup`
-6. `POST /v1/tasks/:taskId/break`
-7. `POST /v1/tasks/:taskId/retry`
+5. `POST /v1/tasks/:taskId/resume`
+6. `POST /v1/tasks/:taskId/cancel`
+7. `PUT /v1/tasks/:taskId/title`
 
 ## 6.2 前端类型建议
 

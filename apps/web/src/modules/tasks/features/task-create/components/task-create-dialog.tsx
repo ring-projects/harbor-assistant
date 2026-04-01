@@ -33,6 +33,8 @@ import { getErrorMessage } from "@/modules/tasks/view-models"
 
 type TaskCreateDialogProps = {
   projectId: string
+  orchestrationId: string | null
+  disabled?: boolean
   onTaskCreated: (taskId: string) => void
   trigger?: ReactNode
 }
@@ -40,6 +42,8 @@ type TaskCreateDialogProps = {
 
 export function TaskCreateDialog({
   projectId,
+  orchestrationId,
+  disabled = false,
   onTaskCreated,
   trigger,
 }: TaskCreateDialogProps) {
@@ -51,7 +55,10 @@ export function TaskCreateDialog({
   const [createTaskError, setCreateTaskError] = useState<string | null>(null)
 
   const taskCreationParams = useTaskCreationParams()
-  const createTaskMutation = useCreateTaskMutation(projectId)
+  const createTaskMutation = useCreateTaskMutation({
+    projectId,
+    orchestrationId,
+  })
   const {
     handleDropFiles,
     handlePasteFiles,
@@ -134,7 +141,7 @@ export function TaskCreateDialog({
     >
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button type="button" variant="outline" size="sm">
+          <Button type="button" variant="outline" size="sm" disabled={disabled}>
             <PlusIcon className="size-4" />
             New Task
           </Button>

@@ -38,6 +38,7 @@ function buildTask(overrides: Partial<TaskDetail> = {}): TaskDetail {
   return {
     taskId: "task-1",
     projectId: "project-1",
+    orchestrationId: "orch-1",
     prompt: "Ship it",
     title: "Ship it",
     titleSource: "prompt",
@@ -58,7 +59,7 @@ function resetTasksSessionStore() {
   act(() => {
     useTasksSessionStore.setState({
       tasksById: {},
-      taskIdsByProject: {},
+      taskIdsByOrchestration: {},
       eventStreamsByTaskId: {},
       chatUiByTaskId: {},
     })

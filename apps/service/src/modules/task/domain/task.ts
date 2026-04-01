@@ -12,6 +12,7 @@ export type TaskTitleSource = "prompt" | "agent" | "user"
 export type Task = {
   id: string
   projectId: string
+  orchestrationId: string
   prompt: string
   title: string
   titleSource: TaskTitleSource
@@ -26,6 +27,7 @@ export type Task = {
 export function createTask(input: {
   id: string
   projectId: string
+  orchestrationId: string
   prompt: string
   title?: string
   titleSource?: TaskTitleSource
@@ -38,6 +40,7 @@ export function createTask(input: {
 }): Task {
   const id = input.id.trim()
   const projectId = input.projectId.trim()
+  const orchestrationId = input.orchestrationId.trim()
   const prompt = input.prompt.trim()
   const title = (input.title ?? input.prompt).trim()
   const createdAt = input.createdAt ?? new Date()
@@ -52,6 +55,9 @@ export function createTask(input: {
   if (!prompt) {
     throw createTaskError().invalidInput("prompt is required")
   }
+  if (!orchestrationId) {
+    throw createTaskError().invalidInput("orchestrationId is required")
+  }
   if (!title) {
     throw createTaskError().invalidTitle("title is required")
   }
@@ -59,6 +65,7 @@ export function createTask(input: {
   return {
     id,
     projectId,
+    orchestrationId,
     prompt,
     title,
     titleSource: input.titleSource ?? "prompt",

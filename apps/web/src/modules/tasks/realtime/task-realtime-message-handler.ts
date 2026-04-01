@@ -45,16 +45,6 @@ export class TaskRealtimeMessageHandler {
     const data = message.data ?? {}
 
     switch (message.name) {
-      case "project_tasks": {
-        if (topic.kind !== "project") {
-          return
-        }
-
-        useTasksSessionStore
-          .getState()
-          .hydrateProjectTasks(topic.id, extractTaskList(data))
-        return
-      }
       case "task": {
         const task = normalizeTaskCandidate(data.task)
         if (!task) {
@@ -96,15 +86,15 @@ export class TaskRealtimeMessageHandler {
       }
       case "task_deleted": {
         const taskId = pickString(data, "taskId")
-        const projectId =
-          pickString(data, "projectId") ??
-          (topic.kind === "project" ? topic.id : null)
+        const orchestrationId =
+          useTasksSessionStore.getState().tasksById[topic.id]?.orchestrationId ??
+          pickString(data, "orchestrationId")
 
-        if (!taskId || !projectId) {
+        if (!taskId || !orchestrationId) {
           return
         }
 
-        useTasksSessionStore.getState().deleteTask(projectId, taskId)
+        useTasksSessionStore.getState().deleteTask(orchestrationId, taskId)
         return
       }
       case "task_status_changed": {

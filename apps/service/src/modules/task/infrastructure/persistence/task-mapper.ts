@@ -8,6 +8,7 @@ export function toDomainTask(task: PrismaTask): Task {
   return createTask({
     id: task.id,
     projectId: task.projectId,
+    orchestrationId: task.orchestrationId,
     prompt: task.prompt,
     title: task.title,
     titleSource: task.titleSource,

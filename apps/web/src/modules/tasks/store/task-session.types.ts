@@ -34,17 +34,20 @@ export type ChatUiState = {
 
 export type TasksSessionState = {
   tasksById: Record<string, TaskDetail>
-  taskIdsByProject: Record<string, string[]>
+  taskIdsByOrchestration: Record<string, string[]>
   eventStreamsByTaskId: Record<string, TaskAgentEventStream>
   chatUiByTaskId: Record<string, ChatUiState>
 }
 
 export type TasksSessionActions = {
-  hydrateProjectTasks: (projectId: string, tasks: TaskListItem[]) => void
+  hydrateOrchestrationTasks: (
+    orchestrationId: string,
+    tasks: TaskListItem[],
+  ) => void
   hydrateTaskDetail: (task: TaskDetail) => void
   hydrateTaskEvents: (taskId: string, stream: TaskAgentEventStream) => void
   applyTaskUpsert: (task: TaskRecord) => void
-  deleteTask: (projectId: string, taskId: string) => void
+  deleteTask: (orchestrationId: string, taskId: string) => void
   applyTaskStatus: (taskId: string, status: TaskStatus) => void
   applyTaskEnd: (taskId: string, status: TaskStatus) => void
   applyAgentEvent: (taskId: string, event: TaskAgentEvent) => void

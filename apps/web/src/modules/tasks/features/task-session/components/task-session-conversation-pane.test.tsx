@@ -28,6 +28,7 @@ function buildTaskDetail(overrides: Partial<TaskDetail> = {}): TaskDetail {
   return {
     taskId: "task-1",
     projectId: "project-1",
+    orchestrationId: "orch-1",
     prompt: "Ship it",
     title: "Ship it",
     titleSource: "prompt",
@@ -48,7 +49,7 @@ afterEach(() => {
   mockHandleScroll.mockReset()
   useTasksSessionStore.setState({
     tasksById: {},
-    taskIdsByProject: {},
+    taskIdsByOrchestration: {},
     eventStreamsByTaskId: {},
     chatUiByTaskId: {},
   })

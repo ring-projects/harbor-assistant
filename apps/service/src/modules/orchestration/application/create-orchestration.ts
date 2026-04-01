@@ -1,0 +1,44 @@
+import { randomUUID } from "node:crypto"
+
+import type { ProjectRepository } from "../../project/application/project-repository"
+import { createProjectError } from "../../project/errors"
+import { createOrchestration } from "../domain/orchestration"
+import type { OrchestrationRepository } from "./orchestration-repository"
+import { buildOrchestrationDetail } from "./shared"
+
+export async function createOrchestrationUseCase(
+  args: {
+    repository: OrchestrationRepository
+    projectRepository: Pick<ProjectRepository, "findById">
+    idGenerator?: () => string
+  },
+  input: {
+    projectId: string
+    title: string
+    description?: string | null
+    defaultPrompt?: string | null
+    defaultConfig?: Record<string, unknown> | null
+  },
+) {
+  const projectId = input.projectId.trim()
+  if (!projectId) {
+    throw createProjectError().invalidInput("projectId is required")
+  }
+
+  const project = await args.projectRepository.findById(projectId)
+  if (!project) {
+    throw createProjectError().notFound()
+  }
+
+  const orchestration = createOrchestration({
+    id: args.idGenerator?.() ?? randomUUID(),
+    projectId,
+    title: input.title,
+    description: input.description,
+    defaultPrompt: input.defaultPrompt,
+    defaultConfig: input.defaultConfig,
+  })
+
+  await args.repository.save(orchestration)
+  return buildOrchestrationDetail(orchestration, [])
+}

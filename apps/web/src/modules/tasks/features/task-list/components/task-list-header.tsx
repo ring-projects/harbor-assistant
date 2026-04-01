@@ -17,6 +17,7 @@ type TaskListHeaderProps = {
   allCount: number
   archivedCount: number
   completedCount: number
+  orchestrationId: string | null
   onSelectTab: (tab: TaskListTab) => void
   onTaskCreated: (taskId: string) => void
   projectId: string
@@ -28,6 +29,7 @@ export function TaskListHeader({
   allCount,
   archivedCount,
   completedCount,
+  orchestrationId,
   onTaskCreated,
   projectId,
   runningCount,
@@ -38,9 +40,16 @@ export function TaskListHeader({
     <div className="flex min-w-0 items-center justify-between gap-2">
       <TaskCreateDialog
         projectId={projectId}
+        orchestrationId={orchestrationId}
+        disabled={!orchestrationId}
         onTaskCreated={onTaskCreated}
         trigger={
-          <Button type="button" size="sm" className="shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            className="shrink-0"
+            disabled={!orchestrationId}
+          >
             <PlusIcon className="size-4" />
             New Task
           </Button>

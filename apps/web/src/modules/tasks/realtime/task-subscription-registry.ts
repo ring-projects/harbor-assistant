@@ -11,12 +11,10 @@ import type {
 type SubscriptionKind = InteractionTopic["kind"]
 type RefStore = Map<SubscriptionKind, Map<string, number>>
 
-const PROJECT_TASK_LIMIT = 200
 const TASK_EVENTS_LIMIT = 500
 
 export class TaskSubscriptionRegistry {
   private refs: RefStore = new Map([
-    ["project", new Map()],
     ["project-git", new Map()],
     ["task", new Map()],
     ["task-events", new Map()],
@@ -26,10 +24,6 @@ export class TaskSubscriptionRegistry {
     private readonly emitSubscribe: (payload: InteractionSubscribeRequest) => void,
     private readonly emitUnsubscribe: (payload: InteractionSubscribeRequest) => void,
   ) {}
-
-  subscribeProject(projectId: string) {
-    return this.subscribe("project", projectId)
-  }
 
   subscribeProjectGit(projectId: string) {
     return this.subscribe("project-git", projectId)
@@ -92,11 +86,6 @@ export class TaskSubscriptionRegistry {
     }
 
     switch (kind) {
-      case "project":
-        return {
-          topic,
-          limit: PROJECT_TASK_LIMIT,
-        }
       case "task-events":
         return {
           topic,

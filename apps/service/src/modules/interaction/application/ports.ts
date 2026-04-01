@@ -1,8 +1,4 @@
-export type InteractionTopicKind =
-  | "project"
-  | "task"
-  | "task-events"
-  | "project-git"
+export type InteractionTopicKind = "task" | "task-events" | "project-git"
 
 export type InteractionTopic = {
   kind: InteractionTopicKind
@@ -92,10 +88,6 @@ export type InteractionProjectGitChangeEvent = {
 }
 
 export interface TaskInteractionQueries {
-  listProjectTasks(input: {
-    projectId: string
-    limit?: number
-  }): Promise<InteractionTaskRecord[]>
   getTaskDetail(taskId: string): Promise<InteractionTaskRecord>
   getTaskEvents(input: {
     taskId: string
@@ -119,7 +111,6 @@ export interface TaskInteractionSubscription {
 }
 
 export interface TaskInteractionStream {
-  selectProject(projectId: string): TaskInteractionSubscription
   selectTask(taskId: string): TaskInteractionSubscription
 }
 

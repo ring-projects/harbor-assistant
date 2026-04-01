@@ -131,141 +131,6 @@ afterEach(() => {
 })
 
 describe("bindWebSocketSession", () => {
-  it("replays project snapshot, forwards live project events, and avoids duplicate subscriptions", async () => {
-    const socket = createFakeSocket()
-    const projectListeners = new Set<(event: InteractionTaskStreamEvent) => void>()
-    const projectSubscribeCount = { current: 0 }
-    const projectUnsubscribeCount = { current: 0 }
-    const listProjectTasks = vi.fn(async () => [createTask()])
-
-    bindWebSocketSession({
-      socket,
-      taskQueries: {
-        listProjectTasks,
-        getTaskDetail: vi.fn(),
-        getTaskEvents: vi.fn(),
-      },
-      taskStream: {
-        selectProject: () =>
-          createTaskStreamSource({
-            subscribeCount: projectSubscribeCount,
-            unsubscribeCount: projectUnsubscribeCount,
-            listeners: projectListeners,
-          }),
-        selectTask: () =>
-          createTaskStreamSource({
-            subscribeCount: { current: 0 },
-            unsubscribeCount: { current: 0 },
-            listeners: new Set(),
-          }),
-      },
-      projectGitWatcher: {
-        subscribe: vi.fn(),
-      },
-    })
-
-    const request: InteractionSubscribeRequest = {
-      topic: {
-        kind: "project",
-        id: " project-1 ",
-      },
-      limit: -10,
-    }
-
-    socket.trigger("interaction:subscribe", request)
-    await Promise.resolve()
-
-    const topic: InteractionTopic = {
-      kind: "project",
-      id: "project-1",
-    }
-
-    expect(listProjectTasks).toHaveBeenCalledWith({
-      projectId: "project-1",
-      limit: 200,
-    })
-    expect(socket.joined).toEqual(["project:project-1"])
-    expectSocketMessage(socket, {
-      topic,
-      message: {
-        kind: "subscribed",
-      },
-    })
-    expectSocketMessage(socket, {
-      topic,
-      message: {
-        kind: "snapshot",
-        name: "project_tasks",
-        data: {
-          tasks: [createTask()],
-        },
-      },
-    })
-    expect(projectSubscribeCount.current).toBe(1)
-
-    socket.trigger("interaction:subscribe", {
-      topic: {
-        kind: "project",
-        id: "project-1",
-      },
-    } satisfies InteractionSubscribeRequest)
-    await Promise.resolve()
-
-    expect(projectSubscribeCount.current).toBe(1)
-
-    emitStreamEvent(projectListeners, {
-      type: "task_upsert",
-      projectId: "project-1",
-      task: createTask({
-        id: "task-2",
-      }),
-    })
-    emitStreamEvent(projectListeners, {
-      type: "task_deleted",
-      projectId: "project-1",
-      taskId: "task-3",
-    })
-
-    expectSocketMessage(socket, {
-      topic,
-      message: {
-        kind: "event",
-        name: "task_upsert",
-        data: {
-          task: createTask({
-            id: "task-2",
-          }),
-        },
-      },
-    })
-    expectSocketMessage(socket, {
-      topic,
-      message: {
-        kind: "event",
-        name: "task_deleted",
-        data: {
-          taskId: "task-3",
-        },
-      },
-    })
-
-    socket.trigger("interaction:unsubscribe", {
-      topic: {
-        kind: "project",
-        id: "project-1",
-      },
-    } satisfies InteractionSubscribeRequest)
-
-    expect(projectUnsubscribeCount.current).toBe(1)
-    expect(socket.left).toEqual(["project:project-1"])
-    expectSocketMessage(socket, {
-      topic,
-      message: {
-        kind: "unsubscribed",
-      },
-    })
-  })
-
   it("replays task-events snapshot, forwards live task events, and cleans up on disconnect", async () => {
     const socket = createFakeSocket()
     const taskListeners = new Set<(event: InteractionTaskStreamEvent) => void>()
@@ -286,17 +151,10 @@ describe("bindWebSocketSession", () => {
     bindWebSocketSession({
       socket,
       taskQueries: {
-        listProjectTasks: vi.fn(),
         getTaskDetail: vi.fn(),
         getTaskEvents,
       },
       taskStream: {
-        selectProject: () =>
-          createTaskStreamSource({
-            subscribeCount: { current: 0 },
-            unsubscribeCount: { current: 0 },
-            listeners: new Set(),
-          }),
         selectTask: () =>
           createTaskStreamSource({
             subscribeCount: taskSubscribeCount,
@@ -409,17 +267,10 @@ describe("bindWebSocketSession", () => {
     bindWebSocketSession({
       socket,
       taskQueries: {
-        listProjectTasks: vi.fn(),
         getTaskDetail,
         getTaskEvents: vi.fn(),
       },
       taskStream: {
-        selectProject: () =>
-          createTaskStreamSource({
-            subscribeCount: { current: 0 },
-            unsubscribeCount: { current: 0 },
-            listeners: new Set(),
-          }),
         selectTask: () =>
           createTaskStreamSource({
             subscribeCount: taskSubscribeCount,
@@ -514,17 +365,10 @@ describe("bindWebSocketSession", () => {
     bindWebSocketSession({
       socket,
       taskQueries: {
-        listProjectTasks: vi.fn(),
         getTaskDetail: vi.fn(),
         getTaskEvents: vi.fn(),
       },
       taskStream: {
-        selectProject: () =>
-          createTaskStreamSource({
-            subscribeCount: { current: 0 },
-            unsubscribeCount: { current: 0 },
-            listeners: new Set(),
-          }),
         selectTask: () =>
           createTaskStreamSource({
             subscribeCount: { current: 0 },
@@ -590,19 +434,12 @@ describe("bindWebSocketSession", () => {
     bindWebSocketSession({
       socket,
       taskQueries: {
-        listProjectTasks: vi.fn(async () => {
+        getTaskDetail: vi.fn(async () => {
           throw new Error("boom")
         }),
-        getTaskDetail: vi.fn(),
         getTaskEvents: vi.fn(),
       },
       taskStream: {
-        selectProject: () =>
-          createTaskStreamSource({
-            subscribeCount: { current: 0 },
-            unsubscribeCount: { current: 0 },
-            listeners: new Set(),
-          }),
         selectTask: () =>
           createTaskStreamSource({
             subscribeCount: { current: 0 },
@@ -623,8 +460,8 @@ describe("bindWebSocketSession", () => {
     })
     socket.trigger("interaction:subscribe", {
       topic: {
-        kind: "project",
-        id: "project-1",
+        kind: "task",
+        id: "task-1",
       },
     } satisfies InteractionSubscribeRequest)
     await Promise.resolve()

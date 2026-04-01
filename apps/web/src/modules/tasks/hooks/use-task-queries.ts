@@ -11,7 +11,7 @@ import {
   createTask,
   deleteTask,
   readAgentCapabilities,
-  readProjectTasks,
+  readOrchestrationTasks,
   readTaskDetail,
   readTaskEvents,
   type CreateTaskInput,
@@ -21,15 +21,14 @@ import {
   uploadTaskInputImage,
 } from "@/modules/tasks/api"
 export { useTaskEventStream } from "./use-task-event-stream"
-export { useProjectTaskListStream } from "./use-project-task-list-stream"
 
 export const taskQueryKeys = {
   all: ["tasks"] as const,
-  byProject(projectId: string) {
-    return [...this.all, "project", projectId] as const
+  byOrchestration(orchestrationId: string) {
+    return [...this.all, "orchestration", orchestrationId] as const
   },
-  list(projectId: string) {
-    return [...this.byProject(projectId), "list"] as const
+  listByOrchestration(orchestrationId: string) {
+    return [...this.byOrchestration(orchestrationId), "list"] as const
   },
   detail(taskId: string) {
     return [...this.all, "detail", taskId] as const
@@ -42,19 +41,24 @@ export const taskQueryKeys = {
   },
 }
 
-export function useTaskListQuery(args: {
-  projectId: string
+export function useOrchestrationTaskListQuery(args: {
+  orchestrationId: string | null
 }) {
   const query = useQuery({
-    queryKey: taskQueryKeys.list(args.projectId),
+    queryKey: taskQueryKeys.listByOrchestration(args.orchestrationId ?? "none"),
     queryFn: async () => {
-      const result = await readProjectTasks({
-        projectId: args.projectId,
+      if (!args.orchestrationId) {
+        return []
+      }
+
+      const result = await readOrchestrationTasks({
+        orchestrationId: args.orchestrationId,
         includeArchived: true,
       })
 
       return result.tasks
     },
+    enabled: Boolean(args.orchestrationId),
     staleTime: 5_000,
   })
 
@@ -63,8 +67,14 @@ export function useTaskListQuery(args: {
       return
     }
 
-    useTasksSessionStore.getState().hydrateProjectTasks(args.projectId, query.data)
-  }, [args.projectId, query.data])
+    if (!args.orchestrationId) {
+      return
+    }
+
+    useTasksSessionStore
+      .getState()
+      .hydrateOrchestrationTasks(args.orchestrationId, query.data)
+  }, [args.orchestrationId, query.data])
 
   return query
 }
@@ -133,18 +143,33 @@ export function useAgentCapabilitiesQuery(args?: { enabled?: boolean }) {
   })
 }
 
-export function useCreateTaskMutation(projectId: string) {
+export function useCreateTaskMutation(args: {
+  projectId: string
+  orchestrationId?: string | null
+}) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: CreateTaskInput) => createTask(projectId, input),
+    mutationFn: (input: CreateTaskInput) => {
+      if (!args.orchestrationId) {
+        throw new Error("orchestrationId is required to create a task")
+      }
+
+      return createTask({
+        projectId: args.projectId,
+        orchestrationId: args.orchestrationId,
+        input,
+      })
+    },
     onSuccess(result) {
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.byProject(projectId),
+        queryKey: gitQueryKeys.byProject(args.projectId),
       })
-      void queryClient.invalidateQueries({
-        queryKey: gitQueryKeys.byProject(projectId),
-      })
+      if (args.orchestrationId) {
+        void queryClient.invalidateQueries({
+          queryKey: taskQueryKeys.byOrchestration(args.orchestrationId),
+        })
+      }
 
       if (result.task) {
         useTasksSessionStore.getState().applyTaskUpsert(result.task)
@@ -163,7 +188,7 @@ export function useArchiveTaskMutation(projectId: string) {
     mutationFn: (taskId: string) => archiveTask(taskId),
     onSuccess(task) {
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.byProject(projectId),
+        queryKey: taskQueryKeys.byOrchestration(task.orchestrationId),
       })
 
       useTasksSessionStore.getState().applyTaskUpsert(task)
@@ -179,7 +204,7 @@ export function useCancelTaskMutation(projectId: string) {
       cancelTask(input.taskId, input),
     onSuccess(task) {
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.byProject(projectId),
+        queryKey: taskQueryKeys.byOrchestration(task.orchestrationId),
       })
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.detail(task.taskId),
@@ -201,7 +226,7 @@ export function useResumeTaskMutation(projectId: string) {
       resumeTask(input.taskId, input),
     onSuccess(task) {
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.byProject(projectId),
+        queryKey: taskQueryKeys.byOrchestration(task.orchestrationId),
       })
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.detail(task.taskId),
@@ -228,7 +253,7 @@ export function useDeleteTaskMutation(projectId: string) {
     mutationFn: (taskId: string) => deleteTask(taskId),
     onSuccess(result) {
       void queryClient.invalidateQueries({
-        queryKey: taskQueryKeys.byProject(projectId),
+        queryKey: taskQueryKeys.byOrchestration(result.orchestrationId),
       })
       void queryClient.removeQueries({
         queryKey: taskQueryKeys.detail(result.taskId),
@@ -237,7 +262,9 @@ export function useDeleteTaskMutation(projectId: string) {
         queryKey: taskQueryKeys.events(result.taskId),
       })
 
-      useTasksSessionStore.getState().deleteTask(result.projectId, result.taskId)
+      useTasksSessionStore
+        .getState()
+        .deleteTask(result.orchestrationId, result.taskId)
     },
   })
 }

@@ -1,5 +1,10 @@
 # Task Resume Runtime Overrides Requirements
 
+> [!NOTE]
+> 本文档描述的 `resume` command 语义仍然有效。
+> 但如果你同时查阅 task create/list 相关文档，请注意当前 canonical create/list contract 已迁移到
+> orchestration 维度，而不是早期 project-scoped task API。
+
 ## 1. 文档信息
 
 - 文档名称：Task Resume Runtime Overrides Requirements

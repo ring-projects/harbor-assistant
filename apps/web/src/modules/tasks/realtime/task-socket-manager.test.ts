@@ -28,7 +28,7 @@ describe("TaskSocketManager", () => {
     socket.on.mockClear()
     useTasksSessionStore.setState({
       tasksById: {},
-      taskIdsByProject: {},
+      taskIdsByOrchestration: {},
       eventStreamsByTaskId: {},
       chatUiByTaskId: {},
     })
@@ -77,10 +77,11 @@ describe("TaskSocketManager", () => {
   })
 
   it("removes a task from store when a task deletion event arrives", async () => {
-    useTasksSessionStore.getState().hydrateProjectTasks("project-1", [
+    useTasksSessionStore.getState().hydrateOrchestrationTasks("orch-1", [
       {
         taskId: "task-1",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Delete me",
         title: "Delete me",
         titleSource: "prompt",
@@ -106,20 +107,20 @@ describe("TaskSocketManager", () => {
 
     handler({
       topic: {
-        kind: "project",
-        id: "project-1",
+        kind: "task",
+        id: "task-1",
       },
       message: {
         kind: "event",
         name: "task_deleted",
         data: {
-          projectId: "project-1",
+          orchestrationId: "orch-1",
           taskId: "task-1",
         },
       },
     })
 
-    expect(useTasksSessionStore.getState().taskIdsByProject["project-1"]).toEqual([])
+    expect(useTasksSessionStore.getState().taskIdsByOrchestration["orch-1"]).toEqual([])
     expect(useTasksSessionStore.getState().tasksById["task-1"]).toBeUndefined()
   })
 

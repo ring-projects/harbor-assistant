@@ -10,7 +10,7 @@ import type {
 import type { TaskInput } from "@/modules/tasks/lib"
 
 import {
-  selectProjectTasks,
+  selectOrchestrationTasks,
   selectVisiblePendingPrompt,
 } from "./task-session.selectors"
 import { createTasksSessionStoreState } from "./task-session.store"
@@ -27,6 +27,7 @@ function buildTask(
   return {
     taskId: "task-1",
     projectId: "project-1",
+    orchestrationId: "orch-1",
     prompt: "Ship it",
     title: "Ship it",
     titleSource: "prompt",
@@ -162,7 +163,7 @@ describe("tasks session store", () => {
   it("returns project tasks sorted by createdAt descending", () => {
     const store = createTasksStore()
 
-    store.getState().hydrateProjectTasks("project-1", [
+    store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
         taskId: "task-1",
         createdAt: "2026-03-13T00:00:00.000Z",
@@ -173,24 +174,26 @@ describe("tasks session store", () => {
       }),
     ])
 
-    expect(selectProjectTasks(store.getState(), "project-1").map((task) => task.taskId)).toEqual([
+    expect(
+      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.taskId),
+    ).toEqual([
       "task-2",
       "task-1",
     ])
   })
 
-  it("returns a stable project task array when task inputs are unchanged", () => {
+  it("returns a stable orchestration task array when task inputs are unchanged", () => {
     const store = createTasksStore()
 
-    store.getState().hydrateProjectTasks("project-1", [
+    store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
         taskId: "task-1",
       }),
     ])
 
-    const first = selectProjectTasks(store.getState(), "project-1")
+    const first = selectOrchestrationTasks(store.getState(), "orch-1")
     store.getState().setDraft("task-1", "draft update")
-    const second = selectProjectTasks(store.getState(), "project-1")
+    const second = selectOrchestrationTasks(store.getState(), "orch-1")
 
     expect(second).toBe(first)
   })
@@ -267,13 +270,13 @@ describe("tasks session store", () => {
   it("updates draft attachments without affecting task query selectors", () => {
     const store = createTasksStore()
 
-    store.getState().hydrateProjectTasks("project-1", [
+    store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
         taskId: "task-1",
       }),
     ])
 
-    const first = selectProjectTasks(store.getState(), "project-1")
+    const first = selectOrchestrationTasks(store.getState(), "orch-1")
     store.getState().setDraftAttachments("task-1", [
       {
         path: ".harbor/task-input-images/example.png",
@@ -282,7 +285,7 @@ describe("tasks session store", () => {
         size: 1024,
       },
     ])
-    const second = selectProjectTasks(store.getState(), "project-1")
+    const second = selectOrchestrationTasks(store.getState(), "orch-1")
 
     expect(second).toBe(first)
     expect(store.getState().chatUiByTaskId["task-1"]?.draftAttachments).toEqual([
@@ -295,10 +298,10 @@ describe("tasks session store", () => {
     ])
   })
 
-  it("replaces the visible project task list from query snapshots", () => {
+  it("replaces the visible orchestration task list from query snapshots", () => {
     const store = createTasksStore()
 
-    store.getState().hydrateProjectTasks("project-1", [
+    store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
         taskId: "task-1",
       }),
@@ -307,21 +310,21 @@ describe("tasks session store", () => {
       }),
     ])
 
-    store.getState().hydrateProjectTasks("project-1", [
+    store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
         taskId: "task-2",
       }),
     ])
 
-    expect(selectProjectTasks(store.getState(), "project-1").map((task) => task.taskId)).toEqual([
-      "task-2",
-    ])
+    expect(
+      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.taskId),
+    ).toEqual(["task-2"])
   })
 
-  it("keeps archived tasks in project state for archived views", () => {
+  it("keeps archived tasks in orchestration state for archived views", () => {
     const store = createTasksStore()
 
-    store.getState().hydrateProjectTasks("project-1", [
+    store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
         taskId: "task-1",
       }),
@@ -332,9 +335,9 @@ describe("tasks session store", () => {
       archivedAt: "2026-03-18T08:00:00.000Z",
     }))
 
-    expect(selectProjectTasks(store.getState(), "project-1").map((task) => task.taskId)).toEqual([
-      "task-1",
-    ])
+    expect(
+      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.taskId),
+    ).toEqual(["task-1"])
     expect(store.getState().tasksById["task-1"]?.archivedAt).toBe(
       "2026-03-18T08:00:00.000Z",
     )
@@ -343,7 +346,7 @@ describe("tasks session store", () => {
   it("deletes a task from state and event caches", () => {
     const store = createTasksStore()
 
-    store.getState().hydrateProjectTasks("project-1", [
+    store.getState().hydrateOrchestrationTasks("orch-1", [
       buildTask({
         taskId: "task-1",
       }),
@@ -354,9 +357,9 @@ describe("tasks session store", () => {
     }))
     store.getState().setDraft("task-1", "draft")
 
-    store.getState().deleteTask("project-1", "task-1")
+    store.getState().deleteTask("orch-1", "task-1")
 
-    expect(selectProjectTasks(store.getState(), "project-1")).toEqual([])
+    expect(selectOrchestrationTasks(store.getState(), "orch-1")).toEqual([])
     expect(store.getState().tasksById["task-1"]).toBeUndefined()
     expect(store.getState().eventStreamsByTaskId["task-1"]).toBeUndefined()
     expect(store.getState().chatUiByTaskId["task-1"]).toBeUndefined()

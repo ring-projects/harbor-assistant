@@ -29,11 +29,6 @@ export class TaskSocketManager {
     this.ensureSocket()
   }
 
-  subscribeProject(projectId: string) {
-    this.ensureSocket()
-    return this.subscriptionRegistry.subscribeProject(projectId)
-  }
-
   subscribeTask(taskId: string) {
     this.ensureSocket()
     return this.subscriptionRegistry.subscribeTask(taskId)

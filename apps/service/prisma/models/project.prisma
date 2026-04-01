@@ -21,6 +21,7 @@ model Project {
   updatedAt            DateTime      @updatedAt
   archivedAt           DateTime?
   tasks                Task[]
+  orchestrations       Orchestration[]
 
   @@index([status, updatedAt(sort: Desc)])
   @@map("projects")

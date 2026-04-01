@@ -30,6 +30,7 @@ export async function createTaskUseCase(args: {
   idGenerator?: () => string
 }, input: {
   projectId: string
+  orchestrationId: string
   prompt?: string | null
   items?: AgentInputItem[] | null
   title?: string
@@ -39,13 +40,16 @@ export async function createTaskUseCase(args: {
   effort: TaskEffort
 }): Promise<TaskDetail> {
   const projectId = input.projectId.trim()
+  const orchestrationId = input.orchestrationId.trim()
   const agentInput = resolveAgentInput(input)
   const title = input.title?.trim()
 
   if (!projectId) {
     throw createTaskError().invalidInput("projectId is required")
   }
-
+  if (!orchestrationId) {
+    throw createTaskError().invalidInput("orchestrationId is required")
+  }
   if (!agentInput) {
     throw createTaskError().invalidInput("task input is required")
   }
@@ -91,6 +95,7 @@ export async function createTaskUseCase(args: {
   const task = createTask({
     id: args.idGenerator?.() ?? randomUUID(),
     projectId: project.projectId,
+    orchestrationId,
     prompt,
     titleSource: title ? "user" : "prompt",
     ...(title ? { title } : {}),

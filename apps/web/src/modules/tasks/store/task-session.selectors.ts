@@ -15,10 +15,10 @@ const DEFAULT_CHAT_UI: ChatUiState = {
   selectedInspectorBlockId: null,
 }
 
-const EMPTY_PROJECT_TASKS: TaskRecord[] = []
+const EMPTY_ORCHESTRATION_TASKS: TaskRecord[] = []
 const EMPTY_TASK_EVENTS: TaskAgentEvent[] = []
 
-const projectTasksCache = new Map<
+const orchestrationTasksCache = new Map<
   string,
   {
     taskIds: string[]
@@ -27,16 +27,16 @@ const projectTasksCache = new Map<
   }
 >()
 
-export function selectProjectTasks(
+export function selectOrchestrationTasks(
   state: TasksSessionState,
-  projectId: string,
+  orchestrationId: string,
 ) {
-  const taskIds = state.taskIdsByProject[projectId] ?? []
+  const taskIds = state.taskIdsByOrchestration[orchestrationId] ?? []
   if (taskIds.length === 0) {
-    return EMPTY_PROJECT_TASKS
+    return EMPTY_ORCHESTRATION_TASKS
   }
 
-  const cached = projectTasksCache.get(projectId)
+  const cached = orchestrationTasksCache.get(orchestrationId)
   if (cached && cached.taskIds === taskIds && cached.tasksById === state.tasksById) {
     return cached.result
   }
@@ -45,7 +45,7 @@ export function selectProjectTasks(
     .map((taskId) => state.tasksById[taskId])
     .filter((task): task is NonNullable<typeof task> => Boolean(task))
 
-  projectTasksCache.set(projectId, {
+  orchestrationTasksCache.set(orchestrationId, {
     taskIds,
     tasksById: state.tasksById,
     result,

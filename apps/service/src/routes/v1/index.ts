@@ -9,6 +9,9 @@ import { createGitCommandRepository } from "../../modules/git/infrastructure/git
 import { createNodeGitPathWatcher } from "../../modules/git/infrastructure/node-git-path-watcher"
 import { registerGitModuleRoutes } from "../../modules/git/routes"
 import { createInteractionSocketGateway } from "../../modules/interaction/infrastructure/socket-io-gateway"
+import { InMemoryOrchestrationRepository } from "../../modules/orchestration/infrastructure/in-memory-orchestration-repository"
+import { PrismaOrchestrationRepository } from "../../modules/orchestration/infrastructure/persistence/prisma-orchestration-repository"
+import { registerOrchestrationModuleRoutes } from "../../modules/orchestration/routes"
 import { InMemoryProjectRepository } from "../../modules/project/infrastructure/in-memory-project-repository"
 import { createNodeProjectPathPolicy } from "../../modules/project/infrastructure/node-project-path-policy"
 import { PrismaProjectRepository } from "../../modules/project/infrastructure/persistence/prisma-project-repository"
@@ -23,6 +26,7 @@ import { PrismaTaskEventProjection } from "../../modules/task/infrastructure/pro
 import { createTaskStartupReconciler } from "../../modules/task/infrastructure/runtime/task-startup-reconciler"
 import { registerTaskModuleRoutes } from "../../modules/task/routes"
 import { createProjectGitInteractionLifecycle } from "./create-project-git-interaction-lifecycle"
+import { createOrchestrationTaskPort } from "./create-orchestration-task-port"
 import { createTaskInteractionService } from "./create-task-interaction-service"
 import { createProjectTaskPort } from "./create-project-task-port"
 
@@ -40,6 +44,9 @@ export async function registerV1Routes(
   const projectRepository = prisma
     ? new PrismaProjectRepository(prisma)
     : new InMemoryProjectRepository()
+  const orchestrationRepository = prisma
+    ? new PrismaOrchestrationRepository(prisma)
+    : new InMemoryOrchestrationRepository()
   const taskRepository = prisma
     ? new PrismaTaskRepository(prisma)
     : new InMemoryTaskRepository()
@@ -59,6 +66,13 @@ export async function registerV1Routes(
         logger: app.log,
       })
     : createNoopTaskRuntimePort()
+  const orchestrationTaskPort = createOrchestrationTaskPort({
+    projectTaskPort,
+    taskRecordStore: taskRepository,
+    repository: taskRepository,
+    runtimePort: taskRuntimePort,
+    notificationPublisher: taskNotificationBus.publisher,
+  })
 
   if (prisma) {
     try {
@@ -104,6 +118,12 @@ export async function registerV1Routes(
   await registerProjectModuleRoutes(app, {
     repository: projectRepository,
     pathPolicy: projectPathPolicy,
+  })
+  await registerOrchestrationModuleRoutes(app, {
+    repository: orchestrationRepository,
+    projectRepository,
+    taskRepository,
+    taskPort: orchestrationTaskPort,
   })
   await registerGitModuleRoutes(app, {
     projectRepository,

@@ -22,12 +22,7 @@ export function interactionTopicRoom(topic: InteractionTopic) {
 }
 
 function isTopicKind(value: string | undefined): value is InteractionTopicKind {
-  return (
-    value === "project" ||
-    value === "task" ||
-    value === "task-events" ||
-    value === "project-git"
-  )
+  return value === "task" || value === "task-events" || value === "project-git"
 }
 
 function normalizeTopic(value: unknown): InteractionTopic | null {
@@ -52,13 +47,6 @@ function normalizeTopic(value: unknown): InteractionTopic | null {
 }
 
 export type ParsedInteractionSubscription =
-  | {
-      topic: InteractionTopic & {
-        kind: "project"
-      }
-      room: string
-      limit: number
-    }
   | {
       topic: InteractionTopic & {
         kind: "task"
@@ -89,16 +77,6 @@ export function parseInteractionSubscription(
   }
 
   switch (topic.kind) {
-    case "project": {
-      const projectTopic = topic as InteractionTopic & {
-        kind: "project"
-      }
-      return {
-        topic: projectTopic,
-        room: interactionTopicRoom(projectTopic),
-        limit: normalizePositiveInteger(payload?.limit, 200),
-      }
-    }
     case "task": {
       const taskTopic = topic as InteractionTopic & {
         kind: "task"

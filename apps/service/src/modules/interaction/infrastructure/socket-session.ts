@@ -17,7 +17,6 @@ import {
   emitWebSocketMessage,
   errorEnvelope,
   projectGitChangedEventEnvelope,
-  projectTasksSnapshotEnvelope,
   subscribedEnvelope,
   taskDeletedEventEnvelope,
   taskEndedEventEnvelope,
@@ -102,22 +101,6 @@ function emitTaskStreamEvent(
   }
 }
 
-function emitProjectTaskDeleted(
-  socket: Pick<SocketSessionLike, "emit">,
-  topic: InteractionTopic,
-  event: {
-    taskId: string
-  },
-) {
-  emitWebSocketMessage(
-    socket,
-    taskDeletedEventEnvelope({
-      topic,
-      taskId: event.taskId,
-    }),
-  )
-}
-
 function emitTaskDeleted(
   socket: Pick<SocketSessionLike, "emit">,
   topic: InteractionTopic,
@@ -148,48 +131,6 @@ function emitProjectGitChanged(
       changedAt: event.changedAt,
     }),
   )
-}
-
-async function replayProjectSnapshot(args: {
-  socket: SocketSessionLike
-  taskQueries: Pick<TaskInteractionQueries, "listProjectTasks">
-  request: InteractionSubscribeRequest
-}) {
-  const parsed = parseInteractionSubscription(args.request)
-  if (!parsed || parsed.topic.kind !== "project") {
-    emitInteractionError(
-      args.socket,
-      createInteractionError().invalidTopic("Project topic is invalid."),
-    )
-    return
-  }
-
-  try {
-    const projectSubscription = parsed as {
-      topic: InteractionTopic & {
-        kind: "project"
-      }
-      room: string
-      limit: number
-    }
-    const topic = projectSubscription.topic
-    args.socket.join(projectSubscription.room)
-    const tasks = await args.taskQueries.listProjectTasks({
-      projectId: topic.id,
-      limit: projectSubscription.limit,
-    })
-
-    emitWebSocketMessage(args.socket, subscribedEnvelope(topic))
-    emitWebSocketMessage(
-      args.socket,
-      projectTasksSnapshotEnvelope({
-        topic,
-        tasks,
-      }),
-    )
-  } catch (error) {
-    emitInteractionError(args.socket, error, parsed.topic)
-  }
 }
 
 async function replayTaskSnapshot(args: {
@@ -330,29 +271,6 @@ export function bindWebSocketSession(args: {
     const topicKey = interactionTopicKey(parsed.topic)
 
     switch (parsed.topic.kind) {
-      case "project":
-        if (!taskStreamSubscriptions.has(topicKey)) {
-          const subscription = args.taskStream
-            .selectProject(parsed.topic.id)
-            .subscribe((event) => {
-              if (event.type === "task_upsert") {
-                emitTaskStreamEvent(args.socket, parsed.topic, event)
-                return
-              }
-
-              if (event.type === "task_deleted") {
-                emitProjectTaskDeleted(args.socket, parsed.topic, event)
-              }
-            })
-          taskStreamSubscriptions.set(topicKey, () => subscription.unsubscribe())
-        }
-
-        void replayProjectSnapshot({
-          socket: args.socket,
-          taskQueries: args.taskQueries,
-          request,
-        })
-        return
       case "project-git":
         void handleProjectGitSubscription({
           socket: args.socket,

@@ -183,11 +183,9 @@ async function createLiveGatewayApp(args?: {
   projectGitWatcher?: ProjectGitInteractionLifecycle
 }) {
   const app = Fastify({ logger: false })
-  const projectListeners = new Set<(event: InteractionTaskStreamEvent) => void>()
   const taskListeners = new Set<(event: InteractionTaskStreamEvent) => void>()
 
   const taskQueries: TaskInteractionQueries = args?.taskQueries ?? {
-    listProjectTasks: async () => [createTask()],
     getTaskDetail: async () => createTask(),
     getTaskEvents: async () => ({
       task: createTask(),
@@ -201,10 +199,6 @@ async function createLiveGatewayApp(args?: {
   }
 
   const taskStream: TaskInteractionStream = args?.taskStream ?? {
-    selectProject: () =>
-      createTaskStreamSource({
-        listeners: projectListeners,
-      }),
     selectTask: () =>
       createTaskStreamSource({
         listeners: taskListeners,
@@ -239,7 +233,6 @@ async function createLiveGatewayApp(args?: {
   return {
     app,
     url: `http://127.0.0.1:${address.port}`,
-    projectListeners,
     taskListeners,
   }
 }
@@ -252,111 +245,6 @@ afterEach(async () => {
 })
 
 describe("createInteractionSocketGateway", () => {
-  it("delivers project snapshot and live events to a real websocket client", async () => {
-    const { app, url, projectListeners } = await createLiveGatewayApp()
-    let client: ClientSocket | null = null
-    const topic: InteractionTopic = {
-      kind: "project",
-      id: "project-1",
-    }
-
-    try {
-      client = await createClientSocket(url)
-      const subscribedPromise = waitForInteractionMessage(
-        client,
-        (message) =>
-          message.topic?.kind === "project" &&
-          message.topic.id === "project-1" &&
-          message.message.kind === "subscribed",
-      )
-      const snapshotPromise = waitForInteractionMessage(
-        client,
-        (message) =>
-          message.topic?.kind === "project" &&
-          message.topic.id === "project-1" &&
-          message.message.kind === "snapshot" &&
-          message.message.name === "project_tasks",
-      )
-
-      client.emit("interaction:subscribe", {
-        topic,
-      } satisfies InteractionSubscribeRequest)
-
-      await expect(subscribedPromise).resolves.toEqual({
-        topic,
-        message: {
-          kind: "subscribed",
-        },
-      })
-      await expect(snapshotPromise).resolves.toEqual({
-        topic,
-        message: {
-          kind: "snapshot",
-          name: "project_tasks",
-          data: {
-            tasks: [createTask()],
-          },
-        },
-      })
-
-      const liveUpsertPromise = waitForInteractionMessage(
-        client,
-        (message) =>
-          message.topic?.kind === "project" &&
-          message.topic.id === "project-1" &&
-          message.message.kind === "event" &&
-          message.message.name === "task_upsert",
-      )
-      const deletedPromise = waitForInteractionMessage(
-        client,
-        (message) =>
-          message.topic?.kind === "project" &&
-          message.topic.id === "project-1" &&
-          message.message.kind === "event" &&
-          message.message.name === "task_deleted",
-      )
-
-      emitStreamEvent(projectListeners, {
-        type: "task_upsert",
-        projectId: "project-1",
-        task: createTask({
-          id: "task-2",
-        }),
-      })
-      emitStreamEvent(projectListeners, {
-        type: "task_deleted",
-        projectId: "project-1",
-        taskId: "task-3",
-      })
-
-      await expect(liveUpsertPromise).resolves.toEqual({
-        topic,
-        message: {
-          kind: "event",
-          name: "task_upsert",
-          data: {
-            task: createTask({
-              id: "task-2",
-            }),
-          },
-        },
-      })
-      await expect(deletedPromise).resolves.toEqual({
-        topic,
-        message: {
-          kind: "event",
-          name: "task_deleted",
-          data: {
-            taskId: "task-3",
-          },
-        },
-      })
-    } finally {
-      client?.close()
-      await app.close()
-    }
-  })
-
   it("forwards project git changes and cleans watcher subscriptions on disconnect", async () => {
     let unsubscribeCount = 0
     let projectGitListener:
@@ -449,10 +337,6 @@ describe("createInteractionSocketGateway", () => {
 
     const { app, url } = await createLiveGatewayApp({
       taskStream: {
-        selectProject: () =>
-          createTaskStreamSource({
-            listeners: new Set(),
-          }),
         selectTask: () =>
           createTaskStreamSource({
             listeners: new Set(),

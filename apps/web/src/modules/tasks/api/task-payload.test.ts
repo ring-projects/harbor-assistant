@@ -13,6 +13,7 @@ describe("task-payload", () => {
         {
           task_id: "task-1",
           project_id: "project-1",
+          orchestration_id: "orch-1",
           prompt: "Ship it",
           title: "Ship it",
           status: "running",
@@ -25,6 +26,7 @@ describe("task-payload", () => {
       {
         taskId: "task-1",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         prompt: "Ship it",
         title: "Ship it",
         titleSource: "prompt",
@@ -46,6 +48,7 @@ describe("task-payload", () => {
       task: {
         id: "task-2",
         projectId: "project-2",
+        orchestrationId: "orch-2",
         prompt: "Hello",
         title: "Hello",
         effort: "high",
@@ -62,6 +65,7 @@ describe("task-payload", () => {
       task: {
         id: "task-2",
         projectId: "project-2",
+        orchestrationId: "orch-2",
         prompt: "Hello",
         title: "Hello",
         status: "queued",

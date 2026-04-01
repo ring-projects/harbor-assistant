@@ -25,12 +25,20 @@ describe("Task startup reconciler", () => {
         normalizedPath: "/tmp/project-1",
       },
     })
+    await prisma.orchestration.create({
+      data: {
+        id: "orchestration-1",
+        projectId: "project-1",
+        title: "Project 1",
+      },
+    })
 
     await prisma.task.createMany({
       data: [
         {
           id: "task-running",
           projectId: "project-1",
+          orchestrationId: "orchestration-1",
           prompt: "Continue debugging",
           title: "Continue debugging",
           status: "running",
@@ -39,6 +47,7 @@ describe("Task startup reconciler", () => {
         {
           id: "task-queued",
           projectId: "project-1",
+          orchestrationId: "orchestration-1",
           prompt: "Start analysis",
           title: "Start analysis",
           status: "queued",

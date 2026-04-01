@@ -61,15 +61,18 @@ export function normalizeTaskCandidate(candidate: unknown): TaskListItem | null 
 
   const taskId = pickString(source, "taskId", "id", "task_id")
   const projectId = pickString(source, "projectId", "project_id")
+  const orchestrationId =
+    pickString(source, "orchestrationId", "orchestration_id") ?? projectId
   const status = toTaskStatus(source.status)
 
-  if (!taskId || !projectId || !status) {
+  if (!taskId || !projectId || !orchestrationId || !status) {
     return null
   }
 
   const parsed = taskListItemSchema.safeParse({
     taskId,
     projectId,
+    orchestrationId,
     prompt: toStringOrEmpty(source.prompt),
     title: toStringOrEmpty(source.title),
     titleSource:

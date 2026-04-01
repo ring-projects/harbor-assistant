@@ -23,6 +23,7 @@ describe("in-memory task notification bus", () => {
       task: {
         id: "task-1",
         projectId: "project-1",
+        orchestrationId: "orchestration-1",
         title: "Investigate runtime drift",
         titleSource: "prompt",
         executor: "codex",

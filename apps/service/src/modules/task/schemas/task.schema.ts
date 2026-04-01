@@ -24,17 +24,6 @@ export type CancelTaskBody = {
   reason?: string
 }
 
-export type CreateTaskBody = {
-  projectId: string
-  prompt?: string
-  items?: AgentInputItem[]
-  title?: string
-  executor: string
-  model: string
-  executionMode: string
-  effort: TaskEffort
-}
-
 export type UploadTaskInputImageBody = {
   name: string
   mediaType: string
@@ -46,17 +35,13 @@ export type GetTaskEventsQuery = {
   limit?: number
 }
 
-export type GetProjectTasksQuery = {
-  limit?: number
-  includeArchived?: boolean
-}
-
 const taskEntitySchema = {
   type: "object",
   additionalProperties: false,
   required: [
     "id",
     "projectId",
+    "orchestrationId",
     "prompt",
     "title",
     "titleSource",
@@ -74,6 +59,7 @@ const taskEntitySchema = {
   properties: {
     id: { type: "string", minLength: 1 },
     projectId: { type: "string", minLength: 1 },
+    orchestrationId: { type: "string", minLength: 1 },
     prompt: { type: "string", minLength: 1 },
     title: { type: "string", minLength: 1 },
     titleSource: {
@@ -107,6 +93,7 @@ const taskListItemSchema = {
   required: [
     "id",
     "projectId",
+    "orchestrationId",
     "title",
     "titleSource",
     "executor",
@@ -123,6 +110,7 @@ const taskListItemSchema = {
   properties: {
     id: { type: "string", minLength: 1 },
     projectId: { type: "string", minLength: 1 },
+    orchestrationId: { type: "string", minLength: 1 },
     title: { type: "string", minLength: 1 },
     titleSource: {
       type: "string",
@@ -289,47 +277,6 @@ export const getTaskEventsQuerySchema = {
   },
 } as const
 
-export const getProjectTasksQuerySchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    limit: { type: "integer", minimum: 1, maximum: 500 },
-    includeArchived: { type: "boolean" },
-  },
-} as const
-
-export const createTaskBodySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["projectId", "executor", "model", "executionMode", "effort"],
-  anyOf: [{ required: ["prompt"] }, { required: ["items"] }],
-  properties: {
-    projectId: { type: "string", minLength: 1 },
-    prompt: { type: "string", minLength: 1 },
-    items: taskInputItemsSchema,
-    title: { type: "string", minLength: 1 },
-    executor: { type: "string", minLength: 1 },
-    model: { type: "string", minLength: 1 },
-    executionMode: { type: "string", minLength: 1 },
-    effort: { type: "string", enum: TASK_EFFORT_VALUES },
-  },
-} as const
-
-export const createTaskRouteSchema = {
-  body: createTaskBodySchema,
-  response: {
-    201: {
-      type: "object",
-      additionalProperties: false,
-      required: ["ok", "task"],
-      properties: {
-        ok: { type: "boolean", const: true },
-        task: taskEntitySchema,
-      },
-    },
-  },
-} as const
-
 export const uploadTaskInputImageBodySchema = {
   type: "object",
   additionalProperties: false,
@@ -444,11 +391,12 @@ export const deleteTaskRouteSchema = {
     200: {
       type: "object",
       additionalProperties: false,
-      required: ["ok", "taskId", "projectId"],
+      required: ["ok", "taskId", "projectId", "orchestrationId"],
       properties: {
         ok: { type: "boolean", const: true },
         taskId: { type: "string", minLength: 1 },
         projectId: { type: "string", minLength: 1 },
+        orchestrationId: { type: "string", minLength: 1 },
       },
     },
   },
@@ -476,25 +424,6 @@ export const getTaskEventsRouteSchema = {
         ok: { type: "boolean", const: true },
         task: taskEntitySchema,
         events: taskEventStreamSchema,
-      },
-    },
-  },
-} as const
-
-export const getProjectTasksRouteSchema = {
-  params: projectIdParamsSchema,
-  querystring: getProjectTasksQuerySchema,
-  response: {
-    200: {
-      type: "object",
-      additionalProperties: false,
-      required: ["ok", "tasks"],
-      properties: {
-        ok: { type: "boolean", const: true },
-        tasks: {
-          type: "array",
-          items: taskListItemSchema,
-        },
       },
     },
   },

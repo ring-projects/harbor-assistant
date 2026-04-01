@@ -1,0 +1,25 @@
+enum OrchestrationStatus {
+  active
+  paused
+  archived
+}
+
+model Orchestration {
+  id            String              @id @default(cuid())
+  projectId     String
+  title         String
+  description   String?
+  defaultPrompt String?
+  defaultConfig Json?
+  status        OrchestrationStatus @default(active)
+  archivedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  project       Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks         Task[]
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([projectId, archivedAt, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("orchestrations")
+}

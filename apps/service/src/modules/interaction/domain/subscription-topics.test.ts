@@ -6,24 +6,6 @@ import {
 } from "./subscription-topics"
 
 describe("interaction subscription topics", () => {
-  it("parses project subscription with trimmed id, default limit, and room", () => {
-    expect(
-      parseInteractionSubscription({
-        topic: {
-          kind: "project",
-          id: " project-1 ",
-        },
-      }),
-    ).toEqual({
-      topic: {
-        kind: "project",
-        id: "project-1",
-      },
-      limit: 200,
-      room: "project:project-1",
-    })
-  })
-
   it("parses task-events subscription with normalized cursor and limit", () => {
     expect(
       parseInteractionSubscription({
@@ -49,7 +31,7 @@ describe("interaction subscription topics", () => {
     expect(
       parseInteractionSubscription({
         topic: {
-          kind: "project",
+          kind: "task",
           id: "  ",
         },
       }),

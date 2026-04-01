@@ -13,21 +13,25 @@ enum TaskTitleSource {
 }
 
 model Task {
-  id          String          @id @default(cuid())
-  projectId   String
-  prompt      String
-  title       String
-  titleSource TaskTitleSource @default(prompt)
-  status      TaskStatus      @default(queued)
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  archivedAt  DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  execution   Execution?
+  id              String          @id @default(cuid())
+  projectId       String
+  orchestrationId String
+  prompt          String
+  title           String
+  titleSource     TaskTitleSource @default(prompt)
+  status          TaskStatus      @default(queued)
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  orchestration   Orchestration   @relation(fields: [orchestrationId], references: [id], onDelete: Cascade)
+  execution       Execution?
 
   @@index([projectId, createdAt(sort: Desc)])
+  @@index([orchestrationId, createdAt(sort: Desc)])
+  @@index([projectId, orchestrationId, createdAt(sort: Desc)])
   @@index([projectId, archivedAt, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
   @@map("tasks")

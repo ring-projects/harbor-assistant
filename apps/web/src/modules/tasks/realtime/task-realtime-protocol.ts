@@ -1,9 +1,5 @@
 export type InteractionTopic =
   | {
-      kind: "project"
-      id: string
-    }
-  | {
       kind: "task"
       id: string
     }
@@ -24,7 +20,7 @@ export type InteractionSubscribeRequest = {
 
 export type InteractionSnapshotMessage = {
   kind: "snapshot"
-  name: "project_tasks" | "task" | "task_events"
+  name: "task" | "task_events"
   data?: Record<string, unknown>
 }
 

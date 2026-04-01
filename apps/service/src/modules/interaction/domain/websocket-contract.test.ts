@@ -3,67 +3,64 @@ import { describe, expect, it } from "vitest"
 import {
   errorEnvelope,
   projectGitChangedEventEnvelope,
-  projectTasksSnapshotEnvelope,
+  taskDeletedEventEnvelope,
+  taskSnapshotEnvelope,
   taskEventsSnapshotEnvelope,
   taskUpsertEventEnvelope,
 } from "./websocket-contract"
 
 describe("websocket interaction contract", () => {
-  it("builds project snapshot and live task upsert envelopes", () => {
+  it("builds task snapshot and live task envelopes", () => {
     expect(
-      projectTasksSnapshotEnvelope({
+      taskSnapshotEnvelope({
         topic: {
-          kind: "project",
-          id: "project-1",
+          kind: "task",
+          id: "task-1",
         },
-        tasks: [
-          {
-            id: "task-1",
-            projectId: "project-1",
-            title: "Investigate runtime drift",
-            titleSource: "prompt",
-            executor: "codex",
-            model: null,
-            executionMode: "safe",
-            effort: null,
-            status: "queued",
-            archivedAt: null,
-            createdAt: "2026-03-24T00:00:00.000Z",
-            updatedAt: "2026-03-24T00:00:00.000Z",
-            startedAt: null,
-            finishedAt: null,
-          },
-        ],
+        task: {
+          id: "task-1",
+          projectId: "project-1",
+          title: "Investigate runtime drift",
+          titleSource: "prompt",
+          executor: "codex",
+          model: null,
+          executionMode: "safe",
+          effort: null,
+          status: "queued",
+          archivedAt: null,
+          createdAt: "2026-03-24T00:00:00.000Z",
+          updatedAt: "2026-03-24T00:00:00.000Z",
+          startedAt: null,
+          finishedAt: null,
+        },
       }),
     ).toEqual({
       event: "interaction:message",
       payload: {
         topic: {
-          kind: "project",
-          id: "project-1",
+          kind: "task",
+          id: "task-1",
         },
         message: {
           kind: "snapshot",
-          name: "project_tasks",
+          name: "task",
           data: {
-            tasks: [
-              {
-                id: "task-1",
-                projectId: "project-1",
-                title: "Investigate runtime drift",
-                titleSource: "prompt",
+            task: {
+              id: "task-1",
+              projectId: "project-1",
+              title: "Investigate runtime drift",
+              titleSource: "prompt",
               executor: "codex",
               model: null,
               executionMode: "safe",
               effort: null,
               status: "queued",
-                archivedAt: null,
-                createdAt: "2026-03-24T00:00:00.000Z",
-                updatedAt: "2026-03-24T00:00:00.000Z",
-                startedAt: null,
-                finishedAt: null,
-              },
-            ],
+              archivedAt: null,
+              createdAt: "2026-03-24T00:00:00.000Z",
+              updatedAt: "2026-03-24T00:00:00.000Z",
+              startedAt: null,
+              finishedAt: null,
+            },
           },
         },
       },
@@ -72,8 +69,8 @@ describe("websocket interaction contract", () => {
     expect(
       taskUpsertEventEnvelope({
         topic: {
-          kind: "project",
-          id: "project-1",
+          kind: "task",
+          id: "task-1",
         },
         task: {
           id: "task-2",
@@ -96,8 +93,8 @@ describe("websocket interaction contract", () => {
       event: "interaction:message",
       payload: {
         topic: {
-          kind: "project",
-          id: "project-1",
+          kind: "task",
+          id: "task-1",
         },
         message: {
           kind: "event",
@@ -119,6 +116,33 @@ describe("websocket interaction contract", () => {
               startedAt: null,
               finishedAt: null,
             },
+          },
+        },
+      },
+    })
+
+    expect(
+      taskDeletedEventEnvelope({
+        topic: {
+          kind: "task",
+          id: "task-1",
+        },
+        taskId: "task-1",
+        projectId: "project-1",
+      }),
+    ).toEqual({
+      event: "interaction:message",
+      payload: {
+        topic: {
+          kind: "task",
+          id: "task-1",
+        },
+        message: {
+          kind: "event",
+          name: "task_deleted",
+          data: {
+            taskId: "task-1",
+            projectId: "project-1",
           },
         },
       },
@@ -189,8 +213,8 @@ describe("websocket interaction contract", () => {
     expect(
       errorEnvelope({
         topic: {
-          kind: "project",
-          id: "project-1",
+          kind: "task",
+          id: "task-1",
         },
         error: {
           code: "PROJECT_NOT_FOUND",
@@ -201,8 +225,8 @@ describe("websocket interaction contract", () => {
       event: "interaction:message",
       payload: {
         topic: {
-          kind: "project",
-          id: "project-1",
+          kind: "task",
+          id: "task-1",
         },
         message: {
           kind: "error",

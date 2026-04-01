@@ -160,6 +160,7 @@ describe("TaskCreateDialog", () => {
     render(
       <TaskCreateDialog
         projectId="project-1"
+        orchestrationId="orch-1"
         onTaskCreated={onTaskCreated}
       />,
     )

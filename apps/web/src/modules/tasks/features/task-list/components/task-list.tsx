@@ -6,11 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   useArchiveTaskMutation,
   useDeleteTaskMutation,
-  useProjectTaskListStream,
-  useTaskListQuery,
+  useOrchestrationTaskListQuery,
 } from "@/modules/tasks/hooks/use-task-queries"
 import {
-  selectProjectTasks,
+  selectOrchestrationTasks,
   useTasksSessionStore,
 } from "@/modules/tasks/store"
 import { getErrorMessage } from "@/modules/tasks/view-models"
@@ -23,12 +22,14 @@ import { TaskListItem } from "./task-list-item"
 
 type TaskListProps = {
   projectId: string
+  orchestrationId: string | null
   selectedTaskId: string | null
   onSelectTask: (taskId: string | null) => void
 }
 
 export function TaskList({
   projectId,
+  orchestrationId,
   selectedTaskId,
   onSelectTask,
 }: TaskListProps) {
@@ -36,26 +37,19 @@ export function TaskList({
     useState<PendingTaskDelete | null>(null)
   const archiveTaskMutation = useArchiveTaskMutation(projectId)
   const deleteTaskMutation = useDeleteTaskMutation(projectId)
-  const listQuery = useTaskListQuery({
-    projectId,
-  })
-  useProjectTaskListStream({
-    projectId,
-    enabled: true,
-  })
-
-  const allTasks = useTasksSessionStore((state) =>
-    selectProjectTasks(state, projectId),
+  const listQuery = useOrchestrationTaskListQuery({ orchestrationId })
+  const orchestrationTasks = useTasksSessionStore((state) =>
+    orchestrationId ? selectOrchestrationTasks(state, orchestrationId) : [],
   )
   const [selectedTab, setSelectedTab] = useState<TaskListTab>("all")
 
   const activeTasks = useMemo(
-    () => allTasks.filter((task) => task.archivedAt === null),
-    [allTasks],
+    () => orchestrationTasks.filter((task) => task.archivedAt === null),
+    [orchestrationTasks],
   )
   const archivedTasks = useMemo(
-    () => allTasks.filter((task) => task.archivedAt !== null),
-    [allTasks],
+    () => orchestrationTasks.filter((task) => task.archivedAt !== null),
+    [orchestrationTasks],
   )
   const runningTasks = useMemo(
     () =>
@@ -104,7 +98,11 @@ export function TaskList({
   }, [selectedTaskId, visibleTasks])
 
   const emptyStateMessage = useMemo(() => {
-    if (allTasks.length === 0) {
+    if (!orchestrationId) {
+      return "Select an orchestration to view its tasks."
+    }
+
+    if (orchestrationTasks.length === 0) {
       return "No tasks yet."
     }
 
@@ -119,7 +117,7 @@ export function TaskList({
       default:
         return "No running tasks right now."
     }
-  }, [allTasks.length, selectedTab])
+  }, [orchestrationId, orchestrationTasks.length, selectedTab])
 
   useEffect(() => {
     if (resolvedSelectedTaskId !== selectedTaskId) {
@@ -154,6 +152,7 @@ export function TaskList({
       <div className="flex h-full min-h-0 flex-col gap-3">
         <TaskListHeader
           projectId={projectId}
+          orchestrationId={orchestrationId}
           selectedTab={selectedTab}
           onSelectTab={setSelectedTab}
           allCount={activeTasks.length}

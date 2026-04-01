@@ -173,13 +173,13 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
   get,
 ) => ({
   tasksById: {},
-  taskIdsByProject: {},
+  taskIdsByOrchestration: {},
   eventStreamsByTaskId: {},
   chatUiByTaskId: {},
 
-  hydrateProjectTasks(projectId, tasks) {
-    const normalizedProjectId = projectId.trim()
-    if (!normalizedProjectId) {
+  hydrateOrchestrationTasks(orchestrationId, tasks) {
+    const normalizedOrchestrationId = orchestrationId.trim()
+    if (!normalizedOrchestrationId) {
       return
     }
 
@@ -197,9 +197,9 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
 
       return {
         tasksById,
-        taskIdsByProject: {
-          ...state.taskIdsByProject,
-          [normalizedProjectId]: nextTaskIds,
+        taskIdsByOrchestration: {
+          ...state.taskIdsByOrchestration,
+          [normalizedOrchestrationId]: nextTaskIds,
         },
       }
     })
@@ -243,8 +243,8 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
 
   applyTaskUpsert(task) {
     const normalizedTaskId = task.taskId.trim()
-    const normalizedProjectId = task.projectId.trim()
-    if (!normalizedTaskId || !normalizedProjectId) {
+    const normalizedOrchestrationId = task.orchestrationId.trim()
+    if (!normalizedTaskId || !normalizedOrchestrationId) {
       return
     }
 
@@ -255,24 +255,27 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
       }
 
       const nextTaskIds = sortTaskIdsByCreatedAt(
-        [...(state.taskIdsByProject[normalizedProjectId] ?? []), normalizedTaskId],
+        [
+          ...(state.taskIdsByOrchestration[normalizedOrchestrationId] ?? []),
+          normalizedTaskId,
+        ],
         tasksById,
       )
 
       return {
         tasksById,
-        taskIdsByProject: {
-          ...state.taskIdsByProject,
-          [normalizedProjectId]: nextTaskIds,
+        taskIdsByOrchestration: {
+          ...state.taskIdsByOrchestration,
+          [normalizedOrchestrationId]: nextTaskIds,
         },
       }
     })
   },
 
-  deleteTask(projectId, taskId) {
-    const normalizedProjectId = projectId.trim()
+  deleteTask(orchestrationId, taskId) {
+    const normalizedOrchestrationId = orchestrationId.trim()
     const normalizedTaskId = taskId.trim()
-    if (!normalizedProjectId || !normalizedTaskId) {
+    if (!normalizedOrchestrationId || !normalizedTaskId) {
       return
     }
 
@@ -289,10 +292,10 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
         tasksById,
         eventStreamsByTaskId,
         chatUiByTaskId,
-        taskIdsByProject: {
-          ...state.taskIdsByProject,
-          [normalizedProjectId]: removeTaskId(
-            state.taskIdsByProject[normalizedProjectId],
+        taskIdsByOrchestration: {
+          ...state.taskIdsByOrchestration,
+          [normalizedOrchestrationId]: removeTaskId(
+            state.taskIdsByOrchestration[normalizedOrchestrationId],
             normalizedTaskId,
           ),
         },

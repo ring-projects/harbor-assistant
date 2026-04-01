@@ -26,10 +26,12 @@ export type {
 } from "./application/task-event-projection"
 export type {
   ListProjectTasksInput,
+  ListOrchestrationTasksInput,
   TaskRepository,
 } from "./application/task-repository"
 export type { TaskRuntimeConfig, TaskRuntimePort } from "./application/task-runtime-port"
 export { cancelTaskUseCase } from "./application/cancel-task"
+export { listOrchestrationTasksUseCase } from "./application/list-orchestration-tasks"
 export { createCurrentTaskRuntimePort } from "./facade/current-task-runtime-port"
 export { createNoopTaskRuntimePort } from "./facade/noop-task-runtime-port"
 export { InMemoryTaskEventProjection } from "./infrastructure/in-memory-task-event-projection"

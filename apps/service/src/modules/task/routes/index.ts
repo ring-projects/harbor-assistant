@@ -14,20 +14,15 @@ import type { TaskRecordStore } from "../application/task-record-store"
 import type { TaskRepository } from "../application/task-repository"
 import type { TaskRuntimePort } from "../application/task-runtime-port"
 import { uploadTaskInputImageUseCase } from "../application/upload-task-input-image"
-import { listProjectTasksUseCase } from "../application/list-project-tasks"
 import { updateTaskTitleUseCase } from "../application/update-task-title"
 import { toTaskAppError } from "../task-app-error"
 import {
   archiveTaskRouteSchema,
   cancelTaskRouteSchema,
-  createTaskRouteSchema,
   deleteTaskRouteSchema,
-  getProjectTasksRouteSchema,
   getTaskEventsRouteSchema,
   getTaskRouteSchema,
-  type CreateTaskBody,
   type CancelTaskBody,
-  type GetProjectTasksQuery,
   type GetTaskEventsQuery,
   type ProjectIdParams,
   type ResumeTaskBody,
@@ -58,34 +53,6 @@ export async function registerTaskModuleRoutes(
     projectTaskPort,
     runtimePort,
   } = options
-
-  app.post<{ Body: CreateTaskBody }>(
-    "/tasks",
-    {
-      schema: createTaskRouteSchema,
-    },
-    async (request, reply) => {
-      try {
-        const task = await createTaskUseCase(
-          {
-            projectTaskPort,
-            taskRecordStore,
-            repository,
-            runtimePort,
-            notificationPublisher,
-          },
-          request.body,
-        )
-
-        return reply.status(201).send({
-          ok: true,
-          task,
-        })
-      } catch (error) {
-        throw toTaskAppError(error)
-      }
-    },
-  )
 
   app.post<{ Params: ProjectIdParams; Body: UploadTaskInputImageBody }>(
     "/projects/:projectId/task-input-images",
@@ -278,29 +245,6 @@ export async function registerTaskModuleRoutes(
           task: result.task,
           events: result.events,
         })
-      } catch (error) {
-        throw toTaskAppError(error)
-      }
-    },
-  )
-
-  app.get<{ Params: ProjectIdParams; Querystring: GetProjectTasksQuery }>(
-    "/projects/:projectId/tasks",
-    {
-      schema: getProjectTasksRouteSchema,
-    },
-    async (request) => {
-      try {
-        const tasks = await listProjectTasksUseCase(repository, {
-          projectId: request.params.projectId,
-          includeArchived: request.query.includeArchived,
-          limit: request.query.limit,
-        })
-
-        return {
-          ok: true,
-          tasks,
-        }
       } catch (error) {
         throw toTaskAppError(error)
       }

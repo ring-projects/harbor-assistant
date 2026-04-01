@@ -13,6 +13,7 @@ describe("task domain", () => {
     const task = createTask({
       id: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Investigate runtime drift",
     })
 
@@ -30,6 +31,7 @@ describe("task domain", () => {
     const task = createTask({
       id: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Investigate runtime drift",
       status: "completed",
     })
@@ -48,6 +50,7 @@ describe("task domain", () => {
     const task = createTask({
       id: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Investigate runtime drift",
       status: "running",
     })
@@ -63,6 +66,7 @@ describe("task domain", () => {
     const task = createTask({
       id: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Investigate runtime drift",
     })
 
@@ -77,6 +81,7 @@ describe("task domain", () => {
     const running = createTask({
       id: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Investigate runtime drift",
       status: "running",
     })
@@ -90,6 +95,7 @@ describe("task domain", () => {
     const completed = createTask({
       id: "task-2",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       prompt: "Summarize runtime drift",
       status: "completed",
     })

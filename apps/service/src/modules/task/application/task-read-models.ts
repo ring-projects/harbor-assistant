@@ -13,6 +13,7 @@ export type TaskRecord = Task & TaskRuntimeSnapshot
 export type TaskListItem = {
   id: string
   projectId: string
+  orchestrationId: string
   title: string
   titleSource: Task["titleSource"]
   executor: string | null
@@ -49,6 +50,7 @@ export type TaskEventStream = {
 export type DeleteTaskResult = {
   taskId: string
   projectId: string
+  orchestrationId: string
 }
 
 export function attachTaskRuntime(
@@ -68,6 +70,7 @@ export function toTaskListItem(task: TaskRecord): TaskListItem {
   return {
     id: task.id,
     projectId: task.projectId,
+    orchestrationId: task.orchestrationId,
     title: task.title,
     titleSource: task.titleSource,
     executor: task.executor,

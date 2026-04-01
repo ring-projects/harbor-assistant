@@ -23,13 +23,6 @@ export type WebSocketInteractionMessage = {
       }
     | {
         kind: "snapshot"
-        name: "project_tasks"
-        data: {
-          tasks: InteractionTaskRecord[]
-        }
-      }
-    | {
-        kind: "snapshot"
         name: "task"
         data: {
           task: InteractionTaskRecord
@@ -97,22 +90,6 @@ export function unsubscribedEnvelope(
     topic,
     message: {
       kind: "unsubscribed",
-    },
-  })
-}
-
-export function projectTasksSnapshotEnvelope(args: {
-  topic: InteractionTopic
-  tasks: InteractionTaskRecord[]
-}): WebSocketInteractionEnvelope {
-  return messageEnvelope({
-    topic: args.topic,
-    message: {
-      kind: "snapshot",
-      name: "project_tasks",
-      data: {
-        tasks: args.tasks,
-      },
     },
   })
 }

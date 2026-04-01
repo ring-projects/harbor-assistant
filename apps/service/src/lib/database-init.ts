@@ -8,6 +8,7 @@ import { buildChildProcessEnv } from "./process-env"
 
 const REQUIRED_SQLITE_TABLES = [
   "projects",
+  "orchestrations",
   "tasks",
   "executions",
   "execution_events",

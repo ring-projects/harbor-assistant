@@ -26,5 +26,6 @@ export async function deleteTaskUseCase(
   return {
     taskId: current.id,
     projectId: current.projectId,
+    orchestrationId: current.orchestrationId,
   }
 }

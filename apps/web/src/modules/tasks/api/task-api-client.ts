@@ -72,6 +72,7 @@ export type CreateTaskResult = {
 export type DeleteTaskResult = {
   taskId: string
   projectId: string
+  orchestrationId: string
 }
 
 export type TaskListResult = {
@@ -109,32 +110,39 @@ function throwIfFailed(
   )
 }
 
-export async function createTask(
-  projectId: string,
-  input: CreateTaskInput,
-): Promise<CreateTaskResult> {
+export async function createTask(args: {
+  projectId: string
+  orchestrationId: string
+  input: CreateTaskInput
+}): Promise<CreateTaskResult> {
   const body: Record<string, unknown> = {
-    projectId,
-    title: input.title,
-    model: input.model,
-    executor: input.executor,
-    executionMode: input.executionMode,
-    effort: input.effort,
+    projectId: args.projectId,
+    orchestrationId: args.orchestrationId,
+    title: args.input.title,
+    model: args.input.model,
+    executor: args.input.executor,
+    executionMode: args.input.executionMode,
+    effort: args.input.effort,
   }
 
-  if (input.items) {
-    body.items = input.items
+  if (args.input.items) {
+    body.items = args.input.items
   } else {
-    body.prompt = input.prompt
+    body.prompt = args.input.prompt
   }
 
-  const response = await fetch(buildExecutorApiUrl("/v1/tasks"), {
+  const response = await fetch(
+    buildExecutorApiUrl(
+      `/v1/orchestrations/${encodeURIComponent(args.orchestrationId)}/tasks`,
+    ),
+    {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
     body: JSON.stringify(body),
-  })
+    },
+  )
 
   const payload = await parseJson(response)
   throwIfFailed(response, payload, "Failed to create task.")
@@ -155,8 +163,8 @@ export async function createTask(
   }
 }
 
-export async function readProjectTasks(args: {
-  projectId: string
+export async function readOrchestrationTasks(args: {
+  orchestrationId: string
   includeArchived?: boolean
 }): Promise<TaskListResult> {
   const searchParams = new URLSearchParams()
@@ -166,7 +174,7 @@ export async function readProjectTasks(args: {
 
   const response = await fetch(
     buildExecutorApiUrl(
-      `/v1/projects/${encodeURIComponent(args.projectId)}/tasks${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
+      `/v1/orchestrations/${encodeURIComponent(args.orchestrationId)}/tasks${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
     ),
     {
       method: "GET",
@@ -455,8 +463,9 @@ export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {
 
   const nextTaskId = pickString(payload, "taskId", "id")
   const projectId = pickString(payload, "projectId")
+  const orchestrationId = pickString(payload, "orchestrationId")
 
-  if (!nextTaskId || !projectId) {
+  if (!nextTaskId || !projectId || !orchestrationId) {
     throw new TaskApiClientError("Delete succeeded but payload is invalid.", {
       code: ERROR_CODES.TASK_DELETE_FAILED,
       status: response.status,
@@ -466,5 +475,6 @@ export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {
   return {
     taskId: nextTaskId,
     projectId,
+    orchestrationId,
   }
 }
