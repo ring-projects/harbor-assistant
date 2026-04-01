@@ -7,8 +7,8 @@ export type Orchestration = {
   projectId: string
   title: string
   description: string | null
-  defaultPrompt: string | null
-  defaultConfig: Record<string, unknown> | null
+  initPrompt: string | null
+  config: Record<string, unknown> | null
   status: OrchestrationStatus
   archivedAt: Date | null
   createdAt: Date
@@ -20,8 +20,8 @@ export function createOrchestration(input: {
   projectId: string
   title: string
   description?: string | null
-  defaultPrompt?: string | null
-  defaultConfig?: Record<string, unknown> | null
+  initPrompt?: string | null
+  config?: Record<string, unknown> | null
   status?: OrchestrationStatus
   archivedAt?: Date | null
   createdAt?: Date
@@ -48,8 +48,8 @@ export function createOrchestration(input: {
     projectId,
     title,
     description: input.description?.trim() || null,
-    defaultPrompt: input.defaultPrompt?.trim() || null,
-    defaultConfig: input.defaultConfig ? structuredClone(input.defaultConfig) : null,
+    initPrompt: input.initPrompt?.trim() || null,
+    config: input.config ? structuredClone(input.config) : null,
     status: input.status ?? "active",
     archivedAt: input.archivedAt ?? null,
     createdAt,

@@ -316,8 +316,8 @@ Runtime 负责执行 Task 对应的内部运行。
 2. `projectId`
 3. `title`
 4. `description`
-5. `defaultPrompt`
-6. `defaultConfig`
+5. `initPrompt`
+6. `config`
 7. `status`
    - `active`
    - `paused`

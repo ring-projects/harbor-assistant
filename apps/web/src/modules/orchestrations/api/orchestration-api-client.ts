@@ -52,7 +52,8 @@ export type CreateOrchestrationInput = {
   projectId: string
   title: string
   description?: string | null
-  defaultPrompt?: string | null
+  initPrompt?: string | null
+  config?: Record<string, unknown> | null
 }
 
 async function parseJson(
@@ -120,10 +121,10 @@ function normalizeOrchestrationCandidate(
     projectId,
     title,
     description: toStringOrNull(source.description),
-    defaultPrompt: toStringOrNull(source.defaultPrompt),
-    defaultConfig:
-      source.defaultConfig && typeof source.defaultConfig === "object"
-        ? source.defaultConfig
+    initPrompt: toStringOrNull(source.initPrompt),
+    config:
+      source.config && typeof source.config === "object"
+        ? source.config
         : null,
     status,
     archivedAt: toOptionalIsoDateString(source.archivedAt),
@@ -248,7 +249,8 @@ export async function createOrchestration(
       projectId: input.projectId,
       title: input.title,
       description: input.description,
-      defaultPrompt: input.defaultPrompt,
+      initPrompt: input.initPrompt,
+      config: input.config,
     }),
   })
 

@@ -32,11 +32,11 @@ export class PrismaOrchestrationRepository implements OrchestrationRepository {
         projectId: orchestration.projectId,
         title: orchestration.title,
         description: orchestration.description,
-        defaultPrompt: orchestration.defaultPrompt,
-        defaultConfig:
-          orchestration.defaultConfig === null
+        initPrompt: orchestration.initPrompt,
+        config:
+          orchestration.config === null
             ? Prisma.JsonNull
-            : (orchestration.defaultConfig as Prisma.InputJsonValue),
+            : (orchestration.config as Prisma.InputJsonValue),
         status: orchestration.status,
         archivedAt: orchestration.archivedAt,
         createdAt: orchestration.createdAt,
@@ -45,11 +45,11 @@ export class PrismaOrchestrationRepository implements OrchestrationRepository {
       update: {
         title: orchestration.title,
         description: orchestration.description,
-        defaultPrompt: orchestration.defaultPrompt,
-        defaultConfig:
-          orchestration.defaultConfig === null
+        initPrompt: orchestration.initPrompt,
+        config:
+          orchestration.config === null
             ? Prisma.JsonNull
-            : (orchestration.defaultConfig as Prisma.InputJsonValue),
+            : (orchestration.config as Prisma.InputJsonValue),
         status: orchestration.status,
         archivedAt: orchestration.archivedAt,
         updatedAt: orchestration.updatedAt,

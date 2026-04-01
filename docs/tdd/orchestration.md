@@ -210,7 +210,7 @@ Domain 层至少应锁住以下语义：
 先写红灯测试：
 
 1. 创建 orchestration 时具备合法默认状态
-2. orchestration title / description / defaultPrompt / defaultConfig 合法
+2. orchestration title / description / initPrompt / config 合法
 3. archived orchestration 不能继续被新 schedule 绑定
 4. orchestration identity 更新不影响其下 task 关系
 

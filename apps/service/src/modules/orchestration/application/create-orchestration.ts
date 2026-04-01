@@ -16,8 +16,8 @@ export async function createOrchestrationUseCase(
     projectId: string
     title: string
     description?: string | null
-    defaultPrompt?: string | null
-    defaultConfig?: Record<string, unknown> | null
+    initPrompt?: string | null
+    config?: Record<string, unknown> | null
   },
 ) {
   const projectId = input.projectId.trim()
@@ -35,8 +35,8 @@ export async function createOrchestrationUseCase(
     projectId,
     title: input.title,
     description: input.description,
-    defaultPrompt: input.defaultPrompt,
-    defaultConfig: input.defaultConfig,
+    initPrompt: input.initPrompt,
+    config: input.config,
   })
 
   await args.repository.save(orchestration)

@@ -5,8 +5,8 @@ export type OrchestrationListItem = {
   projectId: string
   title: string
   description: string | null
-  defaultPrompt: string | null
-  defaultConfig: Record<string, unknown> | null
+  initPrompt: string | null
+  config: Record<string, unknown> | null
   status: Orchestration["status"]
   archivedAt: Date | null
   createdAt: Date
@@ -31,9 +31,9 @@ export function toOrchestrationListItem(args: {
     projectId: args.orchestration.projectId,
     title: args.orchestration.title,
     description: args.orchestration.description,
-    defaultPrompt: args.orchestration.defaultPrompt,
-    defaultConfig: args.orchestration.defaultConfig
-      ? structuredClone(args.orchestration.defaultConfig)
+    initPrompt: args.orchestration.initPrompt,
+    config: args.orchestration.config
+      ? structuredClone(args.orchestration.config)
       : null,
     status: args.orchestration.status,
     archivedAt: args.orchestration.archivedAt,

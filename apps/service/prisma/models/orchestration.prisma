@@ -9,8 +9,8 @@ model Orchestration {
   projectId     String
   title         String
   description   String?
-  defaultPrompt String?
-  defaultConfig Json?
+  initPrompt    String?
+  config        Json?
   status        OrchestrationStatus @default(active)
   archivedAt    DateTime?
   createdAt     DateTime            @default(now())

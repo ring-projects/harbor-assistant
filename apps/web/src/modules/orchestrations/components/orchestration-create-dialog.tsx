@@ -30,14 +30,14 @@ export function OrchestrationCreateDialog({
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
-  const [defaultPrompt, setDefaultPrompt] = useState("")
+  const [initPrompt, setInitPrompt] = useState("")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const createMutation = useCreateOrchestrationMutation(projectId)
 
   function reset() {
     setTitle("")
     setDescription("")
-    setDefaultPrompt("")
+    setInitPrompt("")
     setErrorMessage(null)
   }
 
@@ -52,7 +52,7 @@ export function OrchestrationCreateDialog({
       const orchestration = await createMutation.mutateAsync({
         title: title.trim(),
         description: description.trim() || null,
-        defaultPrompt: defaultPrompt.trim() || null,
+        initPrompt: initPrompt.trim() || null,
       })
       reset()
       setOpen(false)
@@ -114,11 +114,11 @@ export function OrchestrationCreateDialog({
           </label>
 
           <label className="grid gap-2">
-            <span className="text-sm font-medium">Default Prompt</span>
+            <span className="text-sm font-medium">Init Prompt</span>
             <Textarea
-              value={defaultPrompt}
-              onChange={(event) => setDefaultPrompt(event.target.value)}
-              placeholder="Optional starter prompt for future tasks in this orchestration."
+              value={initPrompt}
+              onChange={(event) => setInitPrompt(event.target.value)}
+              placeholder="Optional initial prompt template for new tasks in this orchestration."
               disabled={createMutation.isPending}
               rows={4}
             />

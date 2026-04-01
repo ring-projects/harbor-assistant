@@ -118,7 +118,7 @@ export function OrchestrationList({
                           <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
                             {orchestration.latestTaskSummary ??
                               orchestration.description ??
-                              orchestration.defaultPrompt ??
+                              orchestration.initPrompt ??
                               "No activity yet."}
                           </p>
                         </div>

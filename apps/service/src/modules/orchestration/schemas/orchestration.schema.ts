@@ -13,8 +13,8 @@ export type CreateOrchestrationBody = {
   projectId: string
   title: string
   description?: string | null
-  defaultPrompt?: string | null
-  defaultConfig?: Record<string, unknown> | null
+  initPrompt?: string | null
+  config?: Record<string, unknown> | null
 }
 
 export type CreateOrchestrationTaskBody = {
@@ -45,8 +45,8 @@ const orchestrationEntitySchema = {
     "projectId",
     "title",
     "description",
-    "defaultPrompt",
-    "defaultConfig",
+    "initPrompt",
+    "config",
     "status",
     "archivedAt",
     "createdAt",
@@ -61,8 +61,8 @@ const orchestrationEntitySchema = {
     projectId: { type: "string", minLength: 1 },
     title: { type: "string", minLength: 1 },
     description: { type: ["string", "null"] },
-    defaultPrompt: { type: ["string", "null"] },
-    defaultConfig: jsonObjectSchema,
+    initPrompt: { type: ["string", "null"] },
+    config: jsonObjectSchema,
     status: {
       type: "string",
       enum: ["active", "paused", "archived"],
@@ -181,8 +181,8 @@ export const createOrchestrationBodySchema = {
     projectId: { type: "string", minLength: 1 },
     title: { type: "string", minLength: 1 },
     description: { type: ["string", "null"] },
-    defaultPrompt: { type: ["string", "null"] },
-    defaultConfig: jsonObjectSchema,
+    initPrompt: { type: ["string", "null"] },
+    config: jsonObjectSchema,
   },
 } as const
 
