@@ -1,4 +1,5 @@
 export type {
+  BootstrapOrchestrationBody,
   CreateOrchestrationBody,
   CreateOrchestrationTaskBody,
   ListOrchestrationTasksQuery,
@@ -6,6 +7,8 @@ export type {
   ProjectIdParams,
 } from "./orchestration.schema"
 export {
+  bootstrapOrchestrationBodySchema,
+  bootstrapOrchestrationRouteSchema,
   createOrchestrationBodySchema,
   createOrchestrationRouteSchema,
   createOrchestrationTaskBodySchema,

@@ -62,9 +62,8 @@ Harbor 的用户可见一级工作对象不是单个 task，而是 `orchestratio
 它更像一个持续存在的工作容器，负责：
 
 1. 挂载多个相关 task
-2. 提供默认 prompt / config
-3. 汇总 task 的状态与结果
-4. 作为 schedule 的绑定目标
+2. 汇总 task 的状态与结果
+3. 作为 schedule 的绑定目标
 
 一句话收敛：
 
@@ -235,7 +234,7 @@ Runtime 负责执行 Task 对应的内部运行。
 `orchestration` 是用户可见工作容器，负责：
 
 1. orchestration identity
-2. 工作项标题、描述与默认配置
+2. 工作项标题与描述
 3. task 的归档与组织
 4. task 聚合状态与摘要
 5. schedule 绑定关系
@@ -316,13 +315,11 @@ Runtime 负责执行 Task 对应的内部运行。
 2. `projectId`
 3. `title`
 4. `description`
-5. `initPrompt`
-6. `config`
-7. `status`
+5. `status`
    - `active`
    - `archived`
-8. `createdAt`
-9. `updatedAt`
+6. `createdAt`
+7. `updatedAt`
 
 说明：
 
@@ -555,21 +552,45 @@ Runtime 负责执行 Task 对应的内部运行。
 推荐最终主接口形态：
 
 1. `POST /v1/orchestrations`
-2. `GET /v1/orchestrations`
-3. `GET /v1/orchestrations/:orchestrationId`
-4. `POST /v1/orchestrations/:orchestrationId/tasks`
-5. `GET /v1/orchestrations/:orchestrationId/tasks`
-6. `GET /v1/tasks/:taskId`
-7. `GET /v1/tasks/:taskId/events`
-8. `POST /v1/tasks/:taskId/resume`
-9. `POST /v1/tasks/:taskId/cancel`
-10. `PUT /v1/tasks/:taskId/title`
-11. `POST /v1/tasks/:taskId/archive`
-12. `DELETE /v1/tasks/:taskId`
-13. `POST /v1/orchestrations/:orchestrationId/schedules`
-14. `GET /v1/orchestrations/:orchestrationId/schedules`
-15. `POST /v1/schedules/:scheduleId/pause`
-16. `POST /v1/schedules/:scheduleId/resume`
+2. `POST /v1/orchestrations/bootstrap`
+3. `GET /v1/orchestrations`
+4. `GET /v1/orchestrations/:orchestrationId`
+5. `POST /v1/orchestrations/:orchestrationId/tasks`
+6. `GET /v1/orchestrations/:orchestrationId/tasks`
+7. `GET /v1/tasks/:taskId`
+8. `GET /v1/tasks/:taskId/events`
+9. `POST /v1/tasks/:taskId/resume`
+10. `POST /v1/tasks/:taskId/cancel`
+11. `PUT /v1/tasks/:taskId/title`
+12. `POST /v1/tasks/:taskId/archive`
+13. `DELETE /v1/tasks/:taskId`
+14. `POST /v1/orchestrations/:orchestrationId/schedules`
+15. `GET /v1/orchestrations/:orchestrationId/schedules`
+16. `POST /v1/schedules/:scheduleId/pause`
+17. `POST /v1/schedules/:scheduleId/resume`
+
+### 10.1.1 `bootstrap` command 语义
+
+`POST /v1/orchestrations/bootstrap` 是组合 command，不替代现有的容器创建与 task 创建接口。
+
+它的职责是：
+
+1. 创建一个新的 orchestration
+2. 同时为该 orchestration 创建首个 task
+3. 在同一个持久化事务里落下 orchestration / task / execution 初始记录
+
+请求体应拆成两个显式部分：
+
+1. `orchestration`
+   - 只包含容器元数据，如 `title` / `description`
+2. `initialTask`
+   - 包含 task 输入与完整 runtime config
+
+成功语义应收敛为：
+
+1. orchestration 与首 task 已持久化成功，即视为 bootstrap 成功
+2. runtime 启动失败不回滚 bootstrap 已创建的资源
+3. 若 runtime 启动失败，应把 task 收敛为 `failed`，并在响应中显式返回 warning，而不是把整个 bootstrap 伪装成“什么都没创建”
 
 ### 10.2 底层运行接口降为内部或调试接口
 
@@ -711,12 +732,13 @@ runtime / raw events -> 继续作为 Task 的内部执行实现细节
 建议按以下顺序调整对外契约：
 
 1. 新增 `POST /orchestrations`
-2. 新增 `POST /orchestrations/:orchestrationId/tasks`
-3. 新增 `GET /orchestrations/:orchestrationId/tasks`
-4. 保留 `GET /tasks/:taskId`
-5. 保留 `POST /tasks/:taskId/messages`
-6. 保留 `POST /tasks/:taskId/cancel`
-7. 保留 `GET /tasks/:taskId/events`
+2. 新增 `POST /orchestrations/bootstrap`
+3. 新增 `POST /orchestrations/:orchestrationId/tasks`
+4. 新增 `GET /orchestrations/:orchestrationId/tasks`
+5. 保留 `GET /tasks/:taskId`
+6. 保留 `POST /tasks/:taskId/messages`
+7. 保留 `POST /tasks/:taskId/cancel`
+8. 保留 `GET /tasks/:taskId/events`
 
 interaction 侧也应新增 orchestration 维度，但 task 维度继续保留：
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useNavigate } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react"
 
@@ -33,7 +33,7 @@ export function ProjectSwitcher({
   children,
   triggerLabel = "Switch project",
 }: ProjectSwitcherProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const isMobile = useIsMobile()
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId)
   const openAddProjectModal = useUiStore((state) => state.openAddProjectModal)
@@ -72,7 +72,12 @@ export function ProjectSwitcher({
                 className="gap-2 p-2"
                 onSelect={() => {
                   setActiveProjectId(project.id)
-                  router.push(`/${encodeURIComponent(project.id)}`)
+                  void navigate({
+                    to: "/$projectId",
+                    params: {
+                      projectId: project.id,
+                    },
+                  })
                 }}
               >
                 <div className="min-w-0 flex-1">

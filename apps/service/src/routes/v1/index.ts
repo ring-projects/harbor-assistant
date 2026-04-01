@@ -9,6 +9,7 @@ import { createGitCommandRepository } from "../../modules/git/infrastructure/git
 import { createNodeGitPathWatcher } from "../../modules/git/infrastructure/node-git-path-watcher"
 import { registerGitModuleRoutes } from "../../modules/git/routes"
 import { createInteractionSocketGateway } from "../../modules/interaction/infrastructure/socket-io-gateway"
+import { PrismaOrchestrationBootstrapStore } from "../../modules/orchestration/infrastructure/persistence/prisma-orchestration-bootstrap-store"
 import { PrismaOrchestrationRepository } from "../../modules/orchestration/infrastructure/persistence/prisma-orchestration-repository"
 import { registerOrchestrationModuleRoutes } from "../../modules/orchestration/routes"
 import { createNodeProjectPathPolicy } from "../../modules/project/infrastructure/node-project-path-policy"
@@ -48,6 +49,7 @@ export async function registerV1Routes(
   const prisma = getRequiredPrismaClient(app)
   const projectRepository = new PrismaProjectRepository(prisma)
   const orchestrationRepository = new PrismaOrchestrationRepository(prisma)
+  const orchestrationBootstrapStore = new PrismaOrchestrationBootstrapStore(prisma)
   const taskRepository = new PrismaTaskRepository(prisma)
   const taskEventProjection = new PrismaTaskEventProjection(prisma)
   const taskNotificationBus = createInMemoryTaskNotificationBus()
@@ -107,6 +109,7 @@ export async function registerV1Routes(
   })
   await registerOrchestrationModuleRoutes(app, {
     repository: orchestrationRepository,
+    bootstrapStore: orchestrationBootstrapStore,
     projectRepository,
     projectTaskPort,
     taskRepository,

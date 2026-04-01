@@ -13,13 +13,6 @@ export function toDomainOrchestration(
     projectId: orchestration.projectId,
     title: orchestration.title,
     description: orchestration.description,
-    initPrompt: orchestration.initPrompt,
-    config:
-      orchestration.config &&
-      typeof orchestration.config === "object" &&
-      !Array.isArray(orchestration.config)
-        ? (orchestration.config as Record<string, unknown>)
-        : null,
     status: orchestration.status,
     archivedAt: orchestration.archivedAt,
     createdAt: orchestration.createdAt,

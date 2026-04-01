@@ -1,5 +1,9 @@
 import { ERROR_CODES } from "../../constants/errors"
 import { AppError } from "../../lib/errors/app-error"
+import { isProjectError } from "../project/errors"
+import { toProjectAppError } from "../project/project-app-error"
+import { isTaskError } from "../task/errors"
+import { toTaskAppError } from "../task/task-app-error"
 import {
   ORCHESTRATION_ERROR_CODES,
   isOrchestrationError,
@@ -23,6 +27,14 @@ export function toOrchestrationAppError(error: unknown): AppError {
       case ORCHESTRATION_ERROR_CODES.INVALID_INPUT:
         return new AppError(ERROR_CODES.INVALID_REQUEST_BODY, 400, error.message)
     }
+  }
+
+  if (isProjectError(error)) {
+    return toProjectAppError(error)
+  }
+
+  if (isTaskError(error)) {
+    return toTaskAppError(error)
   }
 
   if (error instanceof AppError) {

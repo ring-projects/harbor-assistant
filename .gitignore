@@ -23,6 +23,8 @@ apps/*/out/
 
 # production
 /build
+apps/*/dist/
+apps/*/.wrangler/
 
 # misc
 .DS_Store

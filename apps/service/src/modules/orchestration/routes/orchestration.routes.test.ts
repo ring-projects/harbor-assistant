@@ -7,6 +7,7 @@ import { attachTaskRuntime } from "../../task/application/task-read-models"
 import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
 import { InMemoryOrchestrationRepository } from "../infrastructure/in-memory-orchestration-repository"
 import { createOrchestration } from "../domain/orchestration"
+import type { CreateBootstrapRecordInput } from "../application/orchestration-bootstrap-store"
 import { registerOrchestrationModuleRoutes } from "."
 
 async function createApp() {
@@ -62,6 +63,23 @@ async function createApp() {
     },
   )
   const taskRepository = new InMemoryTaskRepository([task])
+  const bootstrapStore = {
+    create: vi.fn(
+      async ({
+        orchestration,
+        task,
+        projectPath,
+        runtimeConfig,
+      }: CreateBootstrapRecordInput) => {
+        await repository.save(orchestration)
+        await taskRepository.create({
+          task,
+          projectPath,
+          runtimeConfig,
+        })
+      },
+    ),
+  }
   const projectTaskPort = {
     getProjectForTask: vi.fn(async (projectId: string) => ({
       projectId,
@@ -82,6 +100,7 @@ async function createApp() {
     async (instance) => {
       await registerOrchestrationModuleRoutes(instance, {
         repository,
+        bootstrapStore,
         projectRepository,
         projectTaskPort,
         taskRepository,
@@ -113,6 +132,41 @@ describe("orchestration routes", () => {
       orchestration: {
         projectId: "project-1",
         title: "Refactor runtime boundaries",
+      },
+    })
+
+    const bootstrapped = await app.inject({
+      method: "POST",
+      url: "/v1/orchestrations/bootstrap",
+      payload: {
+        projectId: "project-1",
+        orchestration: {
+          title: "Bootstrap orchestration",
+          description: "Create initial task together",
+        },
+        initialTask: {
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    })
+    expect(bootstrapped.statusCode).toBe(201)
+    expect(bootstrapped.json()).toMatchObject({
+      ok: true,
+      orchestration: {
+        projectId: "project-1",
+        title: "Bootstrap orchestration",
+      },
+      task: {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+      },
+      bootstrap: {
+        runtimeStarted: true,
+        warning: null,
       },
     })
 

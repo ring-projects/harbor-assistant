@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from "@prisma/client"
+import type { PrismaClient } from "@prisma/client"
 
 import type { OrchestrationRepository } from "../../application/orchestration-repository"
 import type { Orchestration } from "../../domain/orchestration"
@@ -32,11 +32,6 @@ export class PrismaOrchestrationRepository implements OrchestrationRepository {
         projectId: orchestration.projectId,
         title: orchestration.title,
         description: orchestration.description,
-        initPrompt: orchestration.initPrompt,
-        config:
-          orchestration.config === null
-            ? Prisma.JsonNull
-            : (orchestration.config as Prisma.InputJsonValue),
         status: orchestration.status,
         archivedAt: orchestration.archivedAt,
         createdAt: orchestration.createdAt,
@@ -45,11 +40,6 @@ export class PrismaOrchestrationRepository implements OrchestrationRepository {
       update: {
         title: orchestration.title,
         description: orchestration.description,
-        initPrompt: orchestration.initPrompt,
-        config:
-          orchestration.config === null
-            ? Prisma.JsonNull
-            : (orchestration.config as Prisma.InputJsonValue),
         status: orchestration.status,
         archivedAt: orchestration.archivedAt,
         updatedAt: orchestration.updatedAt,

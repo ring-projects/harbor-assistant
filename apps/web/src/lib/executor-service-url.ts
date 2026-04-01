@@ -3,13 +3,16 @@ function trimTrailingSlash(value: string) {
 }
 
 export function getExecutorApiBaseUrl() {
-  const publicValue = process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL?.trim()
+  const publicValue =
+    import.meta.env.VITE_EXECUTOR_API_BASE_URL?.trim() ??
+    process.env.VITE_EXECUTOR_API_BASE_URL?.trim() ??
+    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL?.trim()
   if (publicValue) {
     return trimTrailingSlash(publicValue)
   }
 
   throw new Error(
-    "NEXT_PUBLIC_EXECUTOR_API_BASE_URL is required to connect the web app to the executor service.",
+    "VITE_EXECUTOR_API_BASE_URL is required to connect the web app to the executor service.",
   )
 }
 

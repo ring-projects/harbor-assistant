@@ -5,8 +5,6 @@ export type OrchestrationReadModel = {
   projectId: string
   title: string
   description: string | null
-  initPrompt: string | null
-  config: Record<string, unknown> | null
   status: Orchestration["status"]
   archivedAt: Date | null
   createdAt: Date
@@ -21,10 +19,6 @@ export function toOrchestrationReadModel(
     projectId: orchestration.projectId,
     title: orchestration.title,
     description: orchestration.description,
-    initPrompt: orchestration.initPrompt,
-    config: orchestration.config
-      ? structuredClone(orchestration.config)
-      : null,
     status: orchestration.status,
     archivedAt: orchestration.archivedAt,
     createdAt: orchestration.createdAt,

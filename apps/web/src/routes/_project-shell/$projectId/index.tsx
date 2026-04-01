@@ -1,5 +1,4 @@
-"use client"
-
+import { createFileRoute } from "@tanstack/react-router"
 import { useEffect } from "react"
 
 import { ProjectHeader } from "@/modules/projects"
@@ -7,11 +6,12 @@ import { SettingsShell } from "@/modules/settings"
 import { TaskWorkbench } from "@/modules/tasks/screens"
 import { useAppStore } from "@/stores/app.store"
 
-type ProjectClientProps = {
-  projectId: string
-}
+export const Route = createFileRoute("/_project-shell/$projectId/")({
+  component: ProjectTaskRoutePage,
+})
 
-export function ProjectClient({ projectId }: ProjectClientProps) {
+function ProjectTaskRoutePage() {
+  const { projectId } = Route.useParams()
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId)
 
   useEffect(() => {

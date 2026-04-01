@@ -8,21 +8,21 @@ import {
   uploadTaskInputImage,
 } from "./task-api-client"
 
-const originalExecutorApiBaseUrl = process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL
+const originalExecutorApiBaseUrl = process.env.VITE_EXECUTOR_API_BASE_URL
 
 describe("task-api-client", () => {
   afterEach(() => {
     if (originalExecutorApiBaseUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL
+      delete process.env.VITE_EXECUTOR_API_BASE_URL
     } else {
-      process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = originalExecutorApiBaseUrl
+      process.env.VITE_EXECUTOR_API_BASE_URL = originalExecutorApiBaseUrl
     }
 
     vi.restoreAllMocks()
   })
 
   it("sends structured task input on create", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -95,7 +95,7 @@ describe("task-api-client", () => {
   })
 
   it("sends structured task input on resume", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -137,7 +137,7 @@ describe("task-api-client", () => {
   })
 
   it("serializes resume runtime overrides including explicit null resets", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -173,7 +173,7 @@ describe("task-api-client", () => {
   })
 
   it("calls the cancel endpoint and returns the updated task", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -213,7 +213,7 @@ describe("task-api-client", () => {
   })
 
   it("uploads a task input attachment as base64 payload", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -256,7 +256,7 @@ describe("task-api-client", () => {
   })
 
   it("infers media type for markdown attachments from file extension", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -286,7 +286,7 @@ describe("task-api-client", () => {
   })
 
   it("rejects unsupported task input attachment types before uploading", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)
@@ -309,7 +309,7 @@ describe("task-api-client", () => {
   })
 
   it("rejects task input attachments larger than 10MB before uploading", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)
@@ -331,7 +331,7 @@ describe("task-api-client", () => {
   })
 
   it("deletes a task and returns task/project ids", async () => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

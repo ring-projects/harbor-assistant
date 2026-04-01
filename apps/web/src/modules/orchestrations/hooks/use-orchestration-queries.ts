@@ -3,15 +3,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
+  bootstrapOrchestration,
   createOrchestration,
   readOrchestration,
   readProjectOrchestrations,
+  type BootstrapOrchestrationInput,
   type CreateOrchestrationInput,
 } from "@/modules/orchestrations/api"
 import type {
   OrchestrationDetail,
   OrchestrationListItem,
 } from "@/modules/orchestrations/contracts"
+import { gitQueryKeys } from "@/modules/git"
+import type { TaskDetail, TaskListItem } from "@/modules/tasks/contracts"
+import { taskQueryKeys } from "@/modules/tasks/hooks"
+import { useTasksSessionStore } from "@/modules/tasks/store"
 
 export const orchestrationQueryKeys = {
   all: ["orchestrations"] as const,
@@ -67,6 +73,23 @@ function upsertOrchestration(
   return current.map((item) => (item.id === orchestration.id ? orchestration : item))
 }
 
+function upsertTask(
+  current: TaskListItem[] | undefined,
+  task: TaskDetail,
+) {
+  if (!current?.length) {
+    return [task]
+  }
+
+  const found = current.some((item) => item.id === task.id)
+
+  if (!found) {
+    return [task, ...current]
+  }
+
+  return current.map((item) => (item.id === task.id ? task : item))
+}
+
 export function useCreateOrchestrationMutation(projectId: string) {
   const queryClient = useQueryClient()
 
@@ -85,6 +108,42 @@ export function useCreateOrchestrationMutation(projectId: string) {
         orchestrationQueryKeys.detail(orchestration.id),
         orchestration,
       )
+    },
+  })
+}
+
+export function useBootstrapOrchestrationMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: Omit<BootstrapOrchestrationInput, "projectId">) =>
+      bootstrapOrchestration({
+        projectId,
+        ...input,
+      }),
+    onSuccess(result) {
+      void queryClient.invalidateQueries({
+        queryKey: gitQueryKeys.byProject(projectId),
+      })
+
+      queryClient.setQueryData<OrchestrationListItem[]>(
+        orchestrationQueryKeys.list(projectId),
+        (current) => upsertOrchestration(current, result.orchestration),
+      )
+      queryClient.setQueryData(
+        orchestrationQueryKeys.detail(result.orchestration.id),
+        result.orchestration,
+      )
+      queryClient.setQueryData<TaskListItem[]>(
+        taskQueryKeys.listByOrchestration(result.orchestration.id),
+        (current) => upsertTask(current, result.task),
+      )
+      queryClient.setQueryData(taskQueryKeys.detail(result.task.id), result.task)
+      void queryClient.invalidateQueries({
+        queryKey: taskQueryKeys.events(result.task.id),
+      })
+
+      useTasksSessionStore.getState().applyTaskUpsert(result.task)
     },
   })
 }

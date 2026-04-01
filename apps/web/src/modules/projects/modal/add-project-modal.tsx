@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useNavigate } from "@tanstack/react-router"
 
 import {
   Dialog,
@@ -13,7 +13,7 @@ import { CreateProject } from "@/modules/projects/components/create-project"
 import { useUiStore } from "@/stores/ui.store"
 
 export function AddProjectModal() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const open = useUiStore((state) => state.addProjectModalOpen)
   const closeAddProjectModal = useUiStore((state) => state.closeAddProjectModal)
 
@@ -39,7 +39,12 @@ export function AddProjectModal() {
           onCancel={closeAddProjectModal}
           onCreated={(project) => {
             closeAddProjectModal()
-            router.push(`/${encodeURIComponent(project.id)}`)
+            void navigate({
+              to: "/$projectId",
+              params: {
+                projectId: project.id,
+              },
+            })
           }}
         />
       </DialogContent>

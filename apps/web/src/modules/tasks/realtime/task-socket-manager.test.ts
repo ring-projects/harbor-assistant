@@ -6,7 +6,7 @@ import { gitQueryKeys } from "@/modules/git"
 
 import { TaskSocketManager } from "./task-socket-manager"
 
-const originalExecutorApiBaseUrl = process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL
+const originalExecutorApiBaseUrl = process.env.VITE_EXECUTOR_API_BASE_URL
 const handlers = new Map<string, (payload: unknown) => void>()
 const emit = vi.fn()
 const socket = {
@@ -22,7 +22,7 @@ vi.mock("socket.io-client", () => ({
 
 describe("TaskSocketManager", () => {
   beforeEach(() => {
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = "http://127.0.0.1:3400"
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://127.0.0.1:3400"
     handlers.clear()
     emit.mockClear()
     socket.on.mockClear()
@@ -36,11 +36,11 @@ describe("TaskSocketManager", () => {
 
   afterAll(() => {
     if (originalExecutorApiBaseUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL
+      delete process.env.VITE_EXECUTOR_API_BASE_URL
       return
     }
 
-    process.env.NEXT_PUBLIC_EXECUTOR_API_BASE_URL = originalExecutorApiBaseUrl
+    process.env.VITE_EXECUTOR_API_BASE_URL = originalExecutorApiBaseUrl
   })
 
   it("invalidates project git queries when a project git change event arrives", async () => {

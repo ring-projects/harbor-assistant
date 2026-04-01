@@ -1,9 +1,13 @@
-import Image from "next/image"
+import { createFileRoute } from "@tanstack/react-router"
 
 const LOGO_BLACK = "/brand/harbor-logo-black.svg"
 const LOGO_WHITE = "/brand/harbor-logo-white.svg"
 const FAVICON_BLACK = "/brand/harbor-favicon-black.svg"
 const FAVICON_WHITE = "/brand/harbor-favicon-white.svg"
+
+export const Route = createFileRoute("/brand")({
+  component: BrandPreviewPage,
+})
 
 function FaviconPreview(props: { src: string; label: string; dark?: boolean }) {
   const { src, label, dark = false } = props
@@ -15,7 +19,7 @@ function FaviconPreview(props: { src: string; label: string; dark?: boolean }) {
           dark ? "border-white/20" : "border-black/10"
         }`}
       >
-        <Image src={src} alt={label} width={32} height={32} />
+        <img src={src} alt={label} width={32} height={32} />
       </div>
       <div className={`text-xs ${dark ? "text-white/70" : "text-black/60"}`}>
         32px
@@ -26,7 +30,7 @@ function FaviconPreview(props: { src: string; label: string; dark?: boolean }) {
           dark ? "border-white/20" : "border-black/10"
         }`}
       >
-        <Image src={src} alt={`${label} 16px`} width={16} height={16} />
+        <img src={src} alt={`${label} 16px`} width={16} height={16} />
       </div>
       <div className={`text-xs ${dark ? "text-white/70" : "text-black/60"}`}>
         16px
@@ -35,7 +39,7 @@ function FaviconPreview(props: { src: string; label: string; dark?: boolean }) {
   )
 }
 
-export default function BrandPreviewPage() {
+function BrandPreviewPage() {
   return (
     <div className="flex min-h-full w-full flex-col items-center gap-8 bg-[#f5f5f7] p-8">
       <section className="w-full max-w-5xl rounded-xl bg-white p-8 shadow-sm">
@@ -43,7 +47,7 @@ export default function BrandPreviewPage() {
           Black Edition (Logo + Favicon)
         </p>
         <div className="mb-6 flex justify-center">
-          <Image
+          <img
             src={LOGO_BLACK}
             alt="Harbor black logo"
             width={493}
@@ -61,7 +65,7 @@ export default function BrandPreviewPage() {
           White Edition (Logo + Favicon)
         </p>
         <div className="mb-6 flex justify-center">
-          <Image
+          <img
             src={LOGO_WHITE}
             alt="Harbor white logo"
             width={493}

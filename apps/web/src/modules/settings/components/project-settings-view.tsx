@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useNavigate } from "@tanstack/react-router"
 import { RotateCcwIcon, SaveIcon, XIcon } from "lucide-react"
 import { useMemo, useState, type ComponentProps } from "react"
 
@@ -69,7 +69,7 @@ export function ProjectSettingsView({
   mode = "page",
   onClose,
 }: ProjectSettingsViewProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const settingsQuery = useProjectSettingsQuery(projectId)
   const updateMutation = useUpdateProjectSettingsMutation(projectId)
   const deleteMutation = useDeleteProjectMutation()
@@ -135,7 +135,10 @@ export function ProjectSettingsView({
       setDeleteError(null)
       await deleteMutation.mutateAsync({ projectId })
       onClose?.()
-      router.replace("/")
+      void navigate({
+        to: "/",
+        replace: true,
+      })
     } catch (error) {
       setDeleteError(getProjectActionError(error))
     }

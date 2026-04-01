@@ -1,8 +1,6 @@
 "use client"
 
-import Image from "next/image"
-import Link from "next/link"
-import { useParams } from "next/navigation"
+import { Link } from "@tanstack/react-router"
 import { FolderOpenIcon, PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -32,20 +30,16 @@ export function ProjectsList({
   className,
   initialProjects,
 }: ProjectsListProps) {
-  const params = useParams<{ project_id?: string | string[] }>()
   const openAddProjectModal = useUiStore((state) => state.openAddProjectModal)
   const projectsQuery = useReadProjectsQuery({
     initialData: initialProjects,
   })
-  const routeProjectId = params.project_id
-  const resolvedActiveProjectId =
-    activeProjectId ??
-    (Array.isArray(routeProjectId) ? routeProjectId[0] : routeProjectId)
+  const resolvedActiveProjectId = activeProjectId
 
   return (
     <>
       <SidebarHeader className={cn("gap-3 p-4", className)}>
-        <Image
+        <img
           src="/brand/harbor-logo-black.svg"
           alt="Harbor logo"
           width={493}
@@ -99,7 +93,10 @@ export function ProjectsList({
                       tooltip={project.rootPath}
                       className="h-auto py-2"
                     >
-                      <Link href={`/${encodeURIComponent(project.id)}`}>
+                      <Link
+                        to="/$projectId"
+                        params={{ projectId: project.id }}
+                      >
                         <FolderOpenIcon
                           className="text-muted-foreground size-4 shrink-0"
                           aria-hidden="true"

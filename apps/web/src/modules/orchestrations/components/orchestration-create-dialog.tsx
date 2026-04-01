@@ -1,7 +1,7 @@
 "use client"
 
 import { PlusIcon } from "lucide-react"
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -13,8 +13,23 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  EffortDropdown,
+  ExecutionModeDropdown,
+  ExecutorDropdown,
+  ModelDropdown,
+  TaskInputAttachmentList,
+  TaskInputComposer,
+} from "@/modules/tasks/components"
+import { useTaskInputAttachments } from "@/modules/tasks/hooks"
+import {
+  buildTaskInput,
+  summarizeTaskInput,
+  type UploadedTaskInputImage,
+} from "@/modules/tasks/lib"
 import { getErrorMessage } from "@/modules/tasks/view-models"
-import { useCreateOrchestrationMutation } from "@/modules/orchestrations/hooks"
+import { useBootstrapOrchestrationMutation } from "@/modules/orchestrations/hooks"
+import { useTaskCreationParams } from "@/modules/tasks/features/task-create/use-task-creation-params"
 
 type OrchestrationCreateDialogProps = {
   projectId: string
@@ -28,46 +43,104 @@ export function OrchestrationCreateDialog({
   trigger,
 }: OrchestrationCreateDialogProps) {
   const [open, setOpen] = useState(false)
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [initPrompt, setInitPrompt] = useState("")
+  const [orchestrationTitle, setOrchestrationTitle] = useState("")
+  const [orchestrationDescription, setOrchestrationDescription] = useState("")
+  const [initialTaskPrompt, setInitialTaskPrompt] = useState("")
+  const [initialTaskAttachments, setInitialTaskAttachments] = useState<
+    UploadedTaskInputImage[]
+  >([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const createMutation = useCreateOrchestrationMutation(projectId)
+  const taskCreationParams = useTaskCreationParams()
+  const bootstrapMutation = useBootstrapOrchestrationMutation(projectId)
+  const {
+    handleDropFiles,
+    handlePasteFiles,
+    isUploading,
+    uploadTaskInputImageMutation,
+    removeAttachment,
+  } = useTaskInputAttachments({
+    projectId,
+    getAttachments: () => initialTaskAttachments,
+    onAttachmentsChange: setInitialTaskAttachments,
+  })
+  const initialTaskInput = useMemo(
+    () =>
+      buildTaskInput({
+        text: initialTaskPrompt,
+        attachments: initialTaskAttachments,
+      }),
+    [initialTaskAttachments, initialTaskPrompt],
+  )
 
   function reset() {
-    setTitle("")
-    setDescription("")
-    setInitPrompt("")
+    setOrchestrationTitle("")
+    setOrchestrationDescription("")
+    setInitialTaskPrompt("")
+    setInitialTaskAttachments([])
     setErrorMessage(null)
   }
 
   async function handleSubmit() {
-    if (!title.trim()) {
+    if (!orchestrationTitle.trim()) {
       setErrorMessage("Enter a title before creating the orchestration.")
+      return
+    }
+
+    if (!initialTaskInput) {
+      setErrorMessage("Enter a prompt or attach an image before bootstrapping.")
+      return
+    }
+
+    if (!taskCreationParams.model || !taskCreationParams.effort) {
+      setErrorMessage("Wait for runtime options to load before bootstrapping.")
       return
     }
 
     try {
       setErrorMessage(null)
-      const orchestration = await createMutation.mutateAsync({
-        title: title.trim(),
-        description: description.trim() || null,
-        initPrompt: initPrompt.trim() || null,
+      const result = await bootstrapMutation.mutateAsync({
+        orchestration: {
+          title: orchestrationTitle.trim(),
+          description: orchestrationDescription.trim() || null,
+        },
+        initialTask:
+          typeof initialTaskInput === "string"
+            ? {
+                prompt: initialTaskInput,
+                model: taskCreationParams.model,
+                executor: taskCreationParams.executor,
+                executionMode: taskCreationParams.executionMode,
+                effort: taskCreationParams.effort,
+              }
+            : {
+                items: initialTaskInput,
+                title: summarizeTaskInput(initialTaskInput),
+                model: taskCreationParams.model,
+                executor: taskCreationParams.executor,
+                executionMode: taskCreationParams.executionMode,
+                effort: taskCreationParams.effort,
+              },
       })
       reset()
       setOpen(false)
-      onCreated(orchestration.id)
+      onCreated(result.orchestration.id)
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     }
   }
+
+  const composerErrorMessage =
+    errorMessage ??
+    (uploadTaskInputImageMutation.isError
+      ? getErrorMessage(uploadTaskInputImageMutation.error)
+      : null)
 
   return (
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
-        if (!nextOpen && !createMutation.isPending) {
+        if (!nextOpen && !bootstrapMutation.isPending) {
           reset()
         }
       }}
@@ -80,9 +153,9 @@ export function OrchestrationCreateDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Create New Orchestration</DialogTitle>
+          <DialogTitle>Bootstrap Orchestration</DialogTitle>
         </DialogHeader>
 
         <form
@@ -95,45 +168,98 @@ export function OrchestrationCreateDialog({
           <label className="grid gap-2">
             <span className="text-sm font-medium">Title</span>
             <Input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              value={orchestrationTitle}
+              onChange={(event) => setOrchestrationTitle(event.target.value)}
               placeholder="Runtime cleanup"
-              disabled={createMutation.isPending}
+              disabled={bootstrapMutation.isPending}
             />
           </label>
 
           <label className="grid gap-2">
             <span className="text-sm font-medium">Description</span>
             <Textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              value={orchestrationDescription}
+              onChange={(event) => setOrchestrationDescription(event.target.value)}
               placeholder="What this orchestration is meant to coordinate."
-              disabled={createMutation.isPending}
+              disabled={bootstrapMutation.isPending}
               rows={3}
             />
           </label>
 
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">Init Prompt</span>
-            <Textarea
-              value={initPrompt}
-              onChange={(event) => setInitPrompt(event.target.value)}
-              placeholder="Optional initial prompt template for new tasks in this orchestration."
-              disabled={createMutation.isPending}
-              rows={4}
+          <div className="space-y-2">
+            <div>
+              <p className="text-sm font-medium">Initial Task</p>
+              <p className="text-muted-foreground text-xs">
+                Create the orchestration and its first task in one request.
+              </p>
+            </div>
+
+            <TaskInputComposer
+              canSubmit={
+                !bootstrapMutation.isPending &&
+                !isUploading &&
+                Boolean(initialTaskInput) &&
+                Boolean(orchestrationTitle.trim()) &&
+                taskCreationParams.hasResolvedRuntimeConfig
+              }
+              inputDisabled={bootstrapMutation.isPending}
+              isSubmitting={bootstrapMutation.isPending || isUploading}
+              autoFocus
+              placeholder="Describe the first task to start this orchestration..."
+              value={initialTaskPrompt}
+              errorMessage={composerErrorMessage}
+              attachments={
+                <TaskInputAttachmentList
+                  attachments={initialTaskAttachments}
+                  disabled={bootstrapMutation.isPending || isUploading}
+                  onRemove={removeAttachment}
+                />
+              }
+              controls={
+                <>
+                  <ExecutorDropdown
+                    disabled={bootstrapMutation.isPending}
+                    value={taskCreationParams.executor}
+                    onValueChange={taskCreationParams.setExecutor}
+                  />
+
+                  <ModelDropdown
+                    disabled={bootstrapMutation.isPending}
+                    executor={taskCreationParams.executor}
+                    models={taskCreationParams.availableModels}
+                    value={taskCreationParams.model}
+                    onValueChange={taskCreationParams.setModel}
+                  />
+
+                  <EffortDropdown
+                    disabled={bootstrapMutation.isPending}
+                    efforts={taskCreationParams.availableEfforts}
+                    value={taskCreationParams.effort}
+                    onValueChange={(nextEffort) => {
+                      if (nextEffort) {
+                        taskCreationParams.setEffort(nextEffort)
+                      }
+                    }}
+                  />
+
+                  <ExecutionModeDropdown
+                    disabled={bootstrapMutation.isPending}
+                    value={taskCreationParams.executionMode}
+                    onValueChange={taskCreationParams.setExecutionMode}
+                  />
+                </>
+              }
+              onChange={setInitialTaskPrompt}
+              onPasteFiles={(files) => {
+                void handlePasteFiles(files)
+              }}
+              onDropFiles={(files) => {
+                void handleDropFiles(files)
+              }}
+              onSubmit={() => {
+                void handleSubmit()
+              }}
             />
-          </label>
-
-          {errorMessage ? (
-            <p className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {errorMessage}
-            </p>
-          ) : null}
-
-          <div className="flex justify-end">
-            <Button type="submit" disabled={createMutation.isPending}>
-              Create
-            </Button>
           </div>
         </form>
       </DialogContent>

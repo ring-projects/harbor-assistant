@@ -4,12 +4,14 @@ import { createTask } from "../../task/domain/task"
 import { attachTaskRuntime } from "../../task/application/task-read-models"
 import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
 import { InMemoryOrchestrationRepository } from "../infrastructure/in-memory-orchestration-repository"
+import { bootstrapOrchestrationUseCase } from "./bootstrap-orchestration"
 import { createOrchestration } from "../domain/orchestration"
 import { createOrchestrationTaskUseCase } from "./create-orchestration-task"
 import { createOrchestrationUseCase } from "./create-orchestration"
 import { getOrchestrationUseCase } from "./get-orchestration"
 import { listOrchestrationTasksUseCase } from "./list-orchestration-tasks"
 import { listProjectOrchestrationsUseCase } from "./list-project-orchestrations"
+import type { CreateBootstrapRecordInput } from "./orchestration-bootstrap-store"
 
 describe("orchestration use cases", () => {
   function createProject(projectId = "project-1") {
@@ -112,6 +114,159 @@ describe("orchestration use cases", () => {
     expect(projectTaskPort.getProjectForTask).toHaveBeenCalledWith("project-1")
     expect(runtimePort.startTaskExecution).toHaveBeenCalledTimes(1)
     expect(task.orchestrationId).toBe("orch-1")
+  })
+
+  it("bootstraps an orchestration and first task together", async () => {
+    const repository = new InMemoryOrchestrationRepository()
+    const taskRepository = new InMemoryTaskRepository()
+    const bootstrapStore = {
+      create: vi.fn(
+        async ({
+          orchestration,
+          task,
+          projectPath,
+          runtimeConfig,
+        }: CreateBootstrapRecordInput) => {
+          await repository.save(orchestration)
+          await taskRepository.create({
+            task,
+            projectPath,
+            runtimeConfig,
+          })
+        },
+      ),
+    }
+    const projectRepository = {
+      findById: vi.fn(async (id: string) =>
+        id === "project-1" ? createProject("project-1") : null,
+      ),
+    }
+    const runtimePort = {
+      startTaskExecution: vi.fn(async () => {}),
+      resumeTaskExecution: vi.fn(async () => {}),
+      cancelTaskExecution: vi.fn(async () => {}),
+    }
+    const notificationPublisher = {
+      publish: vi.fn(async () => {}),
+    }
+
+    const result = await bootstrapOrchestrationUseCase(
+      {
+        bootstrapStore,
+        projectRepository,
+        taskRepository,
+        runtimePort,
+        notificationPublisher,
+        orchestrationIdGenerator: () => "orch-bootstrap-1",
+        taskIdGenerator: () => "task-bootstrap-1",
+      },
+      {
+        projectId: "project-1",
+        orchestration: {
+          title: "Runtime cleanup",
+          description: "Coordinate follow-up work",
+        },
+        initialTask: {
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    )
+
+    expect(bootstrapStore.create).toHaveBeenCalledTimes(1)
+    expect(runtimePort.startTaskExecution).toHaveBeenCalledTimes(1)
+    expect(result.orchestration).toMatchObject({
+      id: "orch-bootstrap-1",
+      projectId: "project-1",
+      title: "Runtime cleanup",
+      description: "Coordinate follow-up work",
+    })
+    expect(result.task).toMatchObject({
+      id: "task-bootstrap-1",
+      orchestrationId: "orch-bootstrap-1",
+      projectId: "project-1",
+      prompt: "Investigate runtime drift",
+      status: "queued",
+    })
+    expect(result.bootstrap).toEqual({
+      runtimeStarted: true,
+      warning: null,
+    })
+  })
+
+  it("returns a failed task warning when bootstrap runtime start fails", async () => {
+    const repository = new InMemoryOrchestrationRepository()
+    const taskRepository = new InMemoryTaskRepository()
+    const bootstrapStore = {
+      create: vi.fn(
+        async ({
+          orchestration,
+          task,
+          projectPath,
+          runtimeConfig,
+        }: CreateBootstrapRecordInput) => {
+          await repository.save(orchestration)
+          await taskRepository.create({
+            task,
+            projectPath,
+            runtimeConfig,
+          })
+        },
+      ),
+    }
+    const projectRepository = {
+      findById: vi.fn(async (id: string) =>
+        id === "project-1" ? createProject("project-1") : null,
+      ),
+    }
+    const runtimePort = {
+      startTaskExecution: vi.fn(async () => {
+        throw new Error("runtime unavailable")
+      }),
+      resumeTaskExecution: vi.fn(async () => {}),
+      cancelTaskExecution: vi.fn(async () => {}),
+    }
+    const notificationPublisher = {
+      publish: vi.fn(async () => {}),
+    }
+
+    const result = await bootstrapOrchestrationUseCase(
+      {
+        bootstrapStore,
+        projectRepository,
+        taskRepository,
+        runtimePort,
+        notificationPublisher,
+        orchestrationIdGenerator: () => "orch-bootstrap-2",
+        taskIdGenerator: () => "task-bootstrap-2",
+      },
+      {
+        projectId: "project-1",
+        orchestration: {
+          title: "Runtime cleanup",
+        },
+        initialTask: {
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    )
+
+    expect(result.task.status).toBe("failed")
+    expect(result.bootstrap).toEqual({
+      runtimeStarted: false,
+      warning: {
+        code: "START_FAILED",
+        message: "runtime unavailable",
+      },
+    })
+    expect(notificationPublisher.publish).toHaveBeenCalledTimes(2)
   })
 
   it("rejects creating tasks for archived orchestrations", async () => {

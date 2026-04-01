@@ -18,6 +18,9 @@ import {
   type OrchestrationStatus,
   ORCHESTRATION_STATUS_VALUES,
 } from "@/modules/orchestrations/contracts"
+import type { TaskDetail, TaskEffort } from "@/modules/tasks/contracts"
+import { type TaskInput } from "@/modules/tasks/lib"
+import { extractSingleTask } from "@/modules/tasks/api/task-payload"
 
 const orchestrationApiErrorSchema = z.object({
   code: z.string(),
@@ -51,8 +54,35 @@ export type CreateOrchestrationInput = {
   projectId: string
   title: string
   description?: string | null
-  initPrompt?: string | null
-  config?: Record<string, unknown> | null
+}
+
+export type BootstrapOrchestrationInput = {
+  projectId: string
+  orchestration: {
+    title: string
+    description?: string | null
+  }
+  initialTask: {
+    prompt?: string
+    items?: Extract<TaskInput, readonly unknown[]>
+    title?: string
+    model: string
+    executor: string
+    executionMode: "safe" | "connected" | "full-access"
+    effort: TaskEffort
+  }
+}
+
+export type BootstrapOrchestrationResult = {
+  orchestration: OrchestrationDetail
+  task: TaskDetail
+  bootstrap: {
+    runtimeStarted: boolean
+    warning: {
+      code: string
+      message: string
+    } | null
+  }
 }
 
 async function parseJson(
@@ -115,11 +145,6 @@ function normalizeOrchestrationCandidate(
     projectId,
     title,
     description: toStringOrNull(source.description),
-    initPrompt: toStringOrNull(source.initPrompt),
-    config:
-      source.config && typeof source.config === "object"
-        ? source.config
-        : null,
     status,
     archivedAt: toOptionalIsoDateString(source.archivedAt),
     createdAt: toIsoDateString(source.createdAt),
@@ -239,8 +264,6 @@ export async function createOrchestration(
       projectId: input.projectId,
       title: input.title,
       description: input.description,
-      initPrompt: input.initPrompt,
-      config: input.config,
     }),
   })
 
@@ -259,4 +282,77 @@ export async function createOrchestration(
   }
 
   return orchestration
+}
+
+export async function bootstrapOrchestration(
+  input: BootstrapOrchestrationInput,
+): Promise<BootstrapOrchestrationResult> {
+  const response = await fetch(buildExecutorApiUrl("/v1/orchestrations/bootstrap"), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      projectId: input.projectId,
+      orchestration: input.orchestration,
+      initialTask: input.initialTask.items
+        ? {
+            ...input.initialTask,
+            items: input.initialTask.items,
+          }
+        : {
+            ...input.initialTask,
+            prompt: input.initialTask.prompt,
+          },
+    }),
+  })
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to bootstrap orchestration.")
+
+  const orchestration = extractSingleOrchestration(payload)
+  if (!orchestration) {
+    throw new OrchestrationApiClientError(
+      "Bootstrap orchestration payload is invalid.",
+      {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        status: response.status,
+      },
+    )
+  }
+
+  const task = extractSingleTask(payload)
+  if (!task) {
+    throw new OrchestrationApiClientError(
+      "Bootstrap task payload is invalid.",
+      {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        status: response.status,
+      },
+    )
+  }
+
+  const source = asRecord(payload?.bootstrap)
+  const runtimeStarted = typeof source?.runtimeStarted === "boolean"
+    ? source.runtimeStarted
+    : true
+  const warningSource = asRecord(source?.warning)
+
+  return {
+    orchestration,
+    task,
+    bootstrap: {
+      runtimeStarted,
+      warning:
+        warningSource &&
+        typeof warningSource.code === "string" &&
+        typeof warningSource.message === "string"
+          ? {
+              code: warningSource.code,
+              message: warningSource.message,
+            }
+          : null,
+    },
+  }
 }

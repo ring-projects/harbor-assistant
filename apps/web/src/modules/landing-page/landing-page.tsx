@@ -1,7 +1,7 @@
 "use client"
 
+import { useNavigate } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -11,7 +11,7 @@ import type { Project } from "@/modules/projects/types"
 import { useAppStore } from "@/stores/app.store"
 
 export function LandingPage() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const clearActiveProjectId = useAppStore((state) => state.clearActiveProjectId)
   const [isCreateMode, setIsCreateMode] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -32,7 +32,12 @@ export function LandingPage() {
 
   function handleProjectCreated(project: Project) {
     setCreateError(null)
-    router.push(`/${project.id}`)
+    void navigate({
+      to: "/$projectId",
+      params: {
+        projectId: project.id,
+      },
+    })
   }
 
   return (

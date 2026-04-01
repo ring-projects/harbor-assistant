@@ -70,6 +70,42 @@ describe("registerV1Routes", () => {
     expect(createdOrchestration.statusCode).toBe(201)
     const orchestrationId = createdOrchestration.json().orchestration.id
 
+    const bootstrapped = await app.inject({
+      method: "POST",
+      url: "/v1/orchestrations/bootstrap",
+      payload: {
+        projectId: "project-1",
+        orchestration: {
+          title: "Bootstrap runtime cleanup",
+          description: "Create first task in one request",
+        },
+        initialTask: {
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    })
+
+    expect(bootstrapped.statusCode).toBe(201)
+    expect(bootstrapped.json()).toMatchObject({
+      ok: true,
+      orchestration: {
+        projectId: "project-1",
+        title: "Bootstrap runtime cleanup",
+      },
+      task: {
+        projectId: "project-1",
+        prompt: "Investigate runtime drift",
+      },
+      bootstrap: {
+        runtimeStarted: true,
+        warning: null,
+      },
+    })
+
     const createdTask = await app.inject({
       method: "POST",
       url: `/v1/orchestrations/${orchestrationId}/tasks`,
@@ -120,14 +156,18 @@ describe("registerV1Routes", () => {
     })
 
     expect(projectOrchestrations.statusCode).toBe(200)
-    expect(projectOrchestrations.json()).toEqual({
+    expect(projectOrchestrations.json()).toMatchObject({
       ok: true,
-      orchestrations: [
+      orchestrations: expect.arrayContaining([
         expect.objectContaining({
           id: orchestrationId,
           projectId: "project-1",
         }),
-      ],
+        expect.objectContaining({
+          title: "Bootstrap runtime cleanup",
+          projectId: "project-1",
+        }),
+      ]),
     })
 
     await app.close()

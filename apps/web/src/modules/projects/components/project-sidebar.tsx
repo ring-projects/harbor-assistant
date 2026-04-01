@@ -1,7 +1,6 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { Link, useLocation } from "@tanstack/react-router"
 import {
   BotIcon,
   SearchIcon,
@@ -40,7 +39,6 @@ type ProjectSidebarItem = {
   key: string
   label: string
   tip: string
-  href?: string
   icon: LucideIcon
 }
 
@@ -49,29 +47,17 @@ export function ProjectSidebar({
   className,
   initialProjects,
 }: ProjectSidebarProps) {
-  const pathname = usePathname()
-  const encodedProjectId = encodeURIComponent(projectId)
+  const location = useLocation()
+  const projectPath = `/${encodeURIComponent(projectId)}`
+  const settingsPath = `${projectPath}/settings`
+  const pathname = location.pathname
 
   const items: ProjectSidebarItem[] = [
-    {
-      key: "agent",
-      label: "agent",
-      tip: "Agent workspace",
-      href: `/${encodedProjectId}`,
-      icon: BotIcon,
-    },
     {
       key: "research",
       label: "research",
       tip: "Research view coming soon",
       icon: SearchIcon,
-    },
-    {
-      key: "setting",
-      label: "setting",
-      tip: "Project settings",
-      href: `/${encodedProjectId}/settings`,
-      icon: Settings2Icon,
     },
   ]
 
@@ -103,37 +89,73 @@ export function ProjectSidebar({
           <SidebarGroup className="p-2">
             <SidebarGroupContent>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === projectPath}
+                        className="size-12 justify-center p-0 [&>svg]:size-5"
+                      >
+                        <Link
+                          to="/$projectId"
+                          params={{ projectId }}
+                          aria-label="agent"
+                        >
+                          <BotIcon
+                            aria-hidden="true"
+                            className={cn(pathname === projectPath && "text-primary")}
+                          />
+                        </Link>
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" align="center">
+                      Agent workspace
+                    </TooltipContent>
+                  </Tooltip>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === settingsPath}
+                        className="size-12 justify-center p-0 [&>svg]:size-5"
+                      >
+                        <Link
+                          to="/$projectId/settings"
+                          params={{ projectId }}
+                          aria-label="setting"
+                        >
+                          <Settings2Icon
+                            aria-hidden="true"
+                            className={cn(pathname === settingsPath && "text-primary")}
+                          />
+                        </Link>
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" align="center">
+                      Project settings
+                    </TooltipContent>
+                  </Tooltip>
+                </SidebarMenuItem>
+
                 {items.map((item) => {
-                  const isActive = item.href ? pathname === item.href : false
                   const Icon = item.icon
 
                   return (
                     <SidebarMenuItem key={item.key}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          {item.href ? (
-                            <SidebarMenuButton
-                              asChild
-                              isActive={isActive}
-                              className="size-12 justify-center p-0 [&>svg]:size-5"
-                            >
-                              <Link href={item.href} aria-label={item.label}>
-                                <Icon
-                                  aria-hidden="true"
-                                  className={cn(isActive && "text-primary")}
-                                />
-                              </Link>
-                            </SidebarMenuButton>
-                          ) : (
-                            <SidebarMenuButton
-                              type="button"
-                              disabled
-                              aria-label={item.label}
-                              className="size-12 justify-center p-0 [&>svg]:size-5"
-                            >
-                              <Icon aria-hidden="true" />
-                            </SidebarMenuButton>
-                          )}
+                          <SidebarMenuButton
+                            type="button"
+                            disabled
+                            aria-label={item.label}
+                            className="size-12 justify-center p-0 [&>svg]:size-5"
+                          >
+                            <Icon aria-hidden="true" />
+                          </SidebarMenuButton>
                         </TooltipTrigger>
                         <TooltipContent side="right" align="center">
                           {item.tip}

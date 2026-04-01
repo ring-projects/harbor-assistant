@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify"
 
+import { bootstrapOrchestrationUseCase } from "../application/bootstrap-orchestration"
 import { createOrchestrationUseCase } from "../application/create-orchestration"
 import { createOrchestrationTaskUseCase } from "../application/create-orchestration-task"
 import { getOrchestrationUseCase } from "../application/get-orchestration"
 import { listOrchestrationTasksUseCase } from "../application/list-orchestration-tasks"
 import { listProjectOrchestrationsUseCase } from "../application/list-project-orchestrations"
+import type { OrchestrationBootstrapStore } from "../application/orchestration-bootstrap-store"
 import type { OrchestrationRepository } from "../application/orchestration-repository"
 import { toOrchestrationAppError } from "../orchestration-app-error"
 import type { ProjectRepository } from "../../project/application/project-repository"
@@ -14,6 +16,8 @@ import type { TaskRecordStore } from "../../task/application/task-record-store"
 import type { TaskRepository } from "../../task/application/task-repository"
 import type { TaskRuntimePort } from "../../task/application/task-runtime-port"
 import {
+  bootstrapOrchestrationRouteSchema,
+  type BootstrapOrchestrationBody,
   createOrchestrationRouteSchema,
   createOrchestrationTaskRouteSchema,
   getOrchestrationRouteSchema,
@@ -30,6 +34,7 @@ export async function registerOrchestrationModuleRoutes(
   app: FastifyInstance,
   options: {
     repository: OrchestrationRepository
+    bootstrapStore: OrchestrationBootstrapStore
     projectRepository: Pick<ProjectRepository, "findById">
     projectTaskPort: ProjectTaskPort
     taskRepository: TaskRepository & TaskRecordStore
@@ -39,6 +44,7 @@ export async function registerOrchestrationModuleRoutes(
 ) {
   const {
     repository,
+    bootstrapStore,
     projectRepository,
     projectTaskPort,
     taskRepository,
@@ -64,6 +70,36 @@ export async function registerOrchestrationModuleRoutes(
         return reply.status(201).send({
           ok: true,
           orchestration,
+        })
+      } catch (error) {
+        throw toOrchestrationAppError(error)
+      }
+    },
+  )
+
+  app.post<{ Body: BootstrapOrchestrationBody }>(
+    "/orchestrations/bootstrap",
+    {
+      schema: bootstrapOrchestrationRouteSchema,
+    },
+    async (request, reply) => {
+      try {
+        const result = await bootstrapOrchestrationUseCase(
+          {
+            bootstrapStore,
+            projectRepository,
+            taskRepository,
+            runtimePort,
+            notificationPublisher,
+          },
+          request.body,
+        )
+
+        return reply.status(201).send({
+          ok: true,
+          orchestration: result.orchestration,
+          task: result.task,
+          bootstrap: result.bootstrap,
         })
       } catch (error) {
         throw toOrchestrationAppError(error)

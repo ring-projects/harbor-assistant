@@ -12,8 +12,6 @@ export const orchestrationListItemSchema = z.object({
   projectId: z.string().min(1),
   title: z.string().min(1),
   description: z.string().nullable().default(null),
-  initPrompt: z.string().nullable().default(null),
-  config: z.record(z.string(), z.unknown()).nullable().default(null),
   status: orchestrationStatusSchema,
   archivedAt: z.string().nullable().default(null),
   createdAt: z.string().min(1),

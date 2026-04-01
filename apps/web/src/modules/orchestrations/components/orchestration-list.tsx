@@ -112,9 +112,7 @@ export function OrchestrationList({
                             {orchestration.title}
                           </p>
                           <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
-                            {orchestration.description ??
-                              orchestration.initPrompt ??
-                              "No activity yet."}
+                            {orchestration.description ?? "No activity yet."}
                           </p>
                         </div>
                         <span className="text-muted-foreground shrink-0 text-[11px] uppercase">

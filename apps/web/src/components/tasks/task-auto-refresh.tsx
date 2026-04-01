@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@tanstack/react-router"
 
 type TaskAutoRefreshProps = {
   enabled: boolean
@@ -18,7 +18,7 @@ export function TaskAutoRefresh(props: TaskAutoRefreshProps) {
     }
 
     const timer = window.setInterval(() => {
-      router.refresh()
+      void router.invalidate()
     }, intervalMs)
 
     return () => {

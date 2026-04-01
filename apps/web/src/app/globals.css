@@ -12,6 +12,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --font-inter: "Inter";
+  --font-jetbrains-mono: "JetBrains Mono";
+  --font-geist-mono: "JetBrains Mono";
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.3);
   --diff-font-family:

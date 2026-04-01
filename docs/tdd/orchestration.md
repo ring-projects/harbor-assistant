@@ -109,17 +109,18 @@ Domain 层至少应锁住以下语义：
 测试对象：
 
 1. `CreateOrchestration`
-2. `GetOrchestrationDetail`
-3. `ListOrchestrations`
-4. `CreateOrchestrationTask`
-5. `ListOrchestrationTasks`
-6. `GetTaskDetail`
-7. `SendTaskMessage`
-8. `CancelTask`
-9. `CreateSchedule`
-10. `PauseSchedule`
-11. `ResumeSchedule`
-12. `TriggerScheduledTask`
+2. `BootstrapOrchestration`
+3. `GetOrchestrationDetail`
+4. `ListOrchestrations`
+5. `CreateOrchestrationTask`
+6. `ListOrchestrationTasks`
+7. `GetTaskDetail`
+8. `SendTaskMessage`
+9. `CancelTask`
+10. `CreateSchedule`
+11. `PauseSchedule`
+12. `ResumeSchedule`
+13. `TriggerScheduledTask`
 
 这一层验证：
 
@@ -167,16 +168,17 @@ Domain 层至少应锁住以下语义：
 测试对象：
 
 1. `POST /orchestrations`
-2. `GET /orchestrations`
-3. `GET /orchestrations/:orchestrationId`
-4. `POST /orchestrations/:orchestrationId/tasks`
-5. `GET /orchestrations/:orchestrationId/tasks`
-6. `GET /tasks/:taskId`
-7. `POST /tasks/:taskId/messages`
-8. `POST /tasks/:taskId/cancel`
-9. `POST /orchestrations/:orchestrationId/schedules`
-10. `POST /schedules/:scheduleId/pause`
-11. `POST /schedules/:scheduleId/resume`
+2. `POST /orchestrations/bootstrap`
+3. `GET /orchestrations`
+4. `GET /orchestrations/:orchestrationId`
+5. `POST /orchestrations/:orchestrationId/tasks`
+6. `GET /orchestrations/:orchestrationId/tasks`
+7. `GET /tasks/:taskId`
+8. `POST /tasks/:taskId/messages`
+9. `POST /tasks/:taskId/cancel`
+10. `POST /orchestrations/:orchestrationId/schedules`
+11. `POST /schedules/:scheduleId/pause`
+12. `POST /schedules/:scheduleId/resume`
 
 这一层只验证：
 
@@ -210,7 +212,7 @@ Domain 层至少应锁住以下语义：
 先写红灯测试：
 
 1. 创建 orchestration 时具备合法默认状态
-2. orchestration title / description / initPrompt / config 合法
+2. orchestration title / description 合法
 3. archived orchestration 不能继续被新 schedule 绑定
 4. orchestration identity 更新不影响其下 task 关系
 

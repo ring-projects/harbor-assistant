@@ -1,6 +1,8 @@
-import Image, { type ImageProps } from "next/image"
+import type { ComponentPropsWithoutRef } from "react"
 
 import { cn } from "@/lib/utils"
+
+type ImageProps = ComponentPropsWithoutRef<"img">
 
 type HarborMarkProps = Omit<ImageProps, "src" | "alt"> & {
   variant?: "adaptive" | "black" | "white"
@@ -20,7 +22,7 @@ export function HarborMark({
   if (variant === "adaptive") {
     return (
       <>
-        <Image
+        <img
           src="/brand/harbor-favicon-black.svg"
           alt="Harbor logo"
           width={width}
@@ -28,7 +30,7 @@ export function HarborMark({
           className={cn("dark:hidden", className)}
           {...props}
         />
-        <Image
+        <img
           src="/brand/harbor-favicon-white.svg"
           alt="Harbor logo"
           width={width}
@@ -46,7 +48,7 @@ export function HarborMark({
       : "/brand/harbor-favicon-black.svg"
 
   return (
-    <Image
+    <img
       src={src}
       alt="Harbor logo"
       width={width}
@@ -67,7 +69,7 @@ export function HarborLogo({
   if (variant === "adaptive") {
     return (
       <>
-        <Image
+        <img
           src="/brand/harbor-logo-black.svg"
           alt="Harbor logo"
           width={width}
@@ -75,7 +77,7 @@ export function HarborLogo({
           className={cn("h-auto dark:hidden", className)}
           {...props}
         />
-        <Image
+        <img
           src="/brand/harbor-logo-white.svg"
           alt="Harbor logo"
           width={width}
@@ -93,7 +95,7 @@ export function HarborLogo({
       : "/brand/harbor-logo-black.svg"
 
   return (
-    <Image
+    <img
       src={src}
       alt="Harbor logo"
       width={width}

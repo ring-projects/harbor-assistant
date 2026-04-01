@@ -13,8 +13,6 @@ export type CreateOrchestrationBody = {
   projectId: string
   title: string
   description?: string | null
-  initPrompt?: string | null
-  config?: Record<string, unknown> | null
 }
 
 export type CreateOrchestrationTaskBody = {
@@ -27,15 +25,19 @@ export type CreateOrchestrationTaskBody = {
   effort: TaskEffort
 }
 
+export type BootstrapOrchestrationBody = {
+  projectId: string
+  orchestration: {
+    title: string
+    description?: string | null
+  }
+  initialTask: CreateOrchestrationTaskBody
+}
+
 export type ListOrchestrationTasksQuery = {
   limit?: number
   includeArchived?: boolean
 }
-
-const jsonObjectSchema = {
-  type: ["object", "null"],
-  additionalProperties: true,
-} as const
 
 const orchestrationEntitySchema = {
   type: "object",
@@ -45,8 +47,6 @@ const orchestrationEntitySchema = {
     "projectId",
     "title",
     "description",
-    "initPrompt",
-    "config",
     "status",
     "archivedAt",
     "createdAt",
@@ -57,8 +57,6 @@ const orchestrationEntitySchema = {
     projectId: { type: "string", minLength: 1 },
     title: { type: "string", minLength: 1 },
     description: { type: ["string", "null"] },
-    initPrompt: { type: ["string", "null"] },
-    config: jsonObjectSchema,
     status: {
       type: "string",
       enum: ["active", "archived"],
@@ -161,6 +159,25 @@ const taskListItemSchema = {
   },
 } as const
 
+const taskDetailSchema = {
+  ...taskListItemSchema,
+  required: [...taskListItemSchema.required, "prompt"],
+  properties: {
+    ...taskListItemSchema.properties,
+    prompt: { type: "string", minLength: 1 },
+  },
+} as const
+
+const bootstrapWarningSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["code", "message"],
+  properties: {
+    code: { type: "string", minLength: 1 },
+    message: { type: "string", minLength: 1 },
+  },
+} as const
+
 export const orchestrationIdParamsSchema = {
   type: "object",
   additionalProperties: false,
@@ -187,17 +204,6 @@ export const createOrchestrationBodySchema = {
     projectId: { type: "string", minLength: 1 },
     title: { type: "string", minLength: 1 },
     description: { type: ["string", "null"] },
-    initPrompt: { type: ["string", "null"] },
-    config: jsonObjectSchema,
-  },
-} as const
-
-export const listOrchestrationTasksQuerySchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    limit: { type: "integer", minimum: 1, maximum: 500 },
-    includeArchived: { type: "boolean" },
   },
 } as const
 
@@ -217,6 +223,34 @@ export const createOrchestrationTaskBodySchema = {
   },
 } as const
 
+export const bootstrapOrchestrationBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["projectId", "orchestration", "initialTask"],
+  properties: {
+    projectId: { type: "string", minLength: 1 },
+    orchestration: {
+      type: "object",
+      additionalProperties: false,
+      required: ["title"],
+      properties: {
+        title: { type: "string", minLength: 1 },
+        description: { type: ["string", "null"] },
+      },
+    },
+    initialTask: createOrchestrationTaskBodySchema,
+  },
+} as const
+
+export const listOrchestrationTasksQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    limit: { type: "integer", minimum: 1, maximum: 500 },
+    includeArchived: { type: "boolean" },
+  },
+} as const
+
 export const createOrchestrationRouteSchema = {
   body: createOrchestrationBodySchema,
   response: {
@@ -227,6 +261,36 @@ export const createOrchestrationRouteSchema = {
       properties: {
         ok: { type: "boolean", const: true },
         orchestration: orchestrationEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const bootstrapOrchestrationRouteSchema = {
+  body: bootstrapOrchestrationBodySchema,
+  response: {
+    201: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "orchestration", "task", "bootstrap"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        orchestration: orchestrationEntitySchema,
+        task: taskDetailSchema,
+        bootstrap: {
+          type: "object",
+          additionalProperties: false,
+          required: ["runtimeStarted", "warning"],
+          properties: {
+            runtimeStarted: { type: "boolean" },
+            warning: {
+              anyOf: [
+                bootstrapWarningSchema,
+                { type: "null" },
+              ],
+            },
+          },
+        },
       },
     },
   },
@@ -275,14 +339,7 @@ export const createOrchestrationTaskRouteSchema = {
       required: ["ok", "task"],
       properties: {
         ok: { type: "boolean", const: true },
-        task: {
-          ...taskListItemSchema,
-          required: [...taskListItemSchema.required, "prompt"],
-          properties: {
-            ...taskListItemSchema.properties,
-            prompt: { type: "string", minLength: 1 },
-          },
-        },
+        task: taskDetailSchema,
       },
     },
   },
