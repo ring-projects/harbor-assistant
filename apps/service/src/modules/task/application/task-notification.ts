@@ -9,6 +9,7 @@ export type TaskNotification =
   | {
       type: "task_deleted"
       projectId: string
+      orchestrationId: string
       taskId: string
     }
   | {

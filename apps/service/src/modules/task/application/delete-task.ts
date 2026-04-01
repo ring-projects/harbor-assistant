@@ -20,6 +20,7 @@ export async function deleteTaskUseCase(
   await notificationPublisher.publish({
     type: "task_deleted",
     projectId: current.projectId,
+    orchestrationId: current.orchestrationId,
     taskId: current.id,
   })
 

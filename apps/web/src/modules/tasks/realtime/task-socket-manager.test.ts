@@ -124,6 +124,53 @@ describe("TaskSocketManager", () => {
     expect(useTasksSessionStore.getState().tasksById["task-1"]).toBeUndefined()
   })
 
+  it("indexes realtime task upserts by orchestration id instead of project id", async () => {
+    const manager = new TaskSocketManager()
+    manager.bindQueryClient(new QueryClient())
+
+    const handler = handlers.get("interaction:message")
+    if (!handler) {
+      throw new Error("interaction:message handler was not registered")
+    }
+
+    handler({
+      topic: {
+        kind: "task",
+        id: "task-2",
+      },
+      message: {
+        kind: "event",
+        name: "task_upsert",
+        data: {
+          task: {
+            id: "task-2",
+            projectId: "project-1",
+            orchestrationId: "orch-2",
+            prompt: "Investigate drift",
+            title: "Investigate drift",
+            titleSource: "prompt",
+            model: null,
+            executor: "codex",
+            executionMode: "connected",
+            effort: null,
+            status: "running",
+            archivedAt: null,
+            createdAt: "2026-03-18T00:00:00.000Z",
+            startedAt: null,
+            finishedAt: null,
+          },
+        },
+      },
+    })
+
+    expect(useTasksSessionStore.getState().taskIdsByOrchestration["orch-2"]).toEqual([
+      "task-2",
+    ])
+    expect(useTasksSessionStore.getState().taskIdsByOrchestration["project-1"]).toBe(
+      undefined,
+    )
+  })
+
   it("replays task event subscriptions with the last seen sequence on reconnect", () => {
     useTasksSessionStore.getState().hydrateTaskEvents("task-1", {
       taskId: "task-1",

@@ -87,8 +87,8 @@ export class TaskRealtimeMessageHandler {
       case "task_deleted": {
         const taskId = pickString(data, "taskId")
         const orchestrationId =
-          useTasksSessionStore.getState().tasksById[topic.id]?.orchestrationId ??
-          pickString(data, "orchestrationId")
+          pickString(data, "orchestrationId") ??
+          useTasksSessionStore.getState().tasksById[topic.id]?.orchestrationId
 
         if (!taskId || !orchestrationId) {
           return

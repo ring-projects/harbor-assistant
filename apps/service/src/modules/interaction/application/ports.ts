@@ -21,6 +21,7 @@ export type InteractionTaskStatus =
 export type InteractionTaskRecord = {
   id: string
   projectId: string
+  orchestrationId: string
   prompt?: string
   title: string
   titleSource: "prompt" | "agent" | "user"
@@ -73,12 +74,12 @@ export type InteractionTaskStreamEvent =
     }
   | {
       type: "task_upsert"
-      projectId: string
       task: InteractionTaskRecord
     }
   | {
       type: "task_deleted"
       projectId: string
+      orchestrationId: string
       taskId: string
     }
 

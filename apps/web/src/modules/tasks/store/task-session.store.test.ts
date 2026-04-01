@@ -97,6 +97,24 @@ describe("tasks session store", () => {
     expect(store.getState().tasksById["task-1"]?.status).toBe("running")
   })
 
+  it("moves a task between orchestration buckets when a newer upsert corrects its parent", () => {
+    const store = createTasksStore()
+
+    store.getState().applyTaskUpsert(buildTask({
+      taskId: "task-1",
+      orchestrationId: "project-1",
+    }))
+
+    store.getState().applyTaskUpsert(buildTask({
+      taskId: "task-1",
+      orchestrationId: "orch-1",
+    }))
+
+    expect(store.getState().taskIdsByOrchestration["project-1"]).toEqual([])
+    expect(store.getState().taskIdsByOrchestration["orch-1"]).toEqual(["task-1"])
+    expect(store.getState().tasksById["task-1"]?.orchestrationId).toBe("orch-1")
+  })
+
   it("merges task events from snapshot and socket input without dropping newer items", () => {
     const store = createTasksStore()
 

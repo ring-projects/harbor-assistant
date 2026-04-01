@@ -20,6 +20,7 @@ describe("websocket interaction contract", () => {
         task: {
           id: "task-1",
           projectId: "project-1",
+          orchestrationId: "orch-1",
           title: "Investigate runtime drift",
           titleSource: "prompt",
           executor: "codex",
@@ -48,6 +49,7 @@ describe("websocket interaction contract", () => {
             task: {
               id: "task-1",
               projectId: "project-1",
+              orchestrationId: "orch-1",
               title: "Investigate runtime drift",
               titleSource: "prompt",
               executor: "codex",
@@ -75,6 +77,7 @@ describe("websocket interaction contract", () => {
         task: {
           id: "task-2",
           projectId: "project-1",
+          orchestrationId: "orch-2",
           title: "Investigate runtime drift",
           titleSource: "prompt",
           executor: "codex",
@@ -103,6 +106,7 @@ describe("websocket interaction contract", () => {
             task: {
               id: "task-2",
               projectId: "project-1",
+              orchestrationId: "orch-2",
               title: "Investigate runtime drift",
               titleSource: "prompt",
               executor: "codex",
@@ -129,6 +133,7 @@ describe("websocket interaction contract", () => {
         },
         taskId: "task-1",
         projectId: "project-1",
+        orchestrationId: "orch-1",
       }),
     ).toEqual({
       event: "interaction:message",
@@ -143,6 +148,7 @@ describe("websocket interaction contract", () => {
           data: {
             taskId: "task-1",
             projectId: "project-1",
+            orchestrationId: "orch-1",
           },
         },
       },

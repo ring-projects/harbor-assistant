@@ -249,6 +249,8 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
     }
 
     set((state) => {
+      const previousOrchestrationId =
+        state.tasksById[normalizedTaskId]?.orchestrationId.trim() ?? null
       const tasksById = {
         ...state.tasksById,
         [normalizedTaskId]: mergeTaskRecord(state.tasksById[normalizedTaskId], task),
@@ -266,6 +268,15 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
         tasksById,
         taskIdsByOrchestration: {
           ...state.taskIdsByOrchestration,
+          ...(previousOrchestrationId &&
+          previousOrchestrationId !== normalizedOrchestrationId
+            ? {
+                [previousOrchestrationId]: removeTaskId(
+                  state.taskIdsByOrchestration[previousOrchestrationId],
+                  normalizedTaskId,
+                ),
+              }
+            : {}),
           [normalizedOrchestrationId]: nextTaskIds,
         },
       }

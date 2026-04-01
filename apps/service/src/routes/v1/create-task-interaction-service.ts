@@ -32,6 +32,7 @@ function toInteractionTaskRecord(
   return {
     id: task.id,
     projectId: task.projectId,
+    orchestrationId: task.orchestrationId,
     ...("prompt" in task ? { prompt: task.prompt } : {}),
     title: task.title,
     titleSource: task.titleSource,
@@ -67,7 +68,6 @@ function toTaskStreamEvents(
       const events: InteractionTaskStreamEvent[] = [
         {
           type: "task_upsert",
-          projectId: notification.projectId,
           task: toInteractionTaskRecord(notification.task),
         },
         {
@@ -93,6 +93,7 @@ function toTaskStreamEvents(
         {
           type: "task_deleted",
           projectId: notification.projectId,
+          orchestrationId: notification.orchestrationId,
           taskId: notification.taskId,
         },
       ]

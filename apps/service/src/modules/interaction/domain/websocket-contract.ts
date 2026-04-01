@@ -154,6 +154,7 @@ export function taskDeletedEventEnvelope(args: {
   topic: InteractionTopic
   taskId: string
   projectId?: string
+  orchestrationId?: string
 }): WebSocketInteractionEnvelope {
   return messageEnvelope({
     topic: args.topic,
@@ -163,6 +164,9 @@ export function taskDeletedEventEnvelope(args: {
       data: {
         taskId: args.taskId,
         ...(args.projectId ? { projectId: args.projectId } : {}),
+        ...(args.orchestrationId
+          ? { orchestrationId: args.orchestrationId }
+          : {}),
       },
     },
   })

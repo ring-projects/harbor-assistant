@@ -54,6 +54,7 @@ describe("createTaskInteractionService", () => {
     await expect(service.queries.getTaskDetail("task-1")).resolves.toEqual(
       expect.objectContaining({
         id: "task-1",
+        orchestrationId: "orch-1",
         prompt: "Investigate runtime drift",
         executor: "codex",
         model: "gpt-5.3-codex",
@@ -71,6 +72,7 @@ describe("createTaskInteractionService", () => {
     ).resolves.toEqual({
       task: expect.objectContaining({
         id: "task-1",
+        orchestrationId: "orch-1",
         status: "completed",
       }),
       events: {
@@ -114,7 +116,7 @@ describe("createTaskInteractionService", () => {
       task: {
         id: "task-1",
         projectId: "project-1",
-        orchestrationId: "project-1",
+        orchestrationId: "orch-1",
         title: "Investigate runtime drift",
         titleSource: "prompt",
         executor: "codex",
@@ -147,6 +149,7 @@ describe("createTaskInteractionService", () => {
     await notificationBus.publisher.publish({
       type: "task_deleted",
       projectId: "project-1",
+      orchestrationId: "orch-1",
       taskId: "task-1",
     })
 
@@ -155,9 +158,9 @@ describe("createTaskInteractionService", () => {
     expect(taskEvents).toEqual([
       {
         type: "task_upsert",
-        projectId: "project-1",
         task: expect.objectContaining({
           id: "task-1",
+          orchestrationId: "orch-1",
           executor: "codex",
           status: "completed",
         }),
@@ -190,6 +193,7 @@ describe("createTaskInteractionService", () => {
       {
         type: "task_deleted",
         projectId: "project-1",
+        orchestrationId: "orch-1",
         taskId: "task-1",
       },
     ])

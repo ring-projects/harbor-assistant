@@ -16,6 +16,7 @@ function createTask(
   return {
     id: "task-1",
     projectId: "project-1",
+    orchestrationId: "orch-1",
     title: "Investigate runtime drift",
     titleSource: "prompt",
     executor: "codex",
@@ -320,6 +321,13 @@ describe("bindWebSocketSession", () => {
     })
 
     emitStreamEvent(taskListeners, {
+      type: "task_upsert",
+      task: createTask({
+        id: "task-1",
+        status: "running",
+      }),
+    })
+    emitStreamEvent(taskListeners, {
       type: "task_status",
       taskId: "task-1",
       status: "running",
@@ -328,8 +336,22 @@ describe("bindWebSocketSession", () => {
       type: "task_deleted",
       taskId: "task-1",
       projectId: "project-1",
+      orchestrationId: "orch-1",
     })
 
+    expectSocketMessage(socket, {
+      topic,
+      message: {
+        kind: "event",
+        name: "task_upsert",
+        data: {
+          task: createTask({
+            id: "task-1",
+            status: "running",
+          }),
+        },
+      },
+    })
     expectSocketMessage(socket, {
       topic,
       message: {
@@ -348,6 +370,7 @@ describe("bindWebSocketSession", () => {
         data: {
           taskId: "task-1",
           projectId: "project-1",
+          orchestrationId: "orch-1",
         },
       },
     })

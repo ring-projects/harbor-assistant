@@ -35,6 +35,7 @@ function createTask(
   return {
     id: "task-1",
     projectId: "project-1",
+    orchestrationId: "orch-1",
     title: "Investigate runtime drift",
     titleSource: "prompt",
     executor: "codex",

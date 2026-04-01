@@ -107,6 +107,7 @@ function emitTaskDeleted(
   event: {
     taskId: string
     projectId: string
+    orchestrationId: string
   },
 ) {
   emitWebSocketMessage(
@@ -115,6 +116,7 @@ function emitTaskDeleted(
       topic,
       taskId: event.taskId,
       projectId: event.projectId,
+      orchestrationId: event.orchestrationId,
     }),
   )
 }
@@ -284,7 +286,11 @@ export function bindWebSocketSession(args: {
           const subscription = args.taskStream
             .selectTask(parsed.topic.id)
             .subscribe((event) => {
-              if (event.type === "task_status" || event.type === "task_end") {
+              if (
+                event.type === "task_upsert" ||
+                event.type === "task_status" ||
+                event.type === "task_end"
+              ) {
                 emitTaskStreamEvent(args.socket, parsed.topic, event)
                 return
               }

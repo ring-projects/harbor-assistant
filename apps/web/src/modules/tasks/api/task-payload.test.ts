@@ -78,6 +78,21 @@ describe("task-payload", () => {
     expect(task?.status).toBe("queued")
   })
 
+  it("rejects task payloads that omit orchestration ids", () => {
+    const task = extractSingleTask({
+      task: {
+        id: "task-2",
+        projectId: "project-2",
+        prompt: "Hello",
+        title: "Hello",
+        status: "queued",
+        createdAt: "2026-03-18T10:00:00.000Z",
+      },
+    })
+
+    expect(task).toBeNull()
+  })
+
   it("extracts normalized task event streams with fallback task ids", () => {
     const stream = extractTaskEvents(
       {
