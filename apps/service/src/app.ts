@@ -6,12 +6,14 @@ import { ensureHarborPublicSkills } from "./lib/public-skills"
 import errorHandlerPlugin from "./plugins/error-handler"
 import prismaPlugin from "./plugins/prisma"
 import { registerV1Routes } from "./routes/v1"
+import { getServiceBuildInfo } from "./version"
 
 const SERVICE_CORS_METHODS = ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"]
 
 export async function buildServiceApp(
   config: ServiceConfig,
 ): Promise<FastifyInstance> {
+  const buildInfo = getServiceBuildInfo()
   const redact = {
     paths: [
       "req.headers.authorization",
@@ -55,7 +57,20 @@ export async function buildServiceApp(
     return {
       ok: true,
       service: config.serviceName,
-      timestamp: new Date().toISOString()
+      version: buildInfo.version,
+      gitSha: buildInfo.gitSha,
+      buildTime: buildInfo.buildTime,
+      timestamp: new Date().toISOString(),
+    }
+  })
+
+  app.get("/version", async () => {
+    return {
+      ok: true,
+      service: config.serviceName,
+      version: buildInfo.version,
+      gitSha: buildInfo.gitSha,
+      buildTime: buildInfo.buildTime,
     }
   })
 

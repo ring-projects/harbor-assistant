@@ -1,0 +1,38 @@
+name: Release Version PR
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  version-pr:
+    name: Create Or Update Release PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.11.1
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Create or update version PR
+        uses: changesets/action@v1
+        with:
+          version: pnpm run version:packages
+          commit: "ci: version packages"
+          title: "ci: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

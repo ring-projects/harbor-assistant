@@ -68,4 +68,24 @@ describe("buildServiceApp", () => {
 
     await app.close()
   })
+
+  it("exposes service build metadata", async () => {
+    const app = await buildServiceApp(await createConfig())
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/version",
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      service: "harbor",
+      version: expect.any(String),
+      gitSha: null,
+      buildTime: null,
+    })
+
+    await app.close()
+  })
 })
