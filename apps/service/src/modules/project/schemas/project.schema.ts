@@ -11,16 +11,38 @@ export type CreateProjectBody = {
   id: string
   name: string
   description?: string | null
-  source:
-    | {
+  repositoryBinding?: {
+    provider: "github"
+    installationId: string
+    repositoryFullName: string
+  }
+} & (
+  | {
+      source: {
         type: "rootPath"
         rootPath: string
       }
-    | {
+    }
+  | {
+      source: {
         type: "git"
         repositoryUrl: string
         branch?: string | null
       }
+    }
+)
+
+export type ProjectRepositoryBindingResponse = {
+  projectId: string
+  provider: "github"
+  installationId: string
+  repositoryOwner: string
+  repositoryName: string
+  repositoryFullName: string
+  repositoryUrl: string
+  defaultBranch: string | null
+  visibility: "public" | "private" | "internal" | null
+  workspaceState: "unprovisioned" | "ready"
 }
 
 export type UpdateProjectBody = {
@@ -109,6 +131,17 @@ const createGitProjectSourceSchema = {
   },
 } as const
 
+const repositoryBindingSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["provider", "installationId", "repositoryFullName"],
+  properties: {
+    provider: { type: "string", const: "github" },
+    installationId: { type: "string", minLength: 1 },
+    repositoryFullName: { type: "string", minLength: 1 },
+  },
+} as const
+
 const projectEntitySchema = {
   type: "object",
   additionalProperties: false,
@@ -159,15 +192,65 @@ export const projectIdParamsSchema = {
 } as const
 
 export const createProjectBodySchema = {
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "name", "source"],
+      properties: {
+        id: { type: "string", minLength: 1 },
+        name: { type: "string", minLength: 1 },
+        description: { type: ["string", "null"] },
+        source: createRootPathProjectSourceSchema,
+        repositoryBinding: false,
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "name", "source"],
+      properties: {
+        id: { type: "string", minLength: 1 },
+        name: { type: "string", minLength: 1 },
+        description: { type: ["string", "null"] },
+        source: createGitProjectSourceSchema,
+        repositoryBinding: repositoryBindingSchema,
+      },
+    },
+  ],
+} as const
+
+const projectRepositoryBindingEntitySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "name", "source"],
+  required: [
+    "projectId",
+    "provider",
+    "installationId",
+    "repositoryOwner",
+    "repositoryName",
+    "repositoryFullName",
+    "repositoryUrl",
+    "defaultBranch",
+    "visibility",
+    "workspaceState",
+  ],
   properties: {
-    id: { type: "string", minLength: 1 },
-    name: { type: "string", minLength: 1 },
-    description: { type: ["string", "null"] },
-    source: {
-      oneOf: [createRootPathProjectSourceSchema, createGitProjectSourceSchema],
+    projectId: { type: "string", minLength: 1 },
+    provider: { type: "string", const: "github" },
+    installationId: { type: "string", minLength: 1 },
+    repositoryOwner: { type: "string", minLength: 1 },
+    repositoryName: { type: "string", minLength: 1 },
+    repositoryFullName: { type: "string", minLength: 1 },
+    repositoryUrl: { type: "string", minLength: 1 },
+    defaultBranch: { type: ["string", "null"] },
+    visibility: {
+      type: ["string", "null"],
+      enum: ["public", "private", "internal", null],
+    },
+    workspaceState: {
+      type: "string",
+      enum: ["unprovisioned", "ready"],
     },
   },
 } as const
@@ -326,6 +409,53 @@ export const archiveProjectRouteSchema = {
       properties: {
         ok: { type: "boolean", const: true },
         project: projectEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const getProjectRepositoryBindingRouteSchema = {
+  params: projectIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "repositoryBinding"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        repositoryBinding: projectRepositoryBindingEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const provisionProjectWorkspaceRouteSchema = {
+  params: projectIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "project", "repositoryBinding"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        project: projectEntitySchema,
+        repositoryBinding: projectRepositoryBindingEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const syncProjectWorkspaceRouteSchema = {
+  params: projectIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "projectId", "syncedAt"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        projectId: { type: "string", minLength: 1 },
+        syncedAt: { type: "string", format: "date-time" },
       },
     },
   },

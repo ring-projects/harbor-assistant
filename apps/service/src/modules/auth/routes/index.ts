@@ -48,6 +48,16 @@ function buildApiBaseUrl(config: ServiceConfig, request: { protocol: string; hea
   return `${request.protocol}://${host}`
 }
 
+function buildWebLoginRedirectUrl(config: ServiceConfig, errorCode: string) {
+  if (!config.webBaseUrl) {
+    return null
+  }
+
+  const url = new URL("/login", config.webBaseUrl)
+  url.searchParams.set("error", errorCode)
+  return url.toString()
+}
+
 function createGitHubAuthorizeUrl(args: {
   clientId: string
   redirectUri: string
@@ -138,65 +148,80 @@ export async function registerAuthModuleRoutes(
   }>(
     "/auth/github/callback",
     async (request, reply) => {
-      ensureGitHubOAuthConfigured(options.config)
+      try {
+        ensureGitHubOAuthConfigured(options.config)
 
-      const code = request.query.code?.trim()
-      const state = request.query.state?.trim()
-      const cookies = parseCookieHeader(request.headers.cookie)
-      const storedState = cookies.get(GITHUB_OAUTH_STATE_COOKIE_NAME)
+        const code = request.query.code?.trim()
+        const state = request.query.state?.trim()
+        const cookies = parseCookieHeader(request.headers.cookie)
+        const storedState = cookies.get(GITHUB_OAUTH_STATE_COOKIE_NAME)
 
-      if (!code || !state || !storedState || state !== storedState) {
-        throw new AppError(
-          ERROR_CODES.AUTH_CALLBACK_FAILED,
-          400,
-          "GitHub OAuth callback state is invalid.",
-        )
-      }
+        if (!code || !state || !storedState || state !== storedState) {
+          throw new AppError(
+            ERROR_CODES.AUTH_CALLBACK_FAILED,
+            400,
+            "GitHub OAuth callback state is invalid.",
+          )
+        }
 
-      const apiBaseUrl = buildApiBaseUrl(options.config, request)
-      const redirectUri = new URL("/v1/auth/github/callback", apiBaseUrl).toString()
-      const githubClient =
-        options.githubClient ??
-        new GitHubOAuthClient({
-          clientId: options.config.githubClientId!,
-          clientSecret: options.config.githubClientSecret!,
+        const apiBaseUrl = buildApiBaseUrl(options.config, request)
+        const redirectUri = new URL("/v1/auth/github/callback", apiBaseUrl).toString()
+        const githubClient =
+          options.githubClient ??
+          new GitHubOAuthClient({
+            clientId: options.config.githubClientId!,
+            clientSecret: options.config.githubClientSecret!,
+          })
+
+        const identity = await githubClient.exchangeCodeForIdentity({
+          code,
+          redirectUri,
+        })
+        assertGitHubIdentityAllowed(options.config, identity)
+
+        const user = await authStore.upsertGitHubUser({
+          providerUserId: identity.providerUserId,
+          login: identity.login,
+          email: identity.email,
+          name: identity.name,
+          avatarUrl: identity.avatarUrl,
+        })
+        const session = await authStore.createSession({
+          userId: user.id,
+          ttlDays: DEFAULT_SESSION_TTL_DAYS,
+          userAgent: request.headers["user-agent"] ?? null,
+          ip: request.ip,
         })
 
-      const identity = await githubClient.exchangeCodeForIdentity({
-        code,
-        redirectUri,
-      })
-      assertGitHubIdentityAllowed(options.config, identity)
+        reply.header("set-cookie", [
+          serializeCookie(HARBOR_SESSION_COOKIE_NAME, session.token, {
+            secure: isSecureCookie(options.config),
+            sameSite: "Lax",
+            path: "/",
+            maxAge: DEFAULT_SESSION_TTL_DAYS * 24 * 60 * 60,
+          }),
+          expireCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, {
+            secure: isSecureCookie(options.config),
+            sameSite: "Lax",
+            path: "/",
+          }),
+        ])
 
-      const user = await authStore.upsertGitHubUser({
-        providerUserId: identity.providerUserId,
-        login: identity.login,
-        email: identity.email,
-        name: identity.name,
-        avatarUrl: identity.avatarUrl,
-      })
-      const session = await authStore.createSession({
-        userId: user.id,
-        ttlDays: DEFAULT_SESSION_TTL_DAYS,
-        userAgent: request.headers["user-agent"] ?? null,
-        ip: request.ip,
-      })
+        return reply.redirect(options.config.webBaseUrl ?? "/")
+      } catch (error) {
+        const redirectUrl = buildWebLoginRedirectUrl(
+          options.config,
+          error instanceof AppError
+            ? error.code
+            : ERROR_CODES.AUTH_CALLBACK_FAILED,
+        )
 
-      reply.header("set-cookie", [
-        serializeCookie(HARBOR_SESSION_COOKIE_NAME, session.token, {
-          secure: isSecureCookie(options.config),
-          sameSite: "Lax",
-          path: "/",
-          maxAge: DEFAULT_SESSION_TTL_DAYS * 24 * 60 * 60,
-        }),
-        expireCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, {
-          secure: isSecureCookie(options.config),
-          sameSite: "Lax",
-          path: "/",
-        }),
-      ])
+        if (redirectUrl) {
+          return reply.redirect(redirectUrl)
+        }
 
-      return reply.redirect(options.config.webBaseUrl ?? "/")
+        throw error
+      }
     },
   )
 

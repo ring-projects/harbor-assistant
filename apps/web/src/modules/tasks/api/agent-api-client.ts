@@ -1,5 +1,5 @@
 import { ERROR_CODES } from "@/constants"
-import { buildExecutorApiUrl } from "@/lib/executor-service-url"
+import { executorApiFetch } from "@/lib/executor-service-url"
 import { parseJsonResponse } from "@/lib/protocol"
 import { type AgentCapabilityResult } from "@/modules/tasks/contracts"
 
@@ -16,7 +16,7 @@ type AgentCapabilitiesEnvelope = {
 } & Record<string, unknown>
 
 export async function readAgentCapabilities(): Promise<AgentCapabilityResult> {
-  const response = await fetch(buildExecutorApiUrl("/v1/agents/capabilities"), {
+  const response = await executorApiFetch("/v1/agents/capabilities", {
     method: "GET",
     cache: "no-store",
   })

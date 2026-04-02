@@ -46,6 +46,7 @@ service:
   host: 127.0.0.1
   port: 3400
   name: harbor
+  trustProxy: false
 
 fileBrowser:
   rootDirectory: "~"
@@ -81,7 +82,40 @@ pnpm --dir apps/service db:migrate:dev
 - `FILE_BROWSER_ROOT_DIRECTORY`
 - `HOST`
 - `PORT`
+- `TRUST_PROXY`
 - `SERVICE_NAME`
 - `NODE_ENV`
+- `APP_BASE_URL`
+- `WEB_BASE_URL`
 - `HARBOR_HOME`
 - `HARBOR_CONFIG_PATH`
+
+## Docker 运行
+
+当前仓库提供了 `apps/service/Dockerfile`，用于构建一个可执行 Harbor service task 的运行镜像。
+该镜像使用多阶段构建，最终 runtime 只保留生产依赖，不再携带 `tsx`、`typescript`、`vitest` 等开发依赖。
+
+推荐从仓库根目录构建：
+
+```bash
+docker build -f apps/service/Dockerfile -t harbor-service .
+```
+
+最小运行示例：
+
+```bash
+docker run --rm \
+  -p 3400:3400 \
+  -e APP_BASE_URL=https://service.example.com \
+  -e WEB_BASE_URL=https://app.example.com \
+  -e TRUST_PROXY=true \
+  -v harbor-data:/var/lib/harbor \
+  -v /absolute/path/to/workspace:/workspace \
+  harbor-service
+```
+
+说明：
+
+- 镜像默认使用 `HARBOR_HOME=/var/lib/harbor`
+- 镜像默认使用 `FILE_BROWSER_ROOT_DIRECTORY=/workspace`
+- 如果需要在容器内真正执行任务，请确保运行环境中同时提供所需的 provider 认证信息

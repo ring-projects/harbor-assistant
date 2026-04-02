@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { buildExecutorApiUrl } from "@/lib/executor-service-url"
+import { executorApiFetch } from "@/lib/executor-service-url"
 import { parseJsonResponse } from "@/lib/protocol"
 import {
   type TaskAgentEventStream,
@@ -188,16 +188,14 @@ export async function createTask(args: {
     body.prompt = args.input.prompt
   }
 
-  const response = await fetch(
-    buildExecutorApiUrl(
-      `/v1/orchestrations/${encodeURIComponent(args.orchestrationId)}/tasks`,
-    ),
+  const response = await executorApiFetch(
+    `/v1/orchestrations/${encodeURIComponent(args.orchestrationId)}/tasks`,
     {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(body),
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
     },
   )
 
@@ -229,10 +227,8 @@ export async function readOrchestrationTasks(args: {
     searchParams.set("includeArchived", "true")
   }
 
-  const response = await fetch(
-    buildExecutorApiUrl(
-      `/v1/orchestrations/${encodeURIComponent(args.orchestrationId)}/tasks${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
-    ),
+  const response = await executorApiFetch(
+    `/v1/orchestrations/${encodeURIComponent(args.orchestrationId)}/tasks${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
     {
       method: "GET",
       cache: "no-store",
@@ -249,8 +245,8 @@ export async function readOrchestrationTasks(args: {
 }
 
 export async function readTaskDetail(taskId: string): Promise<TaskDetail> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}`),
+  const response = await executorApiFetch(
+    `/v1/tasks/${encodeURIComponent(taskId)}`,
     {
       method: "GET",
       cache: "no-store",
@@ -291,10 +287,8 @@ export async function readTaskEvents(args: {
   }
 
   const query = searchParams.toString()
-  const response = await fetch(
-    buildExecutorApiUrl(
-      `/v1/tasks/${encodeURIComponent(args.taskId)}/events${query ? `?${query}` : ""}`,
-    ),
+  const response = await executorApiFetch(
+    `/v1/tasks/${encodeURIComponent(args.taskId)}/events${query ? `?${query}` : ""}`,
     {
       method: "GET",
       cache: "no-store",
@@ -319,8 +313,8 @@ export async function readTaskEvents(args: {
 }
 
 export async function archiveTask(taskId: string): Promise<TaskDetail> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/archive`),
+  const response = await executorApiFetch(
+    `/v1/tasks/${encodeURIComponent(taskId)}/archive`,
     {
       method: "POST",
       headers: {
@@ -360,8 +354,8 @@ export async function resumeTask(
     body.effort = input.effort ?? null
   }
 
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/resume`),
+  const response = await executorApiFetch(
+    `/v1/tasks/${encodeURIComponent(taskId)}/resume`,
     {
       method: "POST",
       headers: {
@@ -389,8 +383,8 @@ export async function cancelTask(
   taskId: string,
   input: CancelTaskInput = {},
 ): Promise<TaskDetail> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}/cancel`),
+  const response = await executorApiFetch(
+    `/v1/tasks/${encodeURIComponent(taskId)}/cancel`,
     {
       method: "POST",
       headers: {
@@ -504,10 +498,8 @@ export async function uploadTaskInputImage(
     })
   }
 
-  const response = await fetch(
-    buildExecutorApiUrl(
-      `/v1/projects/${encodeURIComponent(projectId)}/task-input-files`,
-    ),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(projectId)}/task-input-files`,
     {
       method: "POST",
       headers: {
@@ -549,8 +541,8 @@ export async function uploadTaskInputImage(
 }
 
 export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/tasks/${encodeURIComponent(taskId)}`),
+  const response = await executorApiFetch(
+    `/v1/tasks/${encodeURIComponent(taskId)}`,
     {
       method: "DELETE",
     },

@@ -52,6 +52,24 @@ function toStringOrDefault(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback
 }
 
+function toBooleanOrDefault(value, fallback) {
+  if (typeof value === "boolean") {
+    return value
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase()
+    if (["1", "true", "yes", "on"].includes(normalized)) {
+      return true
+    }
+    if (["0", "false", "no", "off"].includes(normalized)) {
+      return false
+    }
+  }
+
+  return fallback
+}
+
 function toSqliteDatabaseUrl(filePath) {
   return `file:${filePath}`
 }
@@ -76,6 +94,7 @@ export const DEFAULT_APP_CONFIG = {
     host: "127.0.0.1",
     port: 3400,
     name: "harbor",
+    trustProxy: false,
   },
   fileBrowser: {
     rootDirectory: "~",
@@ -147,6 +166,10 @@ export async function resolveHarborConfig(options = {}) {
       host: toStringOrDefault(service.host, DEFAULT_APP_CONFIG.service.host),
       port: toIntegerOrDefault(service.port, DEFAULT_APP_CONFIG.service.port),
       name: toStringOrDefault(service.name, DEFAULT_APP_CONFIG.service.name),
+      trustProxy: toBooleanOrDefault(
+        service.trustProxy,
+        DEFAULT_APP_CONFIG.service.trustProxy,
+      ),
     },
     fileBrowser: {
       rootDirectory: toAbsolutePath(

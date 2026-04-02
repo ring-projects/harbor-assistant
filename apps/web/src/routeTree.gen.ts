@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as BrandRouteImport } from './routes/brand'
 import { Route as ProjectShellRouteImport } from './routes/_project-shell'
 import { Route as IndexRouteImport } from './routes/index'
@@ -17,6 +18,11 @@ import { Route as ProjectShellProjectIdRouteRouteImport } from './routes/_projec
 import { Route as ProjectShellProjectIdIndexRouteImport } from './routes/_project-shell/$projectId/index'
 import { Route as ProjectShellProjectIdSettingsRouteImport } from './routes/_project-shell/$projectId/settings'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BrandRoute = BrandRouteImport.update({
   id: '/brand',
   path: '/brand',
@@ -58,6 +64,7 @@ const ProjectShellProjectIdSettingsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/brand': typeof BrandRoute
+  '/login': typeof LoginRoute
   '/$projectId': typeof ProjectShellProjectIdRouteRouteWithChildren
   '/projects/new': typeof ProjectsNewRoute
   '/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/brand': typeof BrandRoute
+  '/login': typeof LoginRoute
   '/projects/new': typeof ProjectsNewRoute
   '/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
   '/$projectId': typeof ProjectShellProjectIdIndexRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_project-shell': typeof ProjectShellRouteWithChildren
   '/brand': typeof BrandRoute
+  '/login': typeof LoginRoute
   '/_project-shell/$projectId': typeof ProjectShellProjectIdRouteRouteWithChildren
   '/projects/new': typeof ProjectsNewRoute
   '/_project-shell/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
@@ -85,17 +94,25 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/brand'
+    | '/login'
     | '/$projectId'
     | '/projects/new'
     | '/$projectId/settings'
     | '/$projectId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/brand' | '/projects/new' | '/$projectId/settings' | '/$projectId'
+  to:
+    | '/'
+    | '/brand'
+    | '/login'
+    | '/projects/new'
+    | '/$projectId/settings'
+    | '/$projectId'
   id:
     | '__root__'
     | '/'
     | '/_project-shell'
     | '/brand'
+    | '/login'
     | '/_project-shell/$projectId'
     | '/projects/new'
     | '/_project-shell/$projectId/settings'
@@ -106,11 +123,19 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectShellRoute: typeof ProjectShellRouteWithChildren
   BrandRoute: typeof BrandRoute
+  LoginRoute: typeof LoginRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/brand': {
       id: '/brand'
       path: '/brand'
@@ -195,6 +220,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectShellRoute: ProjectShellRouteWithChildren,
   BrandRoute: BrandRoute,
+  LoginRoute: LoginRoute,
   ProjectsNewRoute: ProjectsNewRoute,
 }
 export const routeTree = rootRouteImport

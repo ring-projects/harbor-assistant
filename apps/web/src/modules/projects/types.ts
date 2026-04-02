@@ -12,6 +12,37 @@ export type GitProjectSource = {
 
 export type ProjectSource = RootPathProjectSource | GitProjectSource
 
+export type GitHubInstallation = {
+  id: string
+  accountType: "user" | "organization"
+  accountLogin: string
+  targetType: "selected" | "all"
+  status: "active" | "suspended" | "deleted"
+}
+
+export type GitHubRepository = {
+  nodeId: string
+  owner: string
+  name: string
+  fullName: string
+  url: string
+  defaultBranch: string | null
+  visibility: "public" | "private" | "internal" | null
+}
+
+export type ProjectRepositoryBinding = {
+  projectId: string
+  provider: "github"
+  installationId: string
+  repositoryOwner: string
+  repositoryName: string
+  repositoryFullName: string
+  repositoryUrl: string
+  defaultBranch: string | null
+  visibility: "public" | "private" | "internal" | null
+  workspaceState: "unprovisioned" | "ready"
+}
+
 export type Project = {
   id: string
   slug: string

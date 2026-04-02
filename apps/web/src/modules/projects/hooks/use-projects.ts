@@ -5,26 +5,39 @@ import {
   createProject,
   deleteProject,
   ProjectApiClientError,
+  provisionProjectWorkspace,
   readProject,
+  readProjectRepositoryBinding,
   readProjects,
   readProjectSettings,
+  readGitHubAppInstallUrl,
+  readGitHubInstallationRepositories,
+  readGitHubInstallations,
   restoreProject,
+  syncProjectWorkspace,
   updateProject,
   updateProjectSettings,
   type ArchiveProjectInput,
   type DeleteProjectInput,
+  type ProvisionProjectWorkspaceResult,
+  type SyncProjectWorkspaceResult,
   type UpdateProjectSettingsInput,
 } from "@/modules/projects/api"
 import type {
+  GitHubInstallation,
+  GitHubRepository,
   Project,
+  ProjectRepositoryBinding,
   ProjectSettings,
 } from "@/modules/projects/types"
 import { useAppStore } from "@/stores/app.store"
 
 export const PROJECTS_QUERY_KEY = ["projects"] as const
+export const GITHUB_INTEGRATION_QUERY_KEY = ["github-integration"] as const
 
 type ReadProjectsQueryOptions = {
   initialData?: Project[]
+  enabled?: boolean
 }
 
 export const projectSettingsQueryKey = (projectId: string) =>
@@ -32,6 +45,18 @@ export const projectSettingsQueryKey = (projectId: string) =>
 
 export const projectQueryKey = (projectId: string) =>
   [...PROJECTS_QUERY_KEY, "detail", projectId] as const
+
+export const projectRepositoryBindingQueryKey = (projectId: string) =>
+  [...PROJECTS_QUERY_KEY, "repository-binding", projectId] as const
+
+export const githubInstallUrlQueryKey = () =>
+  [...GITHUB_INTEGRATION_QUERY_KEY, "install-url"] as const
+
+export const githubInstallationsQueryKey = () =>
+  [...GITHUB_INTEGRATION_QUERY_KEY, "installations"] as const
+
+export const githubInstallationRepositoriesQueryKey = (installationId: string) =>
+  [...GITHUB_INTEGRATION_QUERY_KEY, "installations", installationId, "repositories"] as const
 
 export function getProjectActionError(error: unknown) {
   if (error instanceof ProjectApiClientError) {
@@ -50,6 +75,37 @@ export function useReadProjectsQuery(options?: ReadProjectsQueryOptions) {
     queryKey: PROJECTS_QUERY_KEY,
     queryFn: readProjects,
     initialData: options?.initialData,
+    enabled: options?.enabled,
+  })
+}
+
+export function useGitHubInstallUrlQuery(enabled = true) {
+  return useQuery<string>({
+    queryKey: githubInstallUrlQueryKey(),
+    queryFn: readGitHubAppInstallUrl,
+    enabled,
+  })
+}
+
+export function useGitHubInstallationsQuery(enabled = true) {
+  return useQuery<GitHubInstallation[]>({
+    queryKey: githubInstallationsQueryKey(),
+    queryFn: readGitHubInstallations,
+    enabled,
+  })
+}
+
+export function useGitHubInstallationRepositoriesQuery(installationId: string | null) {
+  return useQuery<GitHubRepository[]>({
+    queryKey: githubInstallationRepositoriesQueryKey(installationId ?? "none"),
+    queryFn: async () => {
+      if (!installationId) {
+        throw new ProjectApiClientError("Installation ID is required.")
+      }
+
+      return readGitHubInstallationRepositories(installationId)
+    },
+    enabled: Boolean(installationId),
   })
 }
 
@@ -78,6 +134,21 @@ export function useProjectQuery(projectId: string | null) {
       return readProject(projectId)
     },
     enabled: Boolean(projectId),
+  })
+}
+
+export function useProjectRepositoryBindingQuery(projectId: string | null, enabled = true) {
+  return useQuery<ProjectRepositoryBinding>({
+    queryKey: projectRepositoryBindingQueryKey(projectId ?? "none"),
+    queryFn: async () => {
+      if (!projectId) {
+        throw new ProjectApiClientError("Project ID is required.")
+      }
+
+      return readProjectRepositoryBinding(projectId)
+    },
+    enabled: enabled && Boolean(projectId),
+    retry: false,
   })
 }
 
@@ -137,6 +208,49 @@ export function useUpdateProjectSettingsMutation(projectId: string) {
       )
       queryClient.setQueryData(projectQueryKey(project.id), project)
       queryClient.setQueryData(projectSettingsQueryKey(projectId), project.settings)
+    },
+  })
+}
+
+function updateProvisionedProjectState(
+  queryClient: ReturnType<typeof useQueryClient>,
+  result: ProvisionProjectWorkspaceResult,
+) {
+  queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, (current) =>
+    upsertProject(current, result.project),
+  )
+  queryClient.setQueryData(projectQueryKey(result.project.id), result.project)
+  queryClient.setQueryData(projectSettingsQueryKey(result.project.id), result.project.settings)
+  queryClient.setQueryData(
+    projectRepositoryBindingQueryKey(result.project.id),
+    result.repositoryBinding,
+  )
+}
+
+export function useProvisionProjectWorkspaceMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ projectId }: { projectId: string }) =>
+      provisionProjectWorkspace(projectId),
+    onSuccess(result) {
+      updateProvisionedProjectState(queryClient, result)
+    },
+  })
+}
+
+export function useSyncProjectWorkspaceMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ projectId }: { projectId: string }) => syncProjectWorkspace(projectId),
+    onSuccess(result: SyncProjectWorkspaceResult) {
+      queryClient.invalidateQueries({
+        queryKey: projectRepositoryBindingQueryKey(result.projectId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: projectQueryKey(result.projectId),
+      })
     },
   })
 }

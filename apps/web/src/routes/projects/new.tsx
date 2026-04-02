@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import { AuthGate } from "@/modules/auth"
 import { LandingPage } from "@/modules/landing-page"
 
 export const Route = createFileRoute("/projects/new")({
@@ -7,5 +8,9 @@ export const Route = createFileRoute("/projects/new")({
 })
 
 function NewProjectPage() {
-  return <LandingPage />
+  return (
+    <AuthGate>
+      <LandingPage />
+    </AuthGate>
+  )
 }

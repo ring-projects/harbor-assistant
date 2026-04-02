@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { buildExecutorApiUrl } from "@/lib/executor-service-url"
+import { executorApiFetch } from "@/lib/executor-service-url"
 import {
   asRecord,
   parseJsonResponse,
@@ -199,10 +199,8 @@ function extractSingleOrchestration(payload: unknown): OrchestrationDetail | nul
 export async function readProjectOrchestrations(
   projectId: string,
 ): Promise<OrchestrationListItem[]> {
-  const response = await fetch(
-    buildExecutorApiUrl(
-      `/v1/projects/${encodeURIComponent(projectId)}/orchestrations`,
-    ),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(projectId)}/orchestrations`,
     {
       method: "GET",
       cache: "no-store",
@@ -221,10 +219,8 @@ export async function readProjectOrchestrations(
 export async function readOrchestration(
   orchestrationId: string,
 ): Promise<OrchestrationDetail> {
-  const response = await fetch(
-    buildExecutorApiUrl(
-      `/v1/orchestrations/${encodeURIComponent(orchestrationId)}`,
-    ),
+  const response = await executorApiFetch(
+    `/v1/orchestrations/${encodeURIComponent(orchestrationId)}`,
     {
       method: "GET",
       cache: "no-store",
@@ -254,7 +250,7 @@ export async function readOrchestration(
 export async function createOrchestration(
   input: CreateOrchestrationInput,
 ): Promise<OrchestrationDetail> {
-  const response = await fetch(buildExecutorApiUrl("/v1/orchestrations"), {
+  const response = await executorApiFetch("/v1/orchestrations", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -287,7 +283,7 @@ export async function createOrchestration(
 export async function bootstrapOrchestration(
   input: BootstrapOrchestrationInput,
 ): Promise<BootstrapOrchestrationResult> {
-  const response = await fetch(buildExecutorApiUrl("/v1/orchestrations/bootstrap"), {
+  const response = await executorApiFetch("/v1/orchestrations/bootstrap", {
     method: "POST",
     headers: {
       "content-type": "application/json",

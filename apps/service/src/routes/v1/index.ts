@@ -8,6 +8,11 @@ import {
   registerAuthModuleRoutes,
   requireAuthenticatedPreHandler,
 } from "../../modules/auth"
+import { NodeGitHubAppClient } from "../../modules/integration/github/infrastructure/node-github-app-client"
+import { createNodeProjectWorkspaceManager } from "../../modules/integration/github/infrastructure/node-project-workspace-manager"
+import { PrismaGitHubInstallationRepository } from "../../modules/integration/github/infrastructure/persistence/prisma-github-installation-repository"
+import { PrismaProjectRepositoryBindingRepository } from "../../modules/integration/github/infrastructure/persistence/prisma-project-repository-binding-repository"
+import { registerGitHubIntegrationRoutes } from "../../modules/integration/github/routes"
 import { createNodeFileSystemRepository } from "../../modules/filesystem/infrastructure/node-filesystem-repository"
 import { registerFileSystemModuleRoutes } from "../../modules/filesystem/routes"
 import { createGitCommandRepository } from "../../modules/git/infrastructure/git-command-repository"
@@ -57,6 +62,9 @@ export async function registerV1Routes(
   const orchestrationBootstrapStore = new PrismaOrchestrationBootstrapStore(prisma)
   const taskRepository = new PrismaTaskRepository(prisma)
   const taskEventProjection = new PrismaTaskEventProjection(prisma)
+  const githubInstallationRepository = new PrismaGitHubInstallationRepository(prisma)
+  const projectRepositoryBindingRepository =
+    new PrismaProjectRepositoryBindingRepository(prisma)
   const taskNotificationBus = createInMemoryTaskNotificationBus()
   const projectTaskPort = createProjectTaskPort({
     projectRepository,
@@ -97,6 +105,12 @@ export async function registerV1Routes(
     gitPathWatcher,
   })
   const gitRepository = createGitCommandRepository()
+  const githubAppClient = new NodeGitHubAppClient({
+    appSlug: config.githubAppSlug,
+    appId: config.githubAppId,
+    privateKey: config.githubAppPrivateKey,
+  })
+  const projectWorkspaceManager = createNodeProjectWorkspaceManager()
   const fileSystemRepository = createNodeFileSystemRepository()
   const bootstrapRoots = [
     {
@@ -117,9 +131,20 @@ export async function registerV1Routes(
     protectedApp.addHook("preHandler", requireAuthenticatedPreHandler)
 
     await registerAgentRoutes(protectedApp)
+    await registerGitHubIntegrationRoutes(protectedApp, {
+      config,
+      githubAppSlug: config.githubAppSlug,
+      installationRepository: githubInstallationRepository,
+      githubAppClient,
+    })
     await registerProjectModuleRoutes(protectedApp, {
       repository: projectRepository,
       pathPolicy: projectPathPolicy,
+      installationRepository: githubInstallationRepository,
+      repositoryBindingRepository: projectRepositoryBindingRepository,
+      githubAppClient,
+      workspaceManager: projectWorkspaceManager,
+      workspaceRootDirectory: `${config.harborHomeDirectory}/workspaces`,
     })
     await registerOrchestrationModuleRoutes(protectedApp, {
       repository: orchestrationRepository,

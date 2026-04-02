@@ -11,6 +11,8 @@ const REQUIRED_SQLITE_TABLES = [
   "auth_identities",
   "auth_sessions",
   "projects",
+  "github_app_installations",
+  "project_repository_bindings",
   "orchestrations",
   "tasks",
   "executions",

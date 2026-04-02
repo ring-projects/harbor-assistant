@@ -12,9 +12,16 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { parseNullablePositiveInteger } from "@/lib/utils"
 import {
   getProjectActionError,
+  ProjectApiClientError,
+  type ProjectRepositoryBinding,
   type ProjectSettings,
   useDeleteProjectMutation,
+  useGitHubInstallUrlQuery,
+  useProjectQuery,
+  useProjectRepositoryBindingQuery,
+  useProvisionProjectWorkspaceMutation,
   useProjectSettingsQuery,
+  useSyncProjectWorkspaceMutation,
   useUpdateProjectSettingsMutation,
 } from "@/modules/projects"
 
@@ -64,18 +71,64 @@ function SettingsField(props: {
   )
 }
 
+function RepositoryBindingSummary(props: {
+  binding: ProjectRepositoryBinding
+  workspacePath: string | null
+}) {
+  return (
+    <dl className="grid gap-3 text-sm">
+      <div className="grid gap-1">
+        <dt className="text-muted-foreground text-xs">Provider</dt>
+        <dd className="font-medium">GitHub</dd>
+      </div>
+      <div className="grid gap-1">
+        <dt className="text-muted-foreground text-xs">Installation</dt>
+        <dd className="font-medium">{props.binding.repositoryOwner}</dd>
+      </div>
+      <div className="grid gap-1">
+        <dt className="text-muted-foreground text-xs">Repository</dt>
+        <dd className="font-medium">{props.binding.repositoryFullName}</dd>
+      </div>
+      <div className="grid gap-1">
+        <dt className="text-muted-foreground text-xs">Branch</dt>
+        <dd className="font-medium">{props.binding.defaultBranch ?? "Not reported"}</dd>
+      </div>
+      <div className="grid gap-1">
+        <dt className="text-muted-foreground text-xs">Workspace State</dt>
+        <dd className="font-medium capitalize">{props.binding.workspaceState}</dd>
+      </div>
+      {props.workspacePath ? (
+        <div className="grid gap-1">
+          <dt className="text-muted-foreground text-xs">Workspace Path</dt>
+          <dd className="font-medium break-all">{props.workspacePath}</dd>
+        </div>
+      ) : null}
+    </dl>
+  )
+}
+
 export function ProjectSettingsView({
   projectId,
   mode = "page",
   onClose,
 }: ProjectSettingsViewProps) {
   const navigate = useNavigate()
+  const projectQuery = useProjectQuery(projectId)
   const settingsQuery = useProjectSettingsQuery(projectId)
+  const repositoryBindingQuery = useProjectRepositoryBindingQuery(
+    projectId,
+    projectQuery.data?.source.type === "git",
+  )
+  const installUrlQuery = useGitHubInstallUrlQuery(projectQuery.data?.source.type === "git")
   const updateMutation = useUpdateProjectSettingsMutation(projectId)
+  const provisionMutation = useProvisionProjectWorkspaceMutation()
+  const syncMutation = useSyncProjectWorkspaceMutation()
   const deleteMutation = useDeleteProjectMutation()
   const [draftOverride, setDraftOverride] = useState<SettingsDraft | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
+  const [repositoryActionError, setRepositoryActionError] = useState<string | null>(null)
+  const [repositoryActionSuccess, setRepositoryActionSuccess] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -145,6 +198,43 @@ export function ProjectSettingsView({
   }
 
   const summary = draft
+  const project = projectQuery.data ?? null
+  const repositoryBinding = repositoryBindingQuery.data ?? null
+  const bindingMissing =
+    repositoryBindingQuery.error instanceof ProjectApiClientError &&
+    repositoryBindingQuery.error.code === "NOT_FOUND"
+
+  async function handleProvisionWorkspace() {
+    try {
+      setRepositoryActionError(null)
+      const result = await provisionMutation.mutateAsync({ projectId })
+      setRepositoryActionSuccess(
+        `Workspace provisioned at ${result.project.rootPath ?? "the managed project path"}.`,
+      )
+    } catch (error) {
+      setRepositoryActionSuccess(null)
+      setRepositoryActionError(getProjectActionError(error))
+    }
+  }
+
+  async function handleSyncWorkspace() {
+    try {
+      setRepositoryActionError(null)
+      const result = await syncMutation.mutateAsync({ projectId })
+      setRepositoryActionSuccess(`Repository synced at ${result.syncedAt}.`)
+    } catch (error) {
+      setRepositoryActionSuccess(null)
+      setRepositoryActionError(getProjectActionError(error))
+    }
+  }
+
+  function openGitHubInstallUrl() {
+    if (!installUrlQuery.data) {
+      return
+    }
+
+    window.open(installUrlQuery.data, "_blank", "noopener,noreferrer")
+  }
 
   return (
     <div className={shellClassName}>
@@ -157,7 +247,7 @@ export function ProjectSettingsView({
             </span>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
-            Manage project-level retention policies for Harbor task data.
+            Manage repository access and project-level retention policies for Harbor task data.
           </p>
         </div>
 
@@ -213,6 +303,144 @@ export function ProjectSettingsView({
               <p className="text-muted-foreground mt-1 text-xs leading-5">
                 These values control how long Harbor keeps task logs and task events for this project.
               </p>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Repository Access</p>
+                  <p className="text-muted-foreground mt-1 text-xs leading-5">
+                    Manage GitHub App access, repository binding, and workspace lifecycle.
+                  </p>
+                </div>
+                {project?.source.type === "git" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setRepositoryActionError(null)
+                      setRepositoryActionSuccess(null)
+                      void repositoryBindingQuery.refetch()
+                      void projectQuery.refetch()
+                    }}
+                    disabled={provisionMutation.isPending || syncMutation.isPending}
+                  >
+                    Refresh
+                  </Button>
+                ) : null}
+              </div>
+
+              <Separator className="my-4" />
+
+              {projectQuery.isLoading && !project ? (
+                <div className="grid gap-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-36" />
+                </div>
+              ) : projectQuery.isError && !project ? (
+                <p className="text-sm text-red-600">
+                  {getProjectActionError(projectQuery.error)}
+                </p>
+              ) : project?.source.type === "rootPath" ? (
+                <p className="text-muted-foreground text-sm leading-6">
+                  This project is backed by a server-local path and does not use GitHub App
+                  repository access.
+                </p>
+              ) : repositoryBinding ? (
+                <div className="grid gap-4">
+                  <RepositoryBindingSummary
+                    binding={repositoryBinding}
+                    workspacePath={project?.rootPath ?? null}
+                  />
+
+                  <div className="grid gap-2">
+                    {repositoryActionError ? (
+                      <p className="text-xs text-red-600">{repositoryActionError}</p>
+                    ) : repositoryActionSuccess ? (
+                      <p className="text-xs text-emerald-600">{repositoryActionSuccess}</p>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {repositoryBinding.workspaceState === "unprovisioned" ? (
+                      <Button
+                        type="button"
+                        onClick={() => void handleProvisionWorkspace()}
+                        disabled={provisionMutation.isPending || syncMutation.isPending}
+                      >
+                        {provisionMutation.isPending
+                          ? "Provisioning..."
+                          : "Provision Workspace"}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={() => void handleSyncWorkspace()}
+                        disabled={provisionMutation.isPending || syncMutation.isPending}
+                      >
+                        {syncMutation.isPending ? "Syncing..." : "Sync Repository"}
+                      </Button>
+                    )}
+
+                    <Button variant="outline" type="button" asChild>
+                      <a
+                        href={repositoryBinding.repositoryUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View on GitHub
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              ) : bindingMissing ? (
+                <div className="grid gap-3">
+                  <p className="text-muted-foreground text-sm leading-6">
+                    This git project does not have a GitHub repository binding yet. Connect
+                    the GitHub App to grant Harbor repository access.
+                  </p>
+                  {repositoryActionError ? (
+                    <p className="text-xs text-red-600">{repositoryActionError}</p>
+                  ) : null}
+                  {installUrlQuery.error ? (
+                    <p className="text-xs text-red-600">
+                      {getProjectActionError(installUrlQuery.error)}
+                    </p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={openGitHubInstallUrl}
+                      disabled={!installUrlQuery.data}
+                    >
+                      Install GitHub App
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        void installUrlQuery.refetch()
+                        void repositoryBindingQuery.refetch()
+                      }}
+                    >
+                      Refresh Access
+                    </Button>
+                  </div>
+                </div>
+              ) : repositoryBindingQuery.isLoading ? (
+                <div className="grid gap-2">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              ) : repositoryBindingQuery.isError ? (
+                <p className="text-sm text-red-600">
+                  {getProjectActionError(repositoryBindingQuery.error)}
+                </p>
+              ) : null}
             </Card>
 
             <Card className="border-red-200 p-4">

@@ -1,6 +1,6 @@
 "use client"
 
-import { buildExecutorApiUrl } from "@/lib/executor-service-url"
+import { executorApiFetch } from "@/lib/executor-service-url"
 import type {
   DirectoryEntry,
   DirectoryListErrorResponse,
@@ -121,7 +121,7 @@ function pickBootstrapRoot(roots: DirectoryRoot[], absolutePath: string | null) 
 }
 
 export async function readBootstrapDirectoryRoots(): Promise<DirectoryRoot[]> {
-  const response = await fetch(buildExecutorApiUrl("/v1/bootstrap/filesystem/roots"), {
+  const response = await executorApiFetch("/v1/bootstrap/filesystem/roots", {
     method: "GET",
     cache: "no-store",
     headers: {
@@ -149,7 +149,7 @@ export async function readBootstrapDirectoryEntries(input: {
 }): Promise<DirectoryListSuccessResponse> {
   const roots = await readBootstrapDirectoryRoots()
   const root = pickBootstrapRoot(roots, input.path)
-  const response = await fetch(buildExecutorApiUrl("/v1/bootstrap/filesystem/list"), {
+  const response = await executorApiFetch("/v1/bootstrap/filesystem/list", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -206,8 +206,8 @@ export async function statBootstrapDirectorySelection(
     searchParams.set("path", relativePath)
   }
 
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/bootstrap/filesystem/stat?${searchParams.toString()}`),
+  const response = await executorApiFetch(
+    `/v1/bootstrap/filesystem/stat?${searchParams.toString()}`,
     {
       method: "GET",
       cache: "no-store",

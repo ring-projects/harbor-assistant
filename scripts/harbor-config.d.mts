@@ -10,6 +10,7 @@ export type HarborResolvedConfig = HarborPaths & {
     host: string
     port: number
     name: string
+    trustProxy: boolean
   }
   fileBrowser: {
     rootDirectory: string
@@ -29,6 +30,7 @@ export const DEFAULT_APP_CONFIG: {
     host: string
     port: number
     name: string
+    trustProxy: boolean
   }
   fileBrowser: {
     rootDirectory: string
@@ -55,4 +57,3 @@ export function initializeHarborConfiguration(options?: {
 export function resolveHarborConfig(options?: {
   env?: NodeJS.ProcessEnv
 }): Promise<HarborResolvedConfig>
-

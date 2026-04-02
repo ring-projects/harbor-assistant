@@ -34,6 +34,7 @@ describe("loadServiceConfig", () => {
       `file:${path.join(homeDirectory, "data", "harbor.sqlite")}`,
     )
     expect(config.fileBrowserRootDirectory).toBe(homedir())
+    expect(config.trustProxy).toBe(false)
 
     const configPath = path.join(homeDirectory, "app.yaml")
     const content = await readFile(configPath, "utf8")
@@ -52,6 +53,7 @@ describe("loadServiceConfig", () => {
         "  host: 127.0.0.1",
         "  port: 4500",
         "  name: harbor-local",
+        "  trustProxy: true",
         "fileBrowser:",
         "  rootDirectory: ./workspace",
         "task:",
@@ -72,11 +74,27 @@ describe("loadServiceConfig", () => {
     expect(config.host).toBe("127.0.0.1")
     expect(config.port).toBe(4600)
     expect(config.serviceName).toBe("harbor-local")
+    expect(config.trustProxy).toBe(true)
     expect(config.fileBrowserRootDirectory).toBe(
       path.join(homeDirectory, "workspace"),
     )
     expect(config.database).toBe(
       `file:${path.join(homeDirectory, "data", "custom.sqlite")}`,
     )
+  })
+
+  it("allows TRUST_PROXY env to override Harbor config", async () => {
+    const homeDirectory = await mkdtemp(path.join(tmpdir(), "harbor-config-home-"))
+    tempDirs.push(homeDirectory)
+
+    const config = await loadServiceConfig({
+      env: {
+        HARBOR_HOME: homeDirectory,
+        TRUST_PROXY: "true",
+        NODE_ENV: "test",
+      },
+    })
+
+    expect(config.trustProxy).toBe(true)
   })
 })

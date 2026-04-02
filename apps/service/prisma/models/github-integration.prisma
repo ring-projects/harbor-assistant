@@ -1,0 +1,63 @@
+enum GitHubInstallationAccountType {
+  user
+  organization
+}
+
+enum GitHubInstallationTargetType {
+  selected
+  all
+}
+
+enum GitHubInstallationStatus {
+  active
+  suspended
+  deleted
+}
+
+enum RepositoryAccessProvider {
+  github
+}
+
+enum RepositoryVisibility {
+  public
+  private
+  internal
+}
+
+model GitHubAppInstallation {
+  id                 String                        @id
+  accountType        GitHubInstallationAccountType
+  accountLogin       String
+  targetType         GitHubInstallationTargetType
+  status             GitHubInstallationStatus
+  installedByUserId  String?
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+  lastValidatedAt    DateTime?
+  installedByUser    User?                         @relation(fields: [installedByUserId], references: [id], onDelete: SetNull)
+  repositoryBindings ProjectRepositoryBinding[]
+
+  @@index([installedByUserId, updatedAt(sort: Desc)])
+  @@map("github_app_installations")
+}
+
+model ProjectRepositoryBinding {
+  projectId           String               @id
+  provider            RepositoryAccessProvider
+  installationId      String
+  repositoryNodeId    String?
+  repositoryOwner     String
+  repositoryName      String
+  repositoryFullName  String
+  repositoryUrl       String
+  defaultBranch       String?
+  visibility          RepositoryVisibility?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  lastVerifiedAt      DateTime?
+  project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  installation        GitHubAppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, installationId, repositoryFullName])
+  @@map("project_repository_bindings")
+}

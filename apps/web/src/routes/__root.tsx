@@ -20,6 +20,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
 
 import { QueryProvider } from "@/components/providers/query-provider"
+import { AuthErrorPage } from "@/modules/auth"
 import { AddProjectModal } from "@/modules/projects/modal"
 
 export const Route = createRootRoute({
@@ -57,6 +58,7 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootDocument,
+  errorComponent: RootErrorBoundary,
 })
 
 function RootDocument() {
@@ -70,6 +72,44 @@ function RootDocument() {
           <main>
             <Outlet />
           </main>
+          <AddProjectModal />
+          {import.meta.env.DEV ? (
+            <TanStackRouterDevtools position="bottom-right" />
+          ) : null}
+        </QueryProvider>
+        <Scripts />
+      </body>
+    </html>
+  )
+}
+
+type ApiErrorLike = {
+  message?: string
+  code?: string
+  status?: number
+}
+
+function isApiErrorLike(error: unknown): error is ApiErrorLike {
+  return typeof error === "object" && error !== null
+}
+
+function RootErrorBoundary(props: { error: unknown; reset: () => void }) {
+  const { error, reset } = props
+  const apiError = isApiErrorLike(error) ? error : null
+
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <HeadContent />
+      </head>
+      <body className="bg-background text-foreground font-sans antialiased">
+        <QueryProvider>
+          <AuthErrorPage
+            code={apiError?.code}
+            status={apiError?.status}
+            message={apiError?.message}
+            onRetry={reset}
+          />
           <AddProjectModal />
           {import.meta.env.DEV ? (
             <TanStackRouterDevtools position="bottom-right" />

@@ -13,6 +13,7 @@ function createAuthTestConfig(): ServiceConfig {
   return {
     port: 3400,
     host: "127.0.0.1",
+    trustProxy: false,
     serviceName: "harbor-test",
     database: "file:test.sqlite",
     fileBrowserRootDirectory: "/tmp",
@@ -25,6 +26,10 @@ function createAuthTestConfig(): ServiceConfig {
     webBaseUrl: "http://127.0.0.1:3000/app",
     githubClientId: "github-client-id",
     githubClientSecret: "github-client-secret",
+    githubAppSlug: undefined,
+    githubAppId: undefined,
+    githubAppPrivateKey: undefined,
+    githubAppWebhookSecret: undefined,
     allowedGitHubUsers: [],
     allowedGitHubOrgs: [],
   }
@@ -49,19 +54,21 @@ async function createAuthTestApp(
     }
   },
 ) {
+  const config = options?.config ?? createAuthTestConfig()
   const app = Fastify({
     logger: false,
+    trustProxy: config.trustProxy,
   })
 
   app.decorate("prisma", prisma)
   await app.register(errorHandlerPlugin)
   await app.register(authSessionPlugin, {
-    config: options?.config ?? createAuthTestConfig(),
+    config,
   })
   await app.register(
     async (instance) => {
       await registerAuthModuleRoutes(instance, {
-        config: options?.config ?? createAuthTestConfig(),
+        config,
         githubClient: options?.githubClient,
       })
     },
@@ -130,6 +137,34 @@ describe("auth routes", () => {
     expect(response.headers.location).toContain("client_id=github-client-id")
     expect(extractCookie(response.headers, "harbor_github_oauth_state")).toContain(
       "Max-Age=600",
+    )
+
+    await app.close()
+  })
+
+  it("builds an https OAuth callback from forwarded headers when trustProxy is enabled", async () => {
+    testDatabase = await createTestDatabase()
+    const config = {
+      ...createAuthTestConfig(),
+      appBaseUrl: undefined,
+      trustProxy: true,
+    }
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      config,
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start",
+      headers: {
+        host: "service.example.com",
+        "x-forwarded-proto": "https",
+      },
+    })
+
+    expect(response.statusCode).toBe(302)
+    expect(response.headers.location).toContain(
+      "redirect_uri=https%3A%2F%2Fservice.example.com%2Fv1%2Fauth%2Fgithub%2Fcallback",
     )
 
     await app.close()

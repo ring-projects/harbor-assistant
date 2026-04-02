@@ -12,6 +12,7 @@ function createConfig(): ServiceConfig {
   return {
     port: 3400,
     host: "127.0.0.1",
+    trustProxy: false,
     serviceName: "harbor",
     database: "https://example.com/db",
     fileBrowserRootDirectory: "/tmp",
@@ -20,6 +21,10 @@ function createConfig(): ServiceConfig {
     harborConfigPath: "/tmp/harbor/config.json",
     harborHomeDirectory: "/tmp/harbor",
     taskDatabaseFile: "/tmp/harbor/task.db",
+    githubAppSlug: undefined,
+    githubAppId: undefined,
+    githubAppPrivateKey: undefined,
+    githubAppWebhookSecret: undefined,
     allowedGitHubUsers: [],
     allowedGitHubOrgs: [],
   }

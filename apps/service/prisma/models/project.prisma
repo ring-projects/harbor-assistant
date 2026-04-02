@@ -32,6 +32,7 @@ model Project {
   owner                User?         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   tasks                Task[]
   orchestrations       Orchestration[]
+  repositoryBinding    ProjectRepositoryBinding?
 
   @@index([ownerUserId, updatedAt(sort: Desc)])
   @@index([status, updatedAt(sort: Desc)])

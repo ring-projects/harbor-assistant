@@ -22,6 +22,7 @@ async function createConfig(): Promise<ServiceConfig> {
   return {
     port: 3400,
     host: "127.0.0.1",
+    trustProxy: false,
     serviceName: "harbor",
     database: databaseUrl,
     fileBrowserRootDirectory: rootPath,
@@ -30,6 +31,10 @@ async function createConfig(): Promise<ServiceConfig> {
     harborConfigPath: path.join(rootPath, "harbor-config.json"),
     harborHomeDirectory: path.join(rootPath, ".harbor"),
     taskDatabaseFile: path.join(rootPath, "task.db"),
+    githubAppSlug: undefined,
+    githubAppId: undefined,
+    githubAppPrivateKey: undefined,
+    githubAppWebhookSecret: undefined,
     allowedGitHubUsers: [],
     allowedGitHubOrgs: [],
   }

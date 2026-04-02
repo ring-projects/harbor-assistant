@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { buildExecutorApiUrl } from "@/lib/executor-service-url"
+import { executorApiFetch } from "@/lib/executor-service-url"
 import {
   asRecord,
   parseJsonResponse,
@@ -13,7 +13,10 @@ import {
   toStringOrNull,
 } from "@/lib/protocol"
 import type {
+  GitHubInstallation,
+  GitHubRepository,
   Project,
+  ProjectRepositoryBinding,
   ProjectSettings,
   ProjectSource,
 } from "@/modules/projects/types"
@@ -58,6 +61,11 @@ export type CreateProjectInput = {
         repositoryUrl: string
         branch?: string | null
       }
+      repositoryBinding?: {
+        provider: "github"
+        installationId: string
+        repositoryFullName: string
+      }
     }
 )
 
@@ -78,6 +86,16 @@ export type DeleteProjectInput = {
 
 export type DeleteProjectResult = {
   projectId: string
+}
+
+export type ProvisionProjectWorkspaceResult = {
+  project: Project
+  repositoryBinding: ProjectRepositoryBinding
+}
+
+export type SyncProjectWorkspaceResult = {
+  projectId: string
+  syncedAt: string
 }
 
 export type UpdateProjectSettingsInput = {
@@ -146,6 +164,148 @@ function extractProjectSettings(candidate: unknown): ProjectSettings | null {
       harborSkillsEnabled,
       harborSkillProfile: toStringOrNull(skills.harborSkillProfile),
     },
+  }
+}
+
+function isInstallationAccountType(
+  value: string | null,
+): value is GitHubInstallation["accountType"] {
+  return value === "user" || value === "organization"
+}
+
+function isInstallationTargetType(
+  value: string | null,
+): value is GitHubInstallation["targetType"] {
+  return value === "selected" || value === "all"
+}
+
+function isInstallationStatus(
+  value: string | null,
+): value is GitHubInstallation["status"] {
+  return value === "active" || value === "suspended" || value === "deleted"
+}
+
+function isRepositoryVisibility(
+  value: string | null,
+): value is GitHubRepository["visibility"] {
+  return value === null || value === "public" || value === "private" || value === "internal"
+}
+
+function isRepositoryWorkspaceState(
+  value: string | null,
+): value is ProjectRepositoryBinding["workspaceState"] {
+  return value === "unprovisioned" || value === "ready"
+}
+
+function extractGitHubInstallation(candidate: unknown): GitHubInstallation | null {
+  const source = asRecord(candidate)
+  if (!source) {
+    return null
+  }
+
+  const id = toStringOrNull(source.id)
+  const accountType = toStringOrNull(source.accountType)
+  const accountLogin = toStringOrNull(source.accountLogin)
+  const targetType = toStringOrNull(source.targetType)
+  const status = toStringOrNull(source.status)
+
+  if (
+    !id ||
+    !accountLogin ||
+    !isInstallationAccountType(accountType) ||
+    !isInstallationTargetType(targetType) ||
+    !isInstallationStatus(status)
+  ) {
+    return null
+  }
+
+  return {
+    id,
+    accountType,
+    accountLogin,
+    targetType,
+    status,
+  }
+}
+
+function extractGitHubRepository(candidate: unknown): GitHubRepository | null {
+  const source = asRecord(candidate)
+  if (!source) {
+    return null
+  }
+
+  const nodeId = toStringOrNull(source.nodeId)
+  const owner = toStringOrNull(source.owner)
+  const name = toStringOrNull(source.name)
+  const fullName = toStringOrNull(source.fullName)
+  const url = toStringOrNull(source.url)
+  const visibility = toStringOrNull(source.visibility)
+
+  if (
+    !nodeId ||
+    !owner ||
+    !name ||
+    !fullName ||
+    !url ||
+    !isRepositoryVisibility(visibility)
+  ) {
+    return null
+  }
+
+  return {
+    nodeId,
+    owner,
+    name,
+    fullName,
+    url,
+    defaultBranch: toStringOrNull(source.defaultBranch),
+    visibility,
+  }
+}
+
+function extractProjectRepositoryBinding(
+  candidate: unknown,
+): ProjectRepositoryBinding | null {
+  const source = asRecord(candidate)
+  if (!source) {
+    return null
+  }
+
+  const projectId = toStringOrNull(source.projectId)
+  const provider = toStringOrNull(source.provider)
+  const installationId = toStringOrNull(source.installationId)
+  const repositoryOwner = toStringOrNull(source.repositoryOwner)
+  const repositoryName = toStringOrNull(source.repositoryName)
+  const repositoryFullName = toStringOrNull(source.repositoryFullName)
+  const repositoryUrl = toStringOrNull(source.repositoryUrl)
+  const visibility = toStringOrNull(source.visibility)
+  const workspaceState = toStringOrNull(source.workspaceState)
+
+  if (
+    !projectId ||
+    provider !== "github" ||
+    !installationId ||
+    !repositoryOwner ||
+    !repositoryName ||
+    !repositoryFullName ||
+    !repositoryUrl ||
+    !isRepositoryVisibility(visibility) ||
+    !isRepositoryWorkspaceState(workspaceState)
+  ) {
+    return null
+  }
+
+  return {
+    projectId,
+    provider,
+    installationId,
+    repositoryOwner,
+    repositoryName,
+    repositoryFullName,
+    repositoryUrl,
+    defaultBranch: toStringOrNull(source.defaultBranch),
+    visibility,
+    workspaceState,
   }
 }
 
@@ -260,8 +420,85 @@ function extractSettingsPayload(payload: unknown): ProjectSettings | null {
   return extractProjectSettings(source.settings)
 }
 
+function extractInstallUrlPayload(payload: unknown): string | null {
+  return pickString(asRecord(payload), "installUrl")
+}
+
+function extractGitHubInstallationsPayload(payload: unknown): GitHubInstallation[] | null {
+  const source = asRecord(payload)
+  if (!source || !Array.isArray(source.installations)) {
+    return null
+  }
+
+  return source.installations
+    .map((item) => extractGitHubInstallation(item))
+    .filter((item): item is GitHubInstallation => item !== null)
+}
+
+function extractGitHubRepositoriesPayload(payload: unknown): GitHubRepository[] | null {
+  const source = asRecord(payload)
+  if (!source || !Array.isArray(source.repositories)) {
+    return null
+  }
+
+  return source.repositories
+    .map((item) => extractGitHubRepository(item))
+    .filter((item): item is GitHubRepository => item !== null)
+}
+
+function extractProjectRepositoryBindingPayload(
+  payload: unknown,
+): ProjectRepositoryBinding | null {
+  const source = asRecord(payload)
+  if (!source) {
+    return null
+  }
+
+  return extractProjectRepositoryBinding(source.repositoryBinding)
+}
+
+function extractProvisionProjectWorkspacePayload(
+  payload: unknown,
+): ProvisionProjectWorkspaceResult | null {
+  const source = asRecord(payload)
+  if (!source) {
+    return null
+  }
+
+  const project = extractProject(source.project)
+  const repositoryBinding = extractProjectRepositoryBinding(source.repositoryBinding)
+
+  if (!project || !repositoryBinding) {
+    return null
+  }
+
+  return {
+    project,
+    repositoryBinding,
+  }
+}
+
+function extractSyncProjectWorkspacePayload(
+  payload: unknown,
+): SyncProjectWorkspaceResult | null {
+  const source = asRecord(payload)
+  if (!source) {
+    return null
+  }
+
+  const projectId = toStringOrNull(source.projectId)
+  if (!projectId) {
+    return null
+  }
+
+  return {
+    projectId,
+    syncedAt: toIsoDateString(source.syncedAt),
+  }
+}
+
 export async function readProjects(): Promise<Project[]> {
-  const response = await fetch(buildExecutorApiUrl("/v1/projects"), {
+  const response = await executorApiFetch("/v1/projects", {
     method: "GET",
     cache: "no-store",
     headers: {
@@ -284,18 +521,30 @@ export async function readProjects(): Promise<Project[]> {
 }
 
 export async function createProject(input: CreateProjectInput): Promise<Project> {
-  const response = await fetch(buildExecutorApiUrl("/v1/projects"), {
+  const body =
+    input.source.type === "git"
+      ? {
+          id: crypto.randomUUID(),
+          name: input.name,
+          description: input.description,
+          source: input.source,
+          repositoryBinding:
+            "repositoryBinding" in input ? input.repositoryBinding : undefined,
+        }
+      : {
+          id: crypto.randomUUID(),
+          name: input.name,
+          description: input.description,
+          source: input.source,
+        }
+
+  const response = await executorApiFetch("/v1/projects", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       accept: "application/json",
     },
-    body: JSON.stringify({
-      id: crypto.randomUUID(),
-      name: input.name,
-      description: input.description,
-      source: input.source,
-    }),
+    body: JSON.stringify(body),
   })
 
   const payload = await parseJson(response)
@@ -312,9 +561,83 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
   return project
 }
 
+export async function readGitHubAppInstallUrl(): Promise<string> {
+  const response = await executorApiFetch("/v1/integrations/github/app/install-url", {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      accept: "application/json",
+    },
+  })
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to load GitHub App install URL.")
+
+  const installUrl = extractInstallUrlPayload(payload)
+  if (!installUrl) {
+    throw new ProjectApiClientError("GitHub App install URL payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return installUrl
+}
+
+export async function readGitHubInstallations(): Promise<GitHubInstallation[]> {
+  const response = await executorApiFetch("/v1/integrations/github/installations", {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      accept: "application/json",
+    },
+  })
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to load GitHub installations.")
+
+  const installations = extractGitHubInstallationsPayload(payload)
+  if (!installations) {
+    throw new ProjectApiClientError("GitHub installations payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return installations
+}
+
+export async function readGitHubInstallationRepositories(
+  installationId: string,
+): Promise<GitHubRepository[]> {
+  const response = await executorApiFetch(
+    `/v1/integrations/github/installations/${encodeURIComponent(installationId)}/repositories`,
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+      },
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to load GitHub repositories.")
+
+  const repositories = extractGitHubRepositoriesPayload(payload)
+  if (!repositories) {
+    throw new ProjectApiClientError("GitHub repositories payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return repositories
+}
+
 export async function updateProject(input: UpdateProjectInput): Promise<Project> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/projects/${encodeURIComponent(input.id)}`),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(input.id)}`,
     {
       method: "PATCH",
       headers: {
@@ -343,9 +666,40 @@ export async function updateProject(input: UpdateProjectInput): Promise<Project>
   return project
 }
 
+export async function readProjectRepositoryBinding(
+  projectId: string,
+): Promise<ProjectRepositoryBinding> {
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(projectId)}/repository-binding`,
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+      },
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to load project repository binding.")
+
+  const repositoryBinding = extractProjectRepositoryBindingPayload(payload)
+  if (!repositoryBinding) {
+    throw new ProjectApiClientError(
+      "Project repository binding payload is invalid.",
+      {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        status: response.status,
+      },
+    )
+  }
+
+  return repositoryBinding
+}
+
 export async function readProject(projectId: string): Promise<Project> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/projects/${encodeURIComponent(projectId)}`),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(projectId)}`,
     {
       method: "GET",
       cache: "no-store",
@@ -370,8 +724,8 @@ export async function readProject(projectId: string): Promise<Project> {
 }
 
 export async function readProjectSettings(projectId: string): Promise<ProjectSettings> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/projects/${encodeURIComponent(projectId)}/settings`),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(projectId)}/settings`,
     {
       method: "GET",
       cache: "no-store",
@@ -398,10 +752,8 @@ export async function readProjectSettings(projectId: string): Promise<ProjectSet
 export async function updateProjectSettings(
   input: UpdateProjectSettingsInput,
 ): Promise<Project> {
-  const response = await fetch(
-    buildExecutorApiUrl(
-      `/v1/projects/${encodeURIComponent(input.projectId)}/settings`,
-    ),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(input.projectId)}/settings`,
     {
       method: "PATCH",
       headers: {
@@ -429,9 +781,66 @@ export async function updateProjectSettings(
   return project
 }
 
+export async function provisionProjectWorkspace(
+  projectId: string,
+): Promise<ProvisionProjectWorkspaceResult> {
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(projectId)}/provision-workspace`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+      },
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to provision project workspace.")
+
+  const result = extractProvisionProjectWorkspacePayload(payload)
+  if (!result) {
+    throw new ProjectApiClientError(
+      "Provision project workspace payload is invalid.",
+      {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        status: response.status,
+      },
+    )
+  }
+
+  return result
+}
+
+export async function syncProjectWorkspace(
+  projectId: string,
+): Promise<SyncProjectWorkspaceResult> {
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(projectId)}/sync`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+      },
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to sync project workspace.")
+
+  const result = extractSyncProjectWorkspacePayload(payload)
+  if (!result) {
+    throw new ProjectApiClientError("Sync project workspace payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return result
+}
+
 export async function archiveProject(input: ArchiveProjectInput): Promise<Project> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/projects/${encodeURIComponent(input.projectId)}/archive`),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(input.projectId)}/archive`,
     {
       method: "POST",
       headers: {
@@ -455,8 +864,8 @@ export async function archiveProject(input: ArchiveProjectInput): Promise<Projec
 }
 
 export async function restoreProject(input: ArchiveProjectInput): Promise<Project> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/projects/${encodeURIComponent(input.projectId)}/restore`),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(input.projectId)}/restore`,
     {
       method: "POST",
       headers: {
@@ -482,8 +891,8 @@ export async function restoreProject(input: ArchiveProjectInput): Promise<Projec
 export async function deleteProject(
   input: DeleteProjectInput,
 ): Promise<DeleteProjectResult> {
-  const response = await fetch(
-    buildExecutorApiUrl(`/v1/projects/${encodeURIComponent(input.projectId)}`),
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(input.projectId)}`,
     {
       method: "DELETE",
       headers: {

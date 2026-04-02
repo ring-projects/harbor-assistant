@@ -33,6 +33,7 @@ export async function buildServiceApp(
 
   const app = Fastify({
     logger,
+    trustProxy: config.trustProxy,
   })
 
   await app.register(cors, {

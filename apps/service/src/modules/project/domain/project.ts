@@ -325,6 +325,27 @@ export function relocateProjectRoot(
   }
 }
 
+export function attachProjectWorkspace(
+  project: Project,
+  input: {
+    normalizedPath: string
+    rootPath?: string
+  },
+  now = new Date(),
+): Project {
+  requireNonEmpty(input.normalizedPath, "normalizedPath")
+
+  const normalizedPath = input.normalizedPath.trim()
+  const rootPath = input.rootPath?.trim() || normalizedPath
+
+  return {
+    ...project,
+    rootPath,
+    normalizedPath,
+    updatedAt: now,
+  }
+}
+
 export function hasProjectWorkspace(project: Project): project is Project & {
   rootPath: string
   normalizedPath: string

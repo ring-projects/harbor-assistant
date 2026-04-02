@@ -20,3 +20,10 @@ export function buildExecutorApiUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
   return `${getExecutorApiBaseUrl()}${normalizedPath}`
 }
+
+export function executorApiFetch(path: string, init?: RequestInit) {
+  return fetch(buildExecutorApiUrl(path), {
+    ...init,
+    credentials: "include",
+  })
+}

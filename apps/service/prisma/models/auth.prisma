@@ -20,6 +20,7 @@ model User {
   identities   AuthIdentity[]
   sessions     AuthSession[]
   projects     Project[]
+  githubAppInstallations GitHubAppInstallation[]
 
   @@index([status, updatedAt(sort: Desc)])
   @@map("users")
