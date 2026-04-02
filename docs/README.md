@@ -59,6 +59,7 @@
 4. [file-quick-preview-design-2026-04-01.md](./file-quick-preview-design-2026-04-01.md)
 5. [chat-visual-style-guardrails-2026-03-29.md](./chat-visual-style-guardrails-2026-03-29.md)
 6. [frontend-testing.md](./frontend-testing.md)
+7. [web-cloudflare-workers-deployment-2026-04-01.md](./web-cloudflare-workers-deployment-2026-04-01.md)
 
 ## 分类
 
