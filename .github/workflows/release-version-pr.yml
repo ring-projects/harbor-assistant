@@ -24,9 +24,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.11.1
+          cache: pnpm
 
       - name: Enable Corepack
         run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Create or update version PR
         uses: changesets/action@v1
