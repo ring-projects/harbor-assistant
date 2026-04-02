@@ -13,15 +13,13 @@ function createAuthTestConfig(): ServiceConfig {
   return {
     port: 3400,
     host: "127.0.0.1",
-    trustProxy: false,
     serviceName: "harbor-test",
     database: "file:test.sqlite",
     fileBrowserRootDirectory: "/tmp",
+    workspaceRootDirectory: "/tmp/workspaces",
+    publicSkillsRootDirectory: "/tmp/skills/profiles/default",
     nodeEnv: "test",
     isProduction: false,
-    harborConfigPath: "/tmp/harbor-config.yaml",
-    harborHomeDirectory: "/tmp/.harbor",
-    taskDatabaseFile: "/tmp/task.sqlite",
     appBaseUrl: "http://127.0.0.1:3400",
     webBaseUrl: "http://127.0.0.1:3000/app",
     githubClientId: "github-client-id",
@@ -57,7 +55,6 @@ async function createAuthTestApp(
   const config = options?.config ?? createAuthTestConfig()
   const app = Fastify({
     logger: false,
-    trustProxy: config.trustProxy,
   })
 
   app.decorate("prisma", prisma)
@@ -142,12 +139,11 @@ describe("auth routes", () => {
     await app.close()
   })
 
-  it("builds an https OAuth callback from forwarded headers when trustProxy is enabled", async () => {
+  it("uses the configured appBaseUrl for the GitHub OAuth callback", async () => {
     testDatabase = await createTestDatabase()
     const config = {
       ...createAuthTestConfig(),
-      appBaseUrl: undefined,
-      trustProxy: true,
+      appBaseUrl: "https://service.example.com",
     }
     const app = await createAuthTestApp(testDatabase.prisma, {
       config,
@@ -156,10 +152,6 @@ describe("auth routes", () => {
     const response = await app.inject({
       method: "GET",
       url: "/v1/auth/github/start",
-      headers: {
-        host: "service.example.com",
-        "x-forwarded-proto": "https",
-      },
     })
 
     expect(response.statusCode).toBe(302)

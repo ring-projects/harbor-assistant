@@ -1,0 +1,19 @@
+{
+  "service": {
+    "host": "127.0.0.1",
+    "port": 3400,
+    "name": "harbor"
+  },
+  "paths": {
+    "runtimeRootDirectory": "./.harbor",
+    "fileBrowserRootDirectory": "../.."
+  },
+  "urls": {
+    "appBaseUrl": "http://127.0.0.1:3400",
+    "webBaseUrl": "http://127.0.0.1:3000/app"
+  },
+  "auth": {
+    "allowedGitHubUsers": [],
+    "allowedGitHubOrgs": []
+  }
+}

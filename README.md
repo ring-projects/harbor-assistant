@@ -121,7 +121,7 @@ Key service settings include:
 - workspace root
 - file browser root
 - service/web base URLs
-- trust proxy and listen address
+- listen address
 
 For local SQLite, the service will initialize schema state on startup when needed by running `prisma db push --skip-generate`.
 
@@ -143,8 +143,8 @@ To enable those flows, configure the service with the relevant GitHub settings:
 
 Optional allow-lists:
 
-- `ALLOWED_GITHUB_USERS`
-- `ALLOWED_GITHUB_ORGS`
+- `auth.allowedGitHubUsers`
+- `auth.allowedGitHubOrgs` in `apps/service/harbor.config.json`
 
 Without those GitHub settings, Harbor can still run locally, but GitHub sign-in and GitHub repository onboarding will not be available.
 

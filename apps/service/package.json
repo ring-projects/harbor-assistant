@@ -12,9 +12,11 @@
     "test:watch": "vitest",
     "lint": "pnpm run typecheck",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "db:generate": "node ../../scripts/run-service-prisma.mjs generate",
-    "db:push": "node ../../scripts/run-service-prisma.mjs db push --skip-generate",
-    "db:studio": "node ../../scripts/run-service-prisma.mjs studio"
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push --skip-generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.81",

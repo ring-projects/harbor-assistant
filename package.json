@@ -9,10 +9,9 @@
   },
   "scripts": {
     "changeset": "pnpm dlx @changesets/cli",
-    "init:harbor": "node scripts/init.mjs",
     "dev": "pnpm run dev:web",
-    "dev:all": "pnpm run init:harbor && pnpm -r --filter '@harbor/*' dev",
-    "dev:web": "pnpm run init:harbor && pnpm --dir apps/web dev",
+    "dev:all": "pnpm -r --filter '@harbor/*' dev",
+    "dev:web": "pnpm --dir apps/web dev",
     "test:web": "pnpm --dir apps/web test",
     "build:web": "pnpm --dir apps/web build",
     "start:web": "pnpm --dir apps/web start",

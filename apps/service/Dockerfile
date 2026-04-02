@@ -48,6 +48,8 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/apps/service/dist ./apps/service/dist
 COPY --from=builder /app/apps/service/prisma ./apps/service/prisma
 COPY --from=builder /app/apps/service/prisma.config.ts ./apps/service/prisma.config.ts
+COPY --from=builder /app/apps/service/harbor.config.json ./apps/service/harbor.config.json
+COPY --from=builder /app/apps/service/harbor.docker.json ./apps/service/harbor.docker.json
 COPY --from=builder /app/apps/service/public-skills ./apps/service/public-skills
 COPY --from=builder /app/apps/service/docker-entrypoint.sh ./apps/service/docker-entrypoint.sh
 
@@ -57,18 +59,14 @@ RUN mkdir -p /var/lib/harbor /workspace \
   && chmod +x /app/apps/service/docker-entrypoint.sh
 
 ENV NODE_ENV=production \
-  HOST=0.0.0.0 \
-  PORT=3400 \
-  TRUST_PROXY=false \
   APP_VERSION=$APP_VERSION \
   GIT_SHA=$GIT_SHA \
   BUILD_TIME=$BUILD_TIME \
-  HARBOR_HOME=/var/lib/harbor \
-  FILE_BROWSER_ROOT_DIRECTORY=/workspace
+  HARBOR_CONFIG_PATH=/app/apps/service/harbor.docker.json
 
 EXPOSE 3400
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || 3400) + '/healthz').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:3400/healthz').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 ENTRYPOINT ["tini", "--", "/app/apps/service/docker-entrypoint.sh"]

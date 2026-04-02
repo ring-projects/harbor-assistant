@@ -31,23 +31,6 @@ function ensureGitHubOAuthConfigured(config: ServiceConfig) {
   }
 }
 
-function buildApiBaseUrl(config: ServiceConfig, request: { protocol: string; headers: { host?: string } }) {
-  if (config.appBaseUrl) {
-    return config.appBaseUrl
-  }
-
-  const host = request.headers.host?.trim()
-  if (!host) {
-    throw new AppError(
-      ERROR_CODES.AUTH_NOT_CONFIGURED,
-      500,
-      "Unable to determine service base URL for OAuth callback.",
-    )
-  }
-
-  return `${request.protocol}://${host}`
-}
-
 function buildWebLoginRedirectUrl(config: ServiceConfig, errorCode: string) {
   if (!config.webBaseUrl) {
     return null
@@ -114,11 +97,13 @@ export async function registerAuthModuleRoutes(
 
   app.get(
     "/auth/github/start",
-    async (request, reply) => {
+    async (_request, reply) => {
       ensureGitHubOAuthConfigured(options.config)
 
-      const apiBaseUrl = buildApiBaseUrl(options.config, request)
-      const redirectUri = new URL("/v1/auth/github/callback", apiBaseUrl).toString()
+      const redirectUri = new URL(
+        "/v1/auth/github/callback",
+        options.config.appBaseUrl,
+      ).toString()
       const state = createOAuthState()
       const authorizeUrl = createGitHubAuthorizeUrl({
         clientId: options.config.githubClientId!,
@@ -164,8 +149,10 @@ export async function registerAuthModuleRoutes(
           )
         }
 
-        const apiBaseUrl = buildApiBaseUrl(options.config, request)
-        const redirectUri = new URL("/v1/auth/github/callback", apiBaseUrl).toString()
+        const redirectUri = new URL(
+          "/v1/auth/github/callback",
+          options.config.appBaseUrl,
+        ).toString()
         const githubClient =
           options.githubClient ??
           new GitHubOAuthClient({

@@ -1,16 +1,19 @@
-import { z } from "zod"
+import { access, readFile } from "node:fs/promises"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
-import { resolveHarborConfig } from "../../../scripts/harbor-config.mjs"
+import { z } from "zod"
 
 const configSchema = z.object({
   port: z.coerce.number().int().default(3400),
   host: z.string().default("127.0.0.1"),
-  trustProxy: z.boolean().default(false),
   serviceName: z.string().default("harbor"),
-  database: z.url(),
+  database: z.string().min(1),
   fileBrowserRootDirectory: z.string().min(1),
+  workspaceRootDirectory: z.string().min(1),
+  publicSkillsRootDirectory: z.string().min(1),
   nodeEnv: z.enum(["development", "test", "production"]).default("development"),
-  appBaseUrl: z.url().optional(),
+  appBaseUrl: z.url(),
   webBaseUrl: z.url().optional(),
   githubClientId: z.string().min(1).optional(),
   githubClientSecret: z.string().min(1).optional(),
@@ -22,61 +25,132 @@ const configSchema = z.object({
   allowedGitHubOrgs: z.array(z.string().min(1)).default([]),
 })
 
-function parseCsvEnv(value: string | undefined) {
-  if (!value) {
-    return []
-  }
+const fileConfigSchema = z.object({
+  service: z
+    .object({
+      host: z.string().min(1).optional(),
+      port: z.coerce.number().int().optional(),
+      name: z.string().min(1).optional(),
+    })
+    .optional(),
+  paths: z
+    .object({
+      runtimeRootDirectory: z.string().min(1).optional(),
+      fileBrowserRootDirectory: z.string().min(1).optional(),
+      workspaceRootDirectory: z.string().min(1).optional(),
+      publicSkillsRootDirectory: z.string().min(1).optional(),
+    })
+    .optional(),
+  urls: z
+    .object({
+      appBaseUrl: z.url().optional(),
+      webBaseUrl: z.url().optional(),
+    })
+    .optional(),
+  auth: z
+    .object({
+      allowedGitHubUsers: z.array(z.string().min(1)).optional(),
+      allowedGitHubOrgs: z.array(z.string().min(1)).optional(),
+    })
+    .optional(),
+})
 
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean)
+function getServiceRootDirectory() {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 }
 
-function parseBooleanEnv(value: string | undefined) {
-  if (!value) {
-    return undefined
-  }
+function resolveAbsolutePath(value: string, baseDirectory: string) {
+  return path.isAbsolute(value) ? path.resolve(value) : path.resolve(baseDirectory, value)
+}
 
-  const normalized = value.trim().toLowerCase()
-  if (["1", "true", "yes", "on"].includes(normalized)) {
+async function pathExists(pathname: string) {
+  try {
+    await access(pathname)
     return true
-  }
-
-  if (["0", "false", "no", "off"].includes(normalized)) {
+  } catch {
     return false
   }
+}
 
-  return undefined
+async function loadServiceFileConfig(args: {
+  configPath: string
+  isExplicitPath: boolean
+}) {
+  const exists = await pathExists(args.configPath)
+  if (!exists) {
+    if (args.isExplicitPath) {
+      throw new Error(`Missing Harbor service config file: ${args.configPath}`)
+    }
+
+    return {}
+  }
+
+  const raw = await readFile(args.configPath, "utf8")
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (error) {
+    throw new Error(
+      `Invalid Harbor service config at ${args.configPath}: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+
+  const validated = fileConfigSchema.safeParse(parsed)
+  if (!validated.success) {
+    throw new Error(
+      `Invalid Harbor service config: ${JSON.stringify(validated.error.flatten())}`,
+    )
+  }
+
+  return validated.data
 }
 
 export async function loadServiceConfig(args?: {
   env?: NodeJS.ProcessEnv
 }) {
   const env = args?.env ?? process.env
-  const harbor = await resolveHarborConfig({ env })
-  const harborService = harbor.service as typeof harbor.service & {
-    trustProxy?: boolean
-  }
+  const serviceRootDirectory = getServiceRootDirectory()
+  const explicitConfigPath = env.HARBOR_CONFIG_PATH?.trim()
+  const configPath = explicitConfigPath
+    ? resolveAbsolutePath(explicitConfigPath, process.cwd())
+    : path.join(serviceRootDirectory, "harbor.config.json")
+  const fileConfig = await loadServiceFileConfig({
+    configPath,
+    isExplicitPath: Boolean(explicitConfigPath),
+  })
+  const configDirectory = path.dirname(configPath)
+  const runtimeRootDirectory = fileConfig.paths?.runtimeRootDirectory
+    ? resolveAbsolutePath(fileConfig.paths.runtimeRootDirectory, configDirectory)
+    : path.join(serviceRootDirectory, ".harbor")
+  const fileBrowserRootDirectory = fileConfig.paths?.fileBrowserRootDirectory
+    ? resolveAbsolutePath(fileConfig.paths.fileBrowserRootDirectory, configDirectory)
+    : path.resolve(serviceRootDirectory, "../..")
+  const workspaceRootDirectory = fileConfig.paths?.workspaceRootDirectory
+    ? resolveAbsolutePath(fileConfig.paths.workspaceRootDirectory, configDirectory)
+    : path.join(runtimeRootDirectory, "workspaces")
+  const publicSkillsRootDirectory = fileConfig.paths?.publicSkillsRootDirectory
+    ? resolveAbsolutePath(fileConfig.paths.publicSkillsRootDirectory, configDirectory)
+    : path.join(runtimeRootDirectory, "skills", "profiles", "default")
   const parsed = configSchema.safeParse({
-    port: env.PORT ?? harbor.service.port,
-    host: env.HOST ?? harbor.service.host,
-    trustProxy: parseBooleanEnv(env.TRUST_PROXY) ?? harborService.trustProxy ?? false,
-    serviceName: env.SERVICE_NAME ?? harbor.service.name,
-    database: env.DATABASE_URL ?? harbor.databaseUrl,
-    fileBrowserRootDirectory:
-      env.FILE_BROWSER_ROOT_DIRECTORY ?? harbor.fileBrowser.rootDirectory,
+    port: fileConfig.service?.port,
+    host: fileConfig.service?.host,
+    serviceName: fileConfig.service?.name,
+    database: env.DATABASE_URL,
+    fileBrowserRootDirectory,
+    workspaceRootDirectory,
+    publicSkillsRootDirectory,
     nodeEnv: env.NODE_ENV,
-    appBaseUrl: env.APP_BASE_URL,
-    webBaseUrl: env.WEB_BASE_URL,
+    appBaseUrl: fileConfig.urls?.appBaseUrl,
+    webBaseUrl: fileConfig.urls?.webBaseUrl,
     githubClientId: env.GITHUB_CLIENT_ID,
     githubClientSecret: env.GITHUB_CLIENT_SECRET,
     githubAppSlug: env.GITHUB_APP_SLUG,
     githubAppId: env.GITHUB_APP_ID,
     githubAppPrivateKey: env.GITHUB_APP_PRIVATE_KEY,
     githubAppWebhookSecret: env.GITHUB_APP_WEBHOOK_SECRET,
-    allowedGitHubUsers: parseCsvEnv(env.ALLOWED_GITHUB_USERS),
-    allowedGitHubOrgs: parseCsvEnv(env.ALLOWED_GITHUB_ORGS),
+    allowedGitHubUsers: fileConfig.auth?.allowedGitHubUsers,
+    allowedGitHubOrgs: fileConfig.auth?.allowedGitHubOrgs,
   })
 
   if (!parsed.success) {
@@ -88,9 +162,6 @@ export async function loadServiceConfig(args?: {
   return {
     ...parsed.data,
     isProduction: parsed.data.nodeEnv === "production",
-    harborConfigPath: harbor.configPath,
-    harborHomeDirectory: harbor.homeDirectory,
-    taskDatabaseFile: harbor.task.databaseFile,
   }
 }
 

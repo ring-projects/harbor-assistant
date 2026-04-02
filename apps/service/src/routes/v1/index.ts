@@ -144,7 +144,7 @@ export async function registerV1Routes(
       repositoryBindingRepository: projectRepositoryBindingRepository,
       githubAppClient,
       workspaceManager: projectWorkspaceManager,
-      workspaceRootDirectory: `${config.harborHomeDirectory}/workspaces`,
+      workspaceRootDirectory: config.workspaceRootDirectory,
     })
     await registerOrchestrationModuleRoutes(protectedApp, {
       repository: orchestrationRepository,

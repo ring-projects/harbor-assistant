@@ -10,10 +10,10 @@ function getBundledPublicSkillsDirectory() {
 }
 
 export async function ensureHarborPublicSkills(args: {
-  harborHomeDirectory: string
+  publicSkillsRootDirectory: string
 }) {
   const sourceRoot = getBundledPublicSkillsDirectory()
-  const targetRoot = path.join(args.harborHomeDirectory, "skills", "profiles", "default")
+  const targetRoot = args.publicSkillsRootDirectory
 
   await mkdir(targetRoot, { recursive: true })
 

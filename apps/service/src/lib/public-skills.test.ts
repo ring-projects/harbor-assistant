@@ -18,27 +18,27 @@ describe("ensureHarborPublicSkills", () => {
   })
 
   it("copies bundled Harbor public skills into the default Harbor profile", async () => {
-    const harborHomeDirectory = await mkdtemp(
+    const runtimeRootDirectory = await mkdtemp(
       path.join(tmpdir(), "harbor-public-skills-"),
     )
-    tempDirs.push(harborHomeDirectory)
-
-    await ensureHarborPublicSkills({
-      harborHomeDirectory,
-    })
-
-    const skillRoot = path.join(
-      harborHomeDirectory,
+    tempDirs.push(runtimeRootDirectory)
+    const publicSkillsRootDirectory = path.join(
+      runtimeRootDirectory,
       "skills",
       "profiles",
       "default",
-      "task-title",
     )
 
-    await expect(access(path.join(skillRoot, "SKILL.md"))).resolves.toBeNull()
+    await ensureHarborPublicSkills({
+      publicSkillsRootDirectory,
+    })
+
+    const skillRoot = path.join(publicSkillsRootDirectory, "task-title")
+
+    await expect(access(path.join(skillRoot, "SKILL.md"))).resolves.toBeUndefined()
     await expect(
       access(path.join(skillRoot, "scripts", "set-task-title.mjs")),
-    ).resolves.toBeNull()
+    ).resolves.toBeUndefined()
 
     const skillContent = await readFile(path.join(skillRoot, "SKILL.md"), "utf8")
     expect(skillContent).toContain("harbor-task-title")
