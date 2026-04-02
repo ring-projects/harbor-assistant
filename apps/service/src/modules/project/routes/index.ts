@@ -10,6 +10,9 @@ import type { ProjectRepository } from "../application/project-repository"
 import { restoreProjectUseCase } from "../application/restore-project"
 import { updateProjectUseCase } from "../application/update-project"
 import { updateProjectSettingsUseCase } from "../application/update-project-settings"
+import {
+  createOwnerScopedProjectRepository,
+} from "../../auth"
 import { toProjectAppError } from "../project-app-error"
 import {
   archiveProjectRouteSchema,
@@ -36,13 +39,20 @@ export async function registerProjectModuleRoutes(
 ) {
   const { repository, pathPolicy } = options
 
+  function getOwnerUserId(request: { auth: { userId: string } | null }) {
+    return request.auth!.userId
+  }
+
   app.get(
     "/projects",
     {
       schema: listProjectsRouteSchema,
     },
-    async () => {
-      const projects = await listProjectsUseCase(repository)
+    async (request) => {
+      const ownerUserId = getOwnerUserId(request)
+      const projects = await listProjectsUseCase(
+        createOwnerScopedProjectRepository(repository, ownerUserId),
+      )
       return {
         ok: true,
         projects,
@@ -57,10 +67,14 @@ export async function registerProjectModuleRoutes(
     },
     async (request, reply) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const project = await createProjectUseCase(
           repository,
           pathPolicy,
-          request.body,
+          {
+            ...request.body,
+            ownerUserId,
+          },
         )
         return reply.status(201).send({
           ok: true,
@@ -79,8 +93,12 @@ export async function registerProjectModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const { id } = request.params
-        const project = await getProjectUseCase(repository, id)
+        const project = await getProjectUseCase(
+          createOwnerScopedProjectRepository(repository, ownerUserId),
+          id,
+        )
         return {
           ok: true,
           project,
@@ -98,11 +116,16 @@ export async function registerProjectModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const { id } = request.params
-        const project = await updateProjectUseCase(repository, pathPolicy, {
-          projectId: id,
-          changes: request.body,
-        })
+        const project = await updateProjectUseCase(
+          createOwnerScopedProjectRepository(repository, ownerUserId),
+          pathPolicy,
+          {
+            projectId: id,
+            changes: request.body,
+          },
+        )
 
         return {
           ok: true,
@@ -121,8 +144,12 @@ export async function registerProjectModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const { id } = request.params
-        const project = await getProjectUseCase(repository, id)
+        const project = await getProjectUseCase(
+          createOwnerScopedProjectRepository(repository, ownerUserId),
+          id,
+        )
         return {
           ok: true,
           settings: project.settings,
@@ -140,11 +167,15 @@ export async function registerProjectModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const { id } = request.params
-        const project = await updateProjectSettingsUseCase(repository, {
-          projectId: id,
-          changes: request.body,
-        })
+        const project = await updateProjectSettingsUseCase(
+          createOwnerScopedProjectRepository(repository, ownerUserId),
+          {
+            projectId: id,
+            changes: request.body,
+          },
+        )
         return {
           ok: true,
           project,
@@ -162,8 +193,12 @@ export async function registerProjectModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const { id } = request.params
-        const project = await archiveProjectUseCase(repository, id)
+        const project = await archiveProjectUseCase(
+          createOwnerScopedProjectRepository(repository, ownerUserId),
+          id,
+        )
         return {
           ok: true,
           project,
@@ -181,8 +216,12 @@ export async function registerProjectModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const { id } = request.params
-        const project = await restoreProjectUseCase(repository, id)
+        const project = await restoreProjectUseCase(
+          createOwnerScopedProjectRepository(repository, ownerUserId),
+          id,
+        )
         return {
           ok: true,
           project,
@@ -200,8 +239,12 @@ export async function registerProjectModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const { id } = request.params
-        const result = await deleteProjectUseCase(repository, id)
+        const result = await deleteProjectUseCase(
+          createOwnerScopedProjectRepository(repository, ownerUserId),
+          id,
+        )
         return {
           ok: true,
           ...result,

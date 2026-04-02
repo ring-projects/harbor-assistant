@@ -1,6 +1,6 @@
 export type ProjectTaskContext = {
   projectId: string
-  rootPath: string
+  rootPath: string | null
 }
 
 export interface ProjectTaskPort {

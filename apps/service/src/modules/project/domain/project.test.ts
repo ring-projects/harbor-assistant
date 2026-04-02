@@ -28,6 +28,26 @@ describe("project domain", () => {
     expect(project.settings.skills.harborSkillsEnabled).toBe(false)
   })
 
+  it("creates a git-backed project without a local workspace", () => {
+    const project = createProject({
+      id: "project-1",
+      name: "Harbor Assistant",
+      source: {
+        type: "git",
+        repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+        branch: "main",
+      },
+    })
+
+    expect(project.source).toEqual({
+      type: "git",
+      repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+      branch: "main",
+    })
+    expect(project.rootPath).toBeNull()
+    expect(project.normalizedPath).toBeNull()
+  })
+
   it("rejects invalid settings updates", () => {
     const project = createProject({
       id: "project-1",

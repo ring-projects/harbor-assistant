@@ -8,6 +8,18 @@ export class InMemoryProjectRepository implements ProjectRepository {
     return this.projects.get(id) ?? null
   }
 
+  async findByIdAndOwnerUserId(id: string, ownerUserId: string): Promise<Project | null> {
+    const project = this.projects.get(id) ?? null
+    if (
+      !project ||
+      (project.ownerUserId !== null && project.ownerUserId !== ownerUserId)
+    ) {
+      return null
+    }
+
+    return project
+  }
+
   async findByNormalizedPath(normalizedPath: string): Promise<Project | null> {
     for (const project of this.projects.values()) {
       if (project.normalizedPath === normalizedPath) {
@@ -32,6 +44,12 @@ export class InMemoryProjectRepository implements ProjectRepository {
     return Array.from(this.projects.values()).sort((left, right) =>
       right.updatedAt.getTime() - left.updatedAt.getTime(),
     )
+  }
+
+  async listByOwnerUserId(ownerUserId: string): Promise<Project[]> {
+    return Array.from(this.projects.values())
+      .filter((project) => project.ownerUserId === ownerUserId)
+      .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
   }
 
   async save(project: Project): Promise<void> {

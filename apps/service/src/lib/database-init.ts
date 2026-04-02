@@ -7,6 +7,9 @@ import { PrismaClient } from "@prisma/client"
 import { buildChildProcessEnv } from "./process-env"
 
 const REQUIRED_SQLITE_TABLES = [
+  "users",
+  "auth_identities",
+  "auth_sessions",
   "projects",
   "orchestrations",
   "tasks",

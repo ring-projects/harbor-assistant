@@ -66,6 +66,14 @@ export async function bootstrapOrchestrationUseCase(
     }
   },
 ): Promise<BootstrapOrchestrationResult> {
+  function requireProjectWorkspaceRoot(rootPath: string | null) {
+    if (!rootPath) {
+      throw createTaskError().invalidInput("project workspace is not available")
+    }
+
+    return rootPath
+  }
+
   const projectId = input.projectId.trim()
   if (!projectId) {
     throw createProjectError().invalidInput("projectId is required")
@@ -104,6 +112,7 @@ export async function bootstrapOrchestrationUseCase(
   if (!project) {
     throw createProjectError().notFound()
   }
+  const projectRootPath = requireProjectWorkspaceRoot(project.rootPath)
 
   const validatedRuntimeConfig = await validateTaskRuntimeConfig({
     executor,
@@ -133,7 +142,7 @@ export async function bootstrapOrchestrationUseCase(
   await args.bootstrapStore.create({
     orchestration,
     task,
-    projectPath: project.rootPath,
+    projectPath: projectRootPath,
     runtimeConfig,
   })
 
@@ -150,7 +159,7 @@ export async function bootstrapOrchestrationUseCase(
     await args.runtimePort.startTaskExecution({
       taskId: task.id,
       projectId: task.projectId,
-      projectPath: project.rootPath,
+      projectPath: projectRootPath,
       input: agentInput,
       runtimeConfig,
     })

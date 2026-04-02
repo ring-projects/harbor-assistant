@@ -15,6 +15,24 @@ async function createApp(args?: {
   const fileSystemRepository =
     args?.fileSystemRepository ?? createFileSystemRepositoryStub()
   const app = Fastify({ logger: false })
+  app.decorateRequest("auth", null)
+  app.addHook("onRequest", async (request) => {
+    request.auth = {
+      sessionId: "session-1",
+      userId: "user-1",
+      user: {
+        id: "user-1",
+        githubLogin: "user-1",
+        name: "User One",
+        email: "user-1@example.com",
+        avatarUrl: null,
+        status: "active",
+        lastLoginAt: null,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    }
+  })
   await app.register(errorHandlerPlugin)
   await app.register(
     async (instance) => {
@@ -147,6 +165,39 @@ describe("project filesystem routes", () => {
       ok: false,
       error: {
         code: "PROJECT_NOT_FOUND",
+      },
+    })
+  })
+
+  it("returns invalid project state for git projects without a local workspace", async () => {
+    const projectRepository = new InMemoryProjectRepository()
+    await projectRepository.save(
+      createProject({
+        id: "project-1",
+        name: "Harbor",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor.git",
+        },
+      }),
+    )
+
+    const app = await createApp({
+      projectRepository,
+      fileSystemRepository: createFileSystemRepositoryStub(),
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects/project-1/files/list",
+      payload: {},
+    })
+
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_PROJECT_STATE",
       },
     })
   })

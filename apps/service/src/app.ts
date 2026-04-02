@@ -37,6 +37,7 @@ export async function buildServiceApp(
 
   await app.register(cors, {
     origin: true,
+    credentials: true,
     methods: SERVICE_CORS_METHODS,
   })
   await app.register(errorHandlerPlugin)

@@ -4,12 +4,21 @@ enum ProjectStatus {
   missing
 }
 
+enum ProjectSourceType {
+  rootPath
+  git
+}
+
 model Project {
   id                   String        @id @default(uuid())
+  ownerUserId          String?
   name                 String
   slug                 String?       @unique
-  rootPath             String
-  normalizedPath       String        @unique
+  sourceType           ProjectSourceType @default(rootPath)
+  sourceRepositoryUrl  String?
+  sourceGitBranch      String?
+  rootPath             String?
+  normalizedPath       String?       @unique
   description          String?
   status               ProjectStatus @default(active)
   lastOpenedAt         DateTime?
@@ -20,9 +29,11 @@ model Project {
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
   archivedAt           DateTime?
+  owner                User?         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   tasks                Task[]
   orchestrations       Orchestration[]
 
+  @@index([ownerUserId, updatedAt(sort: Desc)])
   @@index([status, updatedAt(sort: Desc)])
   @@map("projects")
 }

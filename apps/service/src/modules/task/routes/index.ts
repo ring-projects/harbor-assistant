@@ -16,6 +16,11 @@ import type { TaskRepository } from "../application/task-repository"
 import type { TaskRuntimePort } from "../application/task-runtime-port"
 import { uploadTaskInputFileUseCase } from "../application/upload-task-input-image"
 import { updateTaskTitleUseCase } from "../application/update-task-title"
+import {
+  createOwnerScopedProjectTaskPort,
+  createOwnerScopedTaskRepository,
+} from "../../auth"
+import type { ProjectRepository } from "../../project/application/project-repository"
 import { toTaskAppError } from "../task-app-error"
 import {
   archiveTaskRouteSchema,
@@ -42,6 +47,9 @@ export async function registerTaskModuleRoutes(
     taskRecordStore: TaskRecordStore
     eventProjection: TaskEventProjection
     notificationPublisher: TaskNotificationPublisher
+    projectRepository: Pick<ProjectRepository, "findById"> & {
+      findByIdAndOwnerUserId?: ProjectRepository["findByIdAndOwnerUserId"]
+    }
     projectTaskPort: ProjectTaskPort
     taskInputFileStore: TaskInputFileStore
     runtimePort: TaskRuntimePort
@@ -52,21 +60,32 @@ export async function registerTaskModuleRoutes(
     taskRecordStore,
     eventProjection,
     notificationPublisher,
+    projectRepository,
     projectTaskPort,
     taskInputFileStore,
     runtimePort,
   } = options
 
+  function getOwnerUserId(request: { auth: { userId: string } | null }) {
+    return request.auth!.userId
+  }
+
   async function handleTaskInputFileUpload(
     request: {
+      auth: { userId: string } | null
       params: ProjectIdParams
       body: UploadTaskInputImageBody
     },
   ) {
     try {
+      const ownerUserId = getOwnerUserId(request)
       const result = await uploadTaskInputFileUseCase(
         {
-          projectTaskPort,
+          projectTaskPort: createOwnerScopedProjectTaskPort({
+            projectRepository,
+            projectTaskPort,
+            ownerUserId,
+          }),
           taskInputFileStore,
         },
         {
@@ -113,7 +132,15 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const task = await getTaskUseCase(repository, request.params.taskId)
+        const ownerUserId = getOwnerUserId(request)
+        const task = await getTaskUseCase(
+          createOwnerScopedTaskRepository({
+            repository,
+            projectRepository,
+            ownerUserId,
+          }),
+          request.params.taskId,
+        )
         return {
           ok: true,
           task,
@@ -131,10 +158,19 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const task = await updateTaskTitleUseCase(repository, notificationPublisher, {
-          taskId: request.params.taskId,
-          title: request.body.title,
-        })
+        const ownerUserId = getOwnerUserId(request)
+        const task = await updateTaskTitleUseCase(
+          createOwnerScopedTaskRepository({
+            repository,
+            projectRepository,
+            ownerUserId,
+          }),
+          notificationPublisher,
+          {
+            taskId: request.params.taskId,
+            title: request.body.title,
+          },
+        )
 
         return {
           ok: true,
@@ -153,10 +189,19 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const task = await resumeTaskUseCase(
           {
-            projectTaskPort,
-            repository,
+            projectTaskPort: createOwnerScopedProjectTaskPort({
+              projectRepository,
+              projectTaskPort,
+              ownerUserId,
+            }),
+            repository: createOwnerScopedTaskRepository({
+              repository,
+              projectRepository,
+              ownerUserId,
+            }),
             runtimePort,
           },
           {
@@ -185,9 +230,14 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const task = await cancelTaskUseCase(
           {
-            repository,
+            repository: createOwnerScopedTaskRepository({
+              repository,
+              projectRepository,
+              ownerUserId,
+            }),
             runtimePort,
           },
           {
@@ -213,8 +263,13 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const task = await archiveTaskUseCase(
-          repository,
+          createOwnerScopedTaskRepository({
+            repository,
+            projectRepository,
+            ownerUserId,
+          }),
           notificationPublisher,
           request.params.taskId,
         )
@@ -236,8 +291,13 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const result = await deleteTaskUseCase(
-          repository,
+          createOwnerScopedTaskRepository({
+            repository,
+            projectRepository,
+            ownerUserId,
+          }),
           notificationPublisher,
           request.params.taskId,
         )
@@ -259,16 +319,22 @@ export async function registerTaskModuleRoutes(
     },
     async (request, reply) => {
       try {
-        const result = await getTaskEventsUseCase(repository, eventProjection, {
+        const ownerUserId = getOwnerUserId(request)
+        const scopedRepository = createOwnerScopedTaskRepository({
+          repository,
+          projectRepository,
+          ownerUserId,
+        })
+        const scopedResult = await getTaskEventsUseCase(scopedRepository, eventProjection, {
           taskId: request.params.taskId,
           afterSequence: request.query.afterSequence,
           limit: request.query.limit,
         })
 
-        return reply.status(result.isTerminal ? 200 : 206).send({
+        return reply.status(scopedResult.isTerminal ? 200 : 206).send({
           ok: true,
-          task: result.task,
-          events: result.events,
+          task: scopedResult.task,
+          events: scopedResult.events,
         })
       } catch (error) {
         throw toTaskAppError(error)

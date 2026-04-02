@@ -20,12 +20,18 @@ async function createApp() {
   ])
   const projectRepository = {
     findById: vi.fn(async (id: string) =>
-      id === "project-1"
+          id === "project-1"
         ? {
             id: "project-1",
+            ownerUserId: null,
             slug: "harbor-assistant",
             name: "Harbor Assistant",
             description: null,
+            source: {
+              type: "rootPath" as const,
+              rootPath: "/tmp/harbor-assistant",
+              normalizedPath: "/tmp/harbor-assistant",
+            },
             rootPath: "/tmp/harbor-assistant",
             normalizedPath: "/tmp/harbor-assistant",
             status: "active" as const,
@@ -95,6 +101,24 @@ async function createApp() {
     publish: vi.fn(async () => {}),
   }
   const app = Fastify({ logger: false })
+  app.decorateRequest("auth", null)
+  app.addHook("onRequest", async (request) => {
+    request.auth = {
+      sessionId: "session-1",
+      userId: "user-1",
+      user: {
+        id: "user-1",
+        githubLogin: "user-1",
+        name: "User One",
+        email: "user-1@example.com",
+        avatarUrl: null,
+        status: "active",
+        lastLoginAt: null,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    }
+  })
   await app.register(errorHandlerPlugin)
   await app.register(
     async (instance) => {

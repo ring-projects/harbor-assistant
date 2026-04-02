@@ -9,7 +9,24 @@ const configSchema = z.object({
   database: z.url(),
   fileBrowserRootDirectory: z.string().min(1),
   nodeEnv: z.enum(["development", "test", "production"]).default("development"),
+  appBaseUrl: z.url().optional(),
+  webBaseUrl: z.url().optional(),
+  githubClientId: z.string().min(1).optional(),
+  githubClientSecret: z.string().min(1).optional(),
+  allowedGitHubUsers: z.array(z.string().min(1)).default([]),
+  allowedGitHubOrgs: z.array(z.string().min(1)).default([]),
 })
+
+function parseCsvEnv(value: string | undefined) {
+  if (!value) {
+    return []
+  }
+
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
 
 export async function loadServiceConfig(args?: {
   env?: NodeJS.ProcessEnv
@@ -24,6 +41,12 @@ export async function loadServiceConfig(args?: {
     fileBrowserRootDirectory:
       env.FILE_BROWSER_ROOT_DIRECTORY ?? harbor.fileBrowser.rootDirectory,
     nodeEnv: env.NODE_ENV,
+    appBaseUrl: env.APP_BASE_URL,
+    webBaseUrl: env.WEB_BASE_URL,
+    githubClientId: env.GITHUB_CLIENT_ID,
+    githubClientSecret: env.GITHUB_CLIENT_SECRET,
+    allowedGitHubUsers: parseCsvEnv(env.ALLOWED_GITHUB_USERS),
+    allowedGitHubOrgs: parseCsvEnv(env.ALLOWED_GITHUB_ORGS),
   })
 
   if (!parsed.success) {

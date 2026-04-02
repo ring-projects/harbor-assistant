@@ -10,6 +10,24 @@ export async function createFileSystemTestApp() {
     logger: false,
   })
 
+  app.decorateRequest("auth", null)
+  app.addHook("onRequest", async (request) => {
+    request.auth = {
+      sessionId: "session-test",
+      userId: "user-1",
+      user: {
+        id: "user-1",
+        githubLogin: "user-1",
+        name: "User One",
+        email: "user-1@example.com",
+        avatarUrl: null,
+        status: "active",
+        lastLoginAt: null,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    }
+  })
   await app.register(errorHandlerPlugin)
   await app.register(
     async (instance) => {

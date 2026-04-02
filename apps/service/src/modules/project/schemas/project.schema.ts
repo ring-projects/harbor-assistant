@@ -10,8 +10,17 @@ export type DeleteProjectResponse = {
 export type CreateProjectBody = {
   id: string
   name: string
-  rootPath: string
   description?: string | null
+  source:
+    | {
+        type: "rootPath"
+        rootPath: string
+      }
+    | {
+        type: "git"
+        repositoryUrl: string
+        branch?: string | null
+      }
 }
 
 export type UpdateProjectBody = {
@@ -57,6 +66,49 @@ const projectSettingsSchema = {
   },
 } as const
 
+const rootPathProjectSourceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "rootPath", "normalizedPath"],
+  properties: {
+    type: { type: "string", const: "rootPath" },
+    rootPath: { type: "string", minLength: 1 },
+    normalizedPath: { type: "string", minLength: 1 },
+  },
+} as const
+
+const gitProjectSourceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "repositoryUrl", "branch"],
+  properties: {
+    type: { type: "string", const: "git" },
+    repositoryUrl: { type: "string", minLength: 1 },
+    branch: { type: ["string", "null"] },
+  },
+} as const
+
+const createRootPathProjectSourceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "rootPath"],
+  properties: {
+    type: { type: "string", const: "rootPath" },
+    rootPath: { type: "string", minLength: 1 },
+  },
+} as const
+
+const createGitProjectSourceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "repositoryUrl"],
+  properties: {
+    type: { type: "string", const: "git" },
+    repositoryUrl: { type: "string", minLength: 1 },
+    branch: { type: ["string", "null"] },
+  },
+} as const
+
 const projectEntitySchema = {
   type: "object",
   additionalProperties: false,
@@ -65,6 +117,7 @@ const projectEntitySchema = {
     "slug",
     "name",
     "description",
+    "source",
     "rootPath",
     "normalizedPath",
     "status",
@@ -79,8 +132,11 @@ const projectEntitySchema = {
     slug: { type: "string", minLength: 1 },
     name: { type: "string", minLength: 1 },
     description: { type: ["string", "null"] },
-    rootPath: { type: "string", minLength: 1 },
-    normalizedPath: { type: "string", minLength: 1 },
+    source: {
+      oneOf: [rootPathProjectSourceSchema, gitProjectSourceSchema],
+    },
+    rootPath: { type: ["string", "null"] },
+    normalizedPath: { type: ["string", "null"] },
     status: {
       type: "string",
       enum: ["active", "archived", "missing"],
@@ -105,12 +161,14 @@ export const projectIdParamsSchema = {
 export const createProjectBodySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "name", "rootPath"],
+  required: ["id", "name", "source"],
   properties: {
     id: { type: "string", minLength: 1 },
     name: { type: "string", minLength: 1 },
-    rootPath: { type: "string", minLength: 1 },
     description: { type: ["string", "null"] },
+    source: {
+      oneOf: [createRootPathProjectSourceSchema, createGitProjectSourceSchema],
+    },
   },
 } as const
 

@@ -65,6 +65,24 @@ async function createApp(
   const taskInputFileStore = createNodeTaskInputImageStore()
 
   const app = Fastify({ logger: false })
+  app.decorateRequest("auth", null)
+  app.addHook("onRequest", async (request) => {
+    request.auth = {
+      sessionId: "session-1",
+      userId: "user-1",
+      user: {
+        id: "user-1",
+        githubLogin: "user-1",
+        name: "User One",
+        email: "user-1@example.com",
+        avatarUrl: null,
+        status: "active",
+        lastLoginAt: null,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    }
+  })
   await app.register(errorHandlerPlugin)
   await app.register(
     async (instance) => {
@@ -73,6 +91,43 @@ async function createApp(
         taskRecordStore: repository,
         eventProjection,
         notificationPublisher: notificationBus.publisher,
+        projectRepository: {
+          async findById(projectId) {
+            if (projectId !== "project-1") {
+              return null
+            }
+
+            return {
+              id: "project-1",
+              ownerUserId: "user-1",
+              slug: "harbor-assistant",
+              name: "Harbor Assistant",
+              description: null,
+              source: {
+                type: "rootPath" as const,
+                rootPath,
+                normalizedPath: rootPath,
+              },
+              rootPath,
+              normalizedPath: rootPath,
+              status: "active" as const,
+              createdAt: new Date("2026-04-01T00:00:00.000Z"),
+              updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+              archivedAt: null,
+              lastOpenedAt: null,
+              settings: {
+                retention: {
+                  logRetentionDays: 30,
+                  eventRetentionDays: 7,
+                },
+                skills: {
+                  harborSkillsEnabled: false,
+                  harborSkillProfile: "default",
+                },
+              },
+            }
+          },
+        },
         projectTaskPort: {
           async getProjectForTask(projectId) {
             if (projectId !== "project-1") {

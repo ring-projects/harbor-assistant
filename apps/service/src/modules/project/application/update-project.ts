@@ -52,6 +52,12 @@ export async function updateProjectUseCase(
   }
 
   if (input.changes.rootPath !== undefined) {
+    if (next.source.type !== "rootPath") {
+      throw createProjectError().invalidState(
+        "only rootPath projects can update their root path",
+      )
+    }
+
     const normalizedPath = await pathPolicy.canonicalizeProjectRoot(
       input.changes.rootPath,
     )

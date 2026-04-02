@@ -39,6 +39,14 @@ export async function createTaskUseCase(args: {
   executionMode: string
   effort: TaskEffort
 }): Promise<TaskDetail> {
+  function requireProjectWorkspaceRoot(rootPath: string | null) {
+    if (!rootPath) {
+      throw createTaskError().invalidInput("project workspace is not available")
+    }
+
+    return rootPath
+  }
+
   const projectId = input.projectId.trim()
   const orchestrationId = input.orchestrationId.trim()
   const agentInput = resolveAgentInput(input)
@@ -81,6 +89,7 @@ export async function createTaskUseCase(args: {
   if (!project) {
     throw createTaskError().projectNotFound()
   }
+  const projectRootPath = requireProjectWorkspaceRoot(project.rootPath)
 
   const validatedRuntimeConfig = await validateTaskRuntimeConfig({
     executor,
@@ -103,7 +112,7 @@ export async function createTaskUseCase(args: {
 
   await args.taskRecordStore.create({
     task,
-    projectPath: project.rootPath,
+    projectPath: projectRootPath,
     runtimeConfig,
   })
   const taskRecord = attachTaskRuntime(task, runtimeConfig)
@@ -118,7 +127,7 @@ export async function createTaskUseCase(args: {
     await args.runtimePort.startTaskExecution({
       taskId: task.id,
       projectId: task.projectId,
-      projectPath: project.rootPath,
+      projectPath: projectRootPath,
       input: agentInput,
       runtimeConfig,
     })

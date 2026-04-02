@@ -18,6 +18,31 @@ export class PrismaProjectRepository implements ProjectRepository {
     return toDomainProject(project)
   }
 
+  async findByIdAndOwnerUserId(
+    id: string,
+    ownerUserId: string,
+  ): Promise<Project | null> {
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id,
+        OR: [
+          {
+            ownerUserId,
+          },
+          {
+            ownerUserId: null,
+          },
+        ],
+      },
+    })
+
+    if (!project) {
+      return null
+    }
+
+    return toDomainProject(project)
+  }
+
   async findByNormalizedPath(normalizedPath: string): Promise<Project | null> {
     const project = await this.prisma.project.findUnique({ where: { normalizedPath } })
 
@@ -46,6 +71,17 @@ export class PrismaProjectRepository implements ProjectRepository {
     return projects.map(toDomainProject)
   }
 
+  async listByOwnerUserId(ownerUserId: string): Promise<Project[]> {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        ownerUserId,
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    })
+
+    return projects.map(toDomainProject)
+  }
+
   async save(project: Project): Promise<void> {
     try {
       await this.prisma.project.upsert({
@@ -55,6 +91,11 @@ export class PrismaProjectRepository implements ProjectRepository {
           slug: project.slug,
           name: project.name,
           description: project.description,
+          sourceType: project.source.type,
+          sourceRepositoryUrl:
+            project.source.type === "git" ? project.source.repositoryUrl : null,
+          sourceGitBranch:
+            project.source.type === "git" ? project.source.branch : null,
           rootPath: project.rootPath,
           normalizedPath: project.normalizedPath,
           status: project.status,
@@ -66,11 +107,25 @@ export class PrismaProjectRepository implements ProjectRepository {
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
           archivedAt: project.archivedAt,
+          ...(project.ownerUserId
+            ? {
+                owner: {
+                  connect: {
+                    id: project.ownerUserId,
+                  },
+                },
+              }
+            : {}),
         },
         update: {
           slug: project.slug,
           name: project.name,
           description: project.description,
+          sourceType: project.source.type,
+          sourceRepositoryUrl:
+            project.source.type === "git" ? project.source.repositoryUrl : null,
+          sourceGitBranch:
+            project.source.type === "git" ? project.source.branch : null,
           rootPath: project.rootPath,
           normalizedPath: project.normalizedPath,
           status: project.status,
@@ -81,6 +136,15 @@ export class PrismaProjectRepository implements ProjectRepository {
           harborSkillProfile: project.settings.skills.harborSkillProfile,
           updatedAt: project.updatedAt,
           archivedAt: project.archivedAt,
+          owner: project.ownerUserId
+            ? {
+                connect: {
+                  id: project.ownerUserId,
+                },
+              }
+            : {
+                disconnect: true,
+              },
         },
       })
     } catch (error) {

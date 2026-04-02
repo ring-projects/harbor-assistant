@@ -86,4 +86,34 @@ describe("updateProjectUseCase", () => {
       rootPath: "/workspace/harbor-assistant",
     })
   })
+
+  it("rejects root path relocation for git-backed projects", async () => {
+    const repository = new InMemoryProjectRepository()
+    const project = createProject({
+      id: "project-1",
+      name: "Harbor Assistant",
+      source: {
+        type: "git",
+        repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+      },
+    })
+    await repository.save(project)
+
+    const pathPolicy: ProjectPathPolicy = {
+      canonicalizeProjectRoot: vi.fn(async (rawPath: string) =>
+        rawPath.replace(/^~\//, "/resolved/"),
+      ),
+    }
+
+    await expect(
+      updateProjectUseCase(repository, pathPolicy, {
+        projectId: "project-1",
+        changes: {
+          rootPath: "~/workspace/harbor-assistant",
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: createProjectError().invalidState("").code,
+    })
+  })
 })

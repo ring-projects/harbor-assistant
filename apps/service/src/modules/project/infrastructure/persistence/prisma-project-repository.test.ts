@@ -44,6 +44,34 @@ describe("PrismaProjectRepository", () => {
     expect(loaded?.settings.skills.harborSkillsEnabled).toBe(false)
   })
 
+  it("saves and reloads a git-backed project aggregate", async () => {
+    testDatabase = await createTestDatabase()
+    const repository = new PrismaProjectRepository(testDatabase.prisma)
+
+    const project = createProject({
+      id: "project-1",
+      name: "Harbor Assistant",
+      source: {
+        type: "git",
+        repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+        branch: "main",
+      },
+    })
+
+    await repository.save(project)
+
+    const loaded = await repository.findById("project-1")
+
+    expect(loaded).not.toBeNull()
+    expect(loaded?.source).toEqual({
+      type: "git",
+      repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+      branch: "main",
+    })
+    expect(loaded?.rootPath).toBeNull()
+    expect(loaded?.normalizedPath).toBeNull()
+  })
+
   it("lists projects from the real database", async () => {
     testDatabase = await createTestDatabase()
     const repository = new PrismaProjectRepository(testDatabase.prisma)

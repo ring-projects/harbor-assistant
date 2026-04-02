@@ -3,6 +3,11 @@ import type { FastifyInstance } from "fastify"
 
 import { registerAgentRoutes } from "./agent.routes"
 import type { ServiceConfig } from "../../config"
+import {
+  authSessionPlugin,
+  registerAuthModuleRoutes,
+  requireAuthenticatedPreHandler,
+} from "../../modules/auth"
 import { createNodeFileSystemRepository } from "../../modules/filesystem/infrastructure/node-filesystem-repository"
 import { registerFileSystemModuleRoutes } from "../../modules/filesystem/routes"
 import { createGitCommandRepository } from "../../modules/git/infrastructure/git-command-repository"
@@ -102,37 +107,48 @@ export async function registerV1Routes(
     },
   ]
 
-  await registerAgentRoutes(app)
-  await registerProjectModuleRoutes(app, {
-    repository: projectRepository,
-    pathPolicy: projectPathPolicy,
+  await app.register(authSessionPlugin, {
+    config,
   })
-  await registerOrchestrationModuleRoutes(app, {
-    repository: orchestrationRepository,
-    bootstrapStore: orchestrationBootstrapStore,
-    projectRepository,
-    projectTaskPort,
-    taskRepository,
-    runtimePort: taskRuntimePort,
-    notificationPublisher: taskNotificationBus.publisher,
+  await registerAuthModuleRoutes(app, {
+    config,
   })
-  await registerGitModuleRoutes(app, {
-    projectRepository,
-    gitRepository,
-  })
-  await registerFileSystemModuleRoutes(app, {
-    projectRepository,
-    fileSystemRepository,
-    bootstrapRoots,
-  })
-  await registerTaskModuleRoutes(app, {
-    repository: taskRepository,
-    taskRecordStore: taskRepository,
-    eventProjection: taskEventProjection,
-    notificationPublisher: taskNotificationBus.publisher,
-    projectTaskPort,
-    taskInputFileStore,
-    runtimePort: taskRuntimePort,
+  await app.register(async (protectedApp) => {
+    protectedApp.addHook("preHandler", requireAuthenticatedPreHandler)
+
+    await registerAgentRoutes(protectedApp)
+    await registerProjectModuleRoutes(protectedApp, {
+      repository: projectRepository,
+      pathPolicy: projectPathPolicy,
+    })
+    await registerOrchestrationModuleRoutes(protectedApp, {
+      repository: orchestrationRepository,
+      bootstrapStore: orchestrationBootstrapStore,
+      projectRepository,
+      projectTaskPort,
+      taskRepository,
+      runtimePort: taskRuntimePort,
+      notificationPublisher: taskNotificationBus.publisher,
+    })
+    await registerGitModuleRoutes(protectedApp, {
+      projectRepository,
+      gitRepository,
+    })
+    await registerFileSystemModuleRoutes(protectedApp, {
+      projectRepository,
+      fileSystemRepository,
+      bootstrapRoots,
+    })
+    await registerTaskModuleRoutes(protectedApp, {
+      repository: taskRepository,
+      taskRecordStore: taskRepository,
+      eventProjection: taskEventProjection,
+      notificationPublisher: taskNotificationBus.publisher,
+      projectRepository,
+      projectTaskPort,
+      taskInputFileStore,
+      runtimePort: taskRuntimePort,
+    })
   })
   createInteractionSocketGateway({
     taskQueries: taskInteractionService.queries,

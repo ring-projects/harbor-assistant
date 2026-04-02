@@ -2,6 +2,20 @@ import { createProjectError, ProjectError } from "../errors"
 
 export type ProjectStatus = "active" | "archived" | "missing"
 
+export type RootPathProjectSource = {
+  type: "rootPath"
+  rootPath: string
+  normalizedPath: string
+}
+
+export type GitProjectSource = {
+  type: "git"
+  repositoryUrl: string
+  branch: string | null
+}
+
+export type ProjectSource = RootPathProjectSource | GitProjectSource
+
 export type ProjectRetentionPolicy = {
   logRetentionDays: number | null
   eventRetentionDays: number | null
@@ -19,11 +33,13 @@ export type ProjectSettings = {
 
 export type Project = {
   id: string
+  ownerUserId: string | null
   slug: string
   name: string
   description: string | null
-  rootPath: string
-  normalizedPath: string
+  source: ProjectSource
+  rootPath: string | null
+  normalizedPath: string | null
   status: ProjectStatus
   createdAt: Date
   updatedAt: Date
@@ -35,11 +51,25 @@ export type Project = {
 export type CreateProjectInput = {
   id: string
   name: string
-  normalizedPath: string
-  rootPath?: string
+  ownerUserId?: string | null
   description?: string | null
   now?: Date
-}
+} & (
+  | {
+      source: RootPathProjectSource
+    }
+  | {
+      source: {
+        type: "git"
+        repositoryUrl: string
+        branch?: string | null
+      }
+    }
+  | {
+      normalizedPath: string
+      rootPath?: string
+    }
+)
 
 export type UpdateProjectSettingsInput = Partial<{
   retention: Partial<ProjectRetentionPolicy>
@@ -76,6 +106,63 @@ function requireNonEmpty(value: string, field: string) {
   }
 }
 
+function normalizeOptionalString(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function normalizeProjectSource(input: CreateProjectInput): {
+  source: ProjectSource
+  rootPath: string | null
+  normalizedPath: string | null
+} {
+  if ("source" in input) {
+    if (input.source.type === "rootPath") {
+      requireNonEmpty(input.source.rootPath, "rootPath")
+      requireNonEmpty(input.source.normalizedPath, "normalizedPath")
+
+      const rootPath = input.source.rootPath.trim()
+      const normalizedPath = input.source.normalizedPath.trim()
+
+      return {
+        source: {
+          type: "rootPath",
+          rootPath,
+          normalizedPath,
+        },
+        rootPath,
+        normalizedPath,
+      }
+    }
+
+    requireNonEmpty(input.source.repositoryUrl, "repositoryUrl")
+
+    return {
+      source: {
+        type: "git",
+        repositoryUrl: input.source.repositoryUrl.trim(),
+        branch: normalizeOptionalString(input.source.branch),
+      },
+      rootPath: null,
+      normalizedPath: null,
+    }
+  }
+
+  requireNonEmpty(input.normalizedPath, "normalizedPath")
+  const normalizedPath = input.normalizedPath.trim()
+  const rootPath = input.rootPath?.trim() || normalizedPath
+
+  return {
+    source: {
+      type: "rootPath",
+      rootPath,
+      normalizedPath,
+    },
+    rootPath,
+    normalizedPath,
+  }
+}
+
 function assertPositiveInteger(value: number, field: string) {
   if (!Number.isInteger(value) || value <= 0) {
     throw createProjectError().invalidInput(`${field} must be a positive integer`)
@@ -101,12 +188,11 @@ function validateSettings(settings: ProjectSettings) {
 export function createProject(input: CreateProjectInput): Project {
   requireNonEmpty(input.id, "id")
   requireNonEmpty(input.name, "name")
-  requireNonEmpty(input.normalizedPath, "normalizedPath")
 
   const now = input.now ?? new Date()
   const trimmedName = input.name.trim()
-  const normalizedPath = input.normalizedPath.trim()
   const slug = deriveProjectSlug(trimmedName)
+  const normalizedSource = normalizeProjectSource(input)
 
   if (!slug) {
     throw createProjectError().invalidInput("slug cannot be empty")
@@ -114,11 +200,13 @@ export function createProject(input: CreateProjectInput): Project {
 
   const project: Project = {
     id: input.id.trim(),
+    ownerUserId: input.ownerUserId?.trim() || null,
     slug,
     name: trimmedName,
     description: input.description ?? null,
-    rootPath: input.rootPath?.trim() || normalizedPath,
-    normalizedPath,
+    source: normalizedSource.source,
+    rootPath: normalizedSource.rootPath,
+    normalizedPath: normalizedSource.normalizedPath,
     status: "active",
     createdAt: now,
     updatedAt: now,
@@ -213,12 +301,47 @@ export function relocateProjectRoot(
   },
   now = new Date(),
 ): Project {
+  if (project.source.type !== "rootPath") {
+    throw createProjectError().invalidState(
+      "only rootPath projects can update their root path",
+    )
+  }
+
   requireNonEmpty(input.normalizedPath, "normalizedPath")
+
+  const normalizedPath = input.normalizedPath.trim()
+  const rootPath = input.rootPath?.trim() || normalizedPath
 
   return {
     ...project,
-    normalizedPath: input.normalizedPath.trim(),
-    rootPath: input.rootPath?.trim() || input.normalizedPath.trim(),
+    source: {
+      type: "rootPath",
+      rootPath,
+      normalizedPath,
+    },
+    normalizedPath,
+    rootPath,
     updatedAt: now,
+  }
+}
+
+export function hasProjectWorkspace(project: Project): project is Project & {
+  rootPath: string
+  normalizedPath: string
+} {
+  return Boolean(project.rootPath && project.normalizedPath)
+}
+
+export function requireProjectWorkspace(
+  project: Project,
+  message = "project workspace is not available",
+) {
+  if (!hasProjectWorkspace(project)) {
+    throw createProjectError().invalidState(message)
+  }
+
+  return {
+    rootPath: project.rootPath,
+    normalizedPath: project.normalizedPath,
   }
 }

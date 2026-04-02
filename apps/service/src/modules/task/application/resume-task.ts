@@ -14,6 +14,14 @@ function normalizeNullableString(value: string | null | undefined) {
   return normalized ? normalized : null
 }
 
+function requireProjectWorkspaceRoot(rootPath: string | null) {
+  if (!rootPath) {
+    throw createTaskError().invalidInput("project workspace is not available")
+  }
+
+  return rootPath
+}
+
 export async function resumeTaskUseCase(args: {
   projectTaskPort: ProjectTaskPort
   repository: Pick<TaskRepository, "findById">
@@ -47,6 +55,7 @@ export async function resumeTaskUseCase(args: {
   if (!project) {
     throw createTaskError().projectNotFound()
   }
+  const projectRootPath = requireProjectWorkspaceRoot(project.rootPath)
 
   const requestedEffort = normalizeNullableTaskEffort(input.effort)
   if (input.effort !== undefined && input.effort !== null && !requestedEffort) {
@@ -75,7 +84,7 @@ export async function resumeTaskUseCase(args: {
     await args.runtimePort.resumeTaskExecution({
       taskId: task.id,
       projectId: task.projectId,
-      projectPath: project.rootPath,
+      projectPath: projectRootPath,
       input: agentInput,
       runtimeConfig,
     })

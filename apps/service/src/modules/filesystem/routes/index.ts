@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify"
 
+import { createOwnerScopedProjectRepository } from "../../auth"
 import { getProjectUseCase } from "../../project/application/get-project"
+import { requireProjectWorkspace } from "../../project/domain/project"
 import type { ProjectRepository } from "../../project/application/project-repository"
 import {
   createBootstrapRootRegistry,
@@ -36,7 +38,9 @@ import {
 export async function registerFileSystemModuleRoutes(
   app: FastifyInstance,
   options: {
-    projectRepository: Pick<ProjectRepository, "findById">
+    projectRepository: Pick<ProjectRepository, "findById"> & {
+      findByIdAndOwnerUserId?: ProjectRepository["findByIdAndOwnerUserId"]
+    }
     fileSystemRepository: FileSystemRepository
     bootstrapRoots?: BootstrapFileSystemRootConfig[]
   },
@@ -46,9 +50,15 @@ export async function registerFileSystemModuleRoutes(
     options.bootstrapRoots ?? [],
   )
 
-  async function resolveProjectRoot(projectId: string) {
-    const project = await getProjectUseCase(options.projectRepository, projectId)
-    return project.rootPath
+  async function resolveProjectRoot(projectId: string, ownerUserId: string) {
+    const project = await getProjectUseCase(
+      createOwnerScopedProjectRepository(
+        options.projectRepository as ProjectRepository,
+        ownerUserId,
+      ),
+      projectId,
+    )
+    return requireProjectWorkspace(project).rootPath
   }
 
   app.get(
@@ -121,7 +131,10 @@ export async function registerFileSystemModuleRoutes(
     },
     async (request) => {
       try {
-        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const rootPath = await resolveProjectRoot(
+          request.params.projectId,
+          request.auth!.userId,
+        )
         const listing = await listDirectoryUseCase(options.fileSystemRepository, {
           rootPath,
           path: request.body?.path,
@@ -147,7 +160,10 @@ export async function registerFileSystemModuleRoutes(
     },
     async (request) => {
       try {
-        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const rootPath = await resolveProjectRoot(
+          request.params.projectId,
+          request.auth!.userId,
+        )
         const pathInfo = await statPathUseCase(options.fileSystemRepository, {
           rootPath,
           path: request.query.path,
@@ -170,7 +186,10 @@ export async function registerFileSystemModuleRoutes(
     },
     async (request) => {
       try {
-        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const rootPath = await resolveProjectRoot(
+          request.params.projectId,
+          request.auth!.userId,
+        )
         const file = await readTextFileUseCase(options.fileSystemRepository, {
           rootPath,
           path: request.query.path,
@@ -193,7 +212,10 @@ export async function registerFileSystemModuleRoutes(
     },
     async (request) => {
       try {
-        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const rootPath = await resolveProjectRoot(
+          request.params.projectId,
+          request.auth!.userId,
+        )
         const file = await writeTextFileUseCase(options.fileSystemRepository, {
           rootPath,
           path: request.body.path,
@@ -218,7 +240,10 @@ export async function registerFileSystemModuleRoutes(
     },
     async (request) => {
       try {
-        const rootPath = await resolveProjectRoot(request.params.projectId)
+        const rootPath = await resolveProjectRoot(
+          request.params.projectId,
+          request.auth!.userId,
+        )
         const directory = await createDirectoryUseCase(options.fileSystemRepository, {
           rootPath,
           path: request.body.path,

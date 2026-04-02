@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import type { ServiceConfig } from "../../config"
 import errorHandlerPlugin from "../../plugins/error-handler"
 import prismaPlugin from "../../plugins/prisma"
+import { createAuthSessionCookie } from "../../../test/helpers/auth-session"
 import { createTestDatabase, type TestDatabase } from "../../../test/helpers/test-database"
 import { registerV1Routes } from "."
 
@@ -19,6 +20,8 @@ function createConfig(): ServiceConfig {
     harborConfigPath: "/tmp/harbor/config.json",
     harborHomeDirectory: "/tmp/harbor",
     taskDatabaseFile: "/tmp/harbor/task.db",
+    allowedGitHubUsers: [],
+    allowedGitHubOrgs: [],
   }
 }
 
@@ -32,6 +35,7 @@ describe("registerV1Routes", () => {
 
   it("shares the new project and task wiring through the v1 composition root", async () => {
     testDatabase = await createTestDatabase()
+    const session = await createAuthSessionCookie(testDatabase.prisma)
     const app = Fastify({ logger: false })
     await app.register(errorHandlerPlugin)
     await app.register(prismaPlugin, {
@@ -49,10 +53,16 @@ describe("registerV1Routes", () => {
     const createdProject = await app.inject({
       method: "POST",
       url: "/v1/projects",
+      headers: {
+        cookie: session.cookie,
+      },
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: {
+          type: "rootPath",
+          rootPath: "/tmp/harbor-assistant",
+        },
       },
     })
 
@@ -61,6 +71,9 @@ describe("registerV1Routes", () => {
     const createdOrchestration = await app.inject({
       method: "POST",
       url: "/v1/orchestrations",
+      headers: {
+        cookie: session.cookie,
+      },
       payload: {
         projectId: "project-1",
         title: "Runtime cleanup",
@@ -73,6 +86,9 @@ describe("registerV1Routes", () => {
     const bootstrapped = await app.inject({
       method: "POST",
       url: "/v1/orchestrations/bootstrap",
+      headers: {
+        cookie: session.cookie,
+      },
       payload: {
         projectId: "project-1",
         orchestration: {
@@ -109,6 +125,9 @@ describe("registerV1Routes", () => {
     const createdTask = await app.inject({
       method: "POST",
       url: `/v1/orchestrations/${orchestrationId}/tasks`,
+      headers: {
+        cookie: session.cookie,
+      },
       payload: {
         prompt: "Investigate runtime drift",
         executor: "codex",
@@ -136,6 +155,9 @@ describe("registerV1Routes", () => {
     const orchestrationTasks = await app.inject({
       method: "GET",
       url: `/v1/orchestrations/${orchestrationId}/tasks`,
+      headers: {
+        cookie: session.cookie,
+      },
     })
 
     expect(orchestrationTasks.statusCode).toBe(200)
@@ -153,6 +175,9 @@ describe("registerV1Routes", () => {
     const projectOrchestrations = await app.inject({
       method: "GET",
       url: "/v1/projects/project-1/orchestrations",
+      headers: {
+        cookie: session.cookie,
+      },
     })
 
     expect(projectOrchestrations.statusCode).toBe(200)

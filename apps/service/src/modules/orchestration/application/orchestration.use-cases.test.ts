@@ -17,9 +17,15 @@ describe("orchestration use cases", () => {
   function createProject(projectId = "project-1") {
     return {
       id: projectId,
+      ownerUserId: null,
       slug: "harbor-assistant",
       name: "Harbor Assistant",
       description: null,
+      source: {
+        type: "rootPath" as const,
+        rootPath: "/tmp/harbor-assistant",
+        normalizedPath: "/tmp/harbor-assistant",
+      },
       rootPath: "/tmp/harbor-assistant",
       normalizedPath: "/tmp/harbor-assistant",
       status: "active" as const,

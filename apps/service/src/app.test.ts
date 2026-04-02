@@ -30,6 +30,8 @@ async function createConfig(): Promise<ServiceConfig> {
     harborConfigPath: path.join(rootPath, "harbor-config.json"),
     harborHomeDirectory: path.join(rootPath, ".harbor"),
     taskDatabaseFile: path.join(rootPath, "task.db"),
+    allowedGitHubUsers: [],
+    allowedGitHubOrgs: [],
   }
 }
 

@@ -8,6 +8,24 @@ import errorHandlerPlugin from "../../../plugins/error-handler"
 
 async function createApp() {
   const app = Fastify({ logger: false })
+  app.decorateRequest("auth", null)
+  app.addHook("onRequest", async (request) => {
+    request.auth = {
+      sessionId: "session-1",
+      userId: "user-1",
+      user: {
+        id: "user-1",
+        githubLogin: "user-1",
+        name: "User One",
+        email: "user-1@example.com",
+        avatarUrl: null,
+        status: "active",
+        lastLoginAt: null,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+      },
+    }
+  })
   await app.register(errorHandlerPlugin)
   await app.register(
     async (instance) => {
@@ -22,8 +40,15 @@ async function createApp() {
   return app
 }
 
+function rootPathSource(rootPath: string) {
+  return {
+    type: "rootPath" as const,
+    rootPath,
+  }
+}
+
 describe("project routes", () => {
-  it("lists projects and creates a new project", async () => {
+  it("lists projects and creates a new rootPath project", async () => {
     const app = await createApp()
 
     const initial = await app.inject({
@@ -42,7 +67,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -54,6 +79,11 @@ describe("project routes", () => {
         name: "Harbor Assistant",
         slug: "harbor-assistant",
         status: "active",
+        source: {
+          type: "rootPath",
+          rootPath: "/tmp/harbor-assistant",
+          normalizedPath: "/tmp/harbor-assistant",
+        },
       },
     })
   })
@@ -67,7 +97,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "~/workspace/harbor-assistant",
+        source: rootPathSource("~/workspace/harbor-assistant"),
       },
     })
 
@@ -77,6 +107,44 @@ describe("project routes", () => {
       project: {
         normalizedPath: "/resolved/workspace/harbor-assistant",
         rootPath: "/resolved/workspace/harbor-assistant",
+        source: {
+          type: "rootPath",
+          rootPath: "/resolved/workspace/harbor-assistant",
+          normalizedPath: "/resolved/workspace/harbor-assistant",
+        },
+      },
+    })
+  })
+
+  it("creates a git-backed project without a local workspace", async () => {
+    const app = await createApp()
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+      },
+    })
+
+    expect(created.statusCode).toBe(201)
+    expect(created.json()).toMatchObject({
+      ok: true,
+      project: {
+        id: "project-1",
+        rootPath: null,
+        normalizedPath: null,
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
       },
     })
   })
@@ -90,7 +158,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -142,7 +210,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -182,7 +250,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -218,7 +286,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -254,7 +322,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
     await app.inject({
@@ -263,7 +331,7 @@ describe("project routes", () => {
       payload: {
         id: "project-2",
         name: "Harbor Service",
-        rootPath: "~/workspace/harbor-service",
+        source: rootPathSource("~/workspace/harbor-service"),
       },
     })
 
@@ -309,7 +377,7 @@ describe("project routes", () => {
       url: "/v1/projects",
       payload: {
         id: "project-1",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -331,7 +399,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -363,7 +431,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -373,7 +441,7 @@ describe("project routes", () => {
       payload: {
         id: "project-2",
         name: "Harbor Assistant 2",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 
@@ -395,7 +463,7 @@ describe("project routes", () => {
       payload: {
         id: "project-1",
         name: "Harbor Assistant",
-        rootPath: "/tmp/harbor-assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
       },
     })
 

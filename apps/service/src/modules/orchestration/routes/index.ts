@@ -9,6 +9,12 @@ import { listProjectOrchestrationsUseCase } from "../application/list-project-or
 import type { OrchestrationBootstrapStore } from "../application/orchestration-bootstrap-store"
 import type { OrchestrationRepository } from "../application/orchestration-repository"
 import { toOrchestrationAppError } from "../orchestration-app-error"
+import {
+  createOwnerScopedOrchestrationRepository,
+  createOwnerScopedProjectRepository,
+  createOwnerScopedProjectTaskPort,
+  createOwnerScopedTaskRepository,
+} from "../../auth"
 import type { ProjectRepository } from "../../project/application/project-repository"
 import type { ProjectTaskPort } from "../../task/application/project-task-port"
 import type { TaskNotificationPublisher } from "../../task/application/task-notification"
@@ -35,7 +41,9 @@ export async function registerOrchestrationModuleRoutes(
   options: {
     repository: OrchestrationRepository
     bootstrapStore: OrchestrationBootstrapStore
-    projectRepository: Pick<ProjectRepository, "findById">
+    projectRepository: Pick<ProjectRepository, "findById"> & {
+      findByIdAndOwnerUserId?: ProjectRepository["findByIdAndOwnerUserId"]
+    }
     projectTaskPort: ProjectTaskPort
     taskRepository: TaskRepository & TaskRecordStore
     runtimePort: TaskRuntimePort
@@ -52,6 +60,10 @@ export async function registerOrchestrationModuleRoutes(
     notificationPublisher,
   } = options
 
+  function getOwnerUserId(request: { auth: { userId: string } | null }) {
+    return request.auth!.userId
+  }
+
   app.post<{ Body: CreateOrchestrationBody }>(
     "/orchestrations",
     {
@@ -59,10 +71,14 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request, reply) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const orchestration = await createOrchestrationUseCase(
           {
             repository,
-            projectRepository,
+            projectRepository: createOwnerScopedProjectRepository(
+              projectRepository as ProjectRepository,
+              ownerUserId,
+            ),
           },
           request.body,
         )
@@ -84,10 +100,14 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request, reply) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const result = await bootstrapOrchestrationUseCase(
           {
             bootstrapStore,
-            projectRepository,
+            projectRepository: createOwnerScopedProjectRepository(
+              projectRepository as ProjectRepository,
+              ownerUserId,
+            ),
             taskRepository,
             runtimePort,
             notificationPublisher,
@@ -114,10 +134,18 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const orchestrations = await listProjectOrchestrationsUseCase(
           {
-            repository,
-            projectRepository,
+            repository: createOwnerScopedOrchestrationRepository({
+              repository,
+              projectRepository,
+              ownerUserId,
+            }),
+            projectRepository: createOwnerScopedProjectRepository(
+              projectRepository as ProjectRepository,
+              ownerUserId,
+            ),
           },
           request.params.projectId,
         )
@@ -139,9 +167,14 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const orchestration = await getOrchestrationUseCase(
           {
-            repository,
+            repository: createOwnerScopedOrchestrationRepository({
+              repository,
+              projectRepository,
+              ownerUserId,
+            }),
           },
           request.params.orchestrationId,
         )
@@ -163,11 +196,24 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request, reply) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const task = await createOrchestrationTaskUseCase(
           {
-            repository,
-            projectTaskPort,
-            taskRepository,
+            repository: createOwnerScopedOrchestrationRepository({
+              repository,
+              projectRepository,
+              ownerUserId,
+            }),
+            projectTaskPort: createOwnerScopedProjectTaskPort({
+              projectRepository,
+              projectTaskPort,
+              ownerUserId,
+            }),
+            taskRepository: createOwnerScopedTaskRepository({
+              repository: taskRepository,
+              projectRepository,
+              ownerUserId,
+            }) as TaskRepository & TaskRecordStore,
             runtimePort,
             notificationPublisher,
           },
@@ -194,10 +240,19 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request) => {
       try {
+        const ownerUserId = getOwnerUserId(request)
         const tasks = await listOrchestrationTasksUseCase(
           {
-            repository,
-            taskRepository,
+            repository: createOwnerScopedOrchestrationRepository({
+              repository,
+              projectRepository,
+              ownerUserId,
+            }),
+            taskRepository: createOwnerScopedTaskRepository({
+              repository: taskRepository,
+              projectRepository,
+              ownerUserId,
+            }),
           },
           {
             orchestrationId: request.params.orchestrationId,
