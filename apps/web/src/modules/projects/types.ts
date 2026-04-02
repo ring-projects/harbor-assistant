@@ -1,10 +1,25 @@
+export type RootPathProjectSource = {
+  type: "rootPath"
+  rootPath: string
+  normalizedPath: string
+}
+
+export type GitProjectSource = {
+  type: "git"
+  repositoryUrl: string
+  branch: string | null
+}
+
+export type ProjectSource = RootPathProjectSource | GitProjectSource
+
 export type Project = {
   id: string
   slug: string
   name: string
   description: string | null
-  rootPath: string
-  normalizedPath: string
+  source: ProjectSource
+  rootPath: string | null
+  normalizedPath: string | null
   status: "active" | "archived" | "missing"
   archivedAt: string | null
   lastOpenedAt: string | null

@@ -26,6 +26,16 @@ type ProjectSwitcherProps = {
   triggerLabel?: string
 }
 
+function describeProjectSource(project: Project) {
+  if (project.source.type === "git") {
+    return project.source.branch
+      ? `${project.source.repositoryUrl} (${project.source.branch})`
+      : project.source.repositoryUrl
+  }
+
+  return project.rootPath ?? project.source.rootPath
+}
+
 export function ProjectSwitcher({
   activeProjectId,
   initialProjects,
@@ -83,7 +93,7 @@ export function ProjectSwitcher({
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{project.name}</div>
                   <div className="text-muted-foreground truncate text-xs">
-                    {project.rootPath}
+                    {describeProjectSource(project)}
                   </div>
                 </div>
 

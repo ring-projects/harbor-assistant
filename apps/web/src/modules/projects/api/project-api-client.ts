@@ -12,7 +12,11 @@ import {
   toOptionalIsoDateString,
   toStringOrNull,
 } from "@/lib/protocol"
-import type { Project, ProjectSettings } from "@/modules/projects/types"
+import type {
+  Project,
+  ProjectSettings,
+  ProjectSource,
+} from "@/modules/projects/types"
 
 const projectApiErrorSchema = z.object({
   code: z.string(),
@@ -40,9 +44,22 @@ export class ProjectApiClientError extends Error {
 
 export type CreateProjectInput = {
   name: string
-  rootPath: string
   description?: string | null
-}
+} & (
+  | {
+      source: {
+        type: "rootPath"
+        rootPath: string
+      }
+    }
+  | {
+      source: {
+        type: "git"
+        repositoryUrl: string
+        branch?: string | null
+      }
+    }
+)
 
 export type UpdateProjectInput = {
   id: string
@@ -132,6 +149,43 @@ function extractProjectSettings(candidate: unknown): ProjectSettings | null {
   }
 }
 
+function extractProjectSource(candidate: unknown): ProjectSource | null {
+  const source = asRecord(candidate)
+  if (!source) {
+    return null
+  }
+
+  const type = toStringOrNull(source.type)
+  if (type === "rootPath") {
+    const rootPath = toStringOrNull(source.rootPath)
+    const normalizedPath = toStringOrNull(source.normalizedPath)
+    if (!rootPath || !normalizedPath) {
+      return null
+    }
+
+    return {
+      type,
+      rootPath,
+      normalizedPath,
+    }
+  }
+
+  if (type === "git") {
+    const repositoryUrl = toStringOrNull(source.repositoryUrl)
+    if (!repositoryUrl) {
+      return null
+    }
+
+    return {
+      type,
+      repositoryUrl,
+      branch: toStringOrNull(source.branch),
+    }
+  }
+
+  return null
+}
+
 function extractProject(candidate: unknown): Project | null {
   const source = asRecord(candidate)
   if (!source) {
@@ -145,15 +199,15 @@ function extractProject(candidate: unknown): Project | null {
   const normalizedPath = toStringOrNull(source.normalizedPath)
   const status = toStringOrNull(source.status)
   const settings = extractProjectSettings(source.settings)
+  const projectSource = extractProjectSource(source.source)
 
   if (
     !id ||
     !slug ||
     !name ||
-    !rootPath ||
-    !normalizedPath ||
     (status !== "active" && status !== "archived" && status !== "missing") ||
-    !settings
+    !settings ||
+    !projectSource
   ) {
     return null
   }
@@ -163,6 +217,7 @@ function extractProject(candidate: unknown): Project | null {
     slug,
     name,
     description: toStringOrNull(source.description),
+    source: projectSource,
     rootPath,
     normalizedPath,
     status,
@@ -238,8 +293,8 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
     body: JSON.stringify({
       id: crypto.randomUUID(),
       name: input.name,
-      rootPath: input.rootPath,
       description: input.description,
+      source: input.source,
     }),
   })
 

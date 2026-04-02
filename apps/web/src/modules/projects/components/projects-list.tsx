@@ -25,6 +25,16 @@ type ProjectsListProps = {
   initialProjects?: Project[]
 }
 
+function describeProjectSource(project: Project) {
+  if (project.source.type === "git") {
+    return project.source.branch
+      ? `${project.source.repositoryUrl} (${project.source.branch})`
+      : project.source.repositoryUrl
+  }
+
+  return project.rootPath ?? project.source.rootPath
+}
+
 export function ProjectsList({
   activeProjectId,
   className,
@@ -90,7 +100,7 @@ export function ProjectsList({
                     <SidebarMenuButton
                       asChild
                       isActive={project.id === resolvedActiveProjectId}
-                      tooltip={project.rootPath}
+                      tooltip={describeProjectSource(project)}
                       className="h-auto py-2"
                     >
                       <Link

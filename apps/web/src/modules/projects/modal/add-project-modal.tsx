@@ -30,7 +30,7 @@ export function AddProjectModal() {
         <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>Add Project</DialogTitle>
           <DialogDescription>
-            Select a project directory and register it as a new workspace.
+            Register a server-local workspace or a git repository as a project.
           </DialogDescription>
         </DialogHeader>
         <CreateProject
