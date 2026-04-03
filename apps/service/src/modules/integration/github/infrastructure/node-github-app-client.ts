@@ -74,7 +74,7 @@ export class NodeGitHubAppClient implements GitHubAppClient {
     return this.options.fetch ?? fetch
   }
 
-  buildInstallUrl(): string {
+  buildInstallUrl(state?: string): string {
     if (!this.options.appSlug?.trim()) {
       throw new AppError(
         ERROR_CODES.AUTH_NOT_CONFIGURED,
@@ -83,7 +83,15 @@ export class NodeGitHubAppClient implements GitHubAppClient {
       )
     }
 
-    return `https://github.com/apps/${this.options.appSlug.trim()}/installations/new`
+    const url = new URL(
+      `https://github.com/apps/${this.options.appSlug.trim()}/installations/new`,
+    )
+
+    if (state?.trim()) {
+      url.searchParams.set("state", state.trim())
+    }
+
+    return url.toString()
   }
 
   async getInstallation(installationId: string): Promise<GitHubInstallationRecord> {

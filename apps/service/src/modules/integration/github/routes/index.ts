@@ -1,9 +1,16 @@
 import type { FastifyInstance } from "fastify"
+import { randomBytes } from "node:crypto"
 
 import { AppError } from "../../../../lib/errors/app-error"
 import { ERROR_CODES } from "../../../../constants/errors"
+import {
+  expireCookie,
+  parseCookieHeader,
+  serializeCookie,
+} from "../../../auth/lib/cookies"
 import type { GitHubAppClient } from "../application/github-app-client"
 import type { GitHubInstallationRepository } from "../application/github-installation-repository"
+import { GITHUB_APP_INSTALL_STATE_COOKIE_NAME } from "../constants"
 
 function resolveCurrentUserId(request: { auth: { userId: string } | null }) {
   return request.auth!.userId
@@ -19,6 +26,46 @@ function ensureGitHubAppConfigured(githubAppSlug: string | undefined) {
   }
 }
 
+function createGitHubAppInstallState() {
+  return randomBytes(24).toString("base64url")
+}
+
+function encodeInstallStateCookieValue(input: {
+  userId: string
+  state: string
+}) {
+  return JSON.stringify(input)
+}
+
+function decodeInstallStateCookieValue(value: string | undefined) {
+  if (!value) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(value) as {
+      userId?: unknown
+      state?: unknown
+    }
+
+    if (
+      typeof parsed.userId !== "string" ||
+      !parsed.userId.trim() ||
+      typeof parsed.state !== "string" ||
+      !parsed.state.trim()
+    ) {
+      return null
+    }
+
+    return {
+      userId: parsed.userId,
+      state: parsed.state,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function registerGitHubIntegrationRoutes(
   app: FastifyInstance,
   options: {
@@ -30,12 +77,29 @@ export async function registerGitHubIntegrationRoutes(
     githubAppClient: GitHubAppClient
   },
 ) {
-  app.get("/integrations/github/app/install-url", async () => {
+  app.get("/integrations/github/app/install-url", async (request, reply) => {
     ensureGitHubAppConfigured(options.githubAppSlug)
+    const state = createGitHubAppInstallState()
+
+    reply.header(
+      "set-cookie",
+      serializeCookie(
+        GITHUB_APP_INSTALL_STATE_COOKIE_NAME,
+        encodeInstallStateCookieValue({
+          userId: resolveCurrentUserId(request),
+          state,
+        }),
+        {
+          sameSite: "Lax",
+          path: "/",
+          maxAge: 10 * 60,
+        },
+      ),
+    )
 
     return {
       ok: true,
-      installUrl: options.githubAppClient.buildInstallUrl(),
+      installUrl: options.githubAppClient.buildInstallUrl(state),
     }
   })
 
@@ -43,15 +107,62 @@ export async function registerGitHubIntegrationRoutes(
     Querystring: {
       installation_id?: string
       setup_action?: string
+      state?: string
     }
   }>("/integrations/github/setup", async (request, reply) => {
     ensureGitHubAppConfigured(options.githubAppSlug)
+    const currentUserId = resolveCurrentUserId(request)
+    const cookies = parseCookieHeader(request.headers.cookie)
+    const installState = decodeInstallStateCookieValue(
+      cookies.get(GITHUB_APP_INSTALL_STATE_COOKIE_NAME),
+    )
     const installationId = request.query.installation_id?.trim()
+    const state = request.query.state?.trim()
+
+    if (
+      !installState ||
+      !state ||
+      installState.state !== state ||
+      installState.userId !== currentUserId
+    ) {
+      reply.header(
+        "set-cookie",
+        expireCookie(GITHUB_APP_INSTALL_STATE_COOKIE_NAME, {
+          sameSite: "Lax",
+          path: "/",
+        }),
+      )
+      throw new AppError(
+        ERROR_CODES.PERMISSION_DENIED,
+        403,
+        "GitHub App setup state is invalid.",
+      )
+    }
+
     if (!installationId) {
       throw new AppError(
         ERROR_CODES.INVALID_REQUEST_BODY,
         400,
         "installation_id is required.",
+      )
+    }
+
+    const existingInstallation = await options.installationRepository.findById(installationId)
+    if (
+      existingInstallation?.installedByUserId &&
+      existingInstallation.installedByUserId !== currentUserId
+    ) {
+      reply.header(
+        "set-cookie",
+        expireCookie(GITHUB_APP_INSTALL_STATE_COOKIE_NAME, {
+          sameSite: "Lax",
+          path: "/",
+        }),
+      )
+      throw new AppError(
+        ERROR_CODES.CONFLICT,
+        409,
+        "GitHub installation is already linked to another Harbor user.",
       )
     }
 
@@ -63,11 +174,19 @@ export async function registerGitHubIntegrationRoutes(
       accountLogin: installation.accountLogin,
       targetType: installation.targetType,
       status: installation.status,
-      installedByUserId: resolveCurrentUserId(request),
+      installedByUserId: currentUserId,
       createdAt: now,
       updatedAt: now,
       lastValidatedAt: now,
     })
+
+    reply.header(
+      "set-cookie",
+      expireCookie(GITHUB_APP_INSTALL_STATE_COOKIE_NAME, {
+        sameSite: "Lax",
+        path: "/",
+      }),
+    )
 
     return reply.redirect(options.config.webBaseUrl ?? "/")
   })

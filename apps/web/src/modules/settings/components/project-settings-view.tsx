@@ -228,12 +228,18 @@ export function ProjectSettingsView({
     }
   }
 
-  function openGitHubInstallUrl() {
-    if (!installUrlQuery.data) {
-      return
-    }
+  async function openGitHubInstallUrl() {
+    try {
+      setRepositoryActionError(null)
+      const result = await installUrlQuery.refetch()
+      if (!result.data) {
+        return
+      }
 
-    window.open(installUrlQuery.data, "_blank", "noopener,noreferrer")
+      window.open(result.data, "_blank", "noopener,noreferrer")
+    } catch (error) {
+      setRepositoryActionError(getProjectActionError(error))
+    }
   }
 
   return (
@@ -413,8 +419,8 @@ export function ProjectSettingsView({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={openGitHubInstallUrl}
-                      disabled={!installUrlQuery.data}
+                      onClick={() => void openGitHubInstallUrl()}
+                      disabled={installUrlQuery.isFetching}
                     >
                       Install GitHub App
                     </Button>

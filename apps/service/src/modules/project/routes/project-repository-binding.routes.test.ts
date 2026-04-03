@@ -201,6 +201,129 @@ describe("project repository binding routes", () => {
     })
   })
 
+  it("does not leave a git project behind when the referenced installation is missing", async () => {
+    const projectRepository = new InMemoryProjectRepository()
+    const app = await createApp({
+      projectRepository,
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+        repositoryBinding: {
+          provider: "github",
+          installationId: "12345",
+          repositoryFullName: "acme/harbor-assistant",
+        },
+      },
+    })
+
+    expect(response.statusCode).toBe(404)
+    await expect(projectRepository.findById("project-1")).resolves.toBeNull()
+  })
+
+  it("does not leave a git project behind when the repository is outside installation scope", async () => {
+    const projectRepository = new InMemoryProjectRepository()
+    const installationRepository = new InMemoryGitHubInstallationRepository()
+    await installationRepository.save({
+      id: "12345",
+      accountType: "organization",
+      accountLogin: "acme",
+      targetType: "selected",
+      status: "active",
+      installedByUserId: "user-1",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastValidatedAt: null,
+    })
+    const app = await createApp({
+      projectRepository,
+      installationRepository,
+      githubAppClient: createGitHubAppClientStub({
+        listInstallationRepositories: vi.fn(async () => []),
+      }),
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+        repositoryBinding: {
+          provider: "github",
+          installationId: "12345",
+          repositoryFullName: "acme/harbor-assistant",
+        },
+      },
+    })
+
+    expect(response.statusCode).toBe(404)
+    await expect(projectRepository.findById("project-1")).resolves.toBeNull()
+  })
+
+  it("rolls the project back when saving the repository binding fails", async () => {
+    const projectRepository = new InMemoryProjectRepository()
+    const installationRepository = new InMemoryGitHubInstallationRepository()
+    await installationRepository.save({
+      id: "12345",
+      accountType: "organization",
+      accountLogin: "acme",
+      targetType: "selected",
+      status: "active",
+      installedByUserId: "user-1",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastValidatedAt: null,
+    })
+    class FailingBindingRepository extends InMemoryProjectRepositoryBindingRepository {
+      override async save(): Promise<void> {
+        throw new Error("binding write failed")
+      }
+    }
+
+    const app = await createApp({
+      projectRepository,
+      installationRepository,
+      bindingRepository: new FailingBindingRepository(),
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+        repositoryBinding: {
+          provider: "github",
+          installationId: "12345",
+          repositoryFullName: "acme/harbor-assistant",
+        },
+      },
+    })
+
+    expect(response.statusCode).toBe(500)
+    await expect(projectRepository.findById("project-1")).resolves.toBeNull()
+  })
+
   it("provisions a local workspace for a bound git project", async () => {
     const installationRepository = new InMemoryGitHubInstallationRepository()
     await installationRepository.save({

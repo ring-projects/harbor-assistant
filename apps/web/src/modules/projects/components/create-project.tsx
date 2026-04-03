@@ -307,6 +307,20 @@ export function CreateProject(props: CreateProjectProps) {
     }
   }
 
+  async function openGitHubInstallUrl() {
+    try {
+      clearFeedback()
+      const result = await installUrlQuery.refetch()
+      if (!result.data) {
+        return
+      }
+
+      window.open(result.data, "_blank", "noopener,noreferrer")
+    } catch (error) {
+      setFormError(getProjectActionError(error))
+    }
+  }
+
   const isMutating = createMutation.isPending || provisionMutation.isPending
 
   return (
@@ -374,12 +388,8 @@ export function CreateProject(props: CreateProjectProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  if (installUrlQuery.data) {
-                    window.open(installUrlQuery.data, "_blank", "noopener,noreferrer")
-                  }
-                }}
-                disabled={!installUrlQuery.data || isMutating}
+                onClick={() => void openGitHubInstallUrl()}
+                disabled={installUrlQuery.isFetching || isMutating}
               >
                 Install GitHub App
               </Button>

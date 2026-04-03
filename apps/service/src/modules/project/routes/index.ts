@@ -103,6 +103,50 @@ export async function registerProjectModuleRoutes(
     }
   }
 
+  async function resolveSelectedGitHubRepository(input: {
+    ownerUserId: string
+    installationId: string
+    repositoryFullName: string
+  }) {
+    const githubAccess = requireGitHubRepositoryAccess()
+    const installation =
+      await githubAccess.installationRepository.findByIdAndInstalledByUserId(
+        input.installationId,
+        input.ownerUserId,
+      )
+
+    if (!installation) {
+      throw new AppError(
+        ERROR_CODES.NOT_FOUND,
+        404,
+        "GitHub installation not found.",
+      )
+    }
+
+    const repositories =
+      await githubAccess.githubAppClient.listInstallationRepositories(
+        installation.id,
+      )
+    const selectedRepository = repositories.find(
+      (item) =>
+        item.fullName.toLowerCase() === input.repositoryFullName.toLowerCase(),
+    )
+
+    if (!selectedRepository) {
+      throw new AppError(
+        ERROR_CODES.NOT_FOUND,
+        404,
+        "GitHub repository not found in installation scope.",
+      )
+    }
+
+    return {
+      installation,
+      selectedRepository,
+      githubAccess,
+    }
+  }
+
   app.get(
     "/projects",
     {
@@ -132,6 +176,14 @@ export async function registerProjectModuleRoutes(
           request.body.source.type === "git"
             ? request.body.repositoryBinding
             : undefined
+        const resolvedGitHubRepository =
+          request.body.source.type === "git" && repositoryBinding
+            ? await resolveSelectedGitHubRepository({
+                ownerUserId,
+                installationId: repositoryBinding.installationId,
+                repositoryFullName: repositoryBinding.repositoryFullName,
+              })
+            : null
         if (
           request.body.source.type === "rootPath" &&
           "repositoryBinding" in request.body &&
@@ -155,56 +207,29 @@ export async function registerProjectModuleRoutes(
 
         if (
           request.body.source.type === "git" &&
-          repositoryBinding
+          repositoryBinding &&
+          resolvedGitHubRepository
         ) {
-          const githubAccess = requireGitHubRepositoryAccess()
-          const installation =
-            await githubAccess.installationRepository.findByIdAndInstalledByUserId(
-              repositoryBinding.installationId,
-              ownerUserId,
-            )
-
-          if (!installation) {
-            throw new AppError(
-              ERROR_CODES.NOT_FOUND,
-              404,
-              "GitHub installation not found.",
-            )
+          try {
+            await resolvedGitHubRepository.githubAccess.repositoryBindingRepository.save({
+              projectId: project.id,
+              provider: "github",
+              installationId: resolvedGitHubRepository.installation.id,
+              repositoryNodeId: resolvedGitHubRepository.selectedRepository.nodeId,
+              repositoryOwner: resolvedGitHubRepository.selectedRepository.owner,
+              repositoryName: resolvedGitHubRepository.selectedRepository.name,
+              repositoryFullName: resolvedGitHubRepository.selectedRepository.fullName,
+              repositoryUrl: resolvedGitHubRepository.selectedRepository.url,
+              defaultBranch: resolvedGitHubRepository.selectedRepository.defaultBranch,
+              visibility: resolvedGitHubRepository.selectedRepository.visibility,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              lastVerifiedAt: new Date(),
+            })
+          } catch (error) {
+            await repository.delete(project.id)
+            throw error
           }
-
-          const repositories =
-            await githubAccess.githubAppClient.listInstallationRepositories(
-              installation.id,
-            )
-          const selectedRepository = repositories.find(
-            (item) =>
-              item.fullName.toLowerCase() ===
-              repositoryBinding.repositoryFullName.toLowerCase(),
-          )
-
-          if (!selectedRepository) {
-            throw new AppError(
-              ERROR_CODES.NOT_FOUND,
-              404,
-              "GitHub repository not found in installation scope.",
-            )
-          }
-
-          await githubAccess.repositoryBindingRepository.save({
-            projectId: project.id,
-            provider: "github",
-            installationId: installation.id,
-            repositoryNodeId: selectedRepository.nodeId,
-            repositoryOwner: selectedRepository.owner,
-            repositoryName: selectedRepository.name,
-            repositoryFullName: selectedRepository.fullName,
-            repositoryUrl: selectedRepository.url,
-            defaultBranch: selectedRepository.defaultBranch,
-            visibility: selectedRepository.visibility,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            lastVerifiedAt: new Date(),
-          })
         }
 
         return reply.status(201).send({
