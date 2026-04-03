@@ -114,6 +114,12 @@ export async function logout(): Promise<void> {
   throwIfFailed(response, payload, "Failed to log out.")
 }
 
-export function getGitHubLoginUrl() {
-  return `${getExecutorApiBaseUrl()}/v1/auth/github/start`
+export function getGitHubLoginUrl(redirectTo?: string | null) {
+  const url = new URL("/v1/auth/github/start", `${getExecutorApiBaseUrl()}/`)
+
+  if (redirectTo?.trim()) {
+    url.searchParams.set("redirect", redirectTo)
+  }
+
+  return url.toString()
 }

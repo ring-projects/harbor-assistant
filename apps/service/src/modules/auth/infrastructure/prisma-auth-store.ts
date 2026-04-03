@@ -1,5 +1,7 @@
 import type { AuthProvider, PrismaClient, User as PrismaUser } from "@prisma/client"
 
+import { ERROR_CODES } from "../../../constants/errors"
+import { AppError } from "../../../lib/errors/app-error"
 import type { User } from "../../user/domain/user"
 import { toDomainUser } from "../../user/infrastructure/persistence/user-mapper"
 import { DEFAULT_SESSION_TTL_DAYS } from "../constants"
@@ -55,11 +57,23 @@ export class PrismaAuthStore {
               id: identity.userId,
             },
           })
-        : await tx.user.findUnique({
-            where: {
-              githubLogin: input.login,
-            },
-          })
+        : null
+
+      if (!identity) {
+        const conflictingUser = await tx.user.findUnique({
+          where: {
+            githubLogin: input.login,
+          },
+        })
+
+        if (conflictingUser) {
+          throw new AppError(
+            ERROR_CODES.AUTH_IDENTITY_CONFLICT,
+            409,
+            "GitHub identity could not be linked to the existing Harbor user.",
+          )
+        }
+      }
 
       const userRecord = currentUser
         ? await tx.user.update({

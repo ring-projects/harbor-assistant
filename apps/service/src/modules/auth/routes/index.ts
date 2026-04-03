@@ -7,6 +7,7 @@ import { expireCookie, parseCookieHeader, serializeCookie } from "../lib/cookies
 import { createOAuthState } from "../lib/session"
 import {
   DEFAULT_SESSION_TTL_DAYS,
+  GITHUB_OAUTH_REDIRECT_COOKIE_NAME,
   GITHUB_OAUTH_STATE_COOKIE_NAME,
   HARBOR_SESSION_COOKIE_NAME,
 } from "../constants"
@@ -32,11 +33,12 @@ function ensureGitHubOAuthConfigured(config: ServiceConfig) {
 }
 
 function buildWebLoginRedirectUrl(config: ServiceConfig, errorCode: string) {
-  if (!config.webBaseUrl) {
+  const loginUrl = buildWebAbsoluteUrl(config, "/login")
+  if (!loginUrl) {
     return null
   }
 
-  const url = new URL("/login", config.webBaseUrl)
+  const url = new URL(loginUrl)
   url.searchParams.set("error", errorCode)
   return url.toString()
 }
@@ -45,13 +47,63 @@ function createGitHubAuthorizeUrl(args: {
   clientId: string
   redirectUri: string
   state: string
+  scopes: string[]
 }) {
   const url = new URL("https://github.com/login/oauth/authorize")
   url.searchParams.set("client_id", args.clientId)
   url.searchParams.set("redirect_uri", args.redirectUri)
-  url.searchParams.set("scope", "read:user user:email")
+  url.searchParams.set("scope", args.scopes.join(" "))
   url.searchParams.set("state", args.state)
   return url.toString()
+}
+
+function getGitHubOAuthScopes(config: ServiceConfig) {
+  const scopes = ["read:user", "user:email"]
+
+  if (config.allowedGitHubOrgs.length > 0) {
+    scopes.push("read:org")
+  }
+
+  return scopes
+}
+
+function normalizeLoginRedirectTarget(value: string | null | undefined) {
+  const candidate = value?.trim()
+
+  if (!candidate) {
+    return null
+  }
+
+  if (!candidate.startsWith("/") || candidate.startsWith("//")) {
+    return null
+  }
+
+  if (candidate.includes("\r") || candidate.includes("\n")) {
+    return null
+  }
+
+  return candidate
+}
+
+function buildWebAbsoluteUrl(config: ServiceConfig, path: string) {
+  if (!config.webBaseUrl) {
+    return null
+  }
+
+  const webUrl = new URL(config.webBaseUrl)
+  return new URL(path, `${webUrl.protocol}//${webUrl.host}/`).toString()
+}
+
+function buildWebSuccessRedirectUrl(
+  config: ServiceConfig,
+  redirectTarget: string | null,
+) {
+  if (redirectTarget) {
+    const redirectUrl = buildWebAbsoluteUrl(config, redirectTarget)
+    return redirectUrl ?? redirectTarget
+  }
+
+  return config.webBaseUrl ?? "/"
 }
 
 function assertGitHubIdentityAllowed(
@@ -88,6 +140,7 @@ export async function registerAuthModuleRoutes(
       exchangeCodeForIdentity(args: {
         code: string
         redirectUri: string
+        includeOrganizations?: boolean
       }): Promise<GitHubIdentity>
     }
     authStore?: PrismaAuthStore
@@ -95,9 +148,13 @@ export async function registerAuthModuleRoutes(
 ) {
   const authStore = options.authStore ?? new PrismaAuthStore(app.prisma)
 
-  app.get(
+  app.get<{
+    Querystring: {
+      redirect?: string
+    }
+  }>(
     "/auth/github/start",
-    async (_request, reply) => {
+    async (request, reply) => {
       ensureGitHubOAuthConfigured(options.config)
 
       const redirectUri = new URL(
@@ -105,21 +162,34 @@ export async function registerAuthModuleRoutes(
         options.config.appBaseUrl,
       ).toString()
       const state = createOAuthState()
+      const redirectTarget = normalizeLoginRedirectTarget(request.query.redirect)
       const authorizeUrl = createGitHubAuthorizeUrl({
         clientId: options.config.githubClientId!,
         redirectUri,
         state,
+        scopes: getGitHubOAuthScopes(options.config),
       })
 
-      reply.header(
-        "set-cookie",
+      reply.header("set-cookie", [
         serializeCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, state, {
           secure: isSecureCookie(options.config),
           sameSite: "Lax",
           path: "/",
           maxAge: 10 * 60,
         }),
-      )
+        redirectTarget
+          ? serializeCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, redirectTarget, {
+              secure: isSecureCookie(options.config),
+              sameSite: "Lax",
+              path: "/",
+              maxAge: 10 * 60,
+            })
+          : expireCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
+              secure: isSecureCookie(options.config),
+              sameSite: "Lax",
+              path: "/",
+            }),
+      ])
 
       return reply.redirect(authorizeUrl)
     },
@@ -133,12 +203,16 @@ export async function registerAuthModuleRoutes(
   }>(
     "/auth/github/callback",
     async (request, reply) => {
+      const cookies = parseCookieHeader(request.headers.cookie)
+      const storedRedirect = normalizeLoginRedirectTarget(
+        cookies.get(GITHUB_OAUTH_REDIRECT_COOKIE_NAME),
+      )
+
       try {
         ensureGitHubOAuthConfigured(options.config)
 
         const code = request.query.code?.trim()
         const state = request.query.state?.trim()
-        const cookies = parseCookieHeader(request.headers.cookie)
         const storedState = cookies.get(GITHUB_OAUTH_STATE_COOKIE_NAME)
 
         if (!code || !state || !storedState || state !== storedState) {
@@ -163,6 +237,7 @@ export async function registerAuthModuleRoutes(
         const identity = await githubClient.exchangeCodeForIdentity({
           code,
           redirectUri,
+          includeOrganizations: options.config.allowedGitHubOrgs.length > 0,
         })
         assertGitHubIdentityAllowed(options.config, identity)
 
@@ -192,9 +267,16 @@ export async function registerAuthModuleRoutes(
             sameSite: "Lax",
             path: "/",
           }),
+          expireCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
+            secure: isSecureCookie(options.config),
+            sameSite: "Lax",
+            path: "/",
+          }),
         ])
 
-        return reply.redirect(options.config.webBaseUrl ?? "/")
+        return reply.redirect(
+          buildWebSuccessRedirectUrl(options.config, storedRedirect),
+        )
       } catch (error) {
         const redirectUrl = buildWebLoginRedirectUrl(
           options.config,
@@ -204,7 +286,23 @@ export async function registerAuthModuleRoutes(
         )
 
         if (redirectUrl) {
-          return reply.redirect(redirectUrl)
+          const url = new URL(redirectUrl)
+          if (storedRedirect) {
+            url.searchParams.set("redirect", storedRedirect)
+          }
+          reply.header("set-cookie", [
+            expireCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, {
+              secure: isSecureCookie(options.config),
+              sameSite: "Lax",
+              path: "/",
+            }),
+            expireCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
+              secure: isSecureCookie(options.config),
+              sameSite: "Lax",
+              path: "/",
+            }),
+          ])
+          return reply.redirect(url.toString())
         }
 
         throw error

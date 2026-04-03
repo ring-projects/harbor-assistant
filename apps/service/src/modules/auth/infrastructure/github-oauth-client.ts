@@ -51,15 +51,25 @@ export class GitHubOAuthClient {
   async exchangeCodeForIdentity(args: {
     code: string
     redirectUri: string
+    includeOrganizations?: boolean
   }): Promise<GitHubIdentity> {
     const token = await this.exchangeCodeForAccessToken(args)
+    const profilePromise = this.fetchGitHubJson<GitHubUserProfile>(
+      "https://api.github.com/user",
+      token,
+    )
+    const emailsPromise = this.fetchGitHubJson<GitHubUserEmail[]>(
+      "https://api.github.com/user/emails",
+      token,
+    )
+    const orgsPromise = args.includeOrganizations
+      ? this.fetchGitHubJson<GitHubOrg[]>("https://api.github.com/user/orgs", token)
+      : Promise.resolve([])
+
     const [profile, emails, orgs] = await Promise.all([
-      this.fetchGitHubJson<GitHubUserProfile>("https://api.github.com/user", token),
-      this.fetchGitHubJson<GitHubUserEmail[]>(
-        "https://api.github.com/user/emails",
-        token,
-      ),
-      this.fetchGitHubJson<GitHubOrg[]>("https://api.github.com/user/orgs", token),
+      profilePromise,
+      emailsPromise,
+      orgsPromise,
     ])
 
     const primaryEmail =
