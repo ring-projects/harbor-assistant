@@ -7,7 +7,7 @@ import {
   expireCookie,
   parseCookieHeader,
   serializeCookie,
-} from "../../../auth/lib/cookies"
+} from "../../../../lib/http/cookies"
 import type { GitHubAppClient } from "../application/github-app-client"
 import type { GitHubInstallationRepository } from "../application/github-installation-repository"
 import { GITHUB_APP_INSTALL_STATE_COOKIE_NAME } from "../constants"
@@ -24,6 +24,10 @@ function ensureGitHubAppConfigured(githubAppSlug: string | undefined) {
       "GitHub App is not configured.",
     )
   }
+}
+
+function isSecureCookie(config: { isProduction?: boolean }) {
+  return config.isProduction === true
 }
 
 function createGitHubAppInstallState() {
@@ -71,6 +75,7 @@ export async function registerGitHubIntegrationRoutes(
   options: {
     config: {
       webBaseUrl?: string
+      isProduction?: boolean
     }
     githubAppSlug?: string
     installationRepository: GitHubInstallationRepository
@@ -90,6 +95,7 @@ export async function registerGitHubIntegrationRoutes(
           state,
         }),
         {
+          secure: isSecureCookie(options.config),
           sameSite: "Lax",
           path: "/",
           maxAge: 10 * 60,
@@ -128,6 +134,7 @@ export async function registerGitHubIntegrationRoutes(
       reply.header(
         "set-cookie",
         expireCookie(GITHUB_APP_INSTALL_STATE_COOKIE_NAME, {
+          secure: isSecureCookie(options.config),
           sameSite: "Lax",
           path: "/",
         }),
@@ -155,6 +162,7 @@ export async function registerGitHubIntegrationRoutes(
       reply.header(
         "set-cookie",
         expireCookie(GITHUB_APP_INSTALL_STATE_COOKIE_NAME, {
+          secure: isSecureCookie(options.config),
           sameSite: "Lax",
           path: "/",
         }),
@@ -183,6 +191,7 @@ export async function registerGitHubIntegrationRoutes(
     reply.header(
       "set-cookie",
       expireCookie(GITHUB_APP_INSTALL_STATE_COOKIE_NAME, {
+        secure: isSecureCookie(options.config),
         sameSite: "Lax",
         path: "/",
       }),

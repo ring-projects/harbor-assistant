@@ -3,7 +3,7 @@ import fp from "fastify-plugin"
 import type { ServiceConfig } from "../../../config"
 import { AppError } from "../../../lib/errors/app-error"
 import { ERROR_CODES } from "../../../constants/errors"
-import { parseCookieHeader } from "../lib/cookies"
+import { parseCookieHeader } from "../../../lib/http/cookies"
 import { HARBOR_SESSION_COOKIE_NAME } from "../constants"
 import { PrismaAuthStore } from "../infrastructure/prisma-auth-store"
 

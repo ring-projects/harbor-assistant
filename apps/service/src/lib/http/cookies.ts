@@ -74,7 +74,10 @@ export function serializeCookie(
   return segments.join("; ")
 }
 
-export function expireCookie(name: string, options: Omit<CookieOptions, "expires" | "maxAge"> = {}) {
+export function expireCookie(
+  name: string,
+  options: Omit<CookieOptions, "expires" | "maxAge"> = {},
+) {
   return serializeCookie(name, "", {
     ...options,
     maxAge: 0,

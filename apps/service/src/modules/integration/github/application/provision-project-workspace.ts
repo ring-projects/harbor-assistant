@@ -10,6 +10,7 @@ import type { GitHubAppClient } from "./github-app-client"
 import type { GitHubInstallationRepository } from "./github-installation-repository"
 import type { ProjectRepositoryBindingRepository } from "./project-repository-binding-repository"
 import type { ProjectWorkspaceManager } from "./project-workspace-manager"
+import { resolveGitHubManagedProjectContext } from "./resolve-github-managed-project-context"
 
 export async function provisionProjectWorkspaceUseCase(
   deps: {
@@ -25,42 +26,13 @@ export async function provisionProjectWorkspaceUseCase(
     ownerUserId: string
   },
 ) {
-  const project =
-    (await deps.projectRepository.findByIdAndOwnerUserId?.(
-      input.projectId,
-      input.ownerUserId,
-    )) ?? (await deps.projectRepository.findById(input.projectId))
-
-  if (!project || project.ownerUserId !== input.ownerUserId) {
-    throw createProjectError().notFound()
-  }
-
-  if (project.source.type !== "git") {
-    throw createProjectError().invalidState(
-      "only git projects can provision a managed workspace",
-    )
-  }
+  const context = await resolveGitHubManagedProjectContext(deps, input)
+  const { project, binding, accessToken } = context
 
   if (project.rootPath || project.normalizedPath) {
     requireProjectWorkspace(project)
     throw createProjectError().invalidState("project workspace is already available")
   }
-
-  const binding = await deps.bindingRepository.findByProjectId(project.id)
-  if (!binding) {
-    throw createProjectError().invalidState("project repository binding is not available")
-  }
-
-  const installation =
-    await deps.installationRepository.findByIdAndInstalledByUserId(
-      binding.installationId,
-      input.ownerUserId,
-    )
-  if (!installation) {
-    throw createProjectError().notFound()
-  }
-
-  const token = await deps.githubAppClient.createInstallationAccessToken(installation.id)
   const workspacePath = path.join(
     deps.workspaceRootDirectory,
     input.ownerUserId,
@@ -71,7 +43,7 @@ export async function provisionProjectWorkspaceUseCase(
     repositoryUrl: binding.repositoryUrl,
     branch: project.source.branch ?? binding.defaultBranch,
     targetPath: workspacePath,
-    accessToken: token.token,
+    accessToken: accessToken.token,
   })
 
   const next = attachProjectWorkspace(

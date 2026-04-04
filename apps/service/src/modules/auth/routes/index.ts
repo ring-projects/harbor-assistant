@@ -3,7 +3,11 @@ import type { FastifyInstance } from "fastify"
 import type { ServiceConfig } from "../../../config"
 import { ERROR_CODES } from "../../../constants/errors"
 import { AppError } from "../../../lib/errors/app-error"
-import { expireCookie, parseCookieHeader, serializeCookie } from "../lib/cookies"
+import {
+  expireCookie,
+  parseCookieHeader,
+  serializeCookie,
+} from "../../../lib/http/cookies"
 import { createOAuthState } from "../lib/session"
 import {
   DEFAULT_SESSION_TTL_DAYS,

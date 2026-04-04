@@ -11,6 +11,10 @@ import { GITHUB_APP_INSTALL_STATE_COOKIE_NAME } from "../constants"
 async function createApp(args?: {
   installationRepository?: InMemoryGitHubInstallationRepository
   githubAppClient?: GitHubAppClient
+  config?: {
+    webBaseUrl?: string
+    isProduction?: boolean
+  }
 }) {
   const installationRepository =
     args?.installationRepository ?? new InMemoryGitHubInstallationRepository()
@@ -42,6 +46,7 @@ async function createApp(args?: {
       await registerGitHubIntegrationRoutes(instance, {
         config: {
           webBaseUrl: "http://127.0.0.1:3000",
+          ...args?.config,
         },
         githubAppSlug: "harbor-repository-access",
         installationRepository,
@@ -143,6 +148,22 @@ describe("github integration routes", () => {
     expect(
       extractCookieValue(response.headers, GITHUB_APP_INSTALL_STATE_COOKIE_NAME),
     ).toBeTruthy()
+  })
+
+  it("marks the install state cookie as secure in production", async () => {
+    const app = await createApp({
+      config: {
+        isProduction: true,
+      },
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/integrations/github/app/install-url",
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(getSetCookieHeaders(response.headers)[0]).toContain("Secure")
   })
 
   it("records a GitHub App installation through the setup callback flow", async () => {
