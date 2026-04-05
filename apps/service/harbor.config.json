@@ -10,7 +10,7 @@
   },
   "urls": {
     "appBaseUrl": "http://127.0.0.1:3400",
-    "webBaseUrl": "http://127.0.0.1:3000/app"
+    "webBaseUrl": "http://127.0.0.1:5173"
   },
   "auth": {
     "allowedGitHubUsers": [],
