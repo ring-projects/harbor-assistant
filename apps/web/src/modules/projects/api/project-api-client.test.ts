@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
+  bindProjectRepository,
   createProject,
   provisionProjectWorkspace,
+  readGitHubAppInstallUrl,
   readGitHubInstallations,
   readProjectRepositoryBinding,
   syncProjectWorkspace,
@@ -75,7 +77,9 @@ describe("project-api-client", () => {
       },
     })
 
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toMatchObject({
       name: "Harbor Assistant",
       source: {
         type: "git",
@@ -124,6 +128,31 @@ describe("project-api-client", () => {
     ])
   })
 
+  it("passes returnTo when requesting the GitHub App install URL", async () => {
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        installUrl:
+          "https://github.com/apps/harbor/installations/new?state=test-state",
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(
+      readGitHubAppInstallUrl("/projects/project-1/settings"),
+    ).resolves.toBe(
+      "https://github.com/apps/harbor/installations/new?state=test-state",
+    )
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "/v1/integrations/github/app/install-url?returnTo=%2Fprojects%2Fproject-1%2Fsettings",
+    )
+  })
+
   it("reads repository binding for a project", async () => {
     process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
 
@@ -161,6 +190,55 @@ describe("project-api-client", () => {
       defaultBranch: "main",
       visibility: "private",
       workspaceState: "unprovisioned",
+    })
+  })
+
+  it("binds repository access for an existing project", async () => {
+    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        repositoryBinding: {
+          projectId: "project-1",
+          provider: "github",
+          installationId: "12345",
+          repositoryOwner: "acme",
+          repositoryName: "harbor-assistant",
+          repositoryFullName: "acme/harbor-assistant",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          defaultBranch: "main",
+          visibility: "private",
+          workspaceState: "unprovisioned",
+        },
+      }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(
+      bindProjectRepository({
+        projectId: "project-1",
+        repositoryBinding: {
+          provider: "github",
+          installationId: "12345",
+          repositoryFullName: "acme/harbor-assistant",
+        },
+      }),
+    ).resolves.toMatchObject({
+      projectId: "project-1",
+      installationId: "12345",
+      repositoryFullName: "acme/harbor-assistant",
+    })
+
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "PUT",
+    })
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      provider: "github",
+      installationId: "12345",
+      repositoryFullName: "acme/harbor-assistant",
     })
   })
 
@@ -218,15 +296,17 @@ describe("project-api-client", () => {
       }),
     )
 
-    await expect(provisionProjectWorkspace("project-1")).resolves.toMatchObject({
-      project: {
-        id: "project-1",
-        rootPath: "/managed-workspaces/user-1/project-1",
+    await expect(provisionProjectWorkspace("project-1")).resolves.toMatchObject(
+      {
+        project: {
+          id: "project-1",
+          rootPath: "/managed-workspaces/user-1/project-1",
+        },
+        repositoryBinding: {
+          workspaceState: "ready",
+        },
       },
-      repositoryBinding: {
-        workspaceState: "ready",
-      },
-    })
+    )
   })
 
   it("returns syncedAt after syncing a provisioned workspace", async () => {

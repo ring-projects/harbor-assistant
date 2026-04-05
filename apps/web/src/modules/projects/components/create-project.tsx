@@ -1,5 +1,6 @@
 "use client"
 
+import { useLocation } from "@tanstack/react-router"
 import { useEffect, useMemo, useState, type FormEvent } from "react"
 
 import { DirectoryPicker } from "@/components/directory-picker"
@@ -16,6 +17,10 @@ import {
   useGitHubInstallUrlQuery,
   useProvisionProjectWorkspaceMutation,
 } from "@/modules/projects/hooks"
+import {
+  formatGitHubAppInstallEventMessage,
+  subscribeToGitHubAppInstallEvents,
+} from "@/modules/projects/lib/github-app-install-events"
 import type {
   GitHubInstallation,
   GitHubRepository,
@@ -83,7 +88,9 @@ function GitHubInstallationList(props: {
             disabled={props.disabled}
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">{installation.accountLogin}</span>
+              <span className="text-sm font-medium">
+                {installation.accountLogin}
+              </span>
               <span className="text-muted-foreground text-xs capitalize">
                 {installation.accountType}
               </span>
@@ -108,7 +115,8 @@ function GitHubRepositoryList(props: {
   return (
     <div className="grid gap-2">
       {props.repositories.map((repository) => {
-        const selected = repository.fullName === props.selectedRepositoryFullName
+        const selected =
+          repository.fullName === props.selectedRepositoryFullName
 
         return (
           <button
@@ -126,7 +134,9 @@ function GitHubRepositoryList(props: {
             </div>
             <div className="text-muted-foreground flex items-center justify-between gap-3 text-xs">
               <span>{repository.url}</span>
-              <span>Default branch: {repository.defaultBranch ?? "Not reported"}</span>
+              <span>
+                Default branch: {repository.defaultBranch ?? "Not reported"}
+              </span>
             </div>
           </button>
         )
@@ -143,21 +153,28 @@ export function CreateProject(props: CreateProjectProps) {
     pickerTitle = "Project Source",
     onCreated,
   } = props
+  const location = useLocation()
   const [mode, setMode] = useState<CreateSourceMode>("rootPath")
   const [name, setName] = useState(props.defaultName ?? "")
   const [manualRepositoryUrl, setManualRepositoryUrl] = useState("")
   const [manualBranch, setManualBranch] = useState("")
   const [githubBranch, setGitHubBranch] = useState("")
-  const [selectedInstallationId, setSelectedInstallationId] = useState<string | null>(null)
-  const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState<string | null>(
+  const [selectedInstallationId, setSelectedInstallationId] = useState<
+    string | null
+  >(null)
+  const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState<
+    string | null
+  >(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [githubAppFeedback, setGitHubAppFeedback] = useState<string | null>(
     null,
   )
-  const [formError, setFormError] = useState<string | null>(null)
   const [createdProjectPendingProvision, setCreatedProjectPendingProvision] =
     useState<Project | null>(null)
   const createMutation = useCreateProjectMutation()
   const provisionMutation = useProvisionProjectWorkspaceMutation()
-  const installUrlQuery = useGitHubInstallUrlQuery(mode === "github")
+  const returnTo = `${location.pathname}${location.search}${location.hash}`
+  const installUrlQuery = useGitHubInstallUrlQuery(returnTo, mode === "github")
   const installationsQuery = useGitHubInstallationsQuery(mode === "github")
   const repositoriesQuery = useGitHubInstallationRepositoriesQuery(
     mode === "github" ? selectedInstallationId : null,
@@ -210,8 +227,41 @@ export function CreateProject(props: CreateProjectProps) {
     })
   }, [repositoriesQuery.data, selectedRepositoryFullName])
 
+  useEffect(
+    () =>
+      subscribeToGitHubAppInstallEvents((event) => {
+        if (event.returnTo && event.returnTo !== returnTo) {
+          return
+        }
+
+        setCreatedProjectPendingProvision(null)
+
+        if (event.status === "success") {
+          setFormError(null)
+          setGitHubAppFeedback(formatGitHubAppInstallEventMessage(event))
+          void installUrlQuery.refetch()
+          void installationsQuery.refetch()
+          if (selectedInstallationId) {
+            void repositoriesQuery.refetch()
+          }
+          return
+        }
+
+        setGitHubAppFeedback(null)
+        setFormError(formatGitHubAppInstallEventMessage(event))
+      }),
+    [
+      installUrlQuery,
+      installationsQuery,
+      repositoriesQuery,
+      returnTo,
+      selectedInstallationId,
+    ],
+  )
+
   function clearFeedback() {
     setFormError(null)
+    setGitHubAppFeedback(null)
     setCreatedProjectPendingProvision(null)
   }
 
@@ -229,7 +279,10 @@ export function CreateProject(props: CreateProjectProps) {
       clearFeedback()
       const pathInfo = await statBootstrapDirectorySelection(selection)
       const project = await createMutation.mutateAsync({
-        name: deriveProjectName(name, deriveNameFromPath(pathInfo.absolutePath)),
+        name: deriveProjectName(
+          name,
+          deriveNameFromPath(pathInfo.absolutePath),
+        ),
         source: {
           type: "rootPath",
           rootPath: pathInfo.absolutePath,
@@ -249,7 +302,10 @@ export function CreateProject(props: CreateProjectProps) {
       clearFeedback()
       const trimmedRepositoryUrl = manualRepositoryUrl.trim()
       const project = await createMutation.mutateAsync({
-        name: deriveProjectName(name, deriveNameFromRepositoryUrl(trimmedRepositoryUrl)),
+        name: deriveProjectName(
+          name,
+          deriveNameFromRepositoryUrl(trimmedRepositoryUrl),
+        ),
         source: {
           type: "git",
           repositoryUrl: trimmedRepositoryUrl,
@@ -276,7 +332,8 @@ export function CreateProject(props: CreateProjectProps) {
         source: {
           type: "git",
           repositoryUrl: selectedRepository.url,
-          branch: githubBranch.trim() || selectedRepository.defaultBranch || null,
+          branch:
+            githubBranch.trim() || selectedRepository.defaultBranch || null,
         },
         repositoryBinding: {
           provider: "github",
@@ -329,8 +386,8 @@ export function CreateProject(props: CreateProjectProps) {
         <div className="space-y-1">
           <h3 className="text-sm font-semibold">{pickerTitle}</h3>
           <p className="text-muted-foreground text-sm">
-            Create a project from a server-local workspace, a GitHub repository via
-            GitHub App access, or a manual git URL.
+            Create a project from a server-local workspace, a GitHub repository
+            via GitHub App access, or a manual git URL.
           </p>
         </div>
       ) : null}
@@ -354,7 +411,11 @@ export function CreateProject(props: CreateProjectProps) {
         </p>
       </div>
 
-      <Tabs value={mode} onValueChange={handleModeChange} className="grid gap-4">
+      <Tabs
+        value={mode}
+        onValueChange={handleModeChange}
+        className="grid gap-4"
+      >
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="rootPath">Local Path</TabsTrigger>
           <TabsTrigger value="github">GitHub</TabsTrigger>
@@ -379,8 +440,8 @@ export function CreateProject(props: CreateProjectProps) {
             <div className="space-y-1">
               <p className="text-sm font-medium">GitHub Repository Access</p>
               <p className="text-muted-foreground text-xs leading-5">
-                GitHub login identifies you. GitHub App installation grants Harbor
-                access to selected repositories.
+                GitHub login identifies you. GitHub App installation grants
+                Harbor access to selected repositories.
               </p>
             </div>
 
@@ -415,6 +476,9 @@ export function CreateProject(props: CreateProjectProps) {
                 {getProjectActionError(installUrlQuery.error)}
               </p>
             ) : null}
+            {githubAppFeedback ? (
+              <p className="text-xs text-emerald-600">{githubAppFeedback}</p>
+            ) : null}
 
             <div className="grid gap-2">
               <p className="text-sm font-medium">1. Choose Installation</p>
@@ -440,8 +504,8 @@ export function CreateProject(props: CreateProjectProps) {
                 />
               ) : (
                 <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                  No GitHub App installations are connected yet. Install the GitHub App
-                  and then refresh this list.
+                  No GitHub App installations are connected yet. Install the
+                  GitHub App and then refresh this list.
                 </div>
               )}
             </div>
@@ -473,14 +537,17 @@ export function CreateProject(props: CreateProjectProps) {
                 />
               ) : (
                 <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                  Harbor can see this installation, but no repositories are currently in
-                  scope.
+                  Harbor can see this installation, but no repositories are
+                  currently in scope.
                 </div>
               )}
             </div>
 
             <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="project-github-branch">
+              <label
+                className="text-sm font-medium"
+                htmlFor="project-github-branch"
+              >
                 Branch
               </label>
               <Input
@@ -494,8 +561,8 @@ export function CreateProject(props: CreateProjectProps) {
                 disabled={isMutating || !selectedRepository}
               />
               <p className="text-muted-foreground text-xs">
-                Harbor stores the repository binding first. You can provision the local
-                workspace now or later.
+                Harbor stores the repository binding first. You can provision
+                the local workspace now or later.
               </p>
             </div>
 
@@ -534,9 +601,15 @@ export function CreateProject(props: CreateProjectProps) {
         </TabsContent>
 
         <TabsContent value="manualGit" className="mt-0">
-          <form className="grid gap-4 rounded-lg border p-4" onSubmit={handleManualGitSubmit}>
+          <form
+            className="grid gap-4 rounded-lg border p-4"
+            onSubmit={handleManualGitSubmit}
+          >
             <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="project-repository-url">
+              <label
+                className="text-sm font-medium"
+                htmlFor="project-repository-url"
+              >
                 Repository URL
               </label>
               <Input
@@ -551,13 +624,16 @@ export function CreateProject(props: CreateProjectProps) {
                 required
               />
               <p className="text-muted-foreground text-xs">
-                Use manual URL mode for public repositories or providers that are not
-                connected through GitHub App access.
+                Use manual URL mode for public repositories or providers that
+                are not connected through GitHub App access.
               </p>
             </div>
 
             <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="project-repository-branch">
+              <label
+                className="text-sm font-medium"
+                htmlFor="project-repository-branch"
+              >
                 Default Branch
               </label>
               <Input

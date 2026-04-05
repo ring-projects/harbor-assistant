@@ -45,6 +45,12 @@ export class ProjectApiClientError extends Error {
   }
 }
 
+export type GitHubRepositoryBindingInput = {
+  provider: "github"
+  installationId: string
+  repositoryFullName: string
+}
+
 export type CreateProjectInput = {
   name: string
   description?: string | null
@@ -61,11 +67,7 @@ export type CreateProjectInput = {
         repositoryUrl: string
         branch?: string | null
       }
-      repositoryBinding?: {
-        provider: "github"
-        installationId: string
-        repositoryFullName: string
-      }
+      repositoryBinding?: GitHubRepositoryBindingInput
     }
 )
 
@@ -110,7 +112,14 @@ export type UpdateProjectSettingsInput = {
   }>
 }
 
-async function parseJson(response: Response): Promise<ProjectEnvelopePayload | null> {
+export type BindProjectRepositoryInput = {
+  projectId: string
+  repositoryBinding: GitHubRepositoryBindingInput
+}
+
+async function parseJson(
+  response: Response,
+): Promise<ProjectEnvelopePayload | null> {
   return parseJsonResponse<ProjectEnvelopePayload>(response)
 }
 
@@ -188,7 +197,12 @@ function isInstallationStatus(
 function isRepositoryVisibility(
   value: string | null,
 ): value is GitHubRepository["visibility"] {
-  return value === null || value === "public" || value === "private" || value === "internal"
+  return (
+    value === null ||
+    value === "public" ||
+    value === "private" ||
+    value === "internal"
+  )
 }
 
 function isRepositoryWorkspaceState(
@@ -197,7 +211,9 @@ function isRepositoryWorkspaceState(
   return value === "unprovisioned" || value === "ready"
 }
 
-function extractGitHubInstallation(candidate: unknown): GitHubInstallation | null {
+function extractGitHubInstallation(
+  candidate: unknown,
+): GitHubInstallation | null {
   const source = asRecord(candidate)
   if (!source) {
     return null
@@ -424,7 +440,9 @@ function extractInstallUrlPayload(payload: unknown): string | null {
   return pickString(asRecord(payload), "installUrl")
 }
 
-function extractGitHubInstallationsPayload(payload: unknown): GitHubInstallation[] | null {
+function extractGitHubInstallationsPayload(
+  payload: unknown,
+): GitHubInstallation[] | null {
   const source = asRecord(payload)
   if (!source || !Array.isArray(source.installations)) {
     return null
@@ -435,7 +453,9 @@ function extractGitHubInstallationsPayload(payload: unknown): GitHubInstallation
     .filter((item): item is GitHubInstallation => item !== null)
 }
 
-function extractGitHubRepositoriesPayload(payload: unknown): GitHubRepository[] | null {
+function extractGitHubRepositoriesPayload(
+  payload: unknown,
+): GitHubRepository[] | null {
   const source = asRecord(payload)
   if (!source || !Array.isArray(source.repositories)) {
     return null
@@ -466,7 +486,9 @@ function extractProvisionProjectWorkspacePayload(
   }
 
   const project = extractProject(source.project)
-  const repositoryBinding = extractProjectRepositoryBinding(source.repositoryBinding)
+  const repositoryBinding = extractProjectRepositoryBinding(
+    source.repositoryBinding,
+  )
 
   if (!project || !repositoryBinding) {
     return null
@@ -520,7 +542,9 @@ export async function readProjects(): Promise<Project[]> {
   return projects
 }
 
-export async function createProject(input: CreateProjectInput): Promise<Project> {
+export async function createProject(
+  input: CreateProjectInput,
+): Promise<Project> {
   const body =
     input.source.type === "git"
       ? {
@@ -561,47 +585,66 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
   return project
 }
 
-export async function readGitHubAppInstallUrl(): Promise<string> {
-  const response = await executorApiFetch("/v1/integrations/github/app/install-url", {
-    method: "GET",
-    cache: "no-store",
-    headers: {
-      accept: "application/json",
+export async function readGitHubAppInstallUrl(
+  returnTo?: string | null,
+): Promise<string> {
+  const searchParams = new URLSearchParams()
+  if (returnTo?.trim()) {
+    searchParams.set("returnTo", returnTo)
+  }
+
+  const response = await executorApiFetch(
+    `/v1/integrations/github/app/install-url${searchParams.size ? `?${searchParams}` : ""}`,
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+      },
     },
-  })
+  )
 
   const payload = await parseJson(response)
   throwIfFailed(response, payload, "Failed to load GitHub App install URL.")
 
   const installUrl = extractInstallUrlPayload(payload)
   if (!installUrl) {
-    throw new ProjectApiClientError("GitHub App install URL payload is invalid.", {
-      code: ERROR_CODES.INTERNAL_ERROR,
-      status: response.status,
-    })
+    throw new ProjectApiClientError(
+      "GitHub App install URL payload is invalid.",
+      {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        status: response.status,
+      },
+    )
   }
 
   return installUrl
 }
 
 export async function readGitHubInstallations(): Promise<GitHubInstallation[]> {
-  const response = await executorApiFetch("/v1/integrations/github/installations", {
-    method: "GET",
-    cache: "no-store",
-    headers: {
-      accept: "application/json",
+  const response = await executorApiFetch(
+    "/v1/integrations/github/installations",
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+      },
     },
-  })
+  )
 
   const payload = await parseJson(response)
   throwIfFailed(response, payload, "Failed to load GitHub installations.")
 
   const installations = extractGitHubInstallationsPayload(payload)
   if (!installations) {
-    throw new ProjectApiClientError("GitHub installations payload is invalid.", {
-      code: ERROR_CODES.INTERNAL_ERROR,
-      status: response.status,
-    })
+    throw new ProjectApiClientError(
+      "GitHub installations payload is invalid.",
+      {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        status: response.status,
+      },
+    )
   }
 
   return installations
@@ -635,7 +678,45 @@ export async function readGitHubInstallationRepositories(
   return repositories
 }
 
-export async function updateProject(input: UpdateProjectInput): Promise<Project> {
+export async function bindProjectRepository(
+  input: BindProjectRepositoryInput,
+): Promise<ProjectRepositoryBinding> {
+  const response = await executorApiFetch(
+    `/v1/projects/${encodeURIComponent(input.projectId)}/repository-binding`,
+    {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify(input.repositoryBinding),
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(
+    response,
+    payload,
+    "Failed to connect project repository access.",
+  )
+
+  const repositoryBinding = extractProjectRepositoryBindingPayload(payload)
+  if (!repositoryBinding) {
+    throw new ProjectApiClientError(
+      "Project repository binding payload is invalid.",
+      {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        status: response.status,
+      },
+    )
+  }
+
+  return repositoryBinding
+}
+
+export async function updateProject(
+  input: UpdateProjectInput,
+): Promise<Project> {
   const response = await executorApiFetch(
     `/v1/projects/${encodeURIComponent(input.id)}`,
     {
@@ -723,7 +804,9 @@ export async function readProject(projectId: string): Promise<Project> {
   return project
 }
 
-export async function readProjectSettings(projectId: string): Promise<ProjectSettings> {
+export async function readProjectSettings(
+  projectId: string,
+): Promise<ProjectSettings> {
   const response = await executorApiFetch(
     `/v1/projects/${encodeURIComponent(projectId)}/settings`,
     {
@@ -829,16 +912,21 @@ export async function syncProjectWorkspace(
 
   const result = extractSyncProjectWorkspacePayload(payload)
   if (!result) {
-    throw new ProjectApiClientError("Sync project workspace payload is invalid.", {
-      code: ERROR_CODES.INTERNAL_ERROR,
-      status: response.status,
-    })
+    throw new ProjectApiClientError(
+      "Sync project workspace payload is invalid.",
+      {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        status: response.status,
+      },
+    )
   }
 
   return result
 }
 
-export async function archiveProject(input: ArchiveProjectInput): Promise<Project> {
+export async function archiveProject(
+  input: ArchiveProjectInput,
+): Promise<Project> {
   const response = await executorApiFetch(
     `/v1/projects/${encodeURIComponent(input.projectId)}/archive`,
     {
@@ -863,7 +951,9 @@ export async function archiveProject(input: ArchiveProjectInput): Promise<Projec
   return project
 }
 
-export async function restoreProject(input: ArchiveProjectInput): Promise<Project> {
+export async function restoreProject(
+  input: ArchiveProjectInput,
+): Promise<Project> {
   const response = await executorApiFetch(
     `/v1/projects/${encodeURIComponent(input.projectId)}/restore`,
     {

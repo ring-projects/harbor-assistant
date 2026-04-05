@@ -1,20 +1,26 @@
 "use client"
 
-import { useNavigate } from "@tanstack/react-router"
+import { useLocation, useNavigate } from "@tanstack/react-router"
 import { RotateCcwIcon, SaveIcon, XIcon } from "lucide-react"
-import { useMemo, useState, type ComponentProps } from "react"
+import { useEffect, useMemo, useState, type ComponentProps } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 import { parseNullablePositiveInteger } from "@/lib/utils"
 import {
   getProjectActionError,
+  type GitHubInstallation,
+  type GitHubRepository,
   ProjectApiClientError,
   type ProjectRepositoryBinding,
   type ProjectSettings,
+  useBindProjectRepositoryMutation,
+  useGitHubInstallationRepositoriesQuery,
+  useGitHubInstallationsQuery,
   useDeleteProjectMutation,
   useGitHubInstallUrlQuery,
   useProjectQuery,
@@ -24,6 +30,10 @@ import {
   useSyncProjectWorkspaceMutation,
   useUpdateProjectSettingsMutation,
 } from "@/modules/projects"
+import {
+  formatGitHubAppInstallEventMessage,
+  subscribeToGitHubAppInstallEvents,
+} from "@/modules/projects/lib/github-app-install-events"
 
 type ProjectSettingsViewProps = {
   projectId: string
@@ -71,6 +81,92 @@ function SettingsField(props: {
   )
 }
 
+function selectionButtonClassName(selected: boolean) {
+  return cn(
+    "grid w-full gap-1 rounded-md border px-3 py-3 text-left transition-colors",
+    selected
+      ? "border-foreground/30 bg-accent"
+      : "border-border hover:bg-accent/60",
+  )
+}
+
+function GitHubInstallationList(props: {
+  installations: GitHubInstallation[]
+  selectedInstallationId: string | null
+  disabled?: boolean
+  onSelect: (installationId: string) => void
+}) {
+  return (
+    <div className="grid gap-2">
+      {props.installations.map((installation) => {
+        const selected = installation.id === props.selectedInstallationId
+
+        return (
+          <button
+            key={installation.id}
+            type="button"
+            className={selectionButtonClassName(selected)}
+            onClick={() => props.onSelect(installation.id)}
+            disabled={props.disabled}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">
+                {installation.accountLogin}
+              </span>
+              <span className="text-muted-foreground text-xs capitalize">
+                {installation.accountType}
+              </span>
+            </div>
+            <div className="text-muted-foreground flex items-center justify-between gap-3 text-xs">
+              <span>Repository scope: {installation.targetType}</span>
+              <span>Status: {installation.status}</span>
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function GitHubRepositoryList(props: {
+  repositories: GitHubRepository[]
+  selectedRepositoryFullName: string | null
+  disabled?: boolean
+  onSelect: (repository: GitHubRepository) => void
+}) {
+  return (
+    <div className="grid gap-2">
+      {props.repositories.map((repository) => {
+        const selected =
+          repository.fullName === props.selectedRepositoryFullName
+
+        return (
+          <button
+            key={repository.nodeId}
+            type="button"
+            className={selectionButtonClassName(selected)}
+            onClick={() => props.onSelect(repository)}
+            disabled={props.disabled}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">{repository.fullName}</span>
+              <span className="text-muted-foreground text-xs capitalize">
+                {repository.visibility ?? "unknown"}
+              </span>
+            </div>
+            <div className="text-muted-foreground flex items-center justify-between gap-3 text-xs">
+              <span>{repository.url}</span>
+              <span>
+                Default branch: {repository.defaultBranch ?? "Not reported"}
+              </span>
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function RepositoryBindingSummary(props: {
   binding: ProjectRepositoryBinding
   workspacePath: string | null
@@ -91,11 +187,15 @@ function RepositoryBindingSummary(props: {
       </div>
       <div className="grid gap-1">
         <dt className="text-muted-foreground text-xs">Branch</dt>
-        <dd className="font-medium">{props.binding.defaultBranch ?? "Not reported"}</dd>
+        <dd className="font-medium">
+          {props.binding.defaultBranch ?? "Not reported"}
+        </dd>
       </div>
       <div className="grid gap-1">
         <dt className="text-muted-foreground text-xs">Workspace State</dt>
-        <dd className="font-medium capitalize">{props.binding.workspaceState}</dd>
+        <dd className="font-medium capitalize">
+          {props.binding.workspaceState}
+        </dd>
       </div>
       {props.workspacePath ? (
         <div className="grid gap-1">
@@ -112,6 +212,7 @@ export function ProjectSettingsView({
   mode = "page",
   onClose,
 }: ProjectSettingsViewProps) {
+  const location = useLocation()
   const navigate = useNavigate()
   const projectQuery = useProjectQuery(projectId)
   const settingsQuery = useProjectSettingsQuery(projectId)
@@ -119,18 +220,41 @@ export function ProjectSettingsView({
     projectId,
     projectQuery.data?.source.type === "git",
   )
-  const installUrlQuery = useGitHubInstallUrlQuery(projectQuery.data?.source.type === "git")
+  const returnTo = `${location.pathname}${location.search}${location.hash}`
+  const installUrlQuery = useGitHubInstallUrlQuery(
+    returnTo,
+    projectQuery.data?.source.type === "git",
+  )
+  const installationsQuery = useGitHubInstallationsQuery(
+    projectQuery.data?.source.type === "git",
+  )
+  const bindRepositoryMutation = useBindProjectRepositoryMutation(projectId)
   const updateMutation = useUpdateProjectSettingsMutation(projectId)
   const provisionMutation = useProvisionProjectWorkspaceMutation()
   const syncMutation = useSyncProjectWorkspaceMutation()
   const deleteMutation = useDeleteProjectMutation()
   const [draftOverride, setDraftOverride] = useState<SettingsDraft | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
-  const [repositoryActionError, setRepositoryActionError] = useState<string | null>(null)
-  const [repositoryActionSuccess, setRepositoryActionSuccess] = useState<string | null>(null)
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(
+    null,
+  )
+  const [repositoryActionError, setRepositoryActionError] = useState<
+    string | null
+  >(null)
+  const [repositoryActionSuccess, setRepositoryActionSuccess] = useState<
+    string | null
+  >(null)
+  const [selectedInstallationId, setSelectedInstallationId] = useState<
+    string | null
+  >(null)
+  const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState<
+    string | null
+  >(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const repositoriesQuery = useGitHubInstallationRepositoriesQuery(
+    selectedInstallationId,
+  )
 
   const baselineDraft = useMemo(
     () => (settingsQuery.data ? toDraft(settingsQuery.data) : null),
@@ -160,8 +284,12 @@ export function ProjectSettingsView({
       setSaveError(null)
       const nextProject = await updateMutation.mutateAsync({
         retention: {
-          logRetentionDays: parseNullablePositiveInteger(draft.logRetentionDays),
-          eventRetentionDays: parseNullablePositiveInteger(draft.eventRetentionDays),
+          logRetentionDays: parseNullablePositiveInteger(
+            draft.logRetentionDays,
+          ),
+          eventRetentionDays: parseNullablePositiveInteger(
+            draft.eventRetentionDays,
+          ),
         },
       })
 
@@ -203,6 +331,87 @@ export function ProjectSettingsView({
   const bindingMissing =
     repositoryBindingQuery.error instanceof ProjectApiClientError &&
     repositoryBindingQuery.error.code === "NOT_FOUND"
+  const repositoryActionPending =
+    provisionMutation.isPending ||
+    syncMutation.isPending ||
+    bindRepositoryMutation.isPending
+  const selectedRepository = useMemo(
+    () =>
+      repositoriesQuery.data?.find(
+        (repository) => repository.fullName === selectedRepositoryFullName,
+      ) ?? null,
+    [repositoriesQuery.data, selectedRepositoryFullName],
+  )
+
+  useEffect(() => {
+    if (!bindingMissing) {
+      return
+    }
+
+    if (!installationsQuery.data?.length) {
+      setSelectedInstallationId(null)
+      return
+    }
+
+    const stillPresent = installationsQuery.data.some(
+      (installation) => installation.id === selectedInstallationId,
+    )
+    if (!stillPresent) {
+      setSelectedInstallationId(installationsQuery.data[0]?.id ?? null)
+    }
+  }, [bindingMissing, installationsQuery.data, selectedInstallationId])
+
+  useEffect(() => {
+    if (!bindingMissing) {
+      return
+    }
+
+    if (!repositoriesQuery.data?.length) {
+      setSelectedRepositoryFullName(null)
+      return
+    }
+
+    const nextSelection =
+      repositoriesQuery.data.find(
+        (repository) => repository.fullName === selectedRepositoryFullName,
+      ) ?? repositoriesQuery.data[0]
+
+    if (!nextSelection) {
+      return
+    }
+
+    setSelectedRepositoryFullName(nextSelection.fullName)
+  }, [bindingMissing, repositoriesQuery.data, selectedRepositoryFullName])
+
+  useEffect(
+    () =>
+      subscribeToGitHubAppInstallEvents((event) => {
+        if (event.returnTo && event.returnTo !== returnTo) {
+          return
+        }
+
+        if (event.status === "success") {
+          setRepositoryActionError(null)
+          setRepositoryActionSuccess(formatGitHubAppInstallEventMessage(event))
+          void installUrlQuery.refetch()
+          void installationsQuery.refetch()
+          if (selectedInstallationId) {
+            void repositoriesQuery.refetch()
+          }
+          return
+        }
+
+        setRepositoryActionSuccess(null)
+        setRepositoryActionError(formatGitHubAppInstallEventMessage(event))
+      }),
+    [
+      installUrlQuery,
+      installationsQuery,
+      repositoriesQuery,
+      returnTo,
+      selectedInstallationId,
+    ],
+  )
 
   async function handleProvisionWorkspace() {
     try {
@@ -231,6 +440,7 @@ export function ProjectSettingsView({
   async function openGitHubInstallUrl() {
     try {
       setRepositoryActionError(null)
+      setRepositoryActionSuccess(null)
       const result = await installUrlQuery.refetch()
       if (!result.data) {
         return
@@ -238,6 +448,34 @@ export function ProjectSettingsView({
 
       window.open(result.data, "_blank", "noopener,noreferrer")
     } catch (error) {
+      setRepositoryActionError(getProjectActionError(error))
+    }
+  }
+
+  async function handleBindRepository() {
+    if (!selectedInstallationId || !selectedRepository) {
+      setRepositoryActionSuccess(null)
+      setRepositoryActionError(
+        "Select a GitHub installation and repository first.",
+      )
+      return
+    }
+
+    try {
+      setRepositoryActionError(null)
+      setRepositoryActionSuccess(null)
+      const binding = await bindRepositoryMutation.mutateAsync({
+        repositoryBinding: {
+          provider: "github",
+          installationId: selectedInstallationId,
+          repositoryFullName: selectedRepository.fullName,
+        },
+      })
+      setRepositoryActionSuccess(
+        `Repository access connected for ${binding.repositoryFullName}.`,
+      )
+    } catch (error) {
+      setRepositoryActionSuccess(null)
       setRepositoryActionError(getProjectActionError(error))
     }
   }
@@ -253,7 +491,8 @@ export function ProjectSettingsView({
             </span>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
-            Manage repository access and project-level retention policies for Harbor task data.
+            Manage repository access and project-level retention policies for
+            Harbor task data.
           </p>
         </div>
 
@@ -271,7 +510,8 @@ export function ProjectSettingsView({
             <Card className="p-4">
               <p className="text-sm font-semibold">Settings Scope</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                New tasks inherit the default executor and execution mode from here unless they are explicitly overridden at creation time.
+                New tasks inherit the default executor and execution mode from
+                here unless they are explicitly overridden at creation time.
               </p>
 
               <Separator className="my-4" />
@@ -279,7 +519,9 @@ export function ProjectSettingsView({
               {summary ? (
                 <dl className="grid gap-3 text-sm">
                   <div className="grid gap-1">
-                    <dt className="text-muted-foreground text-xs">Log Retention</dt>
+                    <dt className="text-muted-foreground text-xs">
+                      Log Retention
+                    </dt>
                     <dd className="font-medium">
                       {summary.logRetentionDays
                         ? `${summary.logRetentionDays} days`
@@ -287,7 +529,9 @@ export function ProjectSettingsView({
                     </dd>
                   </div>
                   <div className="grid gap-1">
-                    <dt className="text-muted-foreground text-xs">Event Retention</dt>
+                    <dt className="text-muted-foreground text-xs">
+                      Event Retention
+                    </dt>
                     <dd className="font-medium">
                       {summary.eventRetentionDays
                         ? `${summary.eventRetentionDays} days`
@@ -307,7 +551,8 @@ export function ProjectSettingsView({
             <Card className="p-4">
               <p className="text-sm font-semibold">Retention Policy</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                These values control how long Harbor keeps task logs and task events for this project.
+                These values control how long Harbor keeps task logs and task
+                events for this project.
               </p>
             </Card>
 
@@ -316,7 +561,8 @@ export function ProjectSettingsView({
                 <div>
                   <p className="text-sm font-semibold">Repository Access</p>
                   <p className="text-muted-foreground mt-1 text-xs leading-5">
-                    Manage GitHub App access, repository binding, and workspace lifecycle.
+                    Manage GitHub App access, repository binding, and workspace
+                    lifecycle.
                   </p>
                 </div>
                 {project?.source.type === "git" ? (
@@ -327,10 +573,15 @@ export function ProjectSettingsView({
                     onClick={() => {
                       setRepositoryActionError(null)
                       setRepositoryActionSuccess(null)
+                      void installUrlQuery.refetch()
+                      void installationsQuery.refetch()
+                      if (selectedInstallationId) {
+                        void repositoriesQuery.refetch()
+                      }
                       void repositoryBindingQuery.refetch()
                       void projectQuery.refetch()
                     }}
-                    disabled={provisionMutation.isPending || syncMutation.isPending}
+                    disabled={repositoryActionPending}
                   >
                     Refresh
                   </Button>
@@ -351,8 +602,8 @@ export function ProjectSettingsView({
                 </p>
               ) : project?.source.type === "rootPath" ? (
                 <p className="text-muted-foreground text-sm leading-6">
-                  This project is backed by a server-local path and does not use GitHub App
-                  repository access.
+                  This project is backed by a server-local path and does not use
+                  GitHub App repository access.
                 </p>
               ) : repositoryBinding ? (
                 <div className="grid gap-4">
@@ -363,9 +614,13 @@ export function ProjectSettingsView({
 
                   <div className="grid gap-2">
                     {repositoryActionError ? (
-                      <p className="text-xs text-red-600">{repositoryActionError}</p>
+                      <p className="text-xs text-red-600">
+                        {repositoryActionError}
+                      </p>
                     ) : repositoryActionSuccess ? (
-                      <p className="text-xs text-emerald-600">{repositoryActionSuccess}</p>
+                      <p className="text-xs text-emerald-600">
+                        {repositoryActionSuccess}
+                      </p>
                     ) : null}
                   </div>
 
@@ -374,7 +629,7 @@ export function ProjectSettingsView({
                       <Button
                         type="button"
                         onClick={() => void handleProvisionWorkspace()}
-                        disabled={provisionMutation.isPending || syncMutation.isPending}
+                        disabled={repositoryActionPending}
                       >
                         {provisionMutation.isPending
                           ? "Provisioning..."
@@ -384,9 +639,11 @@ export function ProjectSettingsView({
                       <Button
                         type="button"
                         onClick={() => void handleSyncWorkspace()}
-                        disabled={provisionMutation.isPending || syncMutation.isPending}
+                        disabled={repositoryActionPending}
                       >
-                        {syncMutation.isPending ? "Syncing..." : "Sync Repository"}
+                        {syncMutation.isPending
+                          ? "Syncing..."
+                          : "Sync Repository"}
                       </Button>
                     )}
 
@@ -402,25 +659,20 @@ export function ProjectSettingsView({
                   </div>
                 </div>
               ) : bindingMissing ? (
-                <div className="grid gap-3">
+                <div className="grid gap-4">
                   <p className="text-muted-foreground text-sm leading-6">
-                    This git project does not have a GitHub repository binding yet. Connect
-                    the GitHub App to grant Harbor repository access.
+                    This git project does not have a GitHub repository binding
+                    yet. Install the GitHub App if needed, then select an
+                    installation and repository to connect access.
                   </p>
-                  {repositoryActionError ? (
-                    <p className="text-xs text-red-600">{repositoryActionError}</p>
-                  ) : null}
-                  {installUrlQuery.error ? (
-                    <p className="text-xs text-red-600">
-                      {getProjectActionError(installUrlQuery.error)}
-                    </p>
-                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => void openGitHubInstallUrl()}
-                      disabled={installUrlQuery.isFetching}
+                      disabled={
+                        installUrlQuery.isFetching || repositoryActionPending
+                      }
                     >
                       Install GitHub App
                     </Button>
@@ -429,10 +681,107 @@ export function ProjectSettingsView({
                       variant="ghost"
                       onClick={() => {
                         void installUrlQuery.refetch()
+                        void installationsQuery.refetch()
+                        if (selectedInstallationId) {
+                          void repositoriesQuery.refetch()
+                        }
                         void repositoryBindingQuery.refetch()
                       }}
+                      disabled={repositoryActionPending}
                     >
                       Refresh Access
+                    </Button>
+                  </div>
+
+                  {repositoryActionError ? (
+                    <p className="text-xs text-red-600">
+                      {repositoryActionError}
+                    </p>
+                  ) : repositoryActionSuccess ? (
+                    <p className="text-xs text-emerald-600">
+                      {repositoryActionSuccess}
+                    </p>
+                  ) : null}
+                  {installUrlQuery.error ? (
+                    <p className="text-xs text-red-600">
+                      {getProjectActionError(installUrlQuery.error)}
+                    </p>
+                  ) : null}
+
+                  <div className="grid gap-2">
+                    <p className="text-sm font-medium">
+                      1. Choose Installation
+                    </p>
+                    {installationsQuery.isLoading ? (
+                      <p className="text-muted-foreground text-sm">
+                        Loading GitHub installations...
+                      </p>
+                    ) : installationsQuery.isError ? (
+                      <p className="text-sm text-red-600">
+                        {getProjectActionError(installationsQuery.error)}
+                      </p>
+                    ) : installationsQuery.data?.length ? (
+                      <GitHubInstallationList
+                        installations={installationsQuery.data}
+                        selectedInstallationId={selectedInstallationId}
+                        disabled={repositoryActionPending}
+                        onSelect={(installationId) => {
+                          setRepositoryActionError(null)
+                          setRepositoryActionSuccess(null)
+                          setSelectedInstallationId(installationId)
+                          setSelectedRepositoryFullName(null)
+                        }}
+                      />
+                    ) : (
+                      <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                        No GitHub App installations are connected yet. Install
+                        the GitHub App and then refresh this list.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-2">
+                    <p className="text-sm font-medium">2. Choose Repository</p>
+                    {!selectedInstallationId ? (
+                      <p className="text-muted-foreground text-sm">
+                        Select an installation to load its repositories.
+                      </p>
+                    ) : repositoriesQuery.isLoading ? (
+                      <p className="text-muted-foreground text-sm">
+                        Loading repositories for this installation...
+                      </p>
+                    ) : repositoriesQuery.isError ? (
+                      <p className="text-sm text-red-600">
+                        {getProjectActionError(repositoriesQuery.error)}
+                      </p>
+                    ) : repositoriesQuery.data?.length ? (
+                      <GitHubRepositoryList
+                        repositories={repositoriesQuery.data}
+                        selectedRepositoryFullName={selectedRepositoryFullName}
+                        disabled={repositoryActionPending}
+                        onSelect={(repository) => {
+                          setRepositoryActionError(null)
+                          setRepositoryActionSuccess(null)
+                          setSelectedRepositoryFullName(repository.fullName)
+                        }}
+                      />
+                    ) : (
+                      <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                        Harbor can see this installation, but no repositories
+                        are currently in scope.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => void handleBindRepository()}
+                      disabled={repositoryActionPending || !selectedRepository}
+                    >
+                      {bindRepositoryMutation.isPending
+                        ? "Connecting..."
+                        : "Connect Repository Access"}
                     </Button>
                   </div>
                 </div>
@@ -452,7 +801,9 @@ export function ProjectSettingsView({
             <Card className="border-red-200 p-4">
               <p className="text-sm font-semibold">Danger Zone</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                Permanently delete this project record. This removes Harbor metadata for the project but does not delete files from the local workspace.
+                Permanently delete this project record. This removes Harbor
+                metadata for the project but does not delete files from the
+                local workspace.
               </p>
 
               <div className="mt-4 grid gap-2">
@@ -468,7 +819,9 @@ export function ProjectSettingsView({
                         onClick={() => void handleDeleteProject()}
                         disabled={deleteMutation.isPending}
                       >
-                        {deleteMutation.isPending ? "Deleting..." : "Delete Project"}
+                        {deleteMutation.isPending
+                          ? "Deleting..."
+                          : "Delete Project"}
                       </Button>
                       <Button
                         type="button"
@@ -567,7 +920,9 @@ export function ProjectSettingsView({
       <div className="flex items-center justify-between border-t px-5 py-3">
         <div className="grid gap-1">
           <p className="text-muted-foreground text-xs">
-            {hasChanges ? "You have unsaved changes." : "Settings are synced with the backend."}
+            {hasChanges
+              ? "You have unsaved changes."
+              : "Settings are synced with the backend."}
           </p>
           {saveError ? (
             <p className="text-xs text-red-600">{saveError}</p>

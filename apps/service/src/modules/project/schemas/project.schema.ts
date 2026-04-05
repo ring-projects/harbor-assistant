@@ -45,6 +45,12 @@ export type ProjectRepositoryBindingResponse = {
   workspaceState: "unprovisioned" | "ready"
 }
 
+export type PutProjectRepositoryBindingBody = {
+  provider: "github"
+  installationId: string
+  repositoryFullName: string
+}
+
 export type UpdateProjectBody = {
   name?: string
   description?: string | null
@@ -299,10 +305,7 @@ export const updateProjectSettingsBodySchema = {
       ],
     },
   },
-  anyOf: [
-    { required: ["retention"] },
-    { required: ["skills"] },
-  ],
+  anyOf: [{ required: ["retention"] }, { required: ["skills"] }],
 } as const
 
 export const listProjectsRouteSchema = {
@@ -416,6 +419,22 @@ export const archiveProjectRouteSchema = {
 
 export const getProjectRepositoryBindingRouteSchema = {
   params: projectIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "repositoryBinding"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        repositoryBinding: projectRepositoryBindingEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const putProjectRepositoryBindingRouteSchema = {
+  params: projectIdParamsSchema,
+  body: repositoryBindingSchema,
   response: {
     200: {
       type: "object",

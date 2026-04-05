@@ -134,7 +134,7 @@ describe("github integration routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/v1/integrations/github/app/install-url",
+      url: "/v1/integrations/github/app/install-url?returnTo=%2Fprojects%2Fnew",
     })
 
     expect(response.statusCode).toBe(200)
@@ -146,7 +146,10 @@ describe("github integration routes", () => {
     )
     expect(installUrl.searchParams.get("state")).toBeTruthy()
     expect(
-      extractCookieValue(response.headers, GITHUB_APP_INSTALL_STATE_COOKIE_NAME),
+      extractCookieValue(
+        response.headers,
+        GITHUB_APP_INSTALL_STATE_COOKIE_NAME,
+      ),
     ).toBeTruthy()
   })
 
@@ -173,7 +176,7 @@ describe("github integration routes", () => {
     })
     const installUrlResponse = await app.inject({
       method: "GET",
-      url: "/v1/integrations/github/app/install-url",
+      url: "/v1/integrations/github/app/install-url?returnTo=%2Fprojects%2Fnew",
     })
     const installUrl = new URL(installUrlResponse.json().installUrl)
 
@@ -188,9 +191,13 @@ describe("github integration routes", () => {
     })
 
     expect(response.statusCode).toBe(302)
-    expect(response.headers.location).toBe("http://127.0.0.1:3000")
+    expect(response.headers.location).toBe(
+      "http://127.0.0.1:3000/github/app/callback?status=success&returnTo=%2Fprojects%2Fnew",
+    )
 
-    await expect(installationRepository.findById("12345")).resolves.toMatchObject({
+    await expect(
+      installationRepository.findById("12345"),
+    ).resolves.toMatchObject({
       id: "12345",
       accountLogin: "acme",
       installedByUserId: "user-1",
@@ -205,13 +212,18 @@ describe("github integration routes", () => {
       url: "/v1/integrations/github/setup?installation_id=12345&setup_action=install&state=bad-state",
     })
 
-    expect(response.statusCode).toBe(403)
-    expect(response.json()).toMatchObject({
-      ok: false,
-      error: {
-        code: ERROR_CODES.PERMISSION_DENIED,
-      },
-    })
+    expect(response.statusCode).toBe(302)
+    const callbackUrl = new URL(String(response.headers.location))
+    expect(callbackUrl.origin + callbackUrl.pathname).toBe(
+      "http://127.0.0.1:3000/github/app/callback",
+    )
+    expect(callbackUrl.searchParams.get("status")).toBe("error")
+    expect(callbackUrl.searchParams.get("code")).toBe(
+      ERROR_CODES.PERMISSION_DENIED,
+    )
+    expect(callbackUrl.searchParams.get("message")).toBe(
+      "GitHub App setup state is invalid.",
+    )
   })
 
   it("rejects claiming an installation that is already linked to another Harbor user", async () => {
@@ -232,7 +244,7 @@ describe("github integration routes", () => {
     })
     const installUrlResponse = await app.inject({
       method: "GET",
-      url: "/v1/integrations/github/app/install-url",
+      url: "/v1/integrations/github/app/install-url?returnTo=%2Fprojects%2Fproject-1%2Fsettings",
     })
     const installUrl = new URL(installUrlResponse.json().installUrl)
 
@@ -246,13 +258,19 @@ describe("github integration routes", () => {
       },
     })
 
-    expect(response.statusCode).toBe(409)
-    expect(response.json()).toMatchObject({
-      ok: false,
-      error: {
-        code: ERROR_CODES.CONFLICT,
-      },
-    })
+    expect(response.statusCode).toBe(302)
+    const callbackUrl = new URL(String(response.headers.location))
+    expect(callbackUrl.origin + callbackUrl.pathname).toBe(
+      "http://127.0.0.1:3000/github/app/callback",
+    )
+    expect(callbackUrl.searchParams.get("status")).toBe("error")
+    expect(callbackUrl.searchParams.get("returnTo")).toBe(
+      "/projects/project-1/settings",
+    )
+    expect(callbackUrl.searchParams.get("code")).toBe(ERROR_CODES.CONFLICT)
+    expect(callbackUrl.searchParams.get("message")).toBe(
+      "GitHub installation is already linked to another Harbor user.",
+    )
   })
 
   it("lists only installations owned by the current Harbor user", async () => {

@@ -3,13 +3,19 @@ import type { FastifyInstance } from "fastify"
 import { ERROR_CODES } from "../../../constants/errors"
 import { AppError } from "../../../lib/errors/app-error"
 import { createOwnerScopedProjectRepository } from "../../auth"
+import { buildGitHubProjectRepositoryBinding } from "../../integration/github/application/build-github-project-repository-binding"
 import { provisionProjectWorkspaceUseCase } from "../../integration/github/application/provision-project-workspace"
 import { syncProjectWorkspaceUseCase } from "../../integration/github/application/sync-project-workspace"
 import { getProjectUseCase } from "../application/get-project"
+import { createProjectError } from "../errors"
 import { toProjectAppError } from "../project-app-error"
-import type { ProjectIdParams } from "../schemas"
+import type {
+  ProjectIdParams,
+  PutProjectRepositoryBindingBody,
+} from "../schemas"
 import {
   getProjectRepositoryBindingRouteSchema,
+  putProjectRepositoryBindingRouteSchema,
   provisionProjectWorkspaceRouteSchema,
   syncProjectWorkspaceRouteSchema,
 } from "../schemas"
@@ -40,7 +46,9 @@ export async function registerProjectGitHubRoutes(
           request.params.id,
         )
         const binding =
-          await githubAccess.repositoryBindingRepository.findByProjectId(project.id)
+          await githubAccess.repositoryBindingRepository.findByProjectId(
+            project.id,
+          )
 
         if (!binding) {
           throw new AppError(
@@ -49,6 +57,84 @@ export async function registerProjectGitHubRoutes(
             "Project repository binding not found.",
           )
         }
+
+        return {
+          ok: true,
+          repositoryBinding: toRepositoryBindingResponse(
+            binding,
+            Boolean(project.rootPath && project.normalizedPath),
+          ),
+        }
+      } catch (error) {
+        throw toProjectAppError(error)
+      }
+    },
+  )
+
+  app.put<{ Params: ProjectIdParams; Body: PutProjectRepositoryBindingBody }>(
+    "/projects/:id/repository-binding",
+    {
+      schema: putProjectRepositoryBindingRouteSchema,
+    },
+    async (request) => {
+      try {
+        const ownerUserId = getOwnerUserId(request)
+        const githubAccess = requireGitHubRepositoryAccess(options)
+        const ownerScopedRepository = createOwnerScopedProjectRepository(
+          repository,
+          ownerUserId,
+        )
+        const project = await getProjectUseCase(
+          ownerScopedRepository,
+          request.params.id,
+        )
+
+        if (project.source.type !== "git") {
+          throw createProjectError().invalidState(
+            "project repository binding is only supported for git projects",
+          )
+        }
+
+        const existingBinding =
+          await githubAccess.repositoryBindingRepository.findByProjectId(
+            project.id,
+          )
+
+        if (existingBinding) {
+          const isSameBinding =
+            existingBinding.installationId === request.body.installationId &&
+            existingBinding.repositoryFullName.toLowerCase() ===
+              request.body.repositoryFullName.toLowerCase()
+
+          if (!isSameBinding) {
+            throw createProjectError().invalidState(
+              "project repository binding already exists",
+            )
+          }
+
+          return {
+            ok: true,
+            repositoryBinding: toRepositoryBindingResponse(
+              existingBinding,
+              Boolean(project.rootPath && project.normalizedPath),
+            ),
+          }
+        }
+
+        const binding = await buildGitHubProjectRepositoryBinding(
+          {
+            installationRepository: githubAccess.installationRepository,
+            githubAppClient: githubAccess.githubAppClient,
+          },
+          {
+            projectId: project.id,
+            ownerUserId,
+            installationId: request.body.installationId,
+            repositoryFullName: request.body.repositoryFullName,
+          },
+        )
+
+        await githubAccess.repositoryBindingRepository.save(binding)
 
         return {
           ok: true,
@@ -73,7 +159,10 @@ export async function registerProjectGitHubRoutes(
         const ownerUserId = getOwnerUserId(request)
         const githubAccess = requireGitHubRepositoryAccess(options)
 
-        if (!githubAccess.workspaceManager || !githubAccess.workspaceRootDirectory) {
+        if (
+          !githubAccess.workspaceManager ||
+          !githubAccess.workspaceRootDirectory
+        ) {
           throw new AppError(
             ERROR_CODES.AUTH_NOT_CONFIGURED,
             503,
@@ -96,7 +185,9 @@ export async function registerProjectGitHubRoutes(
           },
         )
         const binding =
-          await githubAccess.repositoryBindingRepository.findByProjectId(project.id)
+          await githubAccess.repositoryBindingRepository.findByProjectId(
+            project.id,
+          )
 
         if (!binding) {
           throw new AppError(

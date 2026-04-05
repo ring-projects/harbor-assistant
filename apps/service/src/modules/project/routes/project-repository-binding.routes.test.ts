@@ -44,11 +44,14 @@ async function createApp(args?: {
         repository: args?.projectRepository ?? new InMemoryProjectRepository(),
         pathPolicy: createSimpleProjectPathPolicy(),
         installationRepository:
-          args?.installationRepository ?? new InMemoryGitHubInstallationRepository(),
+          args?.installationRepository ??
+          new InMemoryGitHubInstallationRepository(),
         repositoryBindingRepository:
-          args?.bindingRepository ?? new InMemoryProjectRepositoryBindingRepository(),
+          args?.bindingRepository ??
+          new InMemoryProjectRepositoryBindingRepository(),
         githubAppClient: args?.githubAppClient ?? createGitHubAppClientStub(),
-        workspaceManager: args?.workspaceManager ?? createWorkspaceManagerStub(),
+        workspaceManager:
+          args?.workspaceManager ?? createWorkspaceManagerStub(),
         workspaceRootDirectory: "/managed-workspaces",
       })
     },
@@ -62,7 +65,9 @@ function createGitHubAppClientStub(
   overrides: Partial<GitHubAppClient> = {},
 ): GitHubAppClient {
   return {
-    buildInstallUrl: vi.fn(() => "https://github.com/apps/harbor/installations/new"),
+    buildInstallUrl: vi.fn(
+      () => "https://github.com/apps/harbor/installations/new",
+    ),
     getInstallation: vi.fn(),
     listInstallationRepositories: vi.fn(async () => [
       {
@@ -94,6 +99,120 @@ function createWorkspaceManagerStub(
 }
 
 describe("project repository binding routes", () => {
+  it("binds an existing git project to a GitHub repository", async () => {
+    const installationRepository = new InMemoryGitHubInstallationRepository()
+    await installationRepository.save({
+      id: "12345",
+      accountType: "organization",
+      accountLogin: "acme",
+      targetType: "selected",
+      status: "active",
+      installedByUserId: "user-1",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastValidatedAt: null,
+    })
+
+    const app = await createApp({
+      installationRepository,
+    })
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+      },
+    })
+
+    expect(created.statusCode).toBe(201)
+
+    const bound = await app.inject({
+      method: "PUT",
+      url: "/v1/projects/project-1/repository-binding",
+      payload: {
+        provider: "github",
+        installationId: "12345",
+        repositoryFullName: "acme/harbor-assistant",
+      },
+    })
+
+    expect(bound.statusCode).toBe(200)
+    expect(bound.json()).toEqual({
+      ok: true,
+      repositoryBinding: {
+        projectId: "project-1",
+        provider: "github",
+        installationId: "12345",
+        repositoryOwner: "acme",
+        repositoryName: "harbor-assistant",
+        repositoryFullName: "acme/harbor-assistant",
+        repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+        defaultBranch: "main",
+        visibility: "private",
+        workspaceState: "unprovisioned",
+      },
+    })
+  })
+
+  it("rejects binding a repository to a rootPath project", async () => {
+    const installationRepository = new InMemoryGitHubInstallationRepository()
+    await installationRepository.save({
+      id: "12345",
+      accountType: "organization",
+      accountLogin: "acme",
+      targetType: "selected",
+      status: "active",
+      installedByUserId: "user-1",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastValidatedAt: null,
+    })
+
+    const app = await createApp({
+      installationRepository,
+    })
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        source: {
+          type: "rootPath",
+          rootPath: "/tmp/harbor-assistant",
+        },
+      },
+    })
+
+    expect(created.statusCode).toBe(201)
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/v1/projects/project-1/repository-binding",
+      payload: {
+        provider: "github",
+        installationId: "12345",
+        repositoryFullName: "acme/harbor-assistant",
+      },
+    })
+
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_PROJECT_STATE",
+      },
+    })
+  })
+
   it("creates a git-backed project with a GitHub repository binding and exposes the binding view", async () => {
     const installationRepository = new InMemoryGitHubInstallationRepository()
     await installationRepository.save({

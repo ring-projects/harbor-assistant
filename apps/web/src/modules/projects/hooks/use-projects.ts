@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   archiveProject,
+  bindProjectRepository,
   createProject,
   deleteProject,
   ProjectApiClientError,
@@ -18,6 +19,7 @@ import {
   updateProject,
   updateProjectSettings,
   type ArchiveProjectInput,
+  type BindProjectRepositoryInput,
   type DeleteProjectInput,
   type ProvisionProjectWorkspaceResult,
   type SyncProjectWorkspaceResult,
@@ -49,14 +51,21 @@ export const projectQueryKey = (projectId: string) =>
 export const projectRepositoryBindingQueryKey = (projectId: string) =>
   [...PROJECTS_QUERY_KEY, "repository-binding", projectId] as const
 
-export const githubInstallUrlQueryKey = () =>
-  [...GITHUB_INTEGRATION_QUERY_KEY, "install-url"] as const
+export const githubInstallUrlQueryKey = (returnTo: string | null) =>
+  [...GITHUB_INTEGRATION_QUERY_KEY, "install-url", returnTo ?? "none"] as const
 
 export const githubInstallationsQueryKey = () =>
   [...GITHUB_INTEGRATION_QUERY_KEY, "installations"] as const
 
-export const githubInstallationRepositoriesQueryKey = (installationId: string) =>
-  [...GITHUB_INTEGRATION_QUERY_KEY, "installations", installationId, "repositories"] as const
+export const githubInstallationRepositoriesQueryKey = (
+  installationId: string,
+) =>
+  [
+    ...GITHUB_INTEGRATION_QUERY_KEY,
+    "installations",
+    installationId,
+    "repositories",
+  ] as const
 
 export function getProjectActionError(error: unknown) {
   if (error instanceof ProjectApiClientError) {
@@ -79,10 +88,13 @@ export function useReadProjectsQuery(options?: ReadProjectsQueryOptions) {
   })
 }
 
-export function useGitHubInstallUrlQuery(enabled = true) {
+export function useGitHubInstallUrlQuery(
+  returnTo: string | null,
+  enabled = true,
+) {
   return useQuery<string>({
-    queryKey: githubInstallUrlQueryKey(),
-    queryFn: readGitHubAppInstallUrl,
+    queryKey: githubInstallUrlQueryKey(returnTo),
+    queryFn: () => readGitHubAppInstallUrl(returnTo),
     enabled,
   })
 }
@@ -95,7 +107,9 @@ export function useGitHubInstallationsQuery(enabled = true) {
   })
 }
 
-export function useGitHubInstallationRepositoriesQuery(installationId: string | null) {
+export function useGitHubInstallationRepositoriesQuery(
+  installationId: string | null,
+) {
   return useQuery<GitHubRepository[]>({
     queryKey: githubInstallationRepositoriesQueryKey(installationId ?? "none"),
     queryFn: async () => {
@@ -137,7 +151,10 @@ export function useProjectQuery(projectId: string | null) {
   })
 }
 
-export function useProjectRepositoryBindingQuery(projectId: string | null, enabled = true) {
+export function useProjectRepositoryBindingQuery(
+  projectId: string | null,
+  enabled = true,
+) {
   return useQuery<ProjectRepositoryBinding>({
     queryKey: projectRepositoryBindingQueryKey(projectId ?? "none"),
     queryFn: async () => {
@@ -174,7 +191,10 @@ export function useCreateProjectMutation() {
         upsertProject(current, project),
       )
       queryClient.setQueryData(projectQueryKey(project.id), project)
-      queryClient.setQueryData(projectSettingsQueryKey(project.id), project.settings)
+      queryClient.setQueryData(
+        projectSettingsQueryKey(project.id),
+        project.settings,
+      )
     },
   })
 }
@@ -188,7 +208,10 @@ export function useUpdateProjectMutation() {
         upsertProject(current, project),
       )
       queryClient.setQueryData(projectQueryKey(project.id), project)
-      queryClient.setQueryData(projectSettingsQueryKey(project.id), project.settings)
+      queryClient.setQueryData(
+        projectSettingsQueryKey(project.id),
+        project.settings,
+      )
     },
   })
 }
@@ -207,7 +230,10 @@ export function useUpdateProjectSettingsMutation(projectId: string) {
         upsertProject(current, project),
       )
       queryClient.setQueryData(projectQueryKey(project.id), project)
-      queryClient.setQueryData(projectSettingsQueryKey(projectId), project.settings)
+      queryClient.setQueryData(
+        projectSettingsQueryKey(projectId),
+        project.settings,
+      )
     },
   })
 }
@@ -220,7 +246,10 @@ function updateProvisionedProjectState(
     upsertProject(current, result.project),
   )
   queryClient.setQueryData(projectQueryKey(result.project.id), result.project)
-  queryClient.setQueryData(projectSettingsQueryKey(result.project.id), result.project.settings)
+  queryClient.setQueryData(
+    projectSettingsQueryKey(result.project.id),
+    result.project.settings,
+  )
   queryClient.setQueryData(
     projectRepositoryBindingQueryKey(result.project.id),
     result.repositoryBinding,
@@ -239,11 +268,33 @@ export function useProvisionProjectWorkspaceMutation() {
   })
 }
 
+export function useBindProjectRepositoryMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: Omit<BindProjectRepositoryInput, "projectId">) =>
+      bindProjectRepository({
+        projectId,
+        ...input,
+      }),
+    onSuccess(repositoryBinding) {
+      queryClient.setQueryData(
+        projectRepositoryBindingQueryKey(projectId),
+        repositoryBinding,
+      )
+      queryClient.invalidateQueries({
+        queryKey: projectQueryKey(projectId),
+      })
+    },
+  })
+}
+
 export function useSyncProjectWorkspaceMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ projectId }: { projectId: string }) => syncProjectWorkspace(projectId),
+    mutationFn: ({ projectId }: { projectId: string }) =>
+      syncProjectWorkspace(projectId),
     onSuccess(result: SyncProjectWorkspaceResult) {
       queryClient.invalidateQueries({
         queryKey: projectRepositoryBindingQueryKey(result.projectId),
@@ -268,14 +319,19 @@ function createProjectStatusMutation(
           upsertProject(current, project),
         )
         queryClient.setQueryData(projectQueryKey(project.id), project)
-        queryClient.setQueryData(projectSettingsQueryKey(project.id), project.settings)
+        queryClient.setQueryData(
+          projectSettingsQueryKey(project.id),
+          project.settings,
+        )
       },
     })
   }
 }
 
-export const useArchiveProjectMutation = createProjectStatusMutation(archiveProject)
-export const useRestoreProjectMutation = createProjectStatusMutation(restoreProject)
+export const useArchiveProjectMutation =
+  createProjectStatusMutation(archiveProject)
+export const useRestoreProjectMutation =
+  createProjectStatusMutation(restoreProject)
 
 export function useDeleteProjectMutation() {
   const queryClient = useQueryClient()
