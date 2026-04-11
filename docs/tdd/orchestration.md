@@ -11,7 +11,6 @@
 - 关联文档：
   - [../orchestration-requirements-2026-03-31.md](../orchestration-requirements-2026-03-31.md)
   - [../backend-lite-ddd-design-2026-03-24.md](../backend-lite-ddd-design-2026-03-24.md)
-  - [../task-runtime-system-design-2026-03-23.md](../task-runtime-system-design-2026-03-23.md)
   - [../service-database-schema-design-2026-03-25.md](../service-database-schema-design-2026-03-25.md)
   - [../interaction-context-design-2026-03-24.md](../interaction-context-design-2026-03-24.md)
 

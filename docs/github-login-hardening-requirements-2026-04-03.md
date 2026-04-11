@@ -4,7 +4,7 @@
 
 - 文档名称：GitHub Login Hardening Requirements
 - 日期：2026-04-03
-- 状态：Proposed
+- 状态：Proposed Canonical Design
 - 适用范围：
   - `apps/service/src/modules/auth`
   - `apps/web/src/modules/auth`

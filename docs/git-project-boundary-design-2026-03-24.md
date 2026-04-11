@@ -13,7 +13,7 @@
 - 关联文档：
   - [backend-lite-ddd-design-2026-03-24.md](./backend-lite-ddd-design-2026-03-24.md)
   - [project-context-design-2026-03-24.md](./project-context-design-2026-03-24.md)
-  - [task-runtime-system-design-2026-03-23.md](./task-runtime-system-design-2026-03-23.md)
+  - [product-prd-2026-04-10.md](./product-prd-2026-04-10.md)
   - [tdd/project.md](./tdd/project.md)
 
 ## 2. 文档目标

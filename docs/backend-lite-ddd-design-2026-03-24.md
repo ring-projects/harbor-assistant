@@ -12,9 +12,9 @@
   - future runtime policy resolution capability in application layer
   - supporting modules in `apps/service/src/modules/*`
 - 关联文档：
-  - [task-runtime-system-design-2026-03-23.md](./task-runtime-system-design-2026-03-23.md)
+  - [product-prd-2026-04-10.md](./product-prd-2026-04-10.md)
   - [project-context-design-2026-03-24.md](./project-context-design-2026-03-24.md)
-  - [task-context-design-2026-03-25.md](./task-context-design-2026-03-25.md)
+  - [orchestration-requirements-2026-03-31.md](./orchestration-requirements-2026-03-31.md)
   - [interaction-context-design-2026-03-24.md](./interaction-context-design-2026-03-24.md)
   - [task-event-storage-model.md](./task-event-storage-model.md)
   - [task-api.md](./task-api.md)
@@ -144,8 +144,8 @@ project 聚合边界、settings owned record 设计、以及 project-scoped inte
 
 `task` 是用户可见的工作单元上下文。
 
-task 聚合边界、task/runtime 拆分原则，以及 task-facing read model 设计，详见
-[task-context-design-2026-03-25.md](./task-context-design-2026-03-25.md)。
+task 聚合边界、orchestration/task 拆分原则，以及 task-facing read model 设计，详见
+[orchestration-requirements-2026-03-31.md](./orchestration-requirements-2026-03-31.md)。
 
 它拥有：
 

@@ -1,5 +1,8 @@
 # Agent Event 重构方案
 
+> Historical refactor plan. Keep this document as a dated design exploration,
+> not as the current event model definition.
+
 最后更新：2026-03-24
 
 ## 1. 目的

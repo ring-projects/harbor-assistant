@@ -4,17 +4,17 @@
 
 - 文档名称：Swarm Orchestration Capability Archive
 - 日期：2026-03-26
-- 状态：Archived Product Idea / Foundation Planning
+- 状态：Historical
 - 适用范围：
   - future multi-agent orchestration capability
   - `task` / future `orchestration` context 边界讨论
   - service capability design 与 agent skill strategy design
 - 关联文档：
-  - [../task-context-design-2026-03-25.md](../task-context-design-2026-03-25.md)
-  - [../interaction-context-design-2026-03-24.md](../interaction-context-design-2026-03-24.md)
-  - [../project-context-design-2026-03-24.md](../project-context-design-2026-03-24.md)
-  - [../task-api.md](../task-api.md)
-  - [../service-database-schema-design-2026-03-25.md](../service-database-schema-design-2026-03-25.md)
+  - [../../orchestration-requirements-2026-03-31.md](../../orchestration-requirements-2026-03-31.md)
+  - [../../interaction-context-design-2026-03-24.md](../../interaction-context-design-2026-03-24.md)
+  - [../../project-context-design-2026-03-24.md](../../project-context-design-2026-03-24.md)
+  - [../../task-api.md](../../task-api.md)
+  - [../../service-database-schema-design-2026-03-25.md](../../service-database-schema-design-2026-03-25.md)
 
 ## 2. 背景
 

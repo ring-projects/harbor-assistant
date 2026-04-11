@@ -12,9 +12,9 @@
 - 关联文档：
   - [./project-local-knowledge-workspace-design-2026-03-26.md](./project-local-knowledge-workspace-design-2026-03-26.md)
   - [./project-context-design-2026-03-24.md](./project-context-design-2026-03-24.md)
-  - [./task-context-design-2026-03-25.md](./task-context-design-2026-03-25.md)
+  - [./orchestration-requirements-2026-03-31.md](./orchestration-requirements-2026-03-31.md)
   - [./service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
-  - [./features/swarm-orchestration-capability-archive-2026-03-26.md](./features/swarm-orchestration-capability-archive-2026-03-26.md)
+  - [./archive/features/swarm-orchestration-capability-archive-2026-03-26.md](./archive/features/swarm-orchestration-capability-archive-2026-03-26.md)
 
 ## 2. 文档目标
 

@@ -11,11 +11,11 @@
   - `task` / future `orchestration` 对知识文档的读写边界
 - 关联文档：
   - [./project-context-design-2026-03-24.md](./project-context-design-2026-03-24.md)
-  - [./task-context-design-2026-03-25.md](./task-context-design-2026-03-25.md)
+  - [./orchestration-requirements-2026-03-31.md](./orchestration-requirements-2026-03-31.md)
   - [./interaction-context-design-2026-03-24.md](./interaction-context-design-2026-03-24.md)
   - [./service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
   - [./project-local-skill-bridge.md](./project-local-skill-bridge.md)
-  - [./features/swarm-orchestration-capability-archive-2026-03-26.md](./features/swarm-orchestration-capability-archive-2026-03-26.md)
+  - [./archive/features/swarm-orchestration-capability-archive-2026-03-26.md](./archive/features/swarm-orchestration-capability-archive-2026-03-26.md)
 
 ## 2. 背景
 

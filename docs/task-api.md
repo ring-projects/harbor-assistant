@@ -1,11 +1,12 @@
 # Task 接口文档
 
-> [!WARNING]
-> **状态：部分过时（Partially Superseded）**
-> 当前系统主模型已调整为 `Orchestration -> N Tasks`。
-> 其中 task detail / task events / resume / cancel / archive / delete 仍可作为当前 contract 参考，
-> 但 task create 与 task list 的 project 维度入口已经失效。
-> 请优先参考：`docs/orchestration-requirements-2026-03-31.md` 与 `docs/tdd/orchestration.md`。
+> [!IMPORTANT]
+> **状态：Reference**
+> 本文档描述当前 task detail / task events / resume / cancel / archive / delete 的真实 HTTP contract，
+> 以及 orchestration-scoped task create / list 的当前接口基线。
+> 产品主模型仍以 `docs/product-prd-2026-04-10.md` 与
+> `docs/orchestration-requirements-2026-03-31.md` 为准。
+> task runtime 需求边界请看 `docs/task-runtime-requirements-2026-04-10.md`。
 
 
 本文档描述当前 `task` 模块的真实 HTTP contract 与 resume 语义，用于前端对接、联调和后续重构基线。
@@ -320,11 +321,11 @@ function getTaskDetail(taskId: string): Promise<Task>
 - 空 `taskId` 由 route schema 拦截为 `INVALID_REQUEST_BODY`
 - 不存在抛 `TASK_NOT_FOUND`
 
-### 4.9 `listProjectTasks(input)`
+### 4.9 `listOrchestrationTasks(input)`
 
 ```ts
-function listProjectTasks(input: {
-  projectId: string
+function listOrchestrationTasks(input: {
+  orchestrationId: string
   limit?: number
   includeArchived?: boolean
 }): Promise<Task[]>
@@ -332,7 +333,7 @@ function listProjectTasks(input: {
 
 行为：
 
-- 当前实现直接按 `projectId` 查询 task 记录，不额外校验 project detail
+- 当前实现按 `orchestrationId` 查询 task 记录
 - `includeArchived !== true` 时排除已归档 task
 
 ### 4.10 `getTaskEvents(input)`
@@ -469,7 +470,7 @@ function getTaskEvents(input: {
 关键说明：
 
 - 返回的是 normalized events，不是 raw events
-- `afterSequence` 与 `nextSequence` 都是 projected sequence
+- `afterSequence` 与 `nextSequence` 当前都直接使用存储事件序号
 - 客户端应始终使用上一次返回的 `nextSequence` 继续拉取
 
 ### 5.4 `POST /v1/tasks/:taskId/resume`

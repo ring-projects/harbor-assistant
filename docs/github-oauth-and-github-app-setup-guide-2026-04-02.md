@@ -4,7 +4,7 @@
 
 - 文档名称：GitHub OAuth 与 GitHub App 设置说明
 - 日期：2026-04-02
-- 状态：Draft For Review
+- 状态：Reference
 - 适用场景：
   - 需要在 GitHub 中创建 OAuth App，用于“GitHub 登录”
   - 需要在 GitHub 中创建 GitHub App，用于“仓库访问、安装授权、installation token”

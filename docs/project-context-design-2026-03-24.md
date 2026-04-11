@@ -11,9 +11,8 @@
   - `apps/web` 中 project detail / project settings / project shell 的后端契约
 - 关联文档：
   - [backend-lite-ddd-design-2026-03-24.md](./backend-lite-ddd-design-2026-03-24.md)
-  - [task-runtime-system-design-2026-03-23.md](./task-runtime-system-design-2026-03-23.md)
+  - [product-prd-2026-04-10.md](./product-prd-2026-04-10.md)
   - [service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
-  - [frd-frontend.md](./frd-frontend.md)
   - [project-api.md](./project-api.md)
 
 ## 2. 文档目标

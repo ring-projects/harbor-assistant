@@ -4,7 +4,7 @@
 
 - 文档名称：Harbor GitHub App 私有仓库访问方案设计
 - 日期：2026-04-02
-- 状态：Proposed Design For Review
+- 状态：Reference
 - 适用范围：
   - `apps/service/src/modules/auth`
   - `apps/service/src/modules/project`

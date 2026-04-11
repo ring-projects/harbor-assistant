@@ -12,8 +12,8 @@
   - `apps/web/src/app/globals.css`
 - 关联文档：
   - [frd-chat-frontend.md](./frd-chat-frontend.md)
-  - [frd-task-frontend.md](./frd-task-frontend.md)
-  - [frd-frontend.md](./frd-frontend.md)
+  - [product-prd-2026-04-10.md](./product-prd-2026-04-10.md)
+  - [task-api.md](./task-api.md)
   - [frontend-testing.md](./frontend-testing.md)
 
 ## 2. 目的

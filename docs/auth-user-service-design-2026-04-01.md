@@ -4,7 +4,7 @@
 
 - 文档名称：Harbor 服务端用户与认证设计
 - 日期：2026-04-01
-- 状态：Proposed Canonical System Direction
+- 状态：Proposed Canonical Design
 - 适用范围：
   - `apps/service/src/modules/user`（future）
   - `apps/service/src/modules/auth`（future）
@@ -18,7 +18,7 @@
   - [./backend-lite-ddd-design-2026-03-24.md](./backend-lite-ddd-design-2026-03-24.md)
   - [./service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
   - [./project-context-design-2026-03-24.md](./project-context-design-2026-03-24.md)
-  - [./task-context-design-2026-03-25.md](./task-context-design-2026-03-25.md)
+  - [./orchestration-requirements-2026-03-31.md](./orchestration-requirements-2026-03-31.md)
   - [./interaction-context-design-2026-03-24.md](./interaction-context-design-2026-03-24.md)
   - [./project-api.md](./project-api.md)
   - [./task-api.md](./task-api.md)

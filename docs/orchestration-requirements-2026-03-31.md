@@ -4,15 +4,14 @@
 
 - 文档名称：编排需求说明
 - 日期：2026-04-01
-- 状态：Proposed Canonical Product / System Direction
+- 状态：Proposed Canonical Design
 - 适用范围：
   - `apps/service/src/modules/orchestration`（future）
   - `apps/service/src/modules/task` 的重新定位
   - orchestration / task / schedule / runtime / interaction 的最终职责划分
 - 关联文档：
   - [./backend-lite-ddd-design-2026-03-24.md](./backend-lite-ddd-design-2026-03-24.md)
-  - [./task-context-design-2026-03-25.md](./task-context-design-2026-03-25.md)
-  - [./task-runtime-system-design-2026-03-23.md](./task-runtime-system-design-2026-03-23.md)
+  - [./product-prd-2026-04-10.md](./product-prd-2026-04-10.md)
   - [./service-database-schema-design-2026-03-25.md](./service-database-schema-design-2026-03-25.md)
   - [./task-api.md](./task-api.md)
 

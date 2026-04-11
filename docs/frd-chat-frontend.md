@@ -7,8 +7,8 @@
 - 日期：2026-03-20
 - 适用范围：项目工作台中的 Chat 面板、消息流、输入区、实时状态反馈
 - 关联文档：
-  - [frd-frontend.md](./frd-frontend.md)
-  - [frd-task-frontend.md](./frd-task-frontend.md)
+  - [product-prd-2026-04-10.md](./product-prd-2026-04-10.md)
+  - [orchestration-requirements-2026-03-31.md](./orchestration-requirements-2026-03-31.md)
   - [agent-runtime-integration.md](./agent-runtime-integration.md)
   - [task-event-storage-model.md](./task-event-storage-model.md)
 
