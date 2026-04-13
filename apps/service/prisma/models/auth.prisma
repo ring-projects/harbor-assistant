@@ -20,6 +20,11 @@ model User {
   identities   AuthIdentity[]
   sessions     AuthSession[]
   projects     Project[]
+  workspacesCreated Workspace[] @relation("WorkspaceCreatedByUser")
+  workspaceMemberships WorkspaceMembership[] @relation("WorkspaceMemberships")
+  workspaceInvitationsSent WorkspaceInvitation[] @relation("WorkspaceInvitationsSent")
+  workspaceInvitationsAccepted WorkspaceInvitation[] @relation("WorkspaceInvitationsAccepted")
+  linkedWorkspaceGitHubInstallations WorkspaceGitHubInstallation[]
   githubAppInstallations GitHubAppInstallation[]
 
   @@index([status, updatedAt(sort: Desc)])

@@ -1,5 +1,5 @@
-import { AppError } from "../../../lib/errors/app-error"
-import { ERROR_CODES } from "../../../constants/errors"
+import { AppError } from "../../../../lib/errors/app-error"
+import { ERROR_CODES } from "../../../../constants/errors"
 
 type FetchLike = typeof fetch
 
@@ -35,7 +35,21 @@ export type GitHubIdentity = {
   organizations: string[]
 }
 
-export class GitHubOAuthClient {
+export function buildGitHubAuthorizeUrl(args: {
+  clientId: string
+  redirectUri: string
+  state: string
+  scopes: string[]
+}) {
+  const url = new URL("https://github.com/login/oauth/authorize")
+  url.searchParams.set("client_id", args.clientId)
+  url.searchParams.set("redirect_uri", args.redirectUri)
+  url.searchParams.set("scope", args.scopes.join(" "))
+  url.searchParams.set("state", args.state)
+  return url.toString()
+}
+
+export class GitHubOAuthProvider {
   constructor(
     private readonly options: {
       clientId: string
@@ -46,6 +60,19 @@ export class GitHubOAuthClient {
 
   private get fetchImpl() {
     return this.options.fetch ?? fetch
+  }
+
+  buildAuthorizeUrl(args: {
+    redirectUri: string
+    state: string
+    scopes: string[]
+  }) {
+    return buildGitHubAuthorizeUrl({
+      clientId: this.options.clientId,
+      redirectUri: args.redirectUri,
+      state: args.state,
+      scopes: args.scopes,
+    })
   }
 
   async exchangeCodeForIdentity(args: {

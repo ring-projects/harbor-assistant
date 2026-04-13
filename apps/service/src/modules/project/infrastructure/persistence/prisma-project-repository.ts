@@ -88,6 +88,8 @@ export class PrismaProjectRepository implements ProjectRepository {
         where: { id: project.id },
         create: {
           id: project.id,
+          ownerUserId: project.ownerUserId,
+          workspaceId: project.workspaceId,
           slug: project.slug,
           name: project.name,
           description: project.description,
@@ -107,17 +109,10 @@ export class PrismaProjectRepository implements ProjectRepository {
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
           archivedAt: project.archivedAt,
-          ...(project.ownerUserId
-            ? {
-                owner: {
-                  connect: {
-                    id: project.ownerUserId,
-                  },
-                },
-              }
-            : {}),
         },
         update: {
+          ownerUserId: project.ownerUserId,
+          workspaceId: project.workspaceId,
           slug: project.slug,
           name: project.name,
           description: project.description,
@@ -136,15 +131,6 @@ export class PrismaProjectRepository implements ProjectRepository {
           harborSkillProfile: project.settings.skills.harborSkillProfile,
           updatedAt: project.updatedAt,
           archivedAt: project.archivedAt,
-          owner: project.ownerUserId
-            ? {
-                connect: {
-                  id: project.ownerUserId,
-                },
-              }
-            : {
-                disconnect: true,
-              },
         },
       })
     } catch (error) {

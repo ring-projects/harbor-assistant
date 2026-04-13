@@ -1,0 +1,85 @@
+enum WorkspaceType {
+  personal
+  team
+}
+
+enum WorkspaceStatus {
+  active
+  archived
+}
+
+enum WorkspaceMembershipRole {
+  owner
+  member
+}
+
+enum WorkspaceMembershipStatus {
+  active
+  removed
+}
+
+enum WorkspaceInvitationRole {
+  member
+}
+
+enum WorkspaceInvitationStatus {
+  pending
+  accepted
+  revoked
+}
+
+model Workspace {
+  id                String                @id @default(cuid())
+  slug              String
+  name              String
+  type              WorkspaceType
+  status            WorkspaceStatus       @default(active)
+  createdByUserId   String
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  archivedAt        DateTime?
+  createdByUser     User                  @relation("WorkspaceCreatedByUser", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  memberships       WorkspaceMembership[]
+  invitations       WorkspaceInvitation[]
+  githubInstallations WorkspaceGitHubInstallation[]
+  projects          Project[]
+
+  @@index([createdByUserId, updatedAt(sort: Desc)])
+  @@index([status, updatedAt(sort: Desc)])
+  @@map("workspaces")
+}
+
+model WorkspaceMembership {
+  workspaceId  String
+  userId       String
+  role         WorkspaceMembershipRole
+  status       WorkspaceMembershipStatus @default(active)
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  workspace    Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User                      @relation("WorkspaceMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId, status, updatedAt(sort: Desc)])
+  @@map("workspace_memberships")
+}
+
+model WorkspaceInvitation {
+  id                 String                    @id
+  workspaceId        String
+  inviteeGithubLogin String
+  role               WorkspaceInvitationRole
+  status             WorkspaceInvitationStatus @default(pending)
+  invitedByUserId    String
+  acceptedByUserId   String?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  acceptedAt         DateTime?
+  workspace          Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedByUser      User                      @relation("WorkspaceInvitationsSent", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  acceptedByUser     User?                     @relation("WorkspaceInvitationsAccepted", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, createdAt(sort: Desc)])
+  @@index([inviteeGithubLogin, status, createdAt(sort: Desc)])
+  @@map("workspace_invitations")
+}

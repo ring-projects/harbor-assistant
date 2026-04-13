@@ -1,7 +1,15 @@
 import type { PrismaClient } from "@prisma/client"
 import Fastify from "fastify"
 
+import {
+  createDefaultAuthorizationService,
+  createRepositoryAuthorizationOrchestrationQuery,
+  createRepositoryAuthorizationProjectQuery,
+  createRepositoryAuthorizationTaskQuery,
+  createRepositoryAuthorizationWorkspaceQuery,
+} from "../../src/modules/authorization"
 import errorHandlerPlugin from "../../src/plugins/error-handler"
+import { PrismaOrchestrationRepository } from "../../src/modules/orchestration/infrastructure/persistence/prisma-orchestration-repository"
 import { createCurrentTaskRuntimePort } from "../../src/modules/task/facade/current-task-runtime-port"
 import { PrismaTaskEventProjection } from "../../src/modules/task/infrastructure/projection/prisma-task-event-projection"
 import { PrismaTaskRepository } from "../../src/modules/task/infrastructure/persistence/prisma-task-repository"
@@ -9,6 +17,7 @@ import { createNodeTaskInputImageStore } from "../../src/modules/task/infrastruc
 import { createInMemoryTaskNotificationBus } from "../../src/modules/task/infrastructure/notification/in-memory-task-notification-bus"
 import { registerTaskModuleRoutes } from "../../src/modules/task/routes"
 import { PrismaProjectRepository } from "../../src/modules/project/infrastructure/persistence/prisma-project-repository"
+import { PrismaWorkspaceRepository } from "../../src/modules/workspace"
 import { createProjectTaskPort } from "../../src/routes/v1/create-project-task-port"
 
 export async function createTaskTestApp(prisma: PrismaClient) {
@@ -22,10 +31,22 @@ export async function createTaskTestAppWithOptions(
   },
 ) {
   const taskRepository = new PrismaTaskRepository(prisma)
+  const projectRepository = new PrismaProjectRepository(prisma)
+  const orchestrationRepository = new PrismaOrchestrationRepository(prisma)
   const eventProjection = new PrismaTaskEventProjection(prisma)
   const notificationBus = createInMemoryTaskNotificationBus()
+  const workspaceRepository = new PrismaWorkspaceRepository(prisma)
   const projectTaskPort = createProjectTaskPort({
-    projectRepository: new PrismaProjectRepository(prisma),
+    projectRepository,
+  })
+  const authorization = createDefaultAuthorizationService({
+    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
+      workspaceRepository,
+    ),
+    projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
+    taskQuery: createRepositoryAuthorizationTaskQuery(taskRepository),
+    orchestrationQuery:
+      createRepositoryAuthorizationOrchestrationQuery(orchestrationRepository),
   })
   const taskInputFileStore = createNodeTaskInputImageStore()
   const runtimePort = createCurrentTaskRuntimePort({
@@ -61,11 +82,13 @@ export async function createTaskTestAppWithOptions(
   await app.register(
     async (instance) => {
       await registerTaskModuleRoutes(instance, {
+        authorization,
         repository: taskRepository,
         taskRecordStore: taskRepository,
         eventProjection,
         notificationPublisher: notificationBus.publisher,
-        projectRepository: new PrismaProjectRepository(prisma),
+        projectRepository,
+        workspaceRepository,
         projectTaskPort,
         taskInputFileStore,
         runtimePort,

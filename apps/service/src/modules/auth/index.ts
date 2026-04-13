@@ -5,10 +5,7 @@ export {
   requireAuthenticatedPreHandler,
   requireAuthenticatedRequest,
 } from "./plugin/auth-session"
-export { PrismaAuthStore, type AuthenticatedRequestContext } from "./infrastructure/prisma-auth-store"
 export {
-  createOwnerScopedOrchestrationRepository,
-  createOwnerScopedProjectRepository,
-  createOwnerScopedProjectTaskPort,
-  createOwnerScopedTaskRepository,
-} from "./owner-scoped"
+  PrismaAuthSessionStore,
+  type AuthenticatedRequestContext,
+} from "./infrastructure/prisma-auth-session-store"

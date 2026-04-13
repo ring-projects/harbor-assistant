@@ -2,22 +2,51 @@ import Fastify from "fastify"
 import { describe, expect, it } from "vitest"
 
 import { registerProjectModuleRoutes } from "."
+import {
+  createDefaultAuthorizationService,
+  createRepositoryAuthorizationOrchestrationQuery,
+  createRepositoryAuthorizationProjectQuery,
+  createRepositoryAuthorizationTaskQuery,
+  createRepositoryAuthorizationWorkspaceQuery,
+} from "../../authorization"
+import { InMemoryWorkspaceInstallationRepository } from "../../integration/github/infrastructure/in-memory-workspace-installation-repository"
+import { InMemoryOrchestrationRepository } from "../../orchestration/infrastructure/in-memory-orchestration-repository"
+import { createProject } from "../domain/project"
 import { InMemoryProjectRepository } from "../infrastructure/in-memory-project-repository"
 import { createSimpleProjectPathPolicy } from "../infrastructure/simple-project-path-policy"
 import errorHandlerPlugin from "../../../plugins/error-handler"
+import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
+import { InMemoryWorkspaceRepository } from "../../workspace/infrastructure/in-memory-workspace-repository"
+import { createWorkspace } from "../../workspace/domain/workspace"
 
 async function createApp() {
   const app = Fastify({ logger: false })
+  const projectRepository = new InMemoryProjectRepository()
+  const workspaceRepository = new InMemoryWorkspaceRepository()
+  const workspaceInstallationRepository =
+    new InMemoryWorkspaceInstallationRepository()
+  const authorization = createDefaultAuthorizationService({
+    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
+      workspaceRepository,
+    ),
+    projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
+    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+      new InMemoryOrchestrationRepository(),
+    ),
+  })
   app.decorateRequest("auth", null)
   app.addHook("onRequest", async (request) => {
+    const userId = String(request.headers["x-user-id"] ?? "user-1")
+    const githubLogin = String(request.headers["x-user-login"] ?? userId)
     request.auth = {
       sessionId: "session-1",
-      userId: "user-1",
+      userId,
       user: {
-        id: "user-1",
-        githubLogin: "user-1",
+        id: userId,
+        githubLogin,
         name: "User One",
-        email: "user-1@example.com",
+        email: `${githubLogin}@example.com`,
         avatarUrl: null,
         status: "active",
         lastLoginAt: null,
@@ -30,14 +59,21 @@ async function createApp() {
   await app.register(
     async (instance) => {
       await registerProjectModuleRoutes(instance, {
-        repository: new InMemoryProjectRepository(),
+        authorization,
+        repository: projectRepository,
+        workspaceRepository,
+        workspaceInstallationRepository,
         pathPolicy: createSimpleProjectPathPolicy(),
       })
     },
     { prefix: "/v1" },
   )
   await app.ready()
-  return app
+  return {
+    app,
+    projectRepository,
+    workspaceRepository,
+  }
 }
 
 function rootPathSource(rootPath: string) {
@@ -49,7 +85,7 @@ function rootPathSource(rootPath: string) {
 
 describe("project routes", () => {
   it("lists projects and creates a new rootPath project", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     const initial = await app.inject({
       method: "GET",
@@ -89,7 +125,7 @@ describe("project routes", () => {
   })
 
   it("canonicalizes project root on create", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     const created = await app.inject({
       method: "POST",
@@ -117,7 +153,7 @@ describe("project routes", () => {
   })
 
   it("creates a git-backed project without a local workspace", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     const created = await app.inject({
       method: "POST",
@@ -150,7 +186,7 @@ describe("project routes", () => {
   })
 
   it("gets and updates project settings", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     await app.inject({
       method: "POST",
@@ -202,7 +238,7 @@ describe("project routes", () => {
   })
 
   it("archives and restores a project", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     await app.inject({
       method: "POST",
@@ -242,7 +278,7 @@ describe("project routes", () => {
   })
 
   it("deletes a project", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     await app.inject({
       method: "POST",
@@ -278,7 +314,7 @@ describe("project routes", () => {
   })
 
   it("updates project profile and relocates project root", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     await app.inject({
       method: "POST",
@@ -314,7 +350,7 @@ describe("project routes", () => {
   })
 
   it("does not partially persist profile changes when root relocation fails", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     await app.inject({
       method: "POST",
@@ -370,7 +406,7 @@ describe("project routes", () => {
   })
 
   it("rejects invalid create payloads at request validation", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     const response = await app.inject({
       method: "POST",
@@ -391,7 +427,7 @@ describe("project routes", () => {
   })
 
   it("rejects invalid settings payloads at request validation", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     await app.inject({
       method: "POST",
@@ -423,7 +459,7 @@ describe("project routes", () => {
   })
 
   it("returns duplicate-path conflict using structured project errors", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     await app.inject({
       method: "POST",
@@ -455,7 +491,7 @@ describe("project routes", () => {
   })
 
   it("returns invalid-state conflict using structured project errors", async () => {
-    const app = await createApp()
+    const { app } = await createApp()
 
     await app.inject({
       method: "POST",
@@ -482,6 +518,252 @@ describe("project routes", () => {
       ok: false,
       error: {
         code: "INVALID_PROJECT_STATE",
+      },
+    })
+  })
+
+  it("assigns a personal workspace automatically when creating a project", async () => {
+    const { app } = await createApp()
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        source: rootPathSource("/tmp/harbor-assistant"),
+      },
+    })
+
+    expect(created.statusCode).toBe(201)
+    expect(created.json()).toMatchObject({
+      ok: true,
+      project: {
+        id: "project-1",
+        workspaceId: expect.any(String),
+      },
+    })
+  })
+
+  it("rejects creating a project inside a workspace the actor does not belong to", async () => {
+    const { app, projectRepository, workspaceRepository } = await createApp()
+    await workspaceRepository.save(
+      createWorkspace({
+        id: "ws-team",
+        name: "Harbor Team",
+        type: "team",
+        createdByUserId: "user-1",
+      }),
+    )
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        workspaceId: "ws-team",
+        source: rootPathSource("/tmp/harbor-assistant"),
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "PERMISSION_DENIED",
+      },
+    })
+    await expect(projectRepository.list()).resolves.toEqual([])
+  })
+
+  it("rejects creating a project inside a shared workspace for non-owner members", async () => {
+    const { app, projectRepository, workspaceRepository } = await createApp()
+    const workspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+      payload: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        workspaceId: "ws-team",
+        source: rootPathSource("/tmp/harbor-assistant"),
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "PERMISSION_DENIED",
+      },
+    })
+    await expect(projectRepository.list()).resolves.toEqual([])
+  })
+
+  it("hides a workspace project from non-members", async () => {
+    const { app, projectRepository, workspaceRepository } = await createApp()
+    const workspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save(workspace)
+    await projectRepository.save({
+      ...createProject({
+        id: "project-1",
+        name: "Harbor Assistant",
+        normalizedPath: "/tmp/harbor-assistant",
+        ownerUserId: "user-1",
+        workspaceId: "ws-team",
+      }),
+      workspaceId: "ws-team",
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/projects/project-1",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+    })
+
+    expect(response.statusCode).toBe(404)
+  })
+
+  it("rejects project settings updates by non-owner workspace members", async () => {
+    const { app, projectRepository, workspaceRepository } = await createApp()
+    const workspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+    await projectRepository.save({
+      ...createProject({
+        id: "project-1",
+        name: "Harbor Assistant",
+        normalizedPath: "/tmp/harbor-assistant",
+        ownerUserId: "user-1",
+        workspaceId: "ws-team",
+      }),
+      workspaceId: "ws-team",
+    })
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/v1/projects/project-1/settings",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+      payload: {
+        retention: {
+          logRetentionDays: 14,
+        },
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "PERMISSION_DENIED",
+      },
+    })
+  })
+
+  it("rejects project deletion by non-owner workspace members", async () => {
+    const { app, projectRepository, workspaceRepository } = await createApp()
+    const workspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+    await projectRepository.save({
+      ...createProject({
+        id: "project-1",
+        name: "Harbor Assistant",
+        normalizedPath: "/tmp/harbor-assistant",
+        ownerUserId: "user-1",
+        workspaceId: "ws-team",
+      }),
+      workspaceId: "ws-team",
+    })
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/v1/projects/project-1",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "PERMISSION_DENIED",
       },
     })
   })

@@ -12,6 +12,7 @@ enum ProjectSourceType {
 model Project {
   id                   String        @id @default(uuid())
   ownerUserId          String?
+  workspaceId          String?
   name                 String
   slug                 String?       @unique
   sourceType           ProjectSourceType @default(rootPath)
@@ -30,11 +31,13 @@ model Project {
   updatedAt            DateTime      @updatedAt
   archivedAt           DateTime?
   owner                User?         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace            Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   tasks                Task[]
   orchestrations       Orchestration[]
   repositoryBinding    ProjectRepositoryBinding?
 
   @@index([ownerUserId, updatedAt(sort: Desc)])
+  @@index([workspaceId, updatedAt(sort: Desc)])
   @@index([status, updatedAt(sort: Desc)])
   @@map("projects")
 }

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto"
 
+import { assertProjectReadyForWorkflow } from "../../project/domain/project"
 import type { ProjectRepository } from "../../project/application/project-repository"
 import { createProjectError } from "../../project/errors"
 import { createOrchestration } from "../domain/orchestration"
@@ -27,6 +28,7 @@ export async function createOrchestrationUseCase(
   if (!project) {
     throw createProjectError().notFound()
   }
+  assertProjectReadyForWorkflow(project)
 
   const orchestration = createOrchestration({
     id: args.idGenerator?.() ?? randomUUID(),

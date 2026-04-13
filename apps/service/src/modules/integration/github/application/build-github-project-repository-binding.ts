@@ -3,6 +3,8 @@ import { AppError } from "../../../../lib/errors/app-error"
 import type { GitHubAppClient } from "./github-app-client"
 import type { GitHubInstallationRepository } from "./github-installation-repository"
 import type { ProjectRepositoryBinding } from "./project-repository-binding-repository"
+import type { WorkspaceInstallationRepository } from "./workspace-installation-repository"
+import { ensureWorkspaceInstallationAccess } from "./ensure-workspace-installation-access"
 
 export async function buildGitHubProjectRepositoryBinding(
   deps: {
@@ -11,17 +13,28 @@ export async function buildGitHubProjectRepositoryBinding(
   },
   input: {
     projectId: string
-    ownerUserId: string
+    actorUserId: string
+    workspaceId: string | null
     installationId: string
     repositoryFullName: string
+    workspaceInstallationRepository?: WorkspaceInstallationRepository
     now?: Date
   },
 ): Promise<ProjectRepositoryBinding> {
-  const installation =
-    await deps.installationRepository.findByIdAndInstalledByUserId(
-      input.installationId,
-      input.ownerUserId,
-    )
+  const installation = input.workspaceInstallationRepository
+    ? await ensureWorkspaceInstallationAccess(
+        {
+          installationRepository: deps.installationRepository,
+          workspaceInstallationRepository: input.workspaceInstallationRepository,
+        },
+        {
+          workspaceId: input.workspaceId,
+          installationId: input.installationId,
+          actorUserId: input.actorUserId,
+          now: input.now,
+        },
+      )
+    : await deps.installationRepository.findById(input.installationId)
 
   if (!installation) {
     throw new AppError(

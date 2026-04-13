@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify"
 
-import { createOwnerScopedProjectRepository } from "../../auth"
+import type { AuthorizationService } from "../../authorization"
 import { getProjectUseCase } from "../../project/application/get-project"
 import { requireProjectWorkspace } from "../../project/domain/project"
 import type { ProjectRepository } from "../../project/application/project-repository"
+import type { WorkspaceRepository } from "../../workspace"
 import type { GitRepository } from "../application/git-repository"
 import { checkoutBranchUseCase } from "../application/checkout-branch"
 import { createBranchUseCase } from "../application/create-branch"
@@ -25,18 +26,17 @@ import {
 export async function registerGitModuleRoutes(
   app: FastifyInstance,
   options: {
+    authorization: AuthorizationService
     projectRepository: Pick<ProjectRepository, "findById"> & {
       findByIdAndOwnerUserId?: ProjectRepository["findByIdAndOwnerUserId"]
     }
+    workspaceRepository?: WorkspaceRepository
     gitRepository: GitRepository
   },
 ) {
-  async function resolveProjectRoot(projectId: string, ownerUserId: string) {
+  async function resolveProjectRoot(projectId: string) {
     const project = await getProjectUseCase(
-      createOwnerScopedProjectRepository(
-        options.projectRepository as ProjectRepository,
-        ownerUserId,
-      ),
+      options.projectRepository as ProjectRepository,
       projectId,
     )
     return requireProjectWorkspace(project).rootPath
@@ -49,10 +49,12 @@ export async function registerGitModuleRoutes(
     },
     async (request) => {
       try {
-        const path = await resolveProjectRoot(
-          request.params.projectId,
-          request.auth!.userId,
-        )
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: request.auth!.userId },
+          action: "project.git.read",
+          resource: { kind: "project", projectId: request.params.projectId },
+        })
+        const path = await resolveProjectRoot(request.params.projectId)
         const repository = await getRepositorySummaryUseCase(options.gitRepository, {
           path,
         })
@@ -74,10 +76,12 @@ export async function registerGitModuleRoutes(
     },
     async (request) => {
       try {
-        const path = await resolveProjectRoot(
-          request.params.projectId,
-          request.auth!.userId,
-        )
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: request.auth!.userId },
+          action: "project.git.read",
+          resource: { kind: "project", projectId: request.params.projectId },
+        })
+        const path = await resolveProjectRoot(request.params.projectId)
         const branches = await listBranchesUseCase(options.gitRepository, {
           path,
         })
@@ -99,10 +103,12 @@ export async function registerGitModuleRoutes(
     },
     async (request) => {
       try {
-        const path = await resolveProjectRoot(
-          request.params.projectId,
-          request.auth!.userId,
-        )
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: request.auth!.userId },
+          action: "project.git.read",
+          resource: { kind: "project", projectId: request.params.projectId },
+        })
+        const path = await resolveProjectRoot(request.params.projectId)
         const diff = await getDiffUseCase(options.gitRepository, {
           path,
         })
@@ -124,10 +130,12 @@ export async function registerGitModuleRoutes(
     },
     async (request) => {
       try {
-        const path = await resolveProjectRoot(
-          request.params.projectId,
-          request.auth!.userId,
-        )
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: request.auth!.userId },
+          action: "project.git.write",
+          resource: { kind: "project", projectId: request.params.projectId },
+        })
+        const path = await resolveProjectRoot(request.params.projectId)
         const repository = await checkoutBranchUseCase(options.gitRepository, {
           path,
           branchName: request.body.branchName,
@@ -150,10 +158,12 @@ export async function registerGitModuleRoutes(
     },
     async (request) => {
       try {
-        const path = await resolveProjectRoot(
-          request.params.projectId,
-          request.auth!.userId,
-        )
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: request.auth!.userId },
+          action: "project.git.write",
+          resource: { kind: "project", projectId: request.params.projectId },
+        })
+        const path = await resolveProjectRoot(request.params.projectId)
         const branches = await createBranchUseCase(options.gitRepository, {
           path,
           branchName: request.body.branchName,

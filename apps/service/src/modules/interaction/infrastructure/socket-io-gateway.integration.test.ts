@@ -1,7 +1,10 @@
 import Fastify from "fastify"
 import { afterEach, describe, expect, it } from "vitest"
 
+import { AppError } from "../../../lib/errors/app-error"
+import type { AuthorizationActor, AuthorizationService } from "../../authorization"
 import { createInteractionSocketGateway } from "./socket-io-gateway"
+import type { ResolveSocketActor } from "./socket-io-gateway"
 import type {
   InteractionProjectGitChangeEvent,
   InteractionSubscribeRequest,
@@ -87,6 +90,26 @@ function createTaskStreamSource(args: {
       }
     },
   }
+}
+
+function createAuthorizationService(args?: {
+  requireAuthorized?: AuthorizationService["requireAuthorized"]
+}) {
+  const requireAuthorized =
+    args?.requireAuthorized ??
+    (async () => {
+      return
+    })
+
+  return {
+    authorize: async () => ({
+      effect: "allow" as const,
+      actor: { kind: "system", systemId: "test" as const },
+      action: "project.view" as const,
+      resource: { kind: "project", projectId: "project-1" as const },
+    }),
+    requireAuthorized,
+  } satisfies AuthorizationService
 }
 
 function waitForClientConnect(client: ClientSocket) {
@@ -186,10 +209,13 @@ async function createClientSocket(url: string): Promise<ClientSocket> {
   })
   clientsToClose.add(client)
   await waitForClientConnect(client)
+  await new Promise((resolve) => setTimeout(resolve, 0))
   return client
 }
 
 async function createLiveGatewayApp(args?: {
+  authorization?: AuthorizationService
+  resolveSocketActor?: ResolveSocketActor
   taskQueries?: TaskInteractionQueries
   taskStream?: TaskInteractionStream
   projectGitWatcher?: ProjectGitInteractionLifecycle
@@ -229,9 +255,17 @@ async function createLiveGatewayApp(args?: {
 
   createInteractionSocketGateway({
     app,
+    authorization: args?.authorization ?? createAuthorizationService(),
     taskQueries,
     taskStream,
     projectGitWatcher,
+    resolveSocketActor:
+      args?.resolveSocketActor ??
+      (async () =>
+        ({
+          kind: "user",
+          userId: "user-1",
+        }) satisfies AuthorizationActor),
   })
 
   await app.listen({
@@ -390,6 +424,61 @@ describe("createInteractionSocketGateway", () => {
         () => unsubscribeCount === 1,
         "Expected task stream subscription to be cleaned up",
       )
+    } finally {
+      await app.close()
+    }
+  })
+
+  it("emits auth errors for unauthenticated websocket subscriptions", async () => {
+    const topic: InteractionTopic = {
+      kind: "task",
+      id: "task-1",
+    }
+
+    const { app, url } = await createLiveGatewayApp({
+      authorization: createAuthorizationService({
+        async requireAuthorized() {
+          throw new AppError("AUTH_REQUIRED", 401, "Authentication required.")
+        },
+      }),
+      resolveSocketActor: async () => null,
+    })
+
+    try {
+      const client = await createClientSocket(url)
+      const messages: WebSocketInteractionMessage[] = []
+
+      client.on("interaction:message", (...args: unknown[]) => {
+        const [message] = args as [WebSocketInteractionMessage]
+        messages.push(message)
+      })
+
+      client.emit("interaction:subscribe", {
+        topic,
+      } satisfies InteractionSubscribeRequest)
+
+      await waitForCondition(
+        () =>
+          messages.some(
+            (message) =>
+              message.topic?.kind === "task" &&
+              message.topic.id === "task-1" &&
+              message.message.kind === "error",
+          ),
+        "Expected unauthorized websocket subscription to emit an auth error",
+      )
+
+      expect(messages).toContainEqual({
+        topic,
+        message: {
+          kind: "error",
+          error: {
+            code: "AUTH_REQUIRED",
+            message: "Authentication required.",
+          },
+        },
+      })
+      client.close()
     } finally {
       await app.close()
     }

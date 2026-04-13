@@ -2,13 +2,15 @@ import type { FastifyInstance } from "fastify"
 
 import { AppError } from "../../../lib/errors/app-error"
 import { ERROR_CODES } from "../../../constants/errors"
-import { createOwnerScopedProjectRepository } from "../../auth"
+import { ensureWorkspaceInstallationAccess } from "../../integration/github/application/ensure-workspace-installation-access"
 import { createGitHubBoundProjectUseCase } from "../../integration/github/application/create-github-bound-project"
+import {
+  resolveWorkspaceForUser,
+} from "../../workspace"
 import { archiveProjectUseCase } from "../application/archive-project"
 import { createProjectUseCase } from "../application/create-project"
 import { deleteProjectUseCase } from "../application/delete-project"
 import { getProjectUseCase } from "../application/get-project"
-import { listProjectsUseCase } from "../application/list-projects"
 import { restoreProjectUseCase } from "../application/restore-project"
 import { updateProjectUseCase } from "../application/update-project"
 import { toProjectAppError } from "../project-app-error"
@@ -28,7 +30,9 @@ import {
 } from "../schemas"
 import type { ProjectModuleRouteOptions } from "./shared"
 import {
+  getAuthorizationActor,
   getOwnerUserId,
+  requireRouteAuthorization,
   requireGitHubRepositoryAccess,
 } from "./shared"
 
@@ -36,7 +40,7 @@ export async function registerProjectCoreRoutes(
   app: FastifyInstance,
   options: ProjectModuleRouteOptions,
 ) {
-  const { repository, pathPolicy } = options
+  const { repository, workspaceRepository, pathPolicy } = options
 
   app.get(
     "/projects",
@@ -44,14 +48,28 @@ export async function registerProjectCoreRoutes(
       schema: listProjectsRouteSchema,
     },
     async (request) => {
-      const ownerUserId = getOwnerUserId(request)
-      const projects = await listProjectsUseCase(
-        createOwnerScopedProjectRepository(repository, ownerUserId),
-      )
+      try {
+        const actor = getAuthorizationActor(request)
+        const projects = await repository.list()
+        const decisions = await Promise.all(
+          projects.map((project) =>
+            options.authorization.authorize({
+              actor,
+              action: "project.view",
+              resource: {
+                kind: "project",
+                projectId: project.id,
+              },
+            }),
+          ),
+        )
 
-      return {
-        ok: true,
-        projects,
+        return {
+          ok: true,
+          projects: projects.filter((_, index) => decisions[index]?.effect === "allow"),
+        }
+      } catch (error) {
+        throw toProjectAppError(error)
       }
     },
   )
@@ -64,6 +82,30 @@ export async function registerProjectCoreRoutes(
     async (request, reply) => {
       try {
         const ownerUserId = getOwnerUserId(request)
+        const actor = getAuthorizationActor(request)
+        const workspace = await resolveWorkspaceForUser(workspaceRepository, {
+          workspaceId: request.body.workspaceId,
+          userId: ownerUserId,
+          fallbackName:
+            request.auth!.user.name?.trim() || request.auth!.user.githubLogin,
+        })
+        if (!workspace) {
+          throw new AppError(
+            ERROR_CODES.PERMISSION_DENIED,
+            403,
+            "Workspace access denied.",
+          )
+        }
+        const workspaceId = workspace.id
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.create",
+          {
+            kind: "workspace",
+            workspaceId,
+          },
+        )
         const githubAccess =
           request.body.source.type === "git" && request.body.repositoryBinding
             ? requireGitHubRepositoryAccess(options)
@@ -84,6 +126,25 @@ export async function registerProjectCoreRoutes(
         let project
 
         if (request.body.source.type === "git" && request.body.repositoryBinding) {
+          if (!options.workspaceInstallationRepository) {
+            throw new AppError(
+              ERROR_CODES.AUTH_NOT_CONFIGURED,
+              503,
+              "Workspace GitHub installation access is not configured.",
+            )
+          }
+          await ensureWorkspaceInstallationAccess(
+            {
+              installationRepository: githubAccess!.installationRepository,
+              workspaceInstallationRepository:
+                options.workspaceInstallationRepository,
+            },
+            {
+              workspaceId,
+              installationId: request.body.repositoryBinding.installationId,
+              actorUserId: ownerUserId,
+            },
+          )
           project = (
             await createGitHubBoundProjectUseCase(
               {
@@ -92,12 +153,15 @@ export async function registerProjectCoreRoutes(
                 installationRepository: githubAccess!.installationRepository,
                 bindingRepository: githubAccess!.repositoryBindingRepository,
                 githubAppClient: githubAccess!.githubAppClient,
+                workspaceInstallationRepository:
+                  options.workspaceInstallationRepository,
               },
               {
                 id: request.body.id,
                 name: request.body.name,
                 description: request.body.description,
                 ownerUserId,
+                workspaceId,
                 source: request.body.source,
                 repositoryBinding: {
                   installationId: request.body.repositoryBinding.installationId,
@@ -113,6 +177,7 @@ export async function registerProjectCoreRoutes(
             name: request.body.name,
             description: request.body.description,
             ownerUserId,
+            workspaceId,
             source: request.body.source,
           })
         }
@@ -134,11 +199,17 @@ export async function registerProjectCoreRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
-        const project = await getProjectUseCase(
-          createOwnerScopedProjectRepository(repository, ownerUserId),
-          request.params.id,
+        const actor = getAuthorizationActor(request)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.view",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
         )
+        const project = await getProjectUseCase(repository, request.params.id)
 
         return {
           ok: true,
@@ -157,9 +228,18 @@ export async function registerProjectCoreRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        const actor = getAuthorizationActor(request)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.update",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
+        )
         const project = await updateProjectUseCase(
-          createOwnerScopedProjectRepository(repository, ownerUserId),
+          repository,
           pathPolicy,
           {
             projectId: request.params.id,
@@ -184,11 +264,17 @@ export async function registerProjectCoreRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
-        const project = await archiveProjectUseCase(
-          createOwnerScopedProjectRepository(repository, ownerUserId),
-          request.params.id,
+        const actor = getAuthorizationActor(request)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.archive",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
         )
+        const project = await archiveProjectUseCase(repository, request.params.id)
 
         return {
           ok: true,
@@ -207,11 +293,17 @@ export async function registerProjectCoreRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
-        const project = await restoreProjectUseCase(
-          createOwnerScopedProjectRepository(repository, ownerUserId),
-          request.params.id,
+        const actor = getAuthorizationActor(request)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.restore",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
         )
+        const project = await restoreProjectUseCase(repository, request.params.id)
 
         return {
           ok: true,
@@ -230,11 +322,17 @@ export async function registerProjectCoreRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
-        const result = await deleteProjectUseCase(
-          createOwnerScopedProjectRepository(repository, ownerUserId),
-          request.params.id,
+        const actor = getAuthorizationActor(request)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.delete",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
         )
+        const result = await deleteProjectUseCase(repository, request.params.id)
 
         return {
           ok: true,

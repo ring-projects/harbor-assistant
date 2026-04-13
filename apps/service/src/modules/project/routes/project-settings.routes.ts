@@ -1,6 +1,5 @@
 import type { FastifyInstance } from "fastify"
 
-import { createOwnerScopedProjectRepository } from "../../auth"
 import { getProjectUseCase } from "../application/get-project"
 import { updateProjectSettingsUseCase } from "../application/update-project-settings"
 import { toProjectAppError } from "../project-app-error"
@@ -10,7 +9,10 @@ import {
   updateProjectSettingsRouteSchema,
 } from "../schemas"
 import type { ProjectModuleRouteOptions } from "./shared"
-import { getOwnerUserId } from "./shared"
+import {
+  getAuthorizationActor,
+  requireRouteAuthorization,
+} from "./shared"
 
 export async function registerProjectSettingsRoutes(
   app: FastifyInstance,
@@ -25,11 +27,17 @@ export async function registerProjectSettingsRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
-        const project = await getProjectUseCase(
-          createOwnerScopedProjectRepository(repository, ownerUserId),
-          request.params.id,
+        const actor = getAuthorizationActor(request)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.settings.read",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
         )
+        const project = await getProjectUseCase(repository, request.params.id)
 
         return {
           ok: true,
@@ -48,9 +56,18 @@ export async function registerProjectSettingsRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        const actor = getAuthorizationActor(request)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.settings.update",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
+        )
         const project = await updateProjectSettingsUseCase(
-          createOwnerScopedProjectRepository(repository, ownerUserId),
+          repository,
           {
             projectId: request.params.id,
             changes: request.body,

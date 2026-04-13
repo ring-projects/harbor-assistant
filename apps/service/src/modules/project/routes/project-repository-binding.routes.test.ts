@@ -2,33 +2,64 @@ import Fastify from "fastify"
 import { describe, expect, it, vi } from "vitest"
 
 import { registerProjectModuleRoutes } from "."
+import {
+  createDefaultAuthorizationService,
+  createRepositoryAuthorizationOrchestrationQuery,
+  createRepositoryAuthorizationProjectQuery,
+  createRepositoryAuthorizationTaskQuery,
+  createRepositoryAuthorizationWorkspaceQuery,
+} from "../../authorization"
 import errorHandlerPlugin from "../../../plugins/error-handler"
 import { InMemoryGitHubInstallationRepository } from "../../integration/github/infrastructure/in-memory-github-installation-repository"
 import { InMemoryProjectRepositoryBindingRepository } from "../../integration/github/infrastructure/in-memory-project-repository-binding-repository"
+import { InMemoryWorkspaceInstallationRepository } from "../../integration/github/infrastructure/in-memory-workspace-installation-repository"
 import type { GitHubAppClient } from "../../integration/github/application/github-app-client"
 import type { ProjectWorkspaceManager } from "../../integration/github/application/project-workspace-manager"
+import { InMemoryOrchestrationRepository } from "../../orchestration/infrastructure/in-memory-orchestration-repository"
+import { createProject } from "../domain/project"
 import { InMemoryProjectRepository } from "../infrastructure/in-memory-project-repository"
 import { createSimpleProjectPathPolicy } from "../infrastructure/simple-project-path-policy"
+import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
+import { InMemoryWorkspaceRepository } from "../../workspace"
+import { createWorkspace } from "../../workspace/domain/workspace"
 
 async function createApp(args?: {
   projectRepository?: InMemoryProjectRepository
+  workspaceRepository?: InMemoryWorkspaceRepository
   installationRepository?: InMemoryGitHubInstallationRepository
+  workspaceInstallationRepository?: InMemoryWorkspaceInstallationRepository
   bindingRepository?: InMemoryProjectRepositoryBindingRepository
   githubAppClient?: GitHubAppClient
   workspaceManager?: ProjectWorkspaceManager
 }) {
   const app = Fastify({ logger: false })
+  const workspaceRepository =
+    args?.workspaceRepository ?? new InMemoryWorkspaceRepository()
+  const projectRepository =
+    args?.projectRepository ?? new InMemoryProjectRepository()
+  const authorization = createDefaultAuthorizationService({
+    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
+      workspaceRepository,
+    ),
+    projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
+    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+      new InMemoryOrchestrationRepository(),
+    ),
+  })
 
   app.decorateRequest("auth", null)
   app.addHook("onRequest", async (request) => {
+    const userId = String(request.headers["x-user-id"] ?? "user-1")
+    const githubLogin = String(request.headers["x-user-login"] ?? userId)
     request.auth = {
       sessionId: "session-1",
-      userId: "user-1",
+      userId,
       user: {
-        id: "user-1",
-        githubLogin: "user-1",
+        id: userId,
+        githubLogin,
         name: "User One",
-        email: "user-1@example.com",
+        email: `${githubLogin}@example.com`,
         avatarUrl: null,
         status: "active",
         lastLoginAt: null,
@@ -41,7 +72,12 @@ async function createApp(args?: {
   await app.register(
     async (instance) => {
       await registerProjectModuleRoutes(instance, {
-        repository: args?.projectRepository ?? new InMemoryProjectRepository(),
+        authorization,
+        repository: projectRepository,
+        workspaceRepository,
+        workspaceInstallationRepository:
+          args?.workspaceInstallationRepository ??
+          new InMemoryWorkspaceInstallationRepository(),
         pathPolicy: createSimpleProjectPathPolicy(),
         installationRepository:
           args?.installationRepository ??
@@ -463,7 +499,7 @@ describe("project repository binding routes", () => {
       workspaceManager,
     })
 
-    await app.inject({
+    const created = await app.inject({
       method: "POST",
       url: "/v1/projects",
       payload: {
@@ -481,6 +517,7 @@ describe("project repository binding routes", () => {
         },
       },
     })
+    const createdProject = created.json().project as { workspaceId: string }
 
     const provisioned = await app.inject({
       method: "POST",
@@ -491,15 +528,15 @@ describe("project repository binding routes", () => {
     expect(workspaceManager.cloneRepository).toHaveBeenCalledWith({
       repositoryUrl: "https://github.com/acme/harbor-assistant.git",
       branch: "main",
-      targetPath: "/managed-workspaces/user-1/project-1",
+      targetPath: `/managed-workspaces/${createdProject.workspaceId}/project-1`,
       accessToken: "installation-token",
     })
     expect(provisioned.json()).toMatchObject({
       ok: true,
       project: {
         id: "project-1",
-        rootPath: "/managed-workspaces/user-1/project-1",
-        normalizedPath: "/managed-workspaces/user-1/project-1",
+        rootPath: `/managed-workspaces/${createdProject.workspaceId}/project-1`,
+        normalizedPath: `/managed-workspaces/${createdProject.workspaceId}/project-1`,
       },
       repositoryBinding: {
         workspaceState: "ready",
@@ -554,6 +591,261 @@ describe("project repository binding routes", () => {
       ok: false,
       error: {
         code: "INVALID_PROJECT_STATE",
+      },
+    })
+  })
+
+  it("allows a workspace member to read the repository binding of a shared project", async () => {
+    const projectRepository = new InMemoryProjectRepository()
+    const workspaceRepository = new InMemoryWorkspaceRepository()
+    const bindingRepository = new InMemoryProjectRepositoryBindingRepository()
+
+    const sharedWorkspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+      now: new Date("2026-04-06T00:00:00.000Z"),
+    })
+    await workspaceRepository.save({
+      ...sharedWorkspace,
+      memberships: [
+        ...sharedWorkspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+    await projectRepository.save({
+      ...createProject({
+        id: "project-1",
+        name: "Harbor Assistant",
+        ownerUserId: "user-1",
+        workspaceId: "ws-team",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+      }),
+      workspaceId: "ws-team",
+    })
+    await bindingRepository.save({
+      projectId: "project-1",
+      provider: "github",
+      installationId: "12345",
+      repositoryNodeId: "repo_1",
+      repositoryOwner: "acme",
+      repositoryName: "harbor-assistant",
+      repositoryFullName: "acme/harbor-assistant",
+      repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+      defaultBranch: "main",
+      visibility: "private",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastVerifiedAt: null,
+    })
+
+    const app = await createApp({
+      projectRepository,
+      workspaceRepository,
+      bindingRepository,
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/projects/project-1/repository-binding",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      repositoryBinding: {
+        projectId: "project-1",
+        repositoryFullName: "acme/harbor-assistant",
+      },
+    })
+  })
+
+  it("rejects repository binding writes by non-owner workspace members", async () => {
+    const installationRepository = new InMemoryGitHubInstallationRepository()
+    await installationRepository.save({
+      id: "12345",
+      accountType: "organization",
+      accountLogin: "acme",
+      targetType: "selected",
+      status: "active",
+      installedByUserId: "user-1",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastValidatedAt: null,
+    })
+
+    const projectRepository = new InMemoryProjectRepository()
+    const workspaceRepository = new InMemoryWorkspaceRepository()
+    const sharedWorkspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+      now: new Date("2026-04-06T00:00:00.000Z"),
+    })
+    await workspaceRepository.save({
+      ...sharedWorkspace,
+      memberships: [
+        ...sharedWorkspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+    await projectRepository.save({
+      ...createProject({
+        id: "project-1",
+        name: "Harbor Assistant",
+        ownerUserId: "user-1",
+        workspaceId: "ws-team",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+      }),
+      workspaceId: "ws-team",
+    })
+
+    const app = await createApp({
+      projectRepository,
+      workspaceRepository,
+      installationRepository,
+    })
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/v1/projects/project-1/repository-binding",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+      payload: {
+        provider: "github",
+        installationId: "12345",
+        repositoryFullName: "acme/harbor-assistant",
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "PERMISSION_DENIED",
+      },
+    })
+  })
+
+  it("rejects workspace provisioning by non-owner workspace members", async () => {
+    const installationRepository = new InMemoryGitHubInstallationRepository()
+    const bindingRepository = new InMemoryProjectRepositoryBindingRepository()
+    const projectRepository = new InMemoryProjectRepository()
+    const workspaceRepository = new InMemoryWorkspaceRepository()
+
+    await installationRepository.save({
+      id: "12345",
+      accountType: "organization",
+      accountLogin: "acme",
+      targetType: "selected",
+      status: "active",
+      installedByUserId: "user-1",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastValidatedAt: null,
+    })
+
+    const workspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+    await projectRepository.save({
+      ...createProject({
+        id: "project-1",
+        name: "Harbor Assistant",
+        ownerUserId: "user-1",
+        workspaceId: "ws-team",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+      }),
+      workspaceId: "ws-team",
+    })
+    await bindingRepository.save({
+      projectId: "project-1",
+      provider: "github",
+      installationId: "12345",
+      repositoryNodeId: "repo_1",
+      repositoryOwner: "acme",
+      repositoryName: "harbor-assistant",
+      repositoryFullName: "acme/harbor-assistant",
+      repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+      defaultBranch: "main",
+      visibility: "private",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastVerifiedAt: null,
+    })
+
+    const app = await createApp({
+      projectRepository,
+      workspaceRepository,
+      installationRepository,
+      bindingRepository,
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects/project-1/provision-workspace",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "PERMISSION_DENIED",
       },
     })
   })

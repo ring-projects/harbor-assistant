@@ -39,6 +39,7 @@ export function toDomainProject(project: PrismaProject): Project {
   return {
     id: project.id,
     ownerUserId: project.ownerUserId,
+    workspaceId: project.workspaceId ?? null,
     slug: project.slug ?? deriveProjectSlug(project.name),
     name: project.name,
     description: project.description,

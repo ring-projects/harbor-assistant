@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 
 import type { AgentInputItem } from "../../../lib/agents"
+import { assertProjectReadyForWorkflow } from "../../project/domain/project"
 import type { ProjectRepository } from "../../project/application/project-repository"
 import { createProjectError } from "../../project/errors"
 import type { TaskNotificationPublisher } from "../../task/application/task-notification"
@@ -112,6 +113,7 @@ export async function bootstrapOrchestrationUseCase(
   if (!project) {
     throw createProjectError().notFound()
   }
+  assertProjectReadyForWorkflow(project)
   const projectRootPath = requireProjectWorkspaceRoot(project.rootPath)
 
   const validatedRuntimeConfig = await validateTaskRuntimeConfig({

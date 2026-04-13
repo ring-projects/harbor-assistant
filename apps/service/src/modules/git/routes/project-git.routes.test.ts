@@ -2,28 +2,54 @@ import Fastify from "fastify"
 import { describe, expect, it } from "vitest"
 
 import { registerGitModuleRoutes } from "."
+import {
+  createDefaultAuthorizationService,
+  createRepositoryAuthorizationOrchestrationQuery,
+  createRepositoryAuthorizationProjectQuery,
+  createRepositoryAuthorizationTaskQuery,
+  createRepositoryAuthorizationWorkspaceQuery,
+} from "../../authorization"
 import errorHandlerPlugin from "../../../plugins/error-handler"
+import { InMemoryOrchestrationRepository } from "../../orchestration/infrastructure/in-memory-orchestration-repository"
 import { createProject } from "../../project/domain/project"
 import { InMemoryProjectRepository } from "../../project/infrastructure/in-memory-project-repository"
+import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
+import { createWorkspace } from "../../workspace/domain/workspace"
+import { InMemoryWorkspaceRepository } from "../../workspace/infrastructure/in-memory-workspace-repository"
 import type { GitRepository } from "../application/git-repository"
 
 async function createApp(args?: {
   projectRepository?: InMemoryProjectRepository
+  workspaceRepository?: InMemoryWorkspaceRepository
   gitRepository?: GitRepository
 }) {
   const projectRepository = args?.projectRepository ?? new InMemoryProjectRepository()
+  const workspaceRepository =
+    args?.workspaceRepository ?? new InMemoryWorkspaceRepository()
   const gitRepository = args?.gitRepository ?? createGitRepositoryStub()
   const app = Fastify({ logger: false })
+  const authorization = createDefaultAuthorizationService({
+    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
+      workspaceRepository,
+    ),
+    projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
+    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+      new InMemoryOrchestrationRepository(),
+    ),
+  })
   app.decorateRequest("auth", null)
   app.addHook("onRequest", async (request) => {
+    const userId = String(request.headers["x-user-id"] ?? "user-1")
+    const githubLogin = String(request.headers["x-user-login"] ?? userId)
     request.auth = {
       sessionId: "session-1",
-      userId: "user-1",
+      userId,
       user: {
-        id: "user-1",
-        githubLogin: "user-1",
+        id: userId,
+        githubLogin,
         name: "User One",
-        email: "user-1@example.com",
+        email: `${githubLogin}@example.com`,
         avatarUrl: null,
         status: "active",
         lastLoginAt: null,
@@ -36,7 +62,9 @@ async function createApp(args?: {
   await app.register(
     async (instance) => {
       await registerGitModuleRoutes(instance, {
+        authorization,
         projectRepository,
+        workspaceRepository,
         gitRepository,
       })
     },
@@ -138,7 +166,7 @@ describe("project git routes", () => {
     expect(response.json()).toMatchObject({
       ok: false,
       error: {
-        code: "PROJECT_NOT_FOUND",
+        code: "NOT_FOUND",
       },
     })
   })
@@ -206,6 +234,67 @@ describe("project git routes", () => {
       ok: false,
       error: {
         code: "INVALID_PROJECT_STATE",
+      },
+    })
+  })
+
+  it("rejects git write operations by non-owner workspace members", async () => {
+    const projectRepository = new InMemoryProjectRepository()
+    const workspaceRepository = new InMemoryWorkspaceRepository()
+    const workspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+    await projectRepository.save({
+      ...createProject({
+        id: "project-1",
+        name: "Harbor",
+        ownerUserId: "user-1",
+        workspaceId: "ws-team",
+        normalizedPath: "/workspace/project",
+      }),
+      workspaceId: "ws-team",
+    })
+
+    const app = await createApp({
+      projectRepository,
+      workspaceRepository,
+      gitRepository: createGitRepositoryStub(),
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/projects/project-1/git/checkout",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+      payload: {
+        branchName: "feature/refactor",
+      },
+    })
+
+    expect(response.statusCode).toBe(403)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "PERMISSION_DENIED",
       },
     })
   })

@@ -5,7 +5,7 @@ import { AppError } from "../../../lib/errors/app-error"
 import { ERROR_CODES } from "../../../constants/errors"
 import { parseCookieHeader } from "../../../lib/http/cookies"
 import { HARBOR_SESSION_COOKIE_NAME } from "../constants"
-import { PrismaAuthStore } from "../infrastructure/prisma-auth-store"
+import { PrismaAuthSessionStore } from "../infrastructure/prisma-auth-session-store"
 
 export function requireAuthenticatedRequest(request: { auth: FastifyAuthContext | null }) {
   if (!request.auth) {
@@ -22,11 +22,11 @@ export async function requireAuthenticatedPreHandler(
 }
 
 type FastifyAuthContext = Awaited<
-  ReturnType<PrismaAuthStore["getSessionByToken"]>
+  ReturnType<PrismaAuthSessionStore["getSessionByToken"]>
 >
 
 export default fp(async (app, _options: { config: ServiceConfig }) => {
-  const authStore = new PrismaAuthStore(app.prisma)
+  const authStore = new PrismaAuthSessionStore(app.prisma)
 
   app.decorateRequest("auth", null)
 

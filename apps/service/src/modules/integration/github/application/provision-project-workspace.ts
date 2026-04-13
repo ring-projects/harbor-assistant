@@ -23,7 +23,7 @@ export async function provisionProjectWorkspaceUseCase(
   },
   input: {
     projectId: string
-    ownerUserId: string
+    actorUserId: string
   },
 ) {
   const context = await resolveGitHubManagedProjectContext(deps, input)
@@ -35,7 +35,7 @@ export async function provisionProjectWorkspaceUseCase(
   }
   const workspacePath = path.join(
     deps.workspaceRootDirectory,
-    input.ownerUserId,
+    project.workspaceId ?? project.ownerUserId ?? input.actorUserId,
     project.id,
   )
 

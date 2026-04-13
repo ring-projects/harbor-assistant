@@ -46,6 +46,19 @@ describe("orchestration use cases", () => {
     }
   }
 
+  function createGitProjectWithoutWorkspace(projectId = "project-1") {
+    return {
+      ...createProject(projectId),
+      source: {
+        type: "git" as const,
+        repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+        branch: "main",
+      },
+      rootPath: null,
+      normalizedPath: null,
+    }
+  }
+
   it("lists project orchestrations without task summaries", async () => {
     const repository = new InMemoryOrchestrationRepository([
       createOrchestration({
@@ -394,5 +407,76 @@ describe("orchestration use cases", () => {
       projectId: "project-1",
       title: "Refactor runtime boundaries",
     })
+  })
+
+  it("rejects creating an orchestration for a project that is not ready", async () => {
+    const repository = new InMemoryOrchestrationRepository()
+    const projectRepository = {
+      findById: vi.fn(async (id: string) =>
+        id === "project-1" ? createGitProjectWithoutWorkspace("project-1") : null,
+      ),
+    }
+
+    await expect(
+      createOrchestrationUseCase(
+        {
+          repository,
+          projectRepository,
+          idGenerator: () => "orch-created-1",
+        },
+        {
+          projectId: "project-1",
+          title: "Refactor runtime boundaries",
+        },
+      ),
+    ).rejects.toThrow("project is not ready for workflows")
+  })
+
+  it("rejects bootstrap for a project that is not ready", async () => {
+    const repository = new InMemoryOrchestrationRepository()
+    const taskRepository = new InMemoryTaskRepository()
+    const bootstrapStore = {
+      create: vi.fn(),
+    }
+    const projectRepository = {
+      findById: vi.fn(async (id: string) =>
+        id === "project-1" ? createGitProjectWithoutWorkspace("project-1") : null,
+      ),
+    }
+    const runtimePort = {
+      startTaskExecution: vi.fn(async () => {}),
+      resumeTaskExecution: vi.fn(async () => {}),
+      cancelTaskExecution: vi.fn(async () => {}),
+    }
+    const notificationPublisher = {
+      publish: vi.fn(async () => {}),
+    }
+
+    await expect(
+      bootstrapOrchestrationUseCase(
+        {
+          bootstrapStore,
+          projectRepository,
+          taskRepository,
+          runtimePort,
+          notificationPublisher,
+          orchestrationIdGenerator: () => "orch-bootstrap-3",
+          taskIdGenerator: () => "task-bootstrap-3",
+        },
+        {
+          projectId: "project-1",
+          orchestration: {
+            title: "Runtime cleanup",
+          },
+          initialTask: {
+            prompt: "Investigate runtime drift",
+            executor: "codex",
+            model: "gpt-5.3-codex",
+            executionMode: "safe",
+            effort: "medium",
+          },
+        },
+      ),
+    ).rejects.toThrow("project is not ready for workflows")
   })
 })

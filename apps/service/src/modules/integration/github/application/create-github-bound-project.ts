@@ -8,9 +8,11 @@ import { buildGitHubProjectRepositoryBinding } from "./build-github-project-repo
 import type { GitHubAppClient } from "./github-app-client"
 import type { GitHubInstallationRepository } from "./github-installation-repository"
 import type { ProjectRepositoryBindingRepository } from "./project-repository-binding-repository"
+import type { WorkspaceInstallationRepository } from "./workspace-installation-repository"
 
 type CreateGitHubBoundProjectCommand = CreateProjectCommand & {
   ownerUserId: string
+  workspaceId?: string | null
   source: {
     type: "git"
     repositoryUrl: string
@@ -29,6 +31,7 @@ export async function createGitHubBoundProjectUseCase(
     installationRepository: GitHubInstallationRepository
     bindingRepository: ProjectRepositoryBindingRepository
     githubAppClient: GitHubAppClient
+    workspaceInstallationRepository?: WorkspaceInstallationRepository
   },
   input: CreateGitHubBoundProjectCommand,
 ) {
@@ -40,9 +43,11 @@ export async function createGitHubBoundProjectUseCase(
     },
     {
       projectId: input.id,
-      ownerUserId: input.ownerUserId,
+      actorUserId: input.ownerUserId,
+      workspaceId: input.workspaceId ?? null,
       installationId: input.repositoryBinding.installationId,
       repositoryFullName: input.repositoryBinding.repositoryFullName,
+      workspaceInstallationRepository: deps.workspaceInstallationRepository,
       now,
     },
   )

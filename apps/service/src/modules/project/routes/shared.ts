@@ -1,18 +1,29 @@
 import { ERROR_CODES } from "../../../constants/errors"
 import { AppError } from "../../../lib/errors/app-error"
+import type {
+  AuthorizationAction,
+  AuthorizationActor,
+  AuthorizationResource,
+  AuthorizationService,
+} from "../../authorization"
 import type { GitHubAppClient } from "../../integration/github/application/github-app-client"
 import type { GitHubInstallationRepository } from "../../integration/github/application/github-installation-repository"
 import type {
   ProjectRepositoryBinding,
   ProjectRepositoryBindingRepository,
 } from "../../integration/github/application/project-repository-binding-repository"
+import type { WorkspaceInstallationRepository } from "../../integration/github/application/workspace-installation-repository"
 import type { ProjectWorkspaceManager } from "../../integration/github/application/project-workspace-manager"
+import type { WorkspaceRepository } from "../../workspace"
 import type { ProjectPathPolicy } from "../application/project-path-policy"
 import type { ProjectRepository } from "../application/project-repository"
 import type { ProjectRepositoryBindingResponse } from "../schemas"
 
 export type ProjectModuleRouteOptions = {
+  authorization: AuthorizationService
   repository: ProjectRepository
+  workspaceRepository: WorkspaceRepository
+  workspaceInstallationRepository?: WorkspaceInstallationRepository
   pathPolicy: ProjectPathPolicy
   installationRepository?: GitHubInstallationRepository
   repositoryBindingRepository?: ProjectRepositoryBindingRepository
@@ -31,6 +42,28 @@ export type ProjectGitHubAccess = {
 
 export function getOwnerUserId(request: { auth: { userId: string } | null }) {
   return request.auth!.userId
+}
+
+export function getAuthorizationActor(request: {
+  auth: { userId: string } | null
+}): AuthorizationActor {
+  return {
+    kind: "user",
+    userId: request.auth!.userId,
+  }
+}
+
+export async function requireRouteAuthorization(
+  authorization: AuthorizationService,
+  actor: AuthorizationActor,
+  action: AuthorizationAction,
+  resource: AuthorizationResource,
+) {
+  await authorization.requireAuthorized({
+    actor,
+    action,
+    resource,
+  })
 }
 
 export function requireGitHubRepositoryAccess(

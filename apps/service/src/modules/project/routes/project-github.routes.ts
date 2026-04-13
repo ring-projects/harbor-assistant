@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify"
 
 import { ERROR_CODES } from "../../../constants/errors"
 import { AppError } from "../../../lib/errors/app-error"
-import { createOwnerScopedProjectRepository } from "../../auth"
+import { ensureWorkspaceInstallationAccess } from "../../integration/github/application/ensure-workspace-installation-access"
 import { buildGitHubProjectRepositoryBinding } from "../../integration/github/application/build-github-project-repository-binding"
 import { provisionProjectWorkspaceUseCase } from "../../integration/github/application/provision-project-workspace"
 import { syncProjectWorkspaceUseCase } from "../../integration/github/application/sync-project-workspace"
@@ -21,7 +21,9 @@ import {
 } from "../schemas"
 import type { ProjectModuleRouteOptions } from "./shared"
 import {
+  getAuthorizationActor,
   getOwnerUserId,
+  requireRouteAuthorization,
   requireGitHubRepositoryAccess,
   toRepositoryBindingResponse,
 } from "./shared"
@@ -39,12 +41,18 @@ export async function registerProjectGitHubRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        const actor = getAuthorizationActor(request)
         const githubAccess = requireGitHubRepositoryAccess(options)
-        const project = await getProjectUseCase(
-          createOwnerScopedProjectRepository(repository, ownerUserId),
-          request.params.id,
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.repository_binding.read",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
         )
+        const project = await getProjectUseCase(repository, request.params.id)
         const binding =
           await githubAccess.repositoryBindingRepository.findByProjectId(
             project.id,
@@ -79,21 +87,45 @@ export async function registerProjectGitHubRoutes(
     async (request) => {
       try {
         const ownerUserId = getOwnerUserId(request)
+        const actor = getAuthorizationActor(request)
         const githubAccess = requireGitHubRepositoryAccess(options)
-        const ownerScopedRepository = createOwnerScopedProjectRepository(
-          repository,
-          ownerUserId,
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.repository_binding.write",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
         )
-        const project = await getProjectUseCase(
-          ownerScopedRepository,
-          request.params.id,
-        )
+        const project = await getProjectUseCase(repository, request.params.id)
 
         if (project.source.type !== "git") {
           throw createProjectError().invalidState(
             "project repository binding is only supported for git projects",
           )
         }
+
+        if (!options.workspaceInstallationRepository) {
+          throw new AppError(
+            ERROR_CODES.AUTH_NOT_CONFIGURED,
+            503,
+            "Workspace GitHub installation access is not configured.",
+          )
+        }
+
+        await ensureWorkspaceInstallationAccess(
+          {
+            installationRepository: githubAccess.installationRepository,
+            workspaceInstallationRepository:
+              options.workspaceInstallationRepository,
+          },
+          {
+            workspaceId: project.workspaceId ?? null,
+            installationId: request.body.installationId,
+            actorUserId: ownerUserId,
+          },
+        )
 
         const existingBinding =
           await githubAccess.repositoryBindingRepository.findByProjectId(
@@ -128,9 +160,12 @@ export async function registerProjectGitHubRoutes(
           },
           {
             projectId: project.id,
-            ownerUserId,
+            actorUserId: ownerUserId,
+            workspaceId: project.workspaceId ?? null,
             installationId: request.body.installationId,
             repositoryFullName: request.body.repositoryFullName,
+            workspaceInstallationRepository:
+              options.workspaceInstallationRepository,
           },
         )
 
@@ -157,7 +192,17 @@ export async function registerProjectGitHubRoutes(
     async (request) => {
       try {
         const ownerUserId = getOwnerUserId(request)
+        const actor = getAuthorizationActor(request)
         const githubAccess = requireGitHubRepositoryAccess(options)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.workspace.provision",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
+        )
 
         if (
           !githubAccess.workspaceManager ||
@@ -181,7 +226,7 @@ export async function registerProjectGitHubRoutes(
           },
           {
             projectId: request.params.id,
-            ownerUserId,
+            actorUserId: ownerUserId,
           },
         )
         const binding =
@@ -216,7 +261,17 @@ export async function registerProjectGitHubRoutes(
     async (request) => {
       try {
         const ownerUserId = getOwnerUserId(request)
+        const actor = getAuthorizationActor(request)
         const githubAccess = requireGitHubRepositoryAccess(options)
+        await requireRouteAuthorization(
+          options.authorization,
+          actor,
+          "project.workspace.sync",
+          {
+            kind: "project",
+            projectId: request.params.id,
+          },
+        )
 
         if (!githubAccess.workspaceManager) {
           throw new AppError(
@@ -236,7 +291,7 @@ export async function registerProjectGitHubRoutes(
           },
           {
             projectId: request.params.id,
-            ownerUserId,
+            actorUserId: ownerUserId,
           },
         )
 

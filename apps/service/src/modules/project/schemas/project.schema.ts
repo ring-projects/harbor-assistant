@@ -10,6 +10,7 @@ export type DeleteProjectResponse = {
 export type CreateProjectBody = {
   id: string
   name: string
+  workspaceId?: string | null
   description?: string | null
   repositoryBinding?: {
     provider: "github"
@@ -153,6 +154,7 @@ const projectEntitySchema = {
   additionalProperties: false,
   required: [
     "id",
+    "workspaceId",
     "slug",
     "name",
     "description",
@@ -168,6 +170,7 @@ const projectEntitySchema = {
   ],
   properties: {
     id: { type: "string", minLength: 1 },
+    workspaceId: { type: ["string", "null"], minLength: 1 },
     slug: { type: "string", minLength: 1 },
     name: { type: "string", minLength: 1 },
     description: { type: ["string", "null"] },
@@ -206,6 +209,7 @@ export const createProjectBodySchema = {
       properties: {
         id: { type: "string", minLength: 1 },
         name: { type: "string", minLength: 1 },
+        workspaceId: { type: ["string", "null"], minLength: 1 },
         description: { type: ["string", "null"] },
         source: createRootPathProjectSourceSchema,
         repositoryBinding: false,
@@ -218,6 +222,7 @@ export const createProjectBodySchema = {
       properties: {
         id: { type: "string", minLength: 1 },
         name: { type: "string", minLength: 1 },
+        workspaceId: { type: ["string", "null"], minLength: 1 },
         description: { type: ["string", "null"] },
         source: createGitProjectSourceSchema,
         repositoryBinding: repositoryBindingSchema,

@@ -8,6 +8,7 @@ import type {
   TaskInteractionQueries,
   TaskInteractionStream,
 } from "../application/ports"
+import type { AuthorizationActor, AuthorizationService } from "../../authorization"
 import {
   interactionTopicKey,
   interactionTopicRoom,
@@ -76,9 +77,19 @@ function emitProjectGitChanged(
   )
 }
 
+function toActor(actor: AuthorizationActor | null): AuthorizationActor {
+  return actor ?? { kind: "user", userId: "" }
+}
+
+async function resolveSocketActor(actorPromise: Promise<AuthorizationActor | null>) {
+  return toActor(await actorPromise)
+}
+
 async function replayTaskSnapshot(args: {
   socket: SocketSessionLike
   taskQueries: Pick<TaskInteractionQueries, "getTaskSnapshot">
+  authorization: AuthorizationService
+  actorPromise: Promise<AuthorizationActor | null>
   request: InteractionSubscribeRequest
 }) {
   const parsed = parseInteractionSubscription(args.request)
@@ -92,6 +103,14 @@ async function replayTaskSnapshot(args: {
 
   try {
     const topic = parsed.topic
+    await args.authorization.requireAuthorized({
+      actor: await resolveSocketActor(args.actorPromise),
+      action: "task.view",
+      resource: {
+        kind: "task",
+        taskId: topic.id,
+      },
+    })
     args.socket.join(parsed.room)
     const snapshot = await args.taskQueries.getTaskSnapshot(topic.id)
 
@@ -105,6 +124,8 @@ async function replayTaskSnapshot(args: {
 async function replayTaskEventsSnapshot(args: {
   socket: SocketSessionLike
   taskQueries: Pick<TaskInteractionQueries, "getTaskEventsSnapshot">
+  authorization: AuthorizationService
+  actorPromise: Promise<AuthorizationActor | null>
   request: InteractionSubscribeRequest
 }) {
   const parsed = parseInteractionSubscription(args.request)
@@ -126,6 +147,14 @@ async function replayTaskEventsSnapshot(args: {
       }
     >
     const topic = parsed.topic
+    await args.authorization.requireAuthorized({
+      actor: await resolveSocketActor(args.actorPromise),
+      action: "task.events.read",
+      resource: {
+        kind: "task",
+        taskId: topic.id,
+      },
+    })
     args.socket.join(parsed.room)
     const snapshot = await args.taskQueries.getTaskEventsSnapshot({
       taskId: topic.id,
@@ -143,6 +172,8 @@ async function replayTaskEventsSnapshot(args: {
 export async function handleProjectGitSubscription(args: {
   socket: Pick<SocketSessionLike, "emit">
   projectGitWatcher: Pick<ProjectGitInteractionWatcher, "subscribe">
+  authorization: AuthorizationService
+  actorPromise: Promise<AuthorizationActor | null>
   request: InteractionSubscribeRequest
   unsubscribeByTopicKey: Map<string, () => void>
 }) {
@@ -157,6 +188,14 @@ export async function handleProjectGitSubscription(args: {
 
   try {
     const topic = parsed.topic
+    await args.authorization.requireAuthorized({
+      actor: await resolveSocketActor(args.actorPromise),
+      action: "project.git.subscribe",
+      resource: {
+        kind: "project",
+        projectId: topic.id,
+      },
+    })
     const topicKey = interactionTopicKey(topic)
     if (!args.unsubscribeByTopicKey.has(topicKey)) {
       const unsubscribe = await args.projectGitWatcher.subscribe(topic.id, (event) => {
@@ -174,8 +213,75 @@ export async function handleProjectGitSubscription(args: {
   }
 }
 
+async function handleTaskSubscription(args: {
+  socket: SocketSessionLike
+  actorPromise: Promise<AuthorizationActor | null>
+  authorization: AuthorizationService
+  taskQueries: TaskInteractionQueries
+  taskStream: TaskInteractionStream
+  request: InteractionSubscribeRequest
+  unsubscribeByTopicKey: Map<string, () => void | Promise<void>>
+}) {
+  const parsed = parseInteractionSubscription(args.request)
+  if (
+    !parsed ||
+    (parsed.topic.kind !== "task" && parsed.topic.kind !== "task-events")
+  ) {
+    emitInteractionError(
+      args.socket,
+      createInteractionError().invalidTopic("Task topic is invalid."),
+    )
+    return
+  }
+
+  try {
+    const topic = parsed.topic
+    await args.authorization.requireAuthorized({
+      actor: await resolveSocketActor(args.actorPromise),
+      action: topic.kind === "task" ? "task.view" : "task.events.read",
+      resource: {
+        kind: "task",
+        taskId: topic.id,
+      },
+    })
+
+    const topicKey = interactionTopicKey(topic)
+    if (!args.unsubscribeByTopicKey.has(topicKey)) {
+      const subscription = args.taskStream
+        .selectTopic(topic)
+        .subscribe((message) => {
+          emitTaskMessage(args.socket, topic, message)
+        })
+      args.unsubscribeByTopicKey.set(topicKey, () => subscription.unsubscribe())
+    }
+
+    if (topic.kind === "task") {
+      await replayTaskSnapshot({
+        socket: args.socket,
+        authorization: args.authorization,
+        actorPromise: args.actorPromise,
+        taskQueries: args.taskQueries,
+        request: args.request,
+      })
+      return
+    }
+
+    await replayTaskEventsSnapshot({
+      socket: args.socket,
+      authorization: args.authorization,
+      actorPromise: args.actorPromise,
+      taskQueries: args.taskQueries,
+      request: args.request,
+    })
+  } catch (error) {
+    emitInteractionError(args.socket, error, parsed.topic)
+  }
+}
+
 export function bindWebSocketSession(args: {
   socket: SocketSessionLike
+  actorPromise: Promise<AuthorizationActor | null>
+  authorization: AuthorizationService
   taskQueries: TaskInteractionQueries
   taskStream: TaskInteractionStream
   projectGitWatcher: Pick<ProjectGitInteractionWatcher, "subscribe">
@@ -202,39 +308,23 @@ export function bindWebSocketSession(args: {
         void handleProjectGitSubscription({
           socket: args.socket,
           projectGitWatcher: args.projectGitWatcher,
+          authorization: args.authorization,
+          actorPromise: args.actorPromise,
           request,
           unsubscribeByTopicKey: projectGitSubscriptions,
         })
         return
       case "task":
       case "task-events":
-        {
-          const topic = parsed.topic
-
-          if (!taskStreamSubscriptions.has(topicKey)) {
-            const subscription = args.taskStream
-              .selectTopic(topic)
-              .subscribe((message) => {
-                emitTaskMessage(args.socket, topic, message)
-              })
-            taskStreamSubscriptions.set(topicKey, () => subscription.unsubscribe())
-          }
-
-          if (topic.kind === "task") {
-            void replayTaskSnapshot({
-              socket: args.socket,
-              taskQueries: args.taskQueries,
-              request,
-            })
-            return
-          }
-
-          void replayTaskEventsSnapshot({
-            socket: args.socket,
-            taskQueries: args.taskQueries,
-            request,
-          })
-        }
+        void handleTaskSubscription({
+          socket: args.socket,
+          actorPromise: args.actorPromise,
+          authorization: args.authorization,
+          taskQueries: args.taskQueries,
+          taskStream: args.taskStream,
+          request,
+          unsubscribeByTopicKey: taskStreamSubscriptions,
+        })
     }
   })
 

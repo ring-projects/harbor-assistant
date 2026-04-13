@@ -9,6 +9,10 @@ import { registerAuthModuleRoutes } from "./index"
 import authSessionPlugin from "../plugin/auth-session"
 import { createTestDatabase, type TestDatabase } from "../../../../test/helpers/test-database"
 import {
+  PrismaWorkspaceInvitationRepository,
+  PrismaWorkspaceRepository,
+} from "../../workspace"
+import {
   GITHUB_OAUTH_REDIRECT_COOKIE_NAME,
   HARBOR_SESSION_COOKIE_NAME,
 } from "../constants"
@@ -448,6 +452,152 @@ describe("auth routes", () => {
         githubLogin: "octocat-team",
         email: "octo@example.com",
       },
+    })
+
+    await app.close()
+  })
+
+  it("creates a personal workspace during the first successful login callback", async () => {
+    testDatabase = await createTestDatabase()
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      githubClient: {
+        async exchangeCodeForIdentity() {
+          return {
+            providerUserId: "github-user-1",
+            login: "octocat-team",
+            name: "Octo Cat",
+            email: "octo@example.com",
+            avatarUrl: "https://avatars.example.com/u/1",
+            organizations: [],
+          }
+        },
+      },
+    })
+
+    const start = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start",
+    })
+
+    const state = extractCookieValue(start.headers, "harbor_github_oauth_state")
+    const callback = await app.inject({
+      method: "GET",
+      url: `/v1/auth/github/callback?code=test-code&state=${state}`,
+      headers: {
+        cookie: buildCookieHeader(start.headers, ["harbor_github_oauth_state"]),
+      },
+    })
+
+    expect(callback.statusCode).toBe(302)
+
+    const user = await testDatabase.prisma.user.findUnique({
+      where: {
+        githubLogin: "octocat-team",
+      },
+    })
+    expect(user).not.toBeNull()
+
+    const workspaceRepository = new PrismaWorkspaceRepository(testDatabase.prisma)
+    const personalWorkspace = await workspaceRepository.findPersonalByUserId(user!.id)
+
+    expect(personalWorkspace).not.toBeNull()
+    expect(personalWorkspace).toMatchObject({
+      type: "personal",
+      createdByUserId: user!.id,
+    })
+
+    await app.close()
+  })
+
+  it("accepts pending workspace invitations during the first successful login callback", async () => {
+    testDatabase = await createTestDatabase()
+    await testDatabase.prisma.user.create({
+      data: {
+        id: "owner-1",
+        githubLogin: "owner",
+      },
+    })
+    await testDatabase.prisma.workspace.create({
+      data: {
+        id: "ws-team",
+        slug: "harbor-team",
+        name: "Harbor Team",
+        type: "team",
+        status: "active",
+        createdByUserId: "owner-1",
+        memberships: {
+          create: {
+            userId: "owner-1",
+            role: "owner",
+            status: "active",
+          },
+        },
+      },
+    })
+    await testDatabase.prisma.workspaceInvitation.create({
+      data: {
+        id: "invite-1",
+        workspaceId: "ws-team",
+        inviteeGithubLogin: "octocat-team",
+        role: "member",
+        status: "pending",
+        invitedByUserId: "owner-1",
+      },
+    })
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      githubClient: {
+        async exchangeCodeForIdentity() {
+          return {
+            providerUserId: "github-user-1",
+            login: "octocat-team",
+            name: "Octo Cat",
+            email: "octo@example.com",
+            avatarUrl: "https://avatars.example.com/u/1",
+            organizations: [],
+          }
+        },
+      },
+    })
+
+    const start = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start",
+    })
+
+    const state = extractCookieValue(start.headers, "harbor_github_oauth_state")
+    const callback = await app.inject({
+      method: "GET",
+      url: `/v1/auth/github/callback?code=test-code&state=${state}`,
+      headers: {
+        cookie: buildCookieHeader(start.headers, ["harbor_github_oauth_state"]),
+      },
+    })
+
+    expect(callback.statusCode).toBe(302)
+
+    const user = await testDatabase.prisma.user.findUnique({
+      where: {
+        githubLogin: "octocat-team",
+      },
+    })
+    expect(user).not.toBeNull()
+
+    const workspaceRepository = new PrismaWorkspaceRepository(testDatabase.prisma)
+    const teamWorkspace = await workspaceRepository.findById("ws-team")
+    expect(
+      teamWorkspace?.memberships.some(
+        (membership) =>
+          membership.userId === user!.id && membership.status === "active",
+      ),
+    ).toBe(true)
+
+    const invitationRepository = new PrismaWorkspaceInvitationRepository(
+      testDatabase.prisma,
+    )
+    const invitation = await invitationRepository.findById("invite-1")
+    expect(invitation).toMatchObject({
+      status: "accepted",
+      acceptedByUserId: user!.id,
     })
 
     await app.close()

@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest"
 
-import { ERROR_CODES } from "../../../constants/errors"
-import { AppError } from "../../../lib/errors/app-error"
-import { createTestDatabase, type TestDatabase } from "../../../../test/helpers/test-database"
-import { PrismaAuthStore } from "./prisma-auth-store"
+import { ERROR_CODES } from "../../../../constants/errors"
+import { AppError } from "../../../../lib/errors/app-error"
+import {
+  createTestDatabase,
+  type TestDatabase,
+} from "../../../../../test/helpers/test-database"
+import { PrismaUserIdentityRegistry } from "./prisma-user-identity-registry"
 
-describe("PrismaAuthStore", () => {
+describe("PrismaUserIdentityRegistry", () => {
   let testDatabase: TestDatabase | null = null
 
   afterEach(async () => {
@@ -15,9 +18,9 @@ describe("PrismaAuthStore", () => {
 
   it("creates a new user and auth identity for a first-time GitHub login", async () => {
     testDatabase = await createTestDatabase()
-    const store = new PrismaAuthStore(testDatabase.prisma)
+    const registry = new PrismaUserIdentityRegistry(testDatabase.prisma)
 
-    const user = await store.upsertGitHubUser({
+    const user = await registry.upsertGitHubUser({
       providerUserId: "github-user-1",
       login: "octocat",
       email: "octocat@example.com",
@@ -47,9 +50,9 @@ describe("PrismaAuthStore", () => {
 
   it("updates the existing Harbor user when the same GitHub identity logs in with a new login", async () => {
     testDatabase = await createTestDatabase()
-    const store = new PrismaAuthStore(testDatabase.prisma)
+    const registry = new PrismaUserIdentityRegistry(testDatabase.prisma)
 
-    const firstLogin = await store.upsertGitHubUser({
+    const firstLogin = await registry.upsertGitHubUser({
       providerUserId: "github-user-1",
       login: "octocat",
       email: "octocat@example.com",
@@ -57,7 +60,7 @@ describe("PrismaAuthStore", () => {
       avatarUrl: "https://avatars.example.com/u/1",
     })
 
-    const secondLogin = await store.upsertGitHubUser({
+    const secondLogin = await registry.upsertGitHubUser({
       providerUserId: "github-user-1",
       login: "octocat-renamed",
       email: "octocat-renamed@example.com",
@@ -87,7 +90,7 @@ describe("PrismaAuthStore", () => {
 
   it("rejects linking a new GitHub identity to an existing Harbor user with the same login", async () => {
     testDatabase = await createTestDatabase()
-    const store = new PrismaAuthStore(testDatabase.prisma)
+    const registry = new PrismaUserIdentityRegistry(testDatabase.prisma)
 
     await testDatabase.prisma.user.create({
       data: {
@@ -96,7 +99,7 @@ describe("PrismaAuthStore", () => {
     })
 
     await expect(
-      store.upsertGitHubUser({
+      registry.upsertGitHubUser({
         providerUserId: "github-user-2",
         login: "octocat",
         email: "octocat@example.com",

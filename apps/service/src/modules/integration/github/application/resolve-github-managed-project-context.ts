@@ -2,30 +2,11 @@ import { createProjectError } from "../../../project/errors"
 import type { Project } from "../../../project/domain/project"
 import type { ProjectRepository } from "../../../project/application/project-repository"
 import type { GitHubAppClient } from "./github-app-client"
-import type { GitHubAppInstallation } from "./github-installation-repository"
 import type { GitHubInstallationRepository } from "./github-installation-repository"
 import type {
   ProjectRepositoryBinding,
   ProjectRepositoryBindingRepository,
 } from "./project-repository-binding-repository"
-
-async function findOwnedProject(
-  repository: Pick<ProjectRepository, "findById"> & {
-    findByIdAndOwnerUserId?: ProjectRepository["findByIdAndOwnerUserId"]
-  },
-  projectId: string,
-  ownerUserId: string,
-): Promise<Project | null> {
-  const project = repository.findByIdAndOwnerUserId
-    ? await repository.findByIdAndOwnerUserId(projectId, ownerUserId)
-    : await repository.findById(projectId)
-
-  if (!project || project.ownerUserId !== ownerUserId) {
-    return null
-  }
-
-  return project
-}
 
 export async function resolveGitHubManagedProjectContext(
   deps: {
@@ -36,23 +17,18 @@ export async function resolveGitHubManagedProjectContext(
   },
   input: {
     projectId: string
-    ownerUserId: string
+    actorUserId: string
   },
 ): Promise<{
   project: Project & {
     source: Extract<Project["source"], { type: "git" }>
   }
   binding: ProjectRepositoryBinding
-  installation: GitHubAppInstallation
   accessToken: Awaited<
     ReturnType<GitHubAppClient["createInstallationAccessToken"]>
   >
 }> {
-  const project = await findOwnedProject(
-    deps.projectRepository,
-    input.projectId,
-    input.ownerUserId,
-  )
+  const project = await deps.projectRepository.findById(input.projectId)
 
   if (!project) {
     throw createProjectError().notFound()
@@ -69,11 +45,7 @@ export async function resolveGitHubManagedProjectContext(
     throw createProjectError().invalidState("project repository binding is not available")
   }
 
-  const installation =
-    await deps.installationRepository.findByIdAndInstalledByUserId(
-      binding.installationId,
-      input.ownerUserId,
-    )
+  const installation = await deps.installationRepository.findById(binding.installationId)
   if (!installation) {
     throw createProjectError().notFound()
   }
@@ -87,7 +59,6 @@ export async function resolveGitHubManagedProjectContext(
       source: Extract<Project["source"], { type: "git" }>
     },
     binding,
-    installation,
     accessToken,
   }
 }

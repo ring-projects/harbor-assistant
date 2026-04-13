@@ -16,7 +16,7 @@ export async function syncProjectWorkspaceUseCase(
   },
   input: {
     projectId: string
-    ownerUserId: string
+    actorUserId: string
   },
 ) {
   const context = await resolveGitHubManagedProjectContext(deps, input)

@@ -3,7 +3,17 @@ import type { FastifyInstance } from "fastify"
 
 import { registerAgentRoutes } from "./agent.routes"
 import type { ServiceConfig } from "../../config"
+import { parseCookieHeader } from "../../lib/http/cookies"
 import {
+  createDefaultAuthorizationService,
+  createRepositoryAuthorizationOrchestrationQuery,
+  createRepositoryAuthorizationProjectQuery,
+  createRepositoryAuthorizationTaskQuery,
+  createRepositoryAuthorizationWorkspaceQuery,
+} from "../../modules/authorization"
+import {
+  HARBOR_SESSION_COOKIE_NAME,
+  PrismaAuthSessionStore,
   authSessionPlugin,
   registerAuthModuleRoutes,
   requireAuthenticatedPreHandler,
@@ -12,6 +22,7 @@ import { NodeGitHubAppClient } from "../../modules/integration/github/infrastruc
 import { createNodeProjectWorkspaceManager } from "../../modules/integration/github/infrastructure/node-project-workspace-manager"
 import { PrismaGitHubInstallationRepository } from "../../modules/integration/github/infrastructure/persistence/prisma-github-installation-repository"
 import { PrismaProjectRepositoryBindingRepository } from "../../modules/integration/github/infrastructure/persistence/prisma-project-repository-binding-repository"
+import { PrismaWorkspaceInstallationRepository } from "../../modules/integration/github/infrastructure/persistence/prisma-workspace-installation-repository"
 import { registerGitHubIntegrationRoutes } from "../../modules/integration/github/routes"
 import { createNodeFileSystemRepository } from "../../modules/filesystem/infrastructure/node-filesystem-repository"
 import { registerFileSystemModuleRoutes } from "../../modules/filesystem/routes"
@@ -32,6 +43,12 @@ import { PrismaTaskRepository } from "../../modules/task/infrastructure/persiste
 import { PrismaTaskEventProjection } from "../../modules/task/infrastructure/projection/prisma-task-event-projection"
 import { createTaskExecutionLifecycle } from "../../modules/task/infrastructure/runtime/task-execution-lifecycle"
 import { registerTaskModuleRoutes } from "../../modules/task/routes"
+import { PrismaUserDirectory } from "../../modules/user"
+import {
+  PrismaWorkspaceInvitationRepository,
+  PrismaWorkspaceRepository,
+  registerWorkspaceModuleRoutes,
+} from "../../modules/workspace"
 import { createProjectGitInteractionLifecycle } from "./create-project-git-interaction-lifecycle"
 import { createTaskInteractionService } from "./create-task-interaction-service"
 import { createProjectTaskPort } from "./create-project-task-port"
@@ -58,16 +75,32 @@ export async function registerV1Routes(
 ) {
   const prisma = getRequiredPrismaClient(app)
   const projectRepository = new PrismaProjectRepository(prisma)
+  const workspaceRepository = new PrismaWorkspaceRepository(prisma)
+  const workspaceInvitationRepository =
+    new PrismaWorkspaceInvitationRepository(prisma)
+  const workspaceUserDirectory = new PrismaUserDirectory(prisma)
   const orchestrationRepository = new PrismaOrchestrationRepository(prisma)
   const orchestrationBootstrapStore = new PrismaOrchestrationBootstrapStore(prisma)
   const taskRepository = new PrismaTaskRepository(prisma)
   const taskEventProjection = new PrismaTaskEventProjection(prisma)
   const githubInstallationRepository = new PrismaGitHubInstallationRepository(prisma)
+  const workspaceInstallationRepository =
+    new PrismaWorkspaceInstallationRepository(prisma)
   const projectRepositoryBindingRepository =
     new PrismaProjectRepositoryBindingRepository(prisma)
+  const authSessionStore = new PrismaAuthSessionStore(prisma)
   const taskNotificationBus = createInMemoryTaskNotificationBus()
   const projectTaskPort = createProjectTaskPort({
     projectRepository,
+  })
+  const authorizationService = createDefaultAuthorizationService({
+    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
+      workspaceRepository,
+    ),
+    projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
+    taskQuery: createRepositoryAuthorizationTaskQuery(taskRepository),
+    orchestrationQuery:
+      createRepositoryAuthorizationOrchestrationQuery(orchestrationRepository),
   })
   const taskInputFileStore = createNodeTaskInputFileStore()
   const taskRuntimePort = createCurrentTaskRuntimePort({
@@ -134,11 +167,21 @@ export async function registerV1Routes(
     await registerGitHubIntegrationRoutes(protectedApp, {
       config,
       githubAppSlug: config.githubAppSlug,
+      workspaceRepository,
+      workspaceInstallationRepository,
       installationRepository: githubInstallationRepository,
       githubAppClient,
     })
+    await registerWorkspaceModuleRoutes(protectedApp, {
+      repository: workspaceRepository,
+      invitationRepository: workspaceInvitationRepository,
+      userDirectory: workspaceUserDirectory,
+    })
     await registerProjectModuleRoutes(protectedApp, {
+      authorization: authorizationService,
       repository: projectRepository,
+      workspaceRepository,
+      workspaceInstallationRepository,
       pathPolicy: projectPathPolicy,
       installationRepository: githubInstallationRepository,
       repositoryBindingRepository: projectRepositoryBindingRepository,
@@ -147,38 +190,67 @@ export async function registerV1Routes(
       workspaceRootDirectory: config.workspaceRootDirectory,
     })
     await registerOrchestrationModuleRoutes(protectedApp, {
+      authorization: authorizationService,
       repository: orchestrationRepository,
       bootstrapStore: orchestrationBootstrapStore,
       projectRepository,
+      workspaceRepository,
       projectTaskPort,
       taskRepository,
       runtimePort: taskRuntimePort,
       notificationPublisher: taskNotificationBus.publisher,
     })
     await registerGitModuleRoutes(protectedApp, {
+      authorization: authorizationService,
       projectRepository,
+      workspaceRepository,
       gitRepository,
     })
     await registerFileSystemModuleRoutes(protectedApp, {
+      authorization: authorizationService,
       projectRepository,
+      workspaceRepository,
       fileSystemRepository,
       bootstrapRoots,
     })
     await registerTaskModuleRoutes(protectedApp, {
+      authorization: authorizationService,
       repository: taskRepository,
       taskRecordStore: taskRepository,
       eventProjection: taskEventProjection,
       notificationPublisher: taskNotificationBus.publisher,
       projectRepository,
+      workspaceRepository,
       projectTaskPort,
       taskInputFileStore,
       runtimePort: taskRuntimePort,
     })
   })
   createInteractionSocketGateway({
+    authorization: authorizationService,
     taskQueries: taskInteractionService.queries,
     taskStream: taskInteractionService.stream,
     projectGitWatcher: projectGitLifecycle,
     app,
+    async resolveSocketActor(socket) {
+      const cookies = parseCookieHeader(socket.request.headers.cookie)
+      const token = cookies.get(HARBOR_SESSION_COOKIE_NAME)
+
+      if (!token) {
+        return null
+      }
+
+      const auth = await authSessionStore.getSessionByToken(token)
+      if (!auth) {
+        return null
+      }
+
+      await authSessionStore.touchSession(auth.sessionId)
+
+      return {
+        kind: "user",
+        userId: auth.userId,
+      }
+    },
   })
 }

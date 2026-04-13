@@ -5,6 +5,16 @@ import path from "node:path"
 import Fastify from "fastify"
 import { afterEach, describe, expect, it } from "vitest"
 
+import {
+  createDefaultAuthorizationService,
+  createRepositoryAuthorizationOrchestrationQuery,
+  createRepositoryAuthorizationProjectQuery,
+  createRepositoryAuthorizationTaskQuery,
+  createRepositoryAuthorizationWorkspaceQuery,
+} from "../../authorization"
+import { InMemoryOrchestrationRepository } from "../../orchestration/infrastructure/in-memory-orchestration-repository"
+import { createWorkspace } from "../../workspace/domain/workspace"
+import { InMemoryWorkspaceRepository } from "../../workspace/infrastructure/in-memory-workspace-repository"
 import { attachTaskRuntime, type TaskRecord } from "../application/task-read-models"
 import { createTask } from "../domain/task"
 import { InMemoryTaskEventProjection } from "../infrastructure/in-memory-task-event-projection"
@@ -28,6 +38,11 @@ function withRuntime(task: ReturnType<typeof createTask>): TaskRecord {
 async function createApp(
   rootPath = "/tmp/harbor-assistant",
   seedTasks: TaskRecord[] = [],
+  options?: {
+    workspaceRepository?: InMemoryWorkspaceRepository
+    workspaceId?: string | null
+    ownerUserId?: string | null
+  },
 ) {
   const repository = new InMemoryTaskRepository([
     withRuntime(createTask({
@@ -63,18 +78,70 @@ async function createApp(
   })
   const notificationBus = createInMemoryTaskNotificationBus()
   const taskInputFileStore = createNodeTaskInputImageStore()
+  const workspaceRepository =
+    options?.workspaceRepository ?? new InMemoryWorkspaceRepository()
+  const projectRepository = {
+    async findById(projectId: string) {
+      if (projectId !== "project-1") {
+        return null
+      }
+
+      return {
+        id: "project-1",
+        ownerUserId: options?.ownerUserId ?? "user-1",
+        workspaceId: options?.workspaceId ?? null,
+        slug: "harbor-assistant",
+        name: "Harbor Assistant",
+        description: null,
+        source: {
+          type: "rootPath" as const,
+          rootPath,
+          normalizedPath: rootPath,
+        },
+        rootPath,
+        normalizedPath: rootPath,
+        status: "active" as const,
+        createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-01T00:00:00.000Z"),
+        archivedAt: null,
+        lastOpenedAt: null,
+        settings: {
+          retention: {
+            logRetentionDays: 30,
+            eventRetentionDays: 7,
+          },
+          skills: {
+            harborSkillsEnabled: false,
+            harborSkillProfile: "default",
+          },
+        },
+      }
+    },
+  }
+  const authorization = createDefaultAuthorizationService({
+    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
+      workspaceRepository,
+    ),
+    projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
+    taskQuery: createRepositoryAuthorizationTaskQuery(repository),
+    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+      new InMemoryOrchestrationRepository(),
+    ),
+  })
 
   const app = Fastify({ logger: false })
   app.decorateRequest("auth", null)
   app.addHook("onRequest", async (request) => {
+    const userId = String(request.headers["x-user-id"] ?? "user-1")
+    const githubLogin = String(request.headers["x-user-login"] ?? userId)
     request.auth = {
       sessionId: "session-1",
-      userId: "user-1",
+      userId,
       user: {
-        id: "user-1",
-        githubLogin: "user-1",
+        id: userId,
+        githubLogin,
         name: "User One",
-        email: "user-1@example.com",
+        email: `${githubLogin}@example.com`,
         avatarUrl: null,
         status: "active",
         lastLoginAt: null,
@@ -87,47 +154,12 @@ async function createApp(
   await app.register(
     async (instance) => {
       await registerTaskModuleRoutes(instance, {
+        authorization,
         repository,
         taskRecordStore: repository,
         eventProjection,
         notificationPublisher: notificationBus.publisher,
-        projectRepository: {
-          async findById(projectId) {
-            if (projectId !== "project-1") {
-              return null
-            }
-
-            return {
-              id: "project-1",
-              ownerUserId: "user-1",
-              slug: "harbor-assistant",
-              name: "Harbor Assistant",
-              description: null,
-              source: {
-                type: "rootPath" as const,
-                rootPath,
-                normalizedPath: rootPath,
-              },
-              rootPath,
-              normalizedPath: rootPath,
-              status: "active" as const,
-              createdAt: new Date("2026-04-01T00:00:00.000Z"),
-              updatedAt: new Date("2026-04-01T00:00:00.000Z"),
-              archivedAt: null,
-              lastOpenedAt: null,
-              settings: {
-                retention: {
-                  logRetentionDays: 30,
-                  eventRetentionDays: 7,
-                },
-                skills: {
-                  harborSkillsEnabled: false,
-                  harborSkillProfile: "default",
-                },
-              },
-            }
-          },
-        },
+        projectRepository,
         projectTaskPort: {
           async getProjectForTask(projectId) {
             if (projectId !== "project-1") {
@@ -509,7 +541,7 @@ describe("task routes", () => {
     expect(missing.json()).toMatchObject({
       ok: false,
       error: {
-        code: "TASK_NOT_FOUND",
+        code: "NOT_FOUND",
       },
     })
 
@@ -595,5 +627,68 @@ describe("task routes", () => {
     expect(body.path).toMatch(/^\.harbor\/task-input-files\/.+-spec\.md$/)
     const stored = await readFile(path.join(rootPath, body.path))
     expect(stored.toString()).toBe("# spec")
+  })
+
+  it("allows workspace members to continue task workflows on shared projects", async () => {
+    const workspaceRepository = new InMemoryWorkspaceRepository()
+    const workspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+
+    const app = await createApp(
+      "/tmp/harbor-assistant",
+      [],
+      {
+        workspaceRepository,
+        workspaceId: "ws-team",
+        ownerUserId: "user-1",
+      },
+    )
+
+    const detail = await app.inject({
+      method: "GET",
+      url: "/v1/tasks/task-1",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+    })
+    expect(detail.statusCode).toBe(200)
+
+    const resumed = await app.inject({
+      method: "POST",
+      url: "/v1/tasks/task-1/resume",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+      payload: {
+        prompt: "Continue investigation",
+      },
+    })
+    expect(resumed.statusCode).toBe(200)
+    expect(resumed.json()).toMatchObject({
+      ok: true,
+      task: {
+        id: "task-1",
+      },
+    })
   })
 })

@@ -46,6 +46,7 @@ describe("project workspace use cases", () => {
       createProject({
         id: "project-1",
         ownerUserId: "user-1",
+        workspaceId: "ws_1",
         name: "Harbor Assistant",
         source: {
           type: "git",
@@ -92,18 +93,18 @@ describe("project workspace use cases", () => {
       },
       {
         projectId: "project-1",
-        ownerUserId: "user-1",
+        actorUserId: "user-1",
       },
     )
 
     expect(workspaceManager.cloneRepository).toHaveBeenCalledWith({
       repositoryUrl: "https://github.com/acme/harbor-assistant.git",
       branch: "main",
-      targetPath: "/managed-workspaces/user-1/project-1",
+      targetPath: "/managed-workspaces/ws_1/project-1",
       accessToken: "installation-token",
     })
-    expect(project.rootPath).toBe("/managed-workspaces/user-1/project-1")
-    expect(project.normalizedPath).toBe("/managed-workspaces/user-1/project-1")
+    expect(project.rootPath).toBe("/managed-workspaces/ws_1/project-1")
+    expect(project.normalizedPath).toBe("/managed-workspaces/ws_1/project-1")
   })
 
   it("rejects sync for a git project that still has no local workspace", async () => {
@@ -115,6 +116,7 @@ describe("project workspace use cases", () => {
       createProject({
         id: "project-1",
         ownerUserId: "user-1",
+        workspaceId: "ws_1",
         name: "Harbor Assistant",
         source: {
           type: "git",
@@ -161,7 +163,7 @@ describe("project workspace use cases", () => {
         },
         {
           projectId: "project-1",
-          ownerUserId: "user-1",
+          actorUserId: "user-1",
         },
       ),
     ).rejects.toMatchObject({

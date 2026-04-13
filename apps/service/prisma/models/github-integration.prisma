@@ -36,9 +36,26 @@ model GitHubAppInstallation {
   lastValidatedAt    DateTime?
   installedByUser    User?                         @relation(fields: [installedByUserId], references: [id], onDelete: SetNull)
   repositoryBindings ProjectRepositoryBinding[]
+  workspaceLinks     WorkspaceGitHubInstallation[]
 
   @@index([installedByUserId, updatedAt(sort: Desc)])
   @@map("github_app_installations")
+}
+
+model WorkspaceGitHubInstallation {
+  workspaceId     String
+  installationId  String
+  linkedByUserId  String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  workspace       Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  installation    GitHubAppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  linkedByUser    User                 @relation(fields: [linkedByUserId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, installationId])
+  @@index([installationId, updatedAt(sort: Desc)])
+  @@index([linkedByUserId, updatedAt(sort: Desc)])
+  @@map("workspace_github_installations")
 }
 
 model ProjectRepositoryBinding {

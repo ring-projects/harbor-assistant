@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify"
 
+import type { AuthorizationService } from "../../authorization"
 import { bootstrapOrchestrationUseCase } from "../application/bootstrap-orchestration"
 import { createOrchestrationUseCase } from "../application/create-orchestration"
 import { createOrchestrationTaskUseCase } from "../application/create-orchestration-task"
@@ -9,13 +10,8 @@ import { listProjectOrchestrationsUseCase } from "../application/list-project-or
 import type { OrchestrationBootstrapStore } from "../application/orchestration-bootstrap-store"
 import type { OrchestrationRepository } from "../application/orchestration-repository"
 import { toOrchestrationAppError } from "../orchestration-app-error"
-import {
-  createOwnerScopedOrchestrationRepository,
-  createOwnerScopedProjectRepository,
-  createOwnerScopedProjectTaskPort,
-  createOwnerScopedTaskRepository,
-} from "../../auth"
 import type { ProjectRepository } from "../../project/application/project-repository"
+import type { WorkspaceRepository } from "../../workspace"
 import type { ProjectTaskPort } from "../../task/application/project-task-port"
 import type { TaskNotificationPublisher } from "../../task/application/task-notification"
 import type { TaskRecordStore } from "../../task/application/task-record-store"
@@ -39,11 +35,13 @@ import {
 export async function registerOrchestrationModuleRoutes(
   app: FastifyInstance,
   options: {
+    authorization: AuthorizationService
     repository: OrchestrationRepository
     bootstrapStore: OrchestrationBootstrapStore
     projectRepository: Pick<ProjectRepository, "findById"> & {
       findByIdAndOwnerUserId?: ProjectRepository["findByIdAndOwnerUserId"]
     }
+    workspaceRepository?: WorkspaceRepository
     projectTaskPort: ProjectTaskPort
     taskRepository: TaskRepository & TaskRecordStore
     runtimePort: TaskRuntimePort
@@ -54,6 +52,7 @@ export async function registerOrchestrationModuleRoutes(
     repository,
     bootstrapStore,
     projectRepository,
+    workspaceRepository,
     projectTaskPort,
     taskRepository,
     runtimePort,
@@ -71,14 +70,15 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request, reply) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "project.tasks.create",
+          resource: { kind: "project", projectId: request.body.projectId },
+        })
         const orchestration = await createOrchestrationUseCase(
           {
             repository,
-            projectRepository: createOwnerScopedProjectRepository(
-              projectRepository as ProjectRepository,
-              ownerUserId,
-            ),
+            projectRepository: projectRepository as ProjectRepository,
           },
           request.body,
         )
@@ -100,14 +100,15 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request, reply) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "project.tasks.create",
+          resource: { kind: "project", projectId: request.body.projectId },
+        })
         const result = await bootstrapOrchestrationUseCase(
           {
             bootstrapStore,
-            projectRepository: createOwnerScopedProjectRepository(
-              projectRepository as ProjectRepository,
-              ownerUserId,
-            ),
+            projectRepository: projectRepository as ProjectRepository,
             taskRepository,
             runtimePort,
             notificationPublisher,
@@ -134,18 +135,15 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "project.view",
+          resource: { kind: "project", projectId: request.params.projectId },
+        })
         const orchestrations = await listProjectOrchestrationsUseCase(
           {
-            repository: createOwnerScopedOrchestrationRepository({
-              repository,
-              projectRepository,
-              ownerUserId,
-            }),
-            projectRepository: createOwnerScopedProjectRepository(
-              projectRepository as ProjectRepository,
-              ownerUserId,
-            ),
+            repository,
+            projectRepository: projectRepository as ProjectRepository,
           },
           request.params.projectId,
         )
@@ -167,14 +165,17 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "orchestration.view",
+          resource: {
+            kind: "orchestration",
+            orchestrationId: request.params.orchestrationId,
+          },
+        })
         const orchestration = await getOrchestrationUseCase(
           {
-            repository: createOwnerScopedOrchestrationRepository({
-              repository,
-              projectRepository,
-              ownerUserId,
-            }),
+            repository,
           },
           request.params.orchestrationId,
         )
@@ -196,24 +197,19 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request, reply) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "orchestration.task.create",
+          resource: {
+            kind: "orchestration",
+            orchestrationId: request.params.orchestrationId,
+          },
+        })
         const task = await createOrchestrationTaskUseCase(
           {
-            repository: createOwnerScopedOrchestrationRepository({
-              repository,
-              projectRepository,
-              ownerUserId,
-            }),
-            projectTaskPort: createOwnerScopedProjectTaskPort({
-              projectRepository,
-              projectTaskPort,
-              ownerUserId,
-            }),
-            taskRepository: createOwnerScopedTaskRepository({
-              repository: taskRepository,
-              projectRepository,
-              ownerUserId,
-            }) as TaskRepository & TaskRecordStore,
+            repository,
+            projectTaskPort,
+            taskRepository: taskRepository as TaskRepository & TaskRecordStore,
             runtimePort,
             notificationPublisher,
           },
@@ -240,19 +236,18 @@ export async function registerOrchestrationModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "orchestration.view",
+          resource: {
+            kind: "orchestration",
+            orchestrationId: request.params.orchestrationId,
+          },
+        })
         const tasks = await listOrchestrationTasksUseCase(
           {
-            repository: createOwnerScopedOrchestrationRepository({
-              repository,
-              projectRepository,
-              ownerUserId,
-            }),
-            taskRepository: createOwnerScopedTaskRepository({
-              repository: taskRepository,
-              projectRepository,
-              ownerUserId,
-            }),
+            repository,
+            taskRepository,
           },
           {
             orchestrationId: request.params.orchestrationId,

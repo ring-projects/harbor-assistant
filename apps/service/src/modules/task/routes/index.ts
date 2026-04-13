@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify"
 
+import type { AuthorizationService } from "../../authorization"
 import { archiveTaskUseCase } from "../application/archive-task"
 import { cancelTaskUseCase } from "../application/cancel-task"
 import { createTaskUseCase } from "../application/create-task"
@@ -16,11 +17,8 @@ import type { TaskRepository } from "../application/task-repository"
 import type { TaskRuntimePort } from "../application/task-runtime-port"
 import { uploadTaskInputFileUseCase } from "../application/upload-task-input-image"
 import { updateTaskTitleUseCase } from "../application/update-task-title"
-import {
-  createOwnerScopedProjectTaskPort,
-  createOwnerScopedTaskRepository,
-} from "../../auth"
 import type { ProjectRepository } from "../../project/application/project-repository"
+import type { WorkspaceRepository } from "../../workspace"
 import { toTaskAppError } from "../task-app-error"
 import {
   archiveTaskRouteSchema,
@@ -43,6 +41,7 @@ import {
 export async function registerTaskModuleRoutes(
   app: FastifyInstance,
   options: {
+    authorization: AuthorizationService
     repository: TaskRepository
     taskRecordStore: TaskRecordStore
     eventProjection: TaskEventProjection
@@ -50,6 +49,7 @@ export async function registerTaskModuleRoutes(
     projectRepository: Pick<ProjectRepository, "findById"> & {
       findByIdAndOwnerUserId?: ProjectRepository["findByIdAndOwnerUserId"]
     }
+    workspaceRepository?: WorkspaceRepository
     projectTaskPort: ProjectTaskPort
     taskInputFileStore: TaskInputFileStore
     runtimePort: TaskRuntimePort
@@ -61,6 +61,7 @@ export async function registerTaskModuleRoutes(
     eventProjection,
     notificationPublisher,
     projectRepository,
+    workspaceRepository,
     projectTaskPort,
     taskInputFileStore,
     runtimePort,
@@ -78,14 +79,14 @@ export async function registerTaskModuleRoutes(
     },
   ) {
     try {
-      const ownerUserId = getOwnerUserId(request)
+      await options.authorization.requireAuthorized({
+        actor: { kind: "user", userId: getOwnerUserId(request) },
+        action: "project.tasks.create",
+        resource: { kind: "project", projectId: request.params.projectId },
+      })
       const result = await uploadTaskInputFileUseCase(
         {
-          projectTaskPort: createOwnerScopedProjectTaskPort({
-            projectRepository,
-            projectTaskPort,
-            ownerUserId,
-          }),
+          projectTaskPort,
           taskInputFileStore,
         },
         {
@@ -132,13 +133,13 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "task.view",
+          resource: { kind: "task", taskId: request.params.taskId },
+        })
         const task = await getTaskUseCase(
-          createOwnerScopedTaskRepository({
-            repository,
-            projectRepository,
-            ownerUserId,
-          }),
+          repository,
           request.params.taskId,
         )
         return {
@@ -158,13 +159,13 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "task.update",
+          resource: { kind: "task", taskId: request.params.taskId },
+        })
         const task = await updateTaskTitleUseCase(
-          createOwnerScopedTaskRepository({
-            repository,
-            projectRepository,
-            ownerUserId,
-          }),
+          repository,
           notificationPublisher,
           {
             taskId: request.params.taskId,
@@ -189,19 +190,15 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "task.resume",
+          resource: { kind: "task", taskId: request.params.taskId },
+        })
         const task = await resumeTaskUseCase(
           {
-            projectTaskPort: createOwnerScopedProjectTaskPort({
-              projectRepository,
-              projectTaskPort,
-              ownerUserId,
-            }),
-            repository: createOwnerScopedTaskRepository({
-              repository,
-              projectRepository,
-              ownerUserId,
-            }),
+            projectTaskPort,
+            repository,
             runtimePort,
           },
           {
@@ -230,14 +227,14 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "task.cancel",
+          resource: { kind: "task", taskId: request.params.taskId },
+        })
         const task = await cancelTaskUseCase(
           {
-            repository: createOwnerScopedTaskRepository({
-              repository,
-              projectRepository,
-              ownerUserId,
-            }),
+            repository,
             runtimePort,
           },
           {
@@ -263,13 +260,13 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "task.delete",
+          resource: { kind: "task", taskId: request.params.taskId },
+        })
         const task = await archiveTaskUseCase(
-          createOwnerScopedTaskRepository({
-            repository,
-            projectRepository,
-            ownerUserId,
-          }),
+          repository,
           notificationPublisher,
           request.params.taskId,
         )
@@ -291,13 +288,13 @@ export async function registerTaskModuleRoutes(
     },
     async (request) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "task.delete",
+          resource: { kind: "task", taskId: request.params.taskId },
+        })
         const result = await deleteTaskUseCase(
-          createOwnerScopedTaskRepository({
-            repository,
-            projectRepository,
-            ownerUserId,
-          }),
+          repository,
           notificationPublisher,
           request.params.taskId,
         )
@@ -319,13 +316,12 @@ export async function registerTaskModuleRoutes(
     },
     async (request, reply) => {
       try {
-        const ownerUserId = getOwnerUserId(request)
-        const scopedRepository = createOwnerScopedTaskRepository({
-          repository,
-          projectRepository,
-          ownerUserId,
+        await options.authorization.requireAuthorized({
+          actor: { kind: "user", userId: getOwnerUserId(request) },
+          action: "task.events.read",
+          resource: { kind: "task", taskId: request.params.taskId },
         })
-        const scopedResult = await getTaskEventsUseCase(scopedRepository, eventProjection, {
+        const scopedResult = await getTaskEventsUseCase(repository, eventProjection, {
           taskId: request.params.taskId,
           afterSequence: request.query.afterSequence,
           limit: request.query.limit,

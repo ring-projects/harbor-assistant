@@ -11,6 +11,7 @@ export type CreateProjectCommand = {
   id: string
   name: string
   ownerUserId?: string | null
+  workspaceId?: string | null
   description?: string | null
   now?: Date
   source:

@@ -34,6 +34,7 @@ export type ProjectSettings = {
 export type Project = {
   id: string
   ownerUserId: string | null
+  workspaceId?: string | null
   slug: string
   name: string
   description: string | null
@@ -52,6 +53,7 @@ export type CreateProjectInput = {
   id: string
   name: string
   ownerUserId?: string | null
+  workspaceId?: string | null
   description?: string | null
   now?: Date
 } & (
@@ -201,6 +203,7 @@ export function createProject(input: CreateProjectInput): Project {
   const project: Project = {
     id: input.id.trim(),
     ownerUserId: input.ownerUserId?.trim() || null,
+    workspaceId: input.workspaceId?.trim() || null,
     slug,
     name: trimmedName,
     description: input.description ?? null,
@@ -365,4 +368,16 @@ export function requireProjectWorkspace(
     rootPath: project.rootPath,
     normalizedPath: project.normalizedPath,
   }
+}
+
+export function assertProjectReadyForWorkflow(
+  project: Project,
+  message = "project is not ready for workflows",
+) {
+  if (project.status !== "active") {
+    throw createProjectError().invalidState(message)
+  }
+
+  requireProjectWorkspace(project, message)
+  return project
 }

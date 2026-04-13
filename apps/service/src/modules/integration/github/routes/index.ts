@@ -10,7 +10,12 @@ import {
 } from "../../../../lib/http/cookies"
 import type { GitHubAppClient } from "../application/github-app-client"
 import type { GitHubInstallationRepository } from "../application/github-installation-repository"
+import type { WorkspaceInstallationRepository } from "../application/workspace-installation-repository"
 import { GITHUB_APP_INSTALL_STATE_COOKIE_NAME } from "../constants"
+import {
+  findWorkspaceAccessibleToUser,
+  type WorkspaceRepository,
+} from "../../../workspace"
 
 function resolveCurrentUserId(request: { auth: { userId: string } | null }) {
   return request.auth!.userId
@@ -38,6 +43,7 @@ function encodeInstallStateCookieValue(input: {
   userId: string
   state: string
   returnTo: string | null
+  workspaceId: string | null
 }) {
   return JSON.stringify(input)
 }
@@ -52,6 +58,7 @@ function decodeInstallStateCookieValue(value: string | undefined) {
       userId?: unknown
       state?: unknown
       returnTo?: unknown
+      workspaceId?: unknown
     }
 
     if (
@@ -69,6 +76,10 @@ function decodeInstallStateCookieValue(value: string | undefined) {
       returnTo:
         typeof parsed.returnTo === "string" && parsed.returnTo.trim()
           ? parsed.returnTo
+          : null,
+      workspaceId:
+        typeof parsed.workspaceId === "string" && parsed.workspaceId.trim()
+          ? parsed.workspaceId
           : null,
     }
   } catch {
@@ -91,6 +102,25 @@ function normalizeReturnTo(value: string | undefined) {
   }
 
   return trimmed
+}
+
+async function assertWorkspaceMember(args: {
+  workspaceRepository: WorkspaceRepository
+  workspaceId: string
+  userId: string
+}) {
+  const workspace = await findWorkspaceAccessibleToUser(
+    args.workspaceRepository,
+    {
+      workspaceId: args.workspaceId,
+      userId: args.userId,
+    },
+  )
+  if (!workspace) {
+    throw new AppError(ERROR_CODES.PERMISSION_DENIED, 403, "Workspace access denied.")
+  }
+
+  return workspace
 }
 
 function buildCallbackUrl(
@@ -158,6 +188,8 @@ export async function registerGitHubIntegrationRoutes(
       isProduction?: boolean
     }
     githubAppSlug?: string
+    workspaceRepository: WorkspaceRepository
+    workspaceInstallationRepository: WorkspaceInstallationRepository
     installationRepository: GitHubInstallationRepository
     githubAppClient: GitHubAppClient
   },
@@ -165,11 +197,21 @@ export async function registerGitHubIntegrationRoutes(
   app.get<{
     Querystring: {
       returnTo?: string
+      workspaceId?: string
     }
   }>("/integrations/github/app/install-url", async (request, reply) => {
     ensureGitHubAppConfigured(options.githubAppSlug)
     const state = createGitHubAppInstallState()
     const returnTo = normalizeReturnTo(request.query.returnTo)
+    const workspaceId = request.query.workspaceId?.trim() || null
+
+    if (workspaceId) {
+      await assertWorkspaceMember({
+        workspaceRepository: options.workspaceRepository,
+        workspaceId,
+        userId: resolveCurrentUserId(request),
+      })
+    }
 
     reply.header(
       "set-cookie",
@@ -179,6 +221,7 @@ export async function registerGitHubIntegrationRoutes(
           userId: resolveCurrentUserId(request),
           state,
           returnTo,
+          workspaceId,
         }),
         {
           secure: isSecureCookie(options.config),
@@ -211,6 +254,7 @@ export async function registerGitHubIntegrationRoutes(
     const installationId = request.query.installation_id?.trim()
     const state = request.query.state?.trim()
     const returnTo = installState?.returnTo ?? null
+    const workspaceId = installState?.workspaceId ?? null
 
     if (
       !installState ||
@@ -269,6 +313,20 @@ export async function registerGitHubIntegrationRoutes(
         updatedAt: now,
         lastValidatedAt: now,
       })
+      if (workspaceId) {
+        await assertWorkspaceMember({
+          workspaceRepository: options.workspaceRepository,
+          workspaceId,
+          userId: currentUserId,
+        })
+        await options.workspaceInstallationRepository.saveLink({
+          workspaceId,
+          installationId: installation.id,
+          linkedByUserId: currentUserId,
+          createdAt: now,
+          updatedAt: now,
+        })
+      }
 
       clearInstallStateCookie(reply, options.config)
       return reply.redirect(
@@ -305,11 +363,36 @@ export async function registerGitHubIntegrationRoutes(
     }
   })
 
-  app.get("/integrations/github/installations", async (request) => {
-    const installations =
-      await options.installationRepository.listByInstalledByUserId(
+  app.get<{
+    Querystring: {
+      workspaceId?: string
+    }
+  }>("/integrations/github/installations", async (request) => {
+    const workspaceId = request.query.workspaceId?.trim() || null
+    let installations
+
+    if (workspaceId) {
+      await assertWorkspaceMember({
+        workspaceRepository: options.workspaceRepository,
+        workspaceId,
+        userId: resolveCurrentUserId(request),
+      })
+      const links =
+        await options.workspaceInstallationRepository.listLinksByWorkspaceId(
+          workspaceId,
+        )
+      installations = (
+        await Promise.all(
+          links.map((link) =>
+            options.installationRepository.findById(link.installationId),
+          ),
+        )
+      ).filter((installation) => installation !== null)
+    } else {
+      installations = await options.installationRepository.listByInstalledByUserId(
         resolveCurrentUserId(request),
       )
+    }
 
     return {
       ok: true,
@@ -321,14 +404,34 @@ export async function registerGitHubIntegrationRoutes(
     Params: {
       installationId: string
     }
+    Querystring: {
+      workspaceId?: string
+    }
   }>(
     "/integrations/github/installations/:installationId/repositories",
     async (request) => {
-      const installation =
-        await options.installationRepository.findByIdAndInstalledByUserId(
-          request.params.installationId,
-          resolveCurrentUserId(request),
-        )
+      const workspaceId = request.query.workspaceId?.trim() || null
+      const installation = workspaceId
+        ? await (async () => {
+            await assertWorkspaceMember({
+              workspaceRepository: options.workspaceRepository,
+              workspaceId,
+              userId: resolveCurrentUserId(request),
+            })
+            const link = await options.workspaceInstallationRepository.findLink(
+              workspaceId,
+              request.params.installationId,
+            )
+            if (!link) {
+              return null
+            }
+
+            return options.installationRepository.findById(request.params.installationId)
+          })()
+        : await options.installationRepository.findByIdAndInstalledByUserId(
+            request.params.installationId,
+            resolveCurrentUserId(request),
+          )
 
       if (!installation) {
         throw new AppError(

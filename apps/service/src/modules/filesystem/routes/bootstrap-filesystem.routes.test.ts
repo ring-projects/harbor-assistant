@@ -1,6 +1,16 @@
 import Fastify from "fastify"
 import { describe, expect, it } from "vitest"
 
+import {
+  createDefaultAuthorizationService,
+  createRepositoryAuthorizationOrchestrationQuery,
+  createRepositoryAuthorizationProjectQuery,
+  createRepositoryAuthorizationTaskQuery,
+  createRepositoryAuthorizationWorkspaceQuery,
+} from "../../authorization"
+import { InMemoryOrchestrationRepository } from "../../orchestration/infrastructure/in-memory-orchestration-repository"
+import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
+import { InMemoryWorkspaceRepository } from "../../workspace/infrastructure/in-memory-workspace-repository"
 import errorHandlerPlugin from "../../../plugins/error-handler"
 import type { FileSystemRepository } from "../application/filesystem-repository"
 import { FILESYSTEM_ERROR_CODES } from "../errors"
@@ -18,13 +28,25 @@ async function createApp(args?: {
   const fileSystemRepository =
     args?.fileSystemRepository ?? createFileSystemRepositoryStub()
   const app = Fastify({ logger: false })
+  const projectRepository = {
+    findById: async () => null,
+  }
+  const authorization = createDefaultAuthorizationService({
+    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
+      new InMemoryWorkspaceRepository(),
+    ),
+    projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
+    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+      new InMemoryOrchestrationRepository(),
+    ),
+  })
   await app.register(errorHandlerPlugin)
   await app.register(
     async (instance) => {
       await registerFileSystemModuleRoutes(instance, {
-        projectRepository: {
-          findById: async () => null,
-        },
+        authorization,
+        projectRepository,
         fileSystemRepository,
         bootstrapRoots: args?.bootstrapRoots ?? [
           {

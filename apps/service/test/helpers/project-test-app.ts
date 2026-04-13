@@ -3,17 +3,28 @@ import authSessionPlugin from "../../src/modules/auth/plugin/auth-session"
 import type { PrismaClient } from "@prisma/client"
 import Fastify from "fastify"
 
+import {
+  createDefaultAuthorizationService,
+  createRepositoryAuthorizationOrchestrationQuery,
+  createRepositoryAuthorizationProjectQuery,
+  createRepositoryAuthorizationTaskQuery,
+  createRepositoryAuthorizationWorkspaceQuery,
+} from "../../src/modules/authorization"
 import type { GitHubAppClient } from "../../src/modules/integration/github/application/github-app-client"
 import type { GitHubInstallationRepository } from "../../src/modules/integration/github/application/github-installation-repository"
 import type { ProjectRepositoryBindingRepository } from "../../src/modules/integration/github/application/project-repository-binding-repository"
 import type { ProjectWorkspaceManager } from "../../src/modules/integration/github/application/project-workspace-manager"
 import { PrismaGitHubInstallationRepository } from "../../src/modules/integration/github/infrastructure/persistence/prisma-github-installation-repository"
 import { PrismaProjectRepositoryBindingRepository } from "../../src/modules/integration/github/infrastructure/persistence/prisma-project-repository-binding-repository"
+import { PrismaWorkspaceInstallationRepository } from "../../src/modules/integration/github/infrastructure/persistence/prisma-workspace-installation-repository"
+import { InMemoryOrchestrationRepository } from "../../src/modules/orchestration/infrastructure/in-memory-orchestration-repository"
 import { InMemoryProjectRepository } from "../../src/modules/project/infrastructure/in-memory-project-repository"
 import { PrismaProjectRepository } from "../../src/modules/project/infrastructure/persistence/prisma-project-repository"
 import { createSimpleProjectPathPolicy } from "../../src/modules/project/infrastructure/simple-project-path-policy"
 import { registerProjectModuleRoutes } from "../../src/modules/project/routes"
 import { requireAuthenticatedPreHandler } from "../../src/modules/auth"
+import { InMemoryTaskRepository } from "../../src/modules/task/infrastructure/in-memory-task-repository"
+import { PrismaWorkspaceRepository } from "../../src/modules/workspace"
 import errorHandlerPlugin from "../../src/plugins/error-handler"
 
 export async function createProjectTestApp(
@@ -31,9 +42,22 @@ export async function createProjectTestApp(
     : new InMemoryProjectRepository()
   const installationRepository =
     options?.installationRepository ?? new PrismaGitHubInstallationRepository(prisma)
+  const workspaceInstallationRepository =
+    new PrismaWorkspaceInstallationRepository(prisma)
   const repositoryBindingRepository =
     options?.repositoryBindingRepository ??
     new PrismaProjectRepositoryBindingRepository(prisma)
+  const workspaceRepository = new PrismaWorkspaceRepository(prisma)
+  const authorization = createDefaultAuthorizationService({
+    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
+      workspaceRepository,
+    ),
+    projectQuery: createRepositoryAuthorizationProjectQuery(repository),
+    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+      new InMemoryOrchestrationRepository(),
+    ),
+  })
   const app = Fastify({
     logger: false,
   })
@@ -67,7 +91,10 @@ export async function createProjectTestApp(
     async (instance) => {
       instance.addHook("preHandler", requireAuthenticatedPreHandler)
       await registerProjectModuleRoutes(instance, {
+        authorization,
         repository,
+        workspaceRepository,
+        workspaceInstallationRepository,
         pathPolicy: createSimpleProjectPathPolicy(),
         installationRepository,
         repositoryBindingRepository,

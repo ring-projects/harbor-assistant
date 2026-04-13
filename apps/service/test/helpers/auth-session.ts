@@ -1,6 +1,10 @@
 import type { PrismaClient } from "@prisma/client"
 
-import { HARBOR_SESSION_COOKIE_NAME, PrismaAuthStore } from "../../src/modules/auth"
+import {
+  HARBOR_SESSION_COOKIE_NAME,
+  PrismaAuthSessionStore,
+} from "../../src/modules/auth"
+import { PrismaUserIdentityRegistry } from "../../src/modules/user"
 
 export async function createAuthSessionCookie(
   prisma: PrismaClient,
@@ -10,16 +14,17 @@ export async function createAuthSessionCookie(
     name?: string | null
   },
 ) {
-  const authStore = new PrismaAuthStore(prisma)
+  const sessionStore = new PrismaAuthSessionStore(prisma)
+  const userIdentityRegistry = new PrismaUserIdentityRegistry(prisma)
   const suffix = Math.random().toString(36).slice(2, 10)
-  const user = await authStore.upsertGitHubUser({
+  const user = await userIdentityRegistry.upsertGitHubUser({
     providerUserId: `github-user-${suffix}`,
     login: input?.githubLogin ?? `user-${suffix}`,
     email: input?.email ?? `user-${suffix}@example.com`,
     name: input?.name ?? "Test User",
     avatarUrl: null,
   })
-  const session = await authStore.createSession({
+  const session = await sessionStore.createSession({
     userId: user.id,
     userAgent: "vitest",
     ip: "127.0.0.1",

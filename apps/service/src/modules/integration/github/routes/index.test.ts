@@ -5,11 +5,16 @@ import { registerGitHubIntegrationRoutes } from "."
 import { ERROR_CODES } from "../../../../constants/errors"
 import errorHandlerPlugin from "../../../../plugins/error-handler"
 import { InMemoryGitHubInstallationRepository } from "../infrastructure/in-memory-github-installation-repository"
+import { InMemoryWorkspaceInstallationRepository } from "../infrastructure/in-memory-workspace-installation-repository"
 import type { GitHubAppClient } from "../application/github-app-client"
 import { GITHUB_APP_INSTALL_STATE_COOKIE_NAME } from "../constants"
+import { InMemoryWorkspaceRepository } from "../../../workspace"
+import { createWorkspace } from "../../../workspace/domain/workspace"
 
 async function createApp(args?: {
   installationRepository?: InMemoryGitHubInstallationRepository
+  workspaceRepository?: InMemoryWorkspaceRepository
+  workspaceInstallationRepository?: InMemoryWorkspaceInstallationRepository
   githubAppClient?: GitHubAppClient
   config?: {
     webBaseUrl?: string
@@ -18,19 +23,26 @@ async function createApp(args?: {
 }) {
   const installationRepository =
     args?.installationRepository ?? new InMemoryGitHubInstallationRepository()
+    const workspaceRepository =
+      args?.workspaceRepository ?? new InMemoryWorkspaceRepository()
+    const workspaceInstallationRepository =
+    args?.workspaceInstallationRepository ??
+    new InMemoryWorkspaceInstallationRepository()
   const githubAppClient = args?.githubAppClient ?? createGitHubAppClientStub()
   const app = Fastify({ logger: false })
 
   app.decorateRequest("auth", null)
   app.addHook("onRequest", async (request) => {
+    const userId = String(request.headers["x-user-id"] ?? "user-1")
+    const githubLogin = String(request.headers["x-user-login"] ?? userId)
     request.auth = {
       sessionId: "session-1",
-      userId: "user-1",
+      userId,
       user: {
-        id: "user-1",
-        githubLogin: "user-1",
+        id: userId,
+        githubLogin,
         name: "User One",
-        email: "user-1@example.com",
+        email: `${githubLogin}@example.com`,
         avatarUrl: null,
         status: "active",
         lastLoginAt: null,
@@ -49,6 +61,8 @@ async function createApp(args?: {
           ...args?.config,
         },
         githubAppSlug: "harbor-repository-access",
+        workspaceRepository,
+        workspaceInstallationRepository,
         installationRepository,
         githubAppClient,
       })
@@ -151,6 +165,51 @@ describe("github integration routes", () => {
         GITHUB_APP_INSTALL_STATE_COOKIE_NAME,
       ),
     ).toBeTruthy()
+  })
+
+  it("accepts workspaceId in install-url and links the installation during setup", async () => {
+    const workspaceRepository = new InMemoryWorkspaceRepository()
+    const workspaceInstallationRepository =
+      new InMemoryWorkspaceInstallationRepository()
+    await workspaceRepository.save(
+      createWorkspace({
+        id: "ws-1",
+        name: "Harbor Team",
+        type: "team",
+        createdByUserId: "user-1",
+      }),
+    )
+    const app = await createApp({
+      workspaceRepository,
+      workspaceInstallationRepository,
+    })
+
+    const installUrlResponse = await app.inject({
+      method: "GET",
+      url: "/v1/integrations/github/app/install-url?workspaceId=ws-1",
+    })
+    const installUrl = new URL(installUrlResponse.json().installUrl)
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/integrations/github/setup?installation_id=12345&setup_action=install&state=${installUrl.searchParams.get("state")}`,
+      headers: {
+        cookie: buildCookieHeader(installUrlResponse.headers, [
+          GITHUB_APP_INSTALL_STATE_COOKIE_NAME,
+        ]),
+      },
+    })
+
+    expect(response.statusCode).toBe(302)
+    await expect(
+      workspaceInstallationRepository.findLink("ws-1", "12345"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        workspaceId: "ws-1",
+        installationId: "12345",
+        linkedByUserId: "user-1",
+      }),
+    )
   })
 
   it("marks the install state cookie as secure in production", async () => {
@@ -319,6 +378,78 @@ describe("github integration routes", () => {
     })
   })
 
+  it("lists installations linked to a workspace for a workspace member", async () => {
+    const installationRepository = new InMemoryGitHubInstallationRepository()
+    const workspaceRepository = new InMemoryWorkspaceRepository()
+    const workspaceInstallationRepository =
+      new InMemoryWorkspaceInstallationRepository()
+
+    const workspace = createWorkspace({
+      id: "ws-1",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-1",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+    await installationRepository.save({
+      id: "12345",
+      accountType: "organization",
+      accountLogin: "acme",
+      targetType: "selected",
+      status: "active",
+      installedByUserId: "user-1",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastValidatedAt: null,
+    })
+    await workspaceInstallationRepository.saveLink({
+      workspaceId: "ws-1",
+      installationId: "12345",
+      linkedByUserId: "user-1",
+      createdAt: new Date("2026-04-06T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+    })
+
+    const app = await createApp({
+      installationRepository,
+      workspaceRepository,
+      workspaceInstallationRepository,
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/integrations/github/installations?workspaceId=ws-1",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      ok: true,
+      installations: [
+        expect.objectContaining({
+          id: "12345",
+          accountLogin: "acme",
+        }),
+      ],
+    })
+  })
+
   it("lists repositories for an installation that belongs to the current Harbor user", async () => {
     const installationRepository = new InMemoryGitHubInstallationRepository()
     await installationRepository.save({
@@ -355,6 +486,77 @@ describe("github integration routes", () => {
           defaultBranch: "main",
           visibility: "private",
         },
+      ],
+    })
+  })
+
+  it("lists repositories for an installation linked to the workspace", async () => {
+    const installationRepository = new InMemoryGitHubInstallationRepository()
+    const workspaceRepository = new InMemoryWorkspaceRepository()
+    const workspaceInstallationRepository =
+      new InMemoryWorkspaceInstallationRepository()
+
+    const workspace = createWorkspace({
+      id: "ws-1",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await workspaceRepository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-1",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+        },
+      ],
+    })
+    await installationRepository.save({
+      id: "12345",
+      accountType: "organization",
+      accountLogin: "acme",
+      targetType: "selected",
+      status: "active",
+      installedByUserId: "user-1",
+      createdAt: new Date("2026-04-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T00:00:00.000Z"),
+      lastValidatedAt: null,
+    })
+    await workspaceInstallationRepository.saveLink({
+      workspaceId: "ws-1",
+      installationId: "12345",
+      linkedByUserId: "user-1",
+      createdAt: new Date("2026-04-06T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-06T00:00:00.000Z"),
+    })
+
+    const app = await createApp({
+      installationRepository,
+      workspaceRepository,
+      workspaceInstallationRepository,
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/integrations/github/installations/12345/repositories?workspaceId=ws-1",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "user-2",
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      ok: true,
+      repositories: [
+        expect.objectContaining({
+          fullName: "acme/harbor-assistant",
+        }),
       ],
     })
   })

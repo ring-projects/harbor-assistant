@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { AppError } from "../../../lib/errors/app-error"
+import type { AuthorizationService } from "../../authorization"
 import { bindWebSocketSession } from "./socket-session"
 import type {
   InteractionProjectGitChangeEvent,
@@ -81,6 +83,27 @@ function createTaskEventsSnapshotMessage(args?: {
       nextSequence: args?.nextSequence ?? 0,
       terminal: args?.terminal ?? false,
     },
+  }
+}
+
+function createAuthorizationService(args?: {
+  requireAuthorized?: AuthorizationService["requireAuthorized"]
+}) {
+  const requireAuthorized =
+    args?.requireAuthorized ??
+    vi.fn(async () => {
+      return
+    })
+
+  return {
+    authorize: vi.fn(),
+    requireAuthorized,
+  } satisfies AuthorizationService
+}
+
+async function flushAsyncWork(times = 3) {
+  for (let index = 0; index < times; index += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
 
@@ -192,6 +215,8 @@ describe("bindWebSocketSession", () => {
 
     bindWebSocketSession({
       socket,
+      actorPromise: Promise.resolve({ kind: "user", userId: "user-1" }),
+      authorization: createAuthorizationService(),
       taskQueries: {
         getTaskSnapshot: vi.fn(),
         getTaskEventsSnapshot,
@@ -220,7 +245,7 @@ describe("bindWebSocketSession", () => {
       afterSequence: -2,
       limit: 0,
     } satisfies InteractionSubscribeRequest)
-    await Promise.resolve()
+    await flushAsyncWork()
 
     expect(selectedTopics).toEqual([topic])
     expect(getTaskEventsSnapshot).toHaveBeenCalledWith({
@@ -309,6 +334,8 @@ describe("bindWebSocketSession", () => {
 
     bindWebSocketSession({
       socket,
+      actorPromise: Promise.resolve({ kind: "user", userId: "user-1" }),
+      authorization: createAuthorizationService(),
       taskQueries: {
         getTaskSnapshot,
         getTaskEventsSnapshot: vi.fn(),
@@ -335,7 +362,7 @@ describe("bindWebSocketSession", () => {
         id: " task-1 ",
       },
     } satisfies InteractionSubscribeRequest)
-    await Promise.resolve()
+    await flushAsyncWork()
 
     expect(selectedTopics).toEqual([topic])
     expect(getTaskSnapshot).toHaveBeenCalledWith("task-1")
@@ -430,6 +457,8 @@ describe("bindWebSocketSession", () => {
 
     bindWebSocketSession({
       socket,
+      actorPromise: Promise.resolve({ kind: "user", userId: "user-1" }),
+      authorization: createAuthorizationService(),
       taskQueries: {
         getTaskSnapshot: vi.fn(),
         getTaskEventsSnapshot: vi.fn(),
@@ -455,7 +484,7 @@ describe("bindWebSocketSession", () => {
     socket.trigger("interaction:subscribe", {
       topic,
     } satisfies InteractionSubscribeRequest)
-    await Promise.resolve()
+    await flushAsyncWork()
 
     expectSocketMessage(socket, {
       topic,
@@ -496,6 +525,8 @@ describe("bindWebSocketSession", () => {
 
     bindWebSocketSession({
       socket,
+      actorPromise: Promise.resolve({ kind: "user", userId: "user-1" }),
+      authorization: createAuthorizationService(),
       taskQueries: {
         getTaskSnapshot: vi.fn(async () => {
           throw new Error("boom")
@@ -524,7 +555,7 @@ describe("bindWebSocketSession", () => {
         id: "task-1",
       },
     } satisfies InteractionSubscribeRequest)
-    await Promise.resolve()
+    await flushAsyncWork()
 
     expect(emittedMessages(socket)).toContainEqual({
       event: "interaction:message",
@@ -536,6 +567,57 @@ describe("bindWebSocketSession", () => {
           }),
         },
       }),
+    })
+  })
+
+  it("emits auth errors for unauthenticated subscriptions", async () => {
+    const socket = createFakeSocket()
+
+    bindWebSocketSession({
+      socket,
+      actorPromise: Promise.resolve(null),
+      authorization: createAuthorizationService({
+        requireAuthorized: vi.fn(async () => {
+          throw new AppError("AUTH_REQUIRED", 401, "Authentication required.")
+        }),
+      }),
+      taskQueries: {
+        getTaskSnapshot: vi.fn(),
+        getTaskEventsSnapshot: vi.fn(),
+      },
+      taskStream: createTaskStreamSource({
+        subscribeCount: { current: 0 },
+        unsubscribeCount: { current: 0 },
+        listeners: new Set(),
+      }),
+      projectGitWatcher: {
+        subscribe: vi.fn(),
+      },
+    })
+
+    socket.trigger("interaction:subscribe", {
+      topic: {
+        kind: "task",
+        id: "task-1",
+      },
+    } satisfies InteractionSubscribeRequest)
+    await flushAsyncWork()
+
+    expect(emittedMessages(socket)).toContainEqual({
+      event: "interaction:message",
+      payload: {
+        topic: {
+          kind: "task",
+          id: "task-1",
+        },
+        message: {
+          kind: "error",
+          error: {
+            code: "AUTH_REQUIRED",
+            message: "Authentication required.",
+          },
+        },
+      },
     })
   })
 })
