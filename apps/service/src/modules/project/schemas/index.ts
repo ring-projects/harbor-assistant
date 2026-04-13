@@ -3,6 +3,7 @@ export type {
   DeleteProjectResponse,
   ProjectIdParams,
   ProjectRepositoryBindingResponse,
+  PutProjectRepositoryBindingBody,
   UpdateProjectBody,
   UpdateProjectSettingsBody,
 } from "./project.schema"
@@ -15,6 +16,7 @@ export {
   getProjectSettingsRouteSchema,
   listProjectsRouteSchema,
   projectIdParamsSchema,
+  putProjectRepositoryBindingRouteSchema,
   provisionProjectWorkspaceRouteSchema,
   restoreProjectRouteSchema,
   syncProjectWorkspaceRouteSchema,

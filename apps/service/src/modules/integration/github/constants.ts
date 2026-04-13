@@ -1,0 +1,1 @@
+export const GITHUB_APP_INSTALL_STATE_COOKIE_NAME = "harbor_github_app_install_state"

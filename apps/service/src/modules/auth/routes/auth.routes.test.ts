@@ -3,11 +3,15 @@ import Fastify from "fastify"
 import { afterEach, describe, expect, it } from "vitest"
 
 import type { ServiceConfig } from "../../../config"
+import { ERROR_CODES } from "../../../constants/errors"
 import errorHandlerPlugin from "../../../plugins/error-handler"
 import { registerAuthModuleRoutes } from "./index"
 import authSessionPlugin from "../plugin/auth-session"
 import { createTestDatabase, type TestDatabase } from "../../../../test/helpers/test-database"
-import { HARBOR_SESSION_COOKIE_NAME } from "../constants"
+import {
+  GITHUB_OAUTH_REDIRECT_COOKIE_NAME,
+  HARBOR_SESSION_COOKIE_NAME,
+} from "../constants"
 
 function createAuthTestConfig(): ServiceConfig {
   return {
@@ -41,6 +45,7 @@ async function createAuthTestApp(
       exchangeCodeForIdentity(args: {
         code: string
         redirectUri: string
+        includeOrganizations?: boolean
       }): Promise<{
         providerUserId: string
         login: string
@@ -90,6 +95,26 @@ function extractCookie(headers: Record<string, unknown>, name: string) {
   return getSetCookieHeaders(headers).find((header) => header.startsWith(`${name}=`)) ?? null
 }
 
+function extractCookieValue(headers: Record<string, unknown>, name: string) {
+  const cookie = extractCookie(headers, name)
+  if (!cookie) {
+    return null
+  }
+
+  const match = cookie.match(new RegExp(`^${name}=([^;]+)`))
+  return match?.[1] ?? null
+}
+
+function buildCookieHeader(headers: Record<string, unknown>, names: string[]) {
+  return names
+    .map((name) => {
+      const value = extractCookieValue(headers, name)
+      return value ? `${name}=${value}` : null
+    })
+    .filter((value): value is string => value !== null)
+    .join("; ")
+}
+
 describe("auth routes", () => {
   let testDatabase: TestDatabase | null = null
 
@@ -132,8 +157,33 @@ describe("auth routes", () => {
     expect(response.statusCode).toBe(302)
     expect(response.headers.location).toContain("https://github.com/login/oauth/authorize")
     expect(response.headers.location).toContain("client_id=github-client-id")
+    const authorizeUrl = new URL(String(response.headers.location))
+    expect(authorizeUrl.searchParams.get("scope")).toBe("read:user user:email")
     expect(extractCookie(response.headers, "harbor_github_oauth_state")).toContain(
       "Max-Age=600",
+    )
+
+    await app.close()
+  })
+
+  it("adds read:org to the OAuth scope when org allowlist is configured", async () => {
+    testDatabase = await createTestDatabase()
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      config: {
+        ...createAuthTestConfig(),
+        allowedGitHubOrgs: ["harbor"],
+      },
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start",
+    })
+
+    expect(response.statusCode).toBe(302)
+    const authorizeUrl = new URL(String(response.headers.location))
+    expect(authorizeUrl.searchParams.get("scope")).toBe(
+      "read:user user:email read:org",
     )
 
     await app.close()
@@ -158,6 +208,182 @@ describe("auth routes", () => {
     expect(response.headers.location).toContain(
       "redirect_uri=https%3A%2F%2Fservice.example.com%2Fv1%2Fauth%2Fgithub%2Fcallback",
     )
+
+    await app.close()
+  })
+
+  it("restores a validated redirect target after a successful GitHub callback", async () => {
+    testDatabase = await createTestDatabase()
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      githubClient: {
+        async exchangeCodeForIdentity() {
+          return {
+            providerUserId: "github-user-1",
+            login: "octocat-team",
+            name: "Octo Cat",
+            email: "octo@example.com",
+            avatarUrl: "https://avatars.example.com/u/1",
+            organizations: ["harbor"],
+          }
+        },
+      },
+    })
+
+    const start = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start?redirect=%2Fprojects%2Fproject-1%3Ftab%3Dfiles%23readme",
+    })
+
+    const state = extractCookieValue(start.headers, "harbor_github_oauth_state")
+    expect(state).toBeTruthy()
+    expect(
+      extractCookie(start.headers, GITHUB_OAUTH_REDIRECT_COOKIE_NAME),
+    ).toContain(
+      "harbor_github_oauth_redirect=%2Fprojects%2Fproject-1%3Ftab%3Dfiles%23readme",
+    )
+
+    const callback = await app.inject({
+      method: "GET",
+      url: `/v1/auth/github/callback?code=test-code&state=${state}`,
+      headers: {
+        cookie: buildCookieHeader(start.headers, [
+          "harbor_github_oauth_state",
+          GITHUB_OAUTH_REDIRECT_COOKIE_NAME,
+        ]),
+      },
+    })
+
+    expect(callback.statusCode).toBe(302)
+    expect(callback.headers.location).toBe(
+      "http://127.0.0.1:3000/projects/project-1?tab=files#readme",
+    )
+    expect(
+      extractCookie(callback.headers, GITHUB_OAUTH_REDIRECT_COOKIE_NAME),
+    ).toContain("Max-Age=0")
+
+    await app.close()
+  })
+
+  it("falls back to the default web URL when the requested redirect is invalid", async () => {
+    testDatabase = await createTestDatabase()
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      githubClient: {
+        async exchangeCodeForIdentity() {
+          return {
+            providerUserId: "github-user-1",
+            login: "octocat-team",
+            name: "Octo Cat",
+            email: "octo@example.com",
+            avatarUrl: "https://avatars.example.com/u/1",
+            organizations: ["harbor"],
+          }
+        },
+      },
+    })
+
+    const start = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start?redirect=https%3A%2F%2Fevil.example%2Fsteal",
+    })
+
+    expect(
+      extractCookie(start.headers, GITHUB_OAUTH_REDIRECT_COOKIE_NAME),
+    ).toContain("Max-Age=0")
+
+    const state = extractCookieValue(start.headers, "harbor_github_oauth_state")
+    const callback = await app.inject({
+      method: "GET",
+      url: `/v1/auth/github/callback?code=test-code&state=${state}`,
+      headers: {
+        cookie: buildCookieHeader(start.headers, ["harbor_github_oauth_state"]),
+      },
+    })
+
+    expect(callback.statusCode).toBe(302)
+    expect(callback.headers.location).toBe("http://127.0.0.1:3000/app")
+
+    await app.close()
+  })
+
+  it("preserves the redirect target when the callback fails and returns to the login page", async () => {
+    testDatabase = await createTestDatabase()
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      githubClient: {
+        async exchangeCodeForIdentity() {
+          throw new Error("boom")
+        },
+      },
+    })
+
+    const start = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start?redirect=%2Fprojects%2Fproject-1",
+    })
+
+    const state = extractCookieValue(start.headers, "harbor_github_oauth_state")
+    const callback = await app.inject({
+      method: "GET",
+      url: `/v1/auth/github/callback?code=test-code&state=${state}`,
+      headers: {
+        cookie: buildCookieHeader(start.headers, [
+          "harbor_github_oauth_state",
+          GITHUB_OAUTH_REDIRECT_COOKIE_NAME,
+        ]),
+      },
+    })
+
+    expect(callback.statusCode).toBe(302)
+    expect(callback.headers.location).toBe(
+      "http://127.0.0.1:3000/login?error=AUTH_CALLBACK_FAILED&redirect=%2Fprojects%2Fproject-1",
+    )
+
+    await app.close()
+  })
+
+  it("redirects to the login page with a structured error when a GitHub login collides with an existing Harbor user", async () => {
+    testDatabase = await createTestDatabase()
+    await testDatabase.prisma.user.create({
+      data: {
+        githubLogin: "octocat-team",
+      },
+    })
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      githubClient: {
+        async exchangeCodeForIdentity() {
+          return {
+            providerUserId: "github-user-2",
+            login: "octocat-team",
+            name: "Octo Cat",
+            email: "octo@example.com",
+            avatarUrl: "https://avatars.example.com/u/1",
+            organizations: [],
+          }
+        },
+      },
+    })
+
+    const start = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start?redirect=%2Fprojects%2Fproject-1",
+    })
+
+    const state = extractCookieValue(start.headers, "harbor_github_oauth_state")
+    const callback = await app.inject({
+      method: "GET",
+      url: `/v1/auth/github/callback?code=test-code&state=${state}`,
+      headers: {
+        cookie: buildCookieHeader(start.headers, [
+          "harbor_github_oauth_state",
+          GITHUB_OAUTH_REDIRECT_COOKIE_NAME,
+        ]),
+      },
+    })
+
+    expect(callback.statusCode).toBe(302)
+    expect(callback.headers.location).toBe(
+      `http://127.0.0.1:3000/login?error=${ERROR_CODES.AUTH_IDENTITY_CONFLICT}&redirect=%2Fprojects%2Fproject-1`,
+    )
+    expect(extractCookie(callback.headers, HARBOR_SESSION_COOKIE_NAME)).toBeNull()
 
     await app.close()
   })
@@ -195,7 +421,7 @@ describe("auth routes", () => {
       method: "GET",
       url: `/v1/auth/github/callback?code=test-code&state=${stateMatch?.[1]}`,
       headers: {
-        cookie: stateCookie!,
+        cookie: buildCookieHeader(start.headers, ["harbor_github_oauth_state"]),
         host: "127.0.0.1:3400",
       },
     })

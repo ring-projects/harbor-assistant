@@ -22,7 +22,7 @@ export type GitHubInstallationAccessToken = {
 }
 
 export interface GitHubAppClient {
-  buildInstallUrl(): string
+  buildInstallUrl(state?: string): string
   getInstallation(installationId: string): Promise<GitHubInstallationRecord>
   listInstallationRepositories(
     installationId: string,

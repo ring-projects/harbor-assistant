@@ -2,6 +2,8 @@ import type {
   GitHubAppInstallation,
   GitHubInstallationRepository,
 } from "../application/github-installation-repository"
+import { ERROR_CODES } from "../../../../constants/errors"
+import { AppError } from "../../../../lib/errors/app-error"
 
 export class InMemoryGitHubInstallationRepository
   implements GitHubInstallationRepository
@@ -33,6 +35,20 @@ export class InMemoryGitHubInstallationRepository
   }
 
   async save(installation: GitHubAppInstallation): Promise<void> {
+    const existing = this.installations.get(installation.id)
+
+    if (
+      existing?.installedByUserId &&
+      installation.installedByUserId &&
+      existing.installedByUserId !== installation.installedByUserId
+    ) {
+      throw new AppError(
+        ERROR_CODES.CONFLICT,
+        409,
+        "GitHub installation is already linked to another Harbor user.",
+      )
+    }
+
     this.installations.set(installation.id, installation)
   }
 }

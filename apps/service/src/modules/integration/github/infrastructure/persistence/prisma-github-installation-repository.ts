@@ -1,5 +1,7 @@
 import type { PrismaClient } from "@prisma/client"
 
+import { ERROR_CODES } from "../../../../../constants/errors"
+import { AppError } from "../../../../../lib/errors/app-error"
 import type {
   GitHubAppInstallation,
   GitHubInstallationRepository,
@@ -47,6 +49,22 @@ export class PrismaGitHubInstallationRepository
   }
 
   async save(installation: GitHubAppInstallation): Promise<void> {
+    const existing = await this.prisma.gitHubAppInstallation.findUnique({
+      where: { id: installation.id },
+    })
+
+    if (
+      existing?.installedByUserId &&
+      installation.installedByUserId &&
+      existing.installedByUserId !== installation.installedByUserId
+    ) {
+      throw new AppError(
+        ERROR_CODES.CONFLICT,
+        409,
+        "GitHub installation is already linked to another Harbor user.",
+      )
+    }
+
     await this.prisma.gitHubAppInstallation.upsert({
       where: { id: installation.id },
       create: {

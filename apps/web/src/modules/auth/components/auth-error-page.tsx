@@ -1,6 +1,6 @@
 "use client"
 
-import { useNavigate } from "@tanstack/react-router"
+import { useLocation, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -18,8 +18,10 @@ type AuthErrorPageProps = {
 export function AuthErrorPage(props: AuthErrorPageProps) {
   const { code, status, message, onRetry } = props
   const navigate = useNavigate()
+  const location = useLocation()
   const isAuthenticationError =
     code === ERROR_CODES.AUTH_REQUIRED || status === 401
+  const redirectTo = `${location.pathname}${location.search}${location.hash}`
 
   useEffect(() => {
     if (!isAuthenticationError) {
@@ -28,9 +30,12 @@ export function AuthErrorPage(props: AuthErrorPageProps) {
 
     void navigate({
       to: "/login",
+      search: {
+        redirect: redirectTo,
+      },
       replace: true,
     })
-  }, [isAuthenticationError, navigate])
+  }, [isAuthenticationError, navigate, redirectTo])
 
   return (
     <AuthShell
@@ -44,7 +49,7 @@ export function AuthErrorPage(props: AuthErrorPageProps) {
         <div className="flex gap-3">
           {isAuthenticationError ? (
             <Button asChild>
-              <a href={getGitHubLoginUrl()}>Sign in with GitHub</a>
+              <a href={getGitHubLoginUrl(redirectTo)}>Sign in with GitHub</a>
             </Button>
           ) : null}
           {onRetry ? (

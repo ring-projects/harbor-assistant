@@ -22,6 +22,8 @@ function resolveLoginErrorMessage(errorCode: string | null | undefined) {
       return "Your GitHub account is not allowed to access this Harbor service."
     case ERROR_CODES.AUTH_NOT_CONFIGURED:
       return "GitHub OAuth is not configured on the service."
+    case ERROR_CODES.AUTH_IDENTITY_CONFLICT:
+      return "This GitHub account conflicts with an existing Harbor user and needs manual repair."
     default:
       return null
   }
@@ -64,7 +66,7 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
       actions={
         <div className="flex gap-3">
           <Button asChild>
-            <a href={getGitHubLoginUrl()}>Sign in with GitHub</a>
+            <a href={getGitHubLoginUrl(redirectTo)}>Sign in with GitHub</a>
           </Button>
         </div>
       }

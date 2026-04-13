@@ -8,180 +8,200 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as BrandRouteImport } from './routes/brand'
-import { Route as ProjectShellRouteImport } from './routes/_project-shell'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProjectsNewRouteImport } from './routes/projects/new'
-import { Route as ProjectShellProjectIdRouteRouteImport } from './routes/_project-shell/$projectId/route'
-import { Route as ProjectShellProjectIdIndexRouteImport } from './routes/_project-shell/$projectId/index'
-import { Route as ProjectShellProjectIdSettingsRouteImport } from './routes/_project-shell/$projectId/settings'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as LoginRouteImport } from "./routes/login"
+import { Route as BrandRouteImport } from "./routes/brand"
+import { Route as ProjectShellRouteImport } from "./routes/_project-shell"
+import { Route as GitHubAppCallbackRouteImport } from "./routes/github/app/callback"
+import { Route as IndexRouteImport } from "./routes/index"
+import { Route as ProjectsNewRouteImport } from "./routes/projects/new"
+import { Route as ProjectShellProjectIdRouteRouteImport } from "./routes/_project-shell/$projectId/route"
+import { Route as ProjectShellProjectIdIndexRouteImport } from "./routes/_project-shell/$projectId/index"
+import { Route as ProjectShellProjectIdSettingsRouteImport } from "./routes/_project-shell/$projectId/settings"
 
 const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+  id: "/login",
+  path: "/login",
   getParentRoute: () => rootRouteImport,
 } as any)
 const BrandRoute = BrandRouteImport.update({
-  id: '/brand',
-  path: '/brand',
+  id: "/brand",
+  path: "/brand",
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectShellRoute = ProjectShellRouteImport.update({
-  id: '/_project-shell',
+  id: "/_project-shell",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GitHubAppCallbackRoute = GitHubAppCallbackRouteImport.update({
+  id: "/github/app/callback",
+  path: "/github/app/callback",
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsNewRoute = ProjectsNewRouteImport.update({
-  id: '/projects/new',
-  path: '/projects/new',
+  id: "/projects/new",
+  path: "/projects/new",
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectShellProjectIdRouteRoute =
   ProjectShellProjectIdRouteRouteImport.update({
-    id: '/$projectId',
-    path: '/$projectId',
+    id: "/$projectId",
+    path: "/$projectId",
     getParentRoute: () => ProjectShellRoute,
   } as any)
 const ProjectShellProjectIdIndexRoute =
   ProjectShellProjectIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => ProjectShellProjectIdRouteRoute,
   } as any)
 const ProjectShellProjectIdSettingsRoute =
   ProjectShellProjectIdSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
+    id: "/settings",
+    path: "/settings",
     getParentRoute: () => ProjectShellProjectIdRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/brand': typeof BrandRoute
-  '/login': typeof LoginRoute
-  '/$projectId': typeof ProjectShellProjectIdRouteRouteWithChildren
-  '/projects/new': typeof ProjectsNewRoute
-  '/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
-  '/$projectId/': typeof ProjectShellProjectIdIndexRoute
+  "/": typeof IndexRoute
+  "/brand": typeof BrandRoute
+  "/github/app/callback": typeof GitHubAppCallbackRoute
+  "/login": typeof LoginRoute
+  "/$projectId": typeof ProjectShellProjectIdRouteRouteWithChildren
+  "/projects/new": typeof ProjectsNewRoute
+  "/$projectId/settings": typeof ProjectShellProjectIdSettingsRoute
+  "/$projectId/": typeof ProjectShellProjectIdIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/brand': typeof BrandRoute
-  '/login': typeof LoginRoute
-  '/projects/new': typeof ProjectsNewRoute
-  '/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
-  '/$projectId': typeof ProjectShellProjectIdIndexRoute
+  "/": typeof IndexRoute
+  "/brand": typeof BrandRoute
+  "/github/app/callback": typeof GitHubAppCallbackRoute
+  "/login": typeof LoginRoute
+  "/projects/new": typeof ProjectsNewRoute
+  "/$projectId/settings": typeof ProjectShellProjectIdSettingsRoute
+  "/$projectId": typeof ProjectShellProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/_project-shell': typeof ProjectShellRouteWithChildren
-  '/brand': typeof BrandRoute
-  '/login': typeof LoginRoute
-  '/_project-shell/$projectId': typeof ProjectShellProjectIdRouteRouteWithChildren
-  '/projects/new': typeof ProjectsNewRoute
-  '/_project-shell/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
-  '/_project-shell/$projectId/': typeof ProjectShellProjectIdIndexRoute
+  "/": typeof IndexRoute
+  "/_project-shell": typeof ProjectShellRouteWithChildren
+  "/brand": typeof BrandRoute
+  "/github/app/callback": typeof GitHubAppCallbackRoute
+  "/login": typeof LoginRoute
+  "/_project-shell/$projectId": typeof ProjectShellProjectIdRouteRouteWithChildren
+  "/projects/new": typeof ProjectsNewRoute
+  "/_project-shell/$projectId/settings": typeof ProjectShellProjectIdSettingsRoute
+  "/_project-shell/$projectId/": typeof ProjectShellProjectIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/brand'
-    | '/login'
-    | '/$projectId'
-    | '/projects/new'
-    | '/$projectId/settings'
-    | '/$projectId/'
+    | "/"
+    | "/brand"
+    | "/github/app/callback"
+    | "/login"
+    | "/$projectId"
+    | "/projects/new"
+    | "/$projectId/settings"
+    | "/$projectId/"
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/brand'
-    | '/login'
-    | '/projects/new'
-    | '/$projectId/settings'
-    | '/$projectId'
+    | "/"
+    | "/brand"
+    | "/github/app/callback"
+    | "/login"
+    | "/projects/new"
+    | "/$projectId/settings"
+    | "/$projectId"
   id:
-    | '__root__'
-    | '/'
-    | '/_project-shell'
-    | '/brand'
-    | '/login'
-    | '/_project-shell/$projectId'
-    | '/projects/new'
-    | '/_project-shell/$projectId/settings'
-    | '/_project-shell/$projectId/'
+    | "__root__"
+    | "/"
+    | "/_project-shell"
+    | "/brand"
+    | "/github/app/callback"
+    | "/login"
+    | "/_project-shell/$projectId"
+    | "/projects/new"
+    | "/_project-shell/$projectId/settings"
+    | "/_project-shell/$projectId/"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectShellRoute: typeof ProjectShellRouteWithChildren
   BrandRoute: typeof BrandRoute
+  GitHubAppCallbackRoute: typeof GitHubAppCallbackRoute
   LoginRoute: typeof LoginRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
+    "/login": {
+      id: "/login"
+      path: "/login"
+      fullPath: "/login"
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/brand': {
-      id: '/brand'
-      path: '/brand'
-      fullPath: '/brand'
+    "/brand": {
+      id: "/brand"
+      path: "/brand"
+      fullPath: "/brand"
       preLoaderRoute: typeof BrandRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_project-shell': {
-      id: '/_project-shell'
-      path: ''
-      fullPath: '/'
+    "/github/app/callback": {
+      id: "/github/app/callback"
+      path: "/github/app/callback"
+      fullPath: "/github/app/callback"
+      preLoaderRoute: typeof GitHubAppCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/_project-shell": {
+      id: "/_project-shell"
+      path: ""
+      fullPath: "/"
       preLoaderRoute: typeof ProjectShellRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
+    "/": {
+      id: "/"
+      path: "/"
+      fullPath: "/"
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects/new': {
-      id: '/projects/new'
-      path: '/projects/new'
-      fullPath: '/projects/new'
+    "/projects/new": {
+      id: "/projects/new"
+      path: "/projects/new"
+      fullPath: "/projects/new"
       preLoaderRoute: typeof ProjectsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_project-shell/$projectId': {
-      id: '/_project-shell/$projectId'
-      path: '/$projectId'
-      fullPath: '/$projectId'
+    "/_project-shell/$projectId": {
+      id: "/_project-shell/$projectId"
+      path: "/$projectId"
+      fullPath: "/$projectId"
       preLoaderRoute: typeof ProjectShellProjectIdRouteRouteImport
       parentRoute: typeof ProjectShellRoute
     }
-    '/_project-shell/$projectId/': {
-      id: '/_project-shell/$projectId/'
-      path: '/'
-      fullPath: '/$projectId/'
+    "/_project-shell/$projectId/": {
+      id: "/_project-shell/$projectId/"
+      path: "/"
+      fullPath: "/$projectId/"
       preLoaderRoute: typeof ProjectShellProjectIdIndexRouteImport
       parentRoute: typeof ProjectShellProjectIdRouteRoute
     }
-    '/_project-shell/$projectId/settings': {
-      id: '/_project-shell/$projectId/settings'
-      path: '/settings'
-      fullPath: '/$projectId/settings'
+    "/_project-shell/$projectId/settings": {
+      id: "/_project-shell/$projectId/settings"
+      path: "/settings"
+      fullPath: "/$projectId/settings"
       preLoaderRoute: typeof ProjectShellProjectIdSettingsRouteImport
       parentRoute: typeof ProjectShellProjectIdRouteRoute
     }
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectShellRoute: ProjectShellRouteWithChildren,
   BrandRoute: BrandRoute,
+  GitHubAppCallbackRoute: GitHubAppCallbackRoute,
   LoginRoute: LoginRoute,
   ProjectsNewRoute: ProjectsNewRoute,
 }
@@ -227,9 +248,9 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx"
+import type { createStart } from "@tanstack/react-start"
+declare module "@tanstack/react-start" {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
