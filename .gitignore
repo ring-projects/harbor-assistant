@@ -54,3 +54,11 @@ _bmad/
 _bmad-output/
 .agents/
 .harbor/
+
+# local AI tool state
+/.claude/
+/.cline/
+/.codex/
+/.cursor/
+/.gemini/
+/.opencode/
