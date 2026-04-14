@@ -19,7 +19,9 @@ import {
 } from "@tanstack/react-router"
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
 
+import { AppErrorPage } from "@/components/app-error-page"
 import { QueryProvider } from "@/components/providers/query-provider"
+import { ERROR_CODES } from "@/constants"
 import { AuthErrorPage } from "@/modules/auth"
 import { AddProjectModal } from "@/modules/projects/modal"
 
@@ -59,6 +61,7 @@ export const Route = createRootRoute({
   }),
   component: RootDocument,
   errorComponent: RootErrorBoundary,
+  notFoundComponent: RootNotFoundBoundary,
 })
 
 function RootDocument() {
@@ -96,6 +99,8 @@ function isApiErrorLike(error: unknown): error is ApiErrorLike {
 function RootErrorBoundary(props: { error: unknown; reset: () => void }) {
   const { error, reset } = props
   const apiError = isApiErrorLike(error) ? error : null
+  const isAuthenticationError =
+    apiError?.code === ERROR_CODES.AUTH_REQUIRED || apiError?.status === 401
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -104,11 +109,45 @@ function RootErrorBoundary(props: { error: unknown; reset: () => void }) {
       </head>
       <body className="bg-background text-foreground font-sans antialiased">
         <QueryProvider>
-          <AuthErrorPage
-            code={apiError?.code}
-            status={apiError?.status}
-            message={apiError?.message}
-            onRetry={reset}
+          {isAuthenticationError ? (
+            <AuthErrorPage
+              code={apiError?.code}
+              status={apiError?.status}
+              message={apiError?.message}
+              onRetry={reset}
+            />
+          ) : (
+            <AppErrorPage
+              code={apiError?.code}
+              status={apiError?.status}
+              message={apiError?.message}
+              onRetry={reset}
+            />
+          )}
+          <AddProjectModal />
+          {import.meta.env.DEV ? (
+            <TanStackRouterDevtools position="bottom-right" />
+          ) : null}
+        </QueryProvider>
+        <Scripts />
+      </body>
+    </html>
+  )
+}
+
+function RootNotFoundBoundary() {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <HeadContent />
+      </head>
+      <body className="bg-background text-foreground font-sans antialiased">
+        <QueryProvider>
+          <AppErrorPage
+            status={404}
+            code={ERROR_CODES.NOT_FOUND}
+            title="Page not found"
+            description="The route you requested does not exist in Harbor Assistant."
           />
           <AddProjectModal />
           {import.meta.env.DEV ? (
