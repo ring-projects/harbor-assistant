@@ -6,11 +6,12 @@
 
 本文档说明如何将 `apps/web` 以手动方式部署到 Cloudflare Workers。
 
-当前结论只有一个：
+当前结论：
 
 - 前端使用 `TanStack Start + Cloudflare Workers`
 - 后端 `executor service` 保持独立部署
-- 前端通过公开的 `VITE_EXECUTOR_API_BASE_URL` 直接访问 executor
+- 前端业务请求通过公开的 `VITE_EXECUTOR_API_BASE_URL` 直接访问 executor
+- 认证请求通过 Worker 同源代理 `/v1/auth/*`
 
 这也是当前仓库成本最低、风险最小的上线方式。本文档暂时不覆盖 GitHub Actions 自动发布。
 
@@ -46,7 +47,7 @@
 
 ## 环境变量
 
-当前前端直接从浏览器访问 executor，因此生产环境至少需要这个变量：
+当前业务数据仍然直接从浏览器访问 executor，因此生产环境至少需要这个变量：
 
 ```bash
 VITE_EXECUTOR_API_BASE_URL=https://executor.example.com
@@ -63,6 +64,20 @@ VITE_EXECUTOR_API_BASE_URL=https://executor.example.com
 ```bash
 VITE_EXECUTOR_API_BASE_URL=https://api.harbor.example.com
 ```
+
+## Auth Same-Origin 要求
+
+如果你要使用当前仓库里的同源认证链路，需要同时满足下面两点：
+
+1. `apps/web` 对外暴露 `/v1/auth/*`，并由 Worker 转发到 executor service。
+2. service 配置里的 `appBaseUrl` 使用 web 的公开域名，例如 `https://harbor.example.com`，而不是 executor 自己的域名。
+
+原因很直接：
+
+- GitHub OAuth `redirect_uri` 由 service 的 `appBaseUrl` 生成
+- 当前 callback 路径仍然是 `/v1/auth/github/callback`
+- 只有当这个地址落在 web 域名上时，OAuth callback 返回的 session cookie 才会写到 web 域名
+- 这样 TanStack Start 才能在 SSR / `beforeLoad` 阶段读取登录态，避免客户端 auth gate 闪烁
 
 ## 首次登录 Cloudflare
 

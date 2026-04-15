@@ -61,8 +61,8 @@ pnpm --dir apps/service db:migrate:deploy
     "fileBrowserRootDirectory": "../.."
   },
   "urls": {
-    "appBaseUrl": "http://127.0.0.1:3400",
-    "webBaseUrl": "http://127.0.0.1:3000/app"
+    "appBaseUrl": "http://127.0.0.1:5173",
+    "webBaseUrl": "http://127.0.0.1:5173"
   },
   "auth": {
     "allowedGitHubUsers": [],
@@ -123,4 +123,5 @@ docker run --rm \
 - 镜像默认使用 `HARBOR_CONFIG_PATH=/app/apps/service/harbor.docker.json`
 - `harbor.docker.json` 默认把 runtime root 指向 `/var/lib/harbor`，把 workspace root 指向 `/workspace`
 - `appBaseUrl` 现在是必填配置项；如果部署后的公开地址不是 `http://127.0.0.1:3400`，需要提供一份新的 JSON 配置文件并通过 `HARBOR_CONFIG_PATH` 挂载进去
+- 如果 web 侧启用了 `/v1/auth/*` 同源代理，`appBaseUrl` 应该配置成 web 对外域名，这样 GitHub OAuth callback 和 session cookie 才会落在 web 域名上
 - 如果需要在容器内真正执行任务，请确保运行环境中同时提供所需的 provider 认证信息

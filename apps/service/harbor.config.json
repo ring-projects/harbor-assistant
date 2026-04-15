@@ -9,7 +9,7 @@
     "fileBrowserRootDirectory": "../.."
   },
   "urls": {
-    "appBaseUrl": "http://127.0.0.1:3400",
+    "appBaseUrl": "http://127.0.0.1:5173",
     "webBaseUrl": "http://127.0.0.1:5173"
   },
   "auth": {

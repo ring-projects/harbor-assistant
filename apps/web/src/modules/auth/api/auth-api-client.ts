@@ -1,9 +1,12 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { executorApiFetch, getExecutorApiBaseUrl } from "@/lib/executor-service-url"
-import { parseJsonResponse, toIsoDateString, toOptionalIsoDateString, toStringOrNull } from "@/lib/protocol"
-import type { AuthSession, AuthUser } from "../types"
+import { parseJsonResponse } from "@/lib/protocol"
+import type { AuthSession } from "../types"
+import {
+  AuthProxyError,
+  parseAuthSessionResponse,
+} from "../server/auth-proxy"
 
 const authApiErrorSchema = z.object({
   code: z.string(),
@@ -14,8 +17,6 @@ type AuthApiError = z.infer<typeof authApiErrorSchema>
 
 type AuthEnvelopePayload = {
   ok?: boolean
-  authenticated?: boolean
-  user?: unknown
   error?: AuthApiError
 } & Record<string, unknown>
 
@@ -28,37 +29,6 @@ export class AuthApiClientError extends Error {
     this.name = "AuthApiClientError"
     this.code = options?.code ?? ERROR_CODES.INTERNAL_ERROR
     this.status = options?.status ?? 500
-  }
-}
-
-function extractAuthUser(candidate: unknown): AuthUser | null {
-  if (!candidate || typeof candidate !== "object") {
-    return null
-  }
-
-  const source = candidate as Record<string, unknown>
-  const id = toStringOrNull(source.id)
-  const githubLogin = toStringOrNull(source.githubLogin)
-  const status = toStringOrNull(source.status)
-
-  if (
-    !id ||
-    !githubLogin ||
-    (status !== "active" && status !== "disabled")
-  ) {
-    return null
-  }
-
-  return {
-    id,
-    githubLogin,
-    name: toStringOrNull(source.name),
-    email: toStringOrNull(source.email),
-    avatarUrl: toStringOrNull(source.avatarUrl),
-    status,
-    lastLoginAt: toOptionalIsoDateString(source.lastLoginAt),
-    createdAt: toIsoDateString(source.createdAt),
-    updatedAt: toIsoDateString(source.updatedAt),
   }
 }
 
@@ -85,26 +55,33 @@ function throwIfFailed(
 }
 
 export async function readAuthSession(): Promise<AuthSession> {
-  const response = await executorApiFetch("/v1/auth/session", {
+  const response = await fetch("/v1/auth/session", {
     method: "GET",
     cache: "no-store",
+    credentials: "include",
     headers: {
       accept: "application/json",
     },
   })
 
-  const payload = await parseJsonResponse<AuthEnvelopePayload>(response)
-  throwIfFailed(response, payload, "Failed to load auth session.")
+  try {
+    return await parseAuthSessionResponse(response)
+  } catch (error) {
+    if (error instanceof AuthProxyError) {
+      throw new AuthApiClientError(error.message, {
+        code: error.code,
+        status: error.status,
+      })
+    }
 
-  return {
-    authenticated: Boolean(payload?.authenticated),
-    user: extractAuthUser(payload?.user),
+    throw error
   }
 }
 
 export async function logout(): Promise<void> {
-  const response = await executorApiFetch("/v1/auth/logout", {
+  const response = await fetch("/v1/auth/logout", {
     method: "POST",
+    credentials: "include",
     headers: {
       accept: "application/json",
     },
@@ -115,11 +92,16 @@ export async function logout(): Promise<void> {
 }
 
 export function getGitHubLoginUrl(redirectTo?: string | null) {
-  const url = new URL("/v1/auth/github/start", `${getExecutorApiBaseUrl()}/`)
+  const url = new URL(
+    "/v1/auth/github/start",
+    typeof window === "undefined" ? "http://localhost" : window.location.origin,
+  )
 
   if (redirectTo?.trim()) {
     url.searchParams.set("redirect", redirectTo)
   }
 
-  return url.toString()
+  return typeof window === "undefined"
+    ? `${url.pathname}${url.search}`
+    : url.toString()
 }

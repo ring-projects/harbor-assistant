@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import { LoginPage } from "@/modules/auth"
+import { readCurrentAuthSession } from "@/modules/auth/server/read-current-auth-session"
 
 type LoginSearch = {
   redirect?: string
@@ -13,6 +14,18 @@ export const Route = createFileRoute("/login")({
       typeof search.redirect === "string" ? search.redirect : undefined,
     error: typeof search.error === "string" ? search.error : undefined,
   }),
+  beforeLoad: async ({ search }) => {
+    const session = await readCurrentAuthSession()
+
+    if (!session.authenticated) {
+      return
+    }
+
+    throw redirect({
+      href: search.redirect || "/",
+      replace: true,
+    })
+  },
   component: LoginRoutePage,
 })
 

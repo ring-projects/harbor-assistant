@@ -1,13 +1,11 @@
 "use client"
 
-import { useNavigate } from "@tanstack/react-router"
 import { Github, Mail } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { HarborMark } from "@/components/logo"
 import { ERROR_CODES } from "@/constants"
 import { getGitHubLoginUrl } from "../api"
-import { useAuthSessionQuery } from "../hooks"
 import { CookieNotice } from "./cookie-notice"
 import { Button } from "@/components/ui/button"
 
@@ -47,34 +45,10 @@ function resolveLoginErrorMessage(errorCode: string | null | undefined) {
   }
 }
 
-function formatRedirectTarget(redirectTo: string | null | undefined) {
-  if (!redirectTo?.trim()) {
-    return "/"
-  }
-
-  return redirectTo
-}
-
 export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
-  const navigate = useNavigate()
-  const sessionQuery = useAuthSessionQuery()
   const [cookieNoticeVisible, setCookieNoticeVisible] = useState(true)
   const loginUrl = getGitHubLoginUrl(redirectTo)
-  const redirectTarget = formatRedirectTarget(redirectTo)
-  const errorMessage =
-    resolveLoginErrorMessage(errorCode) ??
-    (sessionQuery.isError ? sessionQuery.error.message : null)
-
-  useEffect(() => {
-    if (!sessionQuery.data?.authenticated) {
-      return
-    }
-
-    void navigate({
-      to: redirectTo || "/",
-      replace: true,
-    })
-  }, [navigate, redirectTo, sessionQuery.data?.authenticated])
+  const errorMessage = resolveLoginErrorMessage(errorCode)
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -139,20 +113,11 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
             </h2>
 
             <div className="mt-8">
-              <Button
-                asChild={!sessionQuery.isLoading}
-                size="xl"
-                disabled={sessionQuery.isLoading}
-                className="w-full shadow-none"
-              >
-                {sessionQuery.isLoading ? (
-                  <span>Checking session...</span>
-                ) : (
-                  <a href={loginUrl}>
-                    <Github className="size-4" />
-                    Sign in with GitHub
-                  </a>
-                )}
+              <Button asChild size="xl" className="w-full shadow-none">
+                <a href={loginUrl}>
+                  <Github className="size-4" />
+                  Sign in with GitHub
+                </a>
               </Button>
 
               <div className="mt-3">

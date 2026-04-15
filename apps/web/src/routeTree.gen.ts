@@ -16,8 +16,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsNewRouteImport } from './routes/projects/new'
 import { Route as ProjectShellProjectIdRouteRouteImport } from './routes/_project-shell/$projectId/route'
 import { Route as ProjectShellProjectIdIndexRouteImport } from './routes/_project-shell/$projectId/index'
+import { Route as V1AuthSessionRouteImport } from './routes/v1/auth/session'
+import { Route as V1AuthLogoutRouteImport } from './routes/v1/auth/logout'
 import { Route as GithubAppCallbackRouteImport } from './routes/github/app/callback'
 import { Route as ProjectShellProjectIdSettingsRouteImport } from './routes/_project-shell/$projectId/settings'
+import { Route as V1AuthGithubStartRouteImport } from './routes/v1/auth/github/start'
+import { Route as V1AuthGithubCallbackRouteImport } from './routes/v1/auth/github/callback'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -55,6 +59,16 @@ const ProjectShellProjectIdIndexRoute =
     path: '/',
     getParentRoute: () => ProjectShellProjectIdRouteRoute,
   } as any)
+const V1AuthSessionRoute = V1AuthSessionRouteImport.update({
+  id: '/v1/auth/session',
+  path: '/v1/auth/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AuthLogoutRoute = V1AuthLogoutRouteImport.update({
+  id: '/v1/auth/logout',
+  path: '/v1/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GithubAppCallbackRoute = GithubAppCallbackRouteImport.update({
   id: '/github/app/callback',
   path: '/github/app/callback',
@@ -66,6 +80,16 @@ const ProjectShellProjectIdSettingsRoute =
     path: '/settings',
     getParentRoute: () => ProjectShellProjectIdRouteRoute,
   } as any)
+const V1AuthGithubStartRoute = V1AuthGithubStartRouteImport.update({
+  id: '/v1/auth/github/start',
+  path: '/v1/auth/github/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1AuthGithubCallbackRoute = V1AuthGithubCallbackRouteImport.update({
+  id: '/v1/auth/github/callback',
+  path: '/v1/auth/github/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,7 +99,11 @@ export interface FileRoutesByFullPath {
   '/projects/new': typeof ProjectsNewRoute
   '/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
   '/github/app/callback': typeof GithubAppCallbackRoute
+  '/v1/auth/logout': typeof V1AuthLogoutRoute
+  '/v1/auth/session': typeof V1AuthSessionRoute
   '/$projectId/': typeof ProjectShellProjectIdIndexRoute
+  '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
+  '/v1/auth/github/start': typeof V1AuthGithubStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -84,7 +112,11 @@ export interface FileRoutesByTo {
   '/projects/new': typeof ProjectsNewRoute
   '/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
   '/github/app/callback': typeof GithubAppCallbackRoute
+  '/v1/auth/logout': typeof V1AuthLogoutRoute
+  '/v1/auth/session': typeof V1AuthSessionRoute
   '/$projectId': typeof ProjectShellProjectIdIndexRoute
+  '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
+  '/v1/auth/github/start': typeof V1AuthGithubStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -96,7 +128,11 @@ export interface FileRoutesById {
   '/projects/new': typeof ProjectsNewRoute
   '/_project-shell/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
   '/github/app/callback': typeof GithubAppCallbackRoute
+  '/v1/auth/logout': typeof V1AuthLogoutRoute
+  '/v1/auth/session': typeof V1AuthSessionRoute
   '/_project-shell/$projectId/': typeof ProjectShellProjectIdIndexRoute
+  '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
+  '/v1/auth/github/start': typeof V1AuthGithubStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -108,7 +144,11 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/$projectId/settings'
     | '/github/app/callback'
+    | '/v1/auth/logout'
+    | '/v1/auth/session'
     | '/$projectId/'
+    | '/v1/auth/github/callback'
+    | '/v1/auth/github/start'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -117,7 +157,11 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/$projectId/settings'
     | '/github/app/callback'
+    | '/v1/auth/logout'
+    | '/v1/auth/session'
     | '/$projectId'
+    | '/v1/auth/github/callback'
+    | '/v1/auth/github/start'
   id:
     | '__root__'
     | '/'
@@ -128,7 +172,11 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/_project-shell/$projectId/settings'
     | '/github/app/callback'
+    | '/v1/auth/logout'
+    | '/v1/auth/session'
     | '/_project-shell/$projectId/'
+    | '/v1/auth/github/callback'
+    | '/v1/auth/github/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -138,6 +186,10 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
   GithubAppCallbackRoute: typeof GithubAppCallbackRoute
+  V1AuthLogoutRoute: typeof V1AuthLogoutRoute
+  V1AuthSessionRoute: typeof V1AuthSessionRoute
+  V1AuthGithubCallbackRoute: typeof V1AuthGithubCallbackRoute
+  V1AuthGithubStartRoute: typeof V1AuthGithubStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -191,6 +243,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectShellProjectIdIndexRouteImport
       parentRoute: typeof ProjectShellProjectIdRouteRoute
     }
+    '/v1/auth/session': {
+      id: '/v1/auth/session'
+      path: '/v1/auth/session'
+      fullPath: '/v1/auth/session'
+      preLoaderRoute: typeof V1AuthSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/auth/logout': {
+      id: '/v1/auth/logout'
+      path: '/v1/auth/logout'
+      fullPath: '/v1/auth/logout'
+      preLoaderRoute: typeof V1AuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/github/app/callback': {
       id: '/github/app/callback'
       path: '/github/app/callback'
@@ -204,6 +270,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/$projectId/settings'
       preLoaderRoute: typeof ProjectShellProjectIdSettingsRouteImport
       parentRoute: typeof ProjectShellProjectIdRouteRoute
+    }
+    '/v1/auth/github/start': {
+      id: '/v1/auth/github/start'
+      path: '/v1/auth/github/start'
+      fullPath: '/v1/auth/github/start'
+      preLoaderRoute: typeof V1AuthGithubStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/auth/github/callback': {
+      id: '/v1/auth/github/callback'
+      path: '/v1/auth/github/callback'
+      fullPath: '/v1/auth/github/callback'
+      preLoaderRoute: typeof V1AuthGithubCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -243,16 +323,21 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProjectsNewRoute: ProjectsNewRoute,
   GithubAppCallbackRoute: GithubAppCallbackRoute,
+  V1AuthLogoutRoute: V1AuthLogoutRoute,
+  V1AuthSessionRoute: V1AuthSessionRoute,
+  V1AuthGithubCallbackRoute: V1AuthGithubCallbackRoute,
+  V1AuthGithubStartRoute: V1AuthGithubStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

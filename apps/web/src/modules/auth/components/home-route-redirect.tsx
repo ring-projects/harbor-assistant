@@ -5,36 +5,16 @@ import { useEffect } from "react"
 
 import { useReadProjectsQuery } from "@/modules/projects"
 import { AuthShell } from "./auth-shell"
-import { useAuthSessionQuery } from "../hooks"
 
 export function HomeRouteRedirect() {
   const navigate = useNavigate()
-  const sessionQuery = useAuthSessionQuery()
-  const projectsQuery = useReadProjectsQuery({
-    enabled: sessionQuery.data?.authenticated === true,
-  })
-
-  if (sessionQuery.isError) {
-    throw sessionQuery.error
-  }
+  const projectsQuery = useReadProjectsQuery()
 
   if (projectsQuery.isError) {
     throw projectsQuery.error
   }
 
   useEffect(() => {
-    if (sessionQuery.isLoading) {
-      return
-    }
-
-    if (!sessionQuery.data?.authenticated) {
-      void navigate({
-        to: "/login",
-        replace: true,
-      })
-      return
-    }
-
     if (projectsQuery.isLoading || !projectsQuery.data) {
       return
     }
@@ -60,14 +40,9 @@ export function HomeRouteRedirect() {
     navigate,
     projectsQuery.data,
     projectsQuery.isLoading,
-    sessionQuery.data?.authenticated,
-    sessionQuery.isLoading,
   ])
 
-  if (
-    sessionQuery.isLoading ||
-    (sessionQuery.data?.authenticated && projectsQuery.isLoading)
-  ) {
+  if (projectsQuery.isLoading) {
     return (
       <AuthShell
         title="Loading Harbor"
