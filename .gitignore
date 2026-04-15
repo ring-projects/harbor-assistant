@@ -62,3 +62,6 @@ _bmad-output/
 /.cursor/
 /.gemini/
 /.opencode/
+
+# local service database
+apps/service/prisma/dev.sqlite
