@@ -61,8 +61,8 @@ pnpm --dir apps/service db:migrate:deploy
     "fileBrowserRootDirectory": "../.."
   },
   "urls": {
-    "appBaseUrl": "http://127.0.0.1:5173",
-    "webBaseUrl": "http://127.0.0.1:5173"
+    "appBaseUrl": "http://localhost:5173",
+    "webBaseUrl": "http://localhost:5173"
   },
   "auth": {
     "allowedGitHubUsers": [],

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_project-shell")({
       return
     }
 
-    const redirectTo = `${location.pathname}${location.search}${location.hash}`
+    const redirectTo = location.href
 
     throw redirect({
       to: "/login",

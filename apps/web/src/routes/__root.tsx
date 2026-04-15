@@ -135,7 +135,7 @@ function RootErrorBoundary(props: { error: unknown; reset: () => void }) {
   )
 }
 
-function RootNotFoundBoundary() {
+export function RootNotFoundBoundary() {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

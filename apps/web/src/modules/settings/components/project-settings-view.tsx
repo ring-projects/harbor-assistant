@@ -220,7 +220,7 @@ export function ProjectSettingsView({
     projectId,
     projectQuery.data?.source.type === "git",
   )
-  const returnTo = `${location.pathname}${location.search}${location.hash}`
+  const returnTo = location.href
   const installUrlQuery = useGitHubInstallUrlQuery(
     returnTo,
     projectQuery.data?.source.type === "git",

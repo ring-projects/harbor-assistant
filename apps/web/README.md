@@ -29,7 +29,7 @@ pnpm run dev:all
 
 - 环境变量：`VITE_EXECUTOR_API_BASE_URL`
 - 必填：没有默认推导逻辑
-- 示例：`VITE_EXECUTOR_API_BASE_URL=http://127.0.0.1:3400`
+- 示例：`VITE_EXECUTOR_API_BASE_URL=http://localhost:3400`
 
 当前 `project`、`task`、`git` 等前端数据请求都基于这个地址直接访问 executor 的 `/v1/*`。
 

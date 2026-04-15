@@ -127,7 +127,7 @@ function cloneProxyResponseHeaders(headers: Headers) {
   return responseHeaders
 }
 
-function buildForwardHeaders(request: Request) {
+export function buildForwardHeaders(request: Request) {
   const headers = new Headers()
   const cookie = request.headers.get("cookie")
   const accept = request.headers.get("accept")

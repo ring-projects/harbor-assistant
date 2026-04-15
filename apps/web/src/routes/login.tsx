@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import { LoginPage } from "@/modules/auth"
+import { normalizeAuthRedirectTarget } from "@/modules/auth/lib/redirect-target"
 import { readCurrentAuthSession } from "@/modules/auth/server/read-current-auth-session"
 
 type LoginSearch = {
@@ -21,8 +22,10 @@ export const Route = createFileRoute("/login")({
       return
     }
 
+    const redirectTarget = normalizeAuthRedirectTarget(search.redirect)
+
     throw redirect({
-      href: search.redirect || "/",
+      href: redirectTarget ?? "/",
       replace: true,
     })
   },

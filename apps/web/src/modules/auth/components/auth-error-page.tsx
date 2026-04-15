@@ -5,6 +5,7 @@ import { useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ERROR_CODES } from "@/constants"
+import { normalizeAuthRedirectTarget } from "../lib/redirect-target"
 import { getGitHubLoginUrl } from "../api"
 import { AuthShell } from "./auth-shell"
 
@@ -21,21 +22,23 @@ export function AuthErrorPage(props: AuthErrorPageProps) {
   const location = useLocation()
   const isAuthenticationError =
     code === ERROR_CODES.AUTH_REQUIRED || status === 401
-  const redirectTo = `${location.pathname}${location.search}${location.hash}`
+  const redirectTo = normalizeAuthRedirectTarget(location.href)
 
   useEffect(() => {
-    if (!isAuthenticationError) {
+    if (!isAuthenticationError || location.pathname === "/login") {
       return
     }
 
     void navigate({
       to: "/login",
-      search: {
-        redirect: redirectTo,
-      },
+      search: redirectTo
+        ? {
+            redirect: redirectTo,
+          }
+        : undefined,
       replace: true,
     })
-  }, [isAuthenticationError, navigate, redirectTo])
+  }, [isAuthenticationError, location.pathname, navigate, redirectTo])
 
   return (
     <AuthShell
@@ -49,7 +52,7 @@ export function AuthErrorPage(props: AuthErrorPageProps) {
         <div className="flex gap-3">
           {isAuthenticationError ? (
             <Button asChild>
-              <a href={getGitHubLoginUrl(redirectTo)}>Sign in with GitHub</a>
+              <a href={getGitHubLoginUrl(redirectTo ?? undefined)}>Sign in with GitHub</a>
             </Button>
           ) : null}
           {onRetry ? (
