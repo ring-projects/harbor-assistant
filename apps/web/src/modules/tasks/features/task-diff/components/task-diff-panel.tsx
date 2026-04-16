@@ -27,31 +27,31 @@ const DIFF_STATUS_META: Record<
 > = {
   added: {
     label: "Added",
-    badgeClassName: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    badgeClassName: "border-success/25 bg-surface-success text-success",
   },
   modified: {
     label: "Modified",
-    badgeClassName: "bg-sky-100 text-sky-700 border-sky-200",
+    badgeClassName: "border-info/25 bg-surface-info text-info",
   },
   deleted: {
     label: "Deleted",
-    badgeClassName: "bg-rose-100 text-rose-700 border-rose-200",
+    badgeClassName: "border-destructive/25 bg-surface-danger text-destructive",
   },
   renamed: {
     label: "Renamed",
-    badgeClassName: "bg-amber-100 text-amber-700 border-amber-200",
+    badgeClassName: "border-warning/25 bg-surface-warning text-warning",
   },
   copied: {
     label: "Copied",
-    badgeClassName: "bg-violet-100 text-violet-700 border-violet-200",
+    badgeClassName: "border-info/25 bg-surface-info text-info",
   },
   binary: {
     label: "Binary",
-    badgeClassName: "bg-slate-100 text-slate-700 border-slate-200",
+    badgeClassName: "border-border bg-secondary/40 text-muted-foreground",
   },
   unknown: {
     label: "Changed",
-    badgeClassName: "bg-slate-100 text-slate-700 border-slate-200",
+    badgeClassName: "border-border bg-secondary/40 text-muted-foreground",
   },
 }
 
@@ -160,8 +160,8 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
             {files.length > 0 ? (
               <div className="text-muted-foreground flex items-center gap-3 text-[11px]">
                 <span>{files.length} files</span>
-                <span className="text-emerald-700">+{totalAdditions}</span>
-                <span className="text-rose-700">-{totalDeletions}</span>
+                <span className="text-success">+{totalAdditions}</span>
+                <span className="text-destructive">-{totalDeletions}</span>
               </div>
             ) : null}
 
@@ -201,7 +201,7 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
         ) : null}
 
         {diffQuery.isError ? (
-          <div className="rounded-md border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
+          <div className="bg-surface-danger text-destructive rounded-md border border-destructive/25 p-3 text-xs">
             {getErrorMessage(diffQuery.error)}
           </div>
         ) : null}
@@ -244,8 +244,8 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
                         ) : null}
 
                         <div className="pt-2 text-[11px]">
-                          <span className="mr-2 text-emerald-700">+{file.additions}</span>
-                          <span className="text-rose-700">-{file.deletions}</span>
+                          <span className="text-success mr-2">+{file.additions}</span>
+                          <span className="text-destructive">-{file.deletions}</span>
                         </div>
                       </button>
                     )

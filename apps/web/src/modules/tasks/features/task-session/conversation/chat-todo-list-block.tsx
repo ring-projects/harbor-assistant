@@ -26,21 +26,21 @@ function ChatTodoListBlockView({ block }: ChatTodoListBlockProps) {
       ? {
         label: "Completed",
         icon: CheckCheckIcon,
-        iconClassName: "text-emerald-600",
-        badgeClassName: "border-emerald-200 bg-emerald-50/75 text-emerald-700",
-        metaClassName: "text-emerald-700",
+        iconClassName: "text-success",
+        badgeClassName: "border-success/25 bg-surface-success text-success",
+        metaClassName: "text-success",
       }
       : {
         label: "Running",
         icon: LoaderCircleIcon,
-        iconClassName: "animate-spin text-sky-600",
-        badgeClassName: "border-sky-200 bg-sky-50/75 text-sky-700",
-        metaClassName: "text-sky-700",
+        iconClassName: "text-info animate-spin",
+        badgeClassName: "border-info/25 bg-surface-info text-info",
+        metaClassName: "text-info",
       }
   const StatusIcon = statusMeta.icon
 
   return (
-    <div className="w-full bg-slate-100/55 px-3.5 py-3">
+    <div className="bg-surface-subtle w-full px-3.5 py-3">
       <div className="flex items-start gap-3">
         <StatusIcon className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)} />
 
@@ -74,12 +74,12 @@ function ChatTodoListBlockView({ block }: ChatTodoListBlockProps) {
                 className={cn(
                   "flex items-start gap-2 rounded-lg border px-2.5 py-2",
                   item.completed
-                    ? "border-emerald-200/80 bg-emerald-50/30"
+                    ? "border-success/20 bg-surface-success"
                     : "border-border bg-muted/15",
                 )}
               >
                 {item.completed ? (
-                  <CheckCheckIcon className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                  <CheckCheckIcon className="text-success mt-0.5 size-3.5 shrink-0" />
                 ) : block.status === "completed" ? (
                   <CircleDashedIcon className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
                 ) : (
@@ -89,7 +89,7 @@ function ChatTodoListBlockView({ block }: ChatTodoListBlockProps) {
                   className={cn(
                     "text-[13px] leading-6",
                     item.completed
-                      ? "text-foreground/78 line-through decoration-emerald-500/70"
+                      ? "text-foreground/78 line-through decoration-success/70"
                       : "text-foreground/88",
                   )}
                 >

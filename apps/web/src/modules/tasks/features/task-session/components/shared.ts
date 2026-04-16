@@ -9,26 +9,26 @@ export const CHAT_STATUS_META: Record<
 > = {
   queued: {
     label: "Queued",
-    badgeClassName: "border-slate-200 bg-slate-100 text-slate-700",
+    badgeClassName: "border-border bg-secondary/40 text-muted-foreground",
   },
   running: {
     label: "Running",
-    badgeClassName: "border-blue-200 bg-blue-100 text-blue-700",
+    badgeClassName: "border-info/25 bg-surface-info text-info",
   },
   completed: {
     label: "Completed",
-    badgeClassName: "border-emerald-200 bg-emerald-100 text-emerald-700",
+    badgeClassName: "border-success/25 bg-surface-success text-success",
   },
   failed: {
     label: "Failed",
-    badgeClassName: "border-rose-200 bg-rose-100 text-rose-700",
+    badgeClassName: "border-destructive/25 bg-surface-danger text-destructive",
   },
   cancelled: {
     label: "Cancelled",
-    badgeClassName: "border-amber-200 bg-amber-100 text-amber-700",
+    badgeClassName: "border-warning/25 bg-surface-warning text-warning",
   },
   archived: {
     label: "Archived",
-    badgeClassName: "border-zinc-200 bg-zinc-100 text-zinc-700",
+    badgeClassName: "border-border bg-secondary/40 text-muted-foreground",
   },
 }

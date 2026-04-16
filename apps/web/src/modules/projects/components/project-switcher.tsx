@@ -20,7 +20,7 @@ import { useUiStore } from "@/stores/ui.store"
 
 type ProjectSwitcherProps = {
   workspaceId: string
-  activeProjectId: string
+  activeProjectId?: string | null
   initialProjects?: Project[]
   className?: string
   children?: ReactNode

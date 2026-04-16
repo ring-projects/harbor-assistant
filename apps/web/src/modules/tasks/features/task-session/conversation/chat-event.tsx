@@ -19,10 +19,10 @@ function ChatEventView({ block }: ChatEventProps) {
     return (
       <div
         className={cn(
-          "w-full min-w-0 bg-slate-100/55 p-2 text-xs break-all whitespace-pre-wrap",
-          block.tone === "success" && "text-emerald-900/80",
-          block.tone === "error" && "text-rose-900/80",
-          block.tone === "neutral" && "text-slate-700",
+          "bg-surface-subtle w-full min-w-0 p-2 text-xs break-all whitespace-pre-wrap",
+          block.tone === "success" && "text-success",
+          block.tone === "error" && "text-destructive",
+          block.tone === "neutral" && "text-muted-foreground",
         )}
       >
         <MarkdownRenderer compact content={block.content} />
@@ -33,10 +33,10 @@ function ChatEventView({ block }: ChatEventProps) {
   return (
     <div
       className={cn(
-        "bg-slate-100/55 p-2 text-xs break-all",
-        block.tone === "success" && "text-emerald-900/75",
-        block.tone === "error" && "text-rose-900/75",
-        block.tone === "neutral" && "text-slate-600",
+        "bg-surface-subtle p-2 text-xs break-all",
+        block.tone === "success" && "text-success",
+        block.tone === "error" && "text-destructive",
+        block.tone === "neutral" && "text-muted-foreground",
       )}
     >
       <span className="lowercase">{block.label}</span>

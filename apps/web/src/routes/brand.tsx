@@ -16,23 +16,27 @@ function FaviconPreview(props: { src: string; label: string; dark?: boolean }) {
     <div className="flex flex-col items-center gap-2">
       <div
         className={`flex size-16 items-center justify-center rounded-md border ${
-          dark ? "border-white/20" : "border-black/10"
+          dark ? "border-primary-foreground/20" : "border-border"
         }`}
       >
         <img src={src} alt={label} width={32} height={32} />
       </div>
-      <div className={`text-xs ${dark ? "text-white/70" : "text-black/60"}`}>
+      <div
+        className={`text-xs ${dark ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+      >
         32px
       </div>
 
       <div
         className={`flex size-8 items-center justify-center rounded-[4px] border ${
-          dark ? "border-white/20" : "border-black/10"
+          dark ? "border-primary-foreground/20" : "border-border"
         }`}
       >
         <img src={src} alt={`${label} 16px`} width={16} height={16} />
       </div>
-      <div className={`text-xs ${dark ? "text-white/70" : "text-black/60"}`}>
+      <div
+        className={`text-xs ${dark ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+      >
         16px
       </div>
     </div>
@@ -41,9 +45,9 @@ function FaviconPreview(props: { src: string; label: string; dark?: boolean }) {
 
 function BrandPreviewPage() {
   return (
-    <div className="flex min-h-full w-full flex-col items-center gap-8 bg-[#f5f5f7] p-8">
-      <section className="w-full max-w-5xl rounded-xl bg-white p-8 shadow-sm">
-        <p className="mb-6 text-sm font-medium text-black/50">
+    <div className="bg-background text-foreground flex min-h-full w-full flex-col items-center gap-8 p-8">
+      <section className="bg-card w-full max-w-5xl rounded-xl border p-8 shadow-sm">
+        <p className="text-muted-foreground mb-6 text-sm font-medium">
           Black Edition (Logo + Favicon)
         </p>
         <div className="mb-6 flex justify-center">
@@ -60,8 +64,8 @@ function BrandPreviewPage() {
         </div>
       </section>
 
-      <section className="w-full max-w-5xl rounded-xl bg-[#1a1a1a] p-8 shadow-sm">
-        <p className="mb-6 text-sm font-medium text-white/55">
+      <section className="bg-primary text-primary-foreground w-full max-w-5xl rounded-xl border border-primary/20 p-8 shadow-sm">
+        <p className="mb-6 text-sm font-medium text-primary-foreground/70">
           White Edition (Logo + Favicon)
         </p>
         <div className="mb-6 flex justify-center">

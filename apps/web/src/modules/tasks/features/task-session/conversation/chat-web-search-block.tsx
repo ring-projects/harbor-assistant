@@ -19,7 +19,7 @@ function ChatWebSearchBlockView({
     <button
       type="button"
       onClick={() => onOpen(block)}
-      className="w-full bg-slate-100/55 flex items-center gap-1 p-2 text-xs"
+      className="bg-surface-subtle flex w-full items-center gap-1 p-2 text-xs"
     >
       <SearchIcon className="size-3" />
       <span className="font-semibold">search </span>

@@ -15,7 +15,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const isClient = useIsClient()
   const isDark = resolvedTheme === "dark"
-  const label = isDark ? "Switch to light theme" : "Switch to dark theme"
+  const label = isDark ? "Switch to white theme" : "Switch to black theme"
 
   return (
     <Button

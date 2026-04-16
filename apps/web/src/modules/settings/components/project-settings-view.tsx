@@ -600,7 +600,7 @@ export function ProjectSettingsView({
                   <Skeleton className="h-4 w-36" />
                 </div>
               ) : projectQuery.isError && !project ? (
-                <p className="text-sm text-red-600">
+                <p className="text-destructive text-sm">
                   {getProjectActionError(projectQuery.error)}
                 </p>
               ) : project?.source.type === "rootPath" ? (
@@ -617,11 +617,11 @@ export function ProjectSettingsView({
 
                   <div className="grid gap-2">
                     {repositoryActionError ? (
-                      <p className="text-xs text-red-600">
+                      <p className="text-destructive text-xs">
                         {repositoryActionError}
                       </p>
                     ) : repositoryActionSuccess ? (
-                      <p className="text-xs text-emerald-600">
+                      <p className="text-success text-xs">
                         {repositoryActionSuccess}
                       </p>
                     ) : null}
@@ -697,16 +697,16 @@ export function ProjectSettingsView({
                   </div>
 
                   {repositoryActionError ? (
-                    <p className="text-xs text-red-600">
+                    <p className="text-destructive text-xs">
                       {repositoryActionError}
                     </p>
                   ) : repositoryActionSuccess ? (
-                    <p className="text-xs text-emerald-600">
+                    <p className="text-success text-xs">
                       {repositoryActionSuccess}
                     </p>
                   ) : null}
                   {installUrlQuery.error ? (
-                    <p className="text-xs text-red-600">
+                    <p className="text-destructive text-xs">
                       {getProjectActionError(installUrlQuery.error)}
                     </p>
                   ) : null}
@@ -720,7 +720,7 @@ export function ProjectSettingsView({
                         Loading GitHub installations...
                       </p>
                     ) : installationsQuery.isError ? (
-                      <p className="text-sm text-red-600">
+                      <p className="text-destructive text-sm">
                         {getProjectActionError(installationsQuery.error)}
                       </p>
                     ) : installationsQuery.data?.length ? (
@@ -754,7 +754,7 @@ export function ProjectSettingsView({
                         Loading repositories for this installation...
                       </p>
                     ) : repositoriesQuery.isError ? (
-                      <p className="text-sm text-red-600">
+                      <p className="text-destructive text-sm">
                         {getProjectActionError(repositoriesQuery.error)}
                       </p>
                     ) : repositoriesQuery.data?.length ? (
@@ -795,13 +795,13 @@ export function ProjectSettingsView({
                   <Skeleton className="h-4 w-40" />
                 </div>
               ) : repositoryBindingQuery.isError ? (
-                <p className="text-sm text-red-600">
+                <p className="text-destructive text-sm">
                   {getProjectActionError(repositoryBindingQuery.error)}
                 </p>
               ) : null}
             </Card>
 
-            <Card className="border-red-200 p-4">
+            <Card className="border-destructive/25 p-4">
               <p className="text-sm font-semibold">Danger Zone</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
                 Permanently delete this project record. This removes Harbor
@@ -812,7 +812,7 @@ export function ProjectSettingsView({
               <div className="mt-4 grid gap-2">
                 {confirmDelete ? (
                   <>
-                    <p className="text-sm font-medium text-red-700">
+                    <p className="text-destructive text-sm font-medium">
                       Delete project permanently?
                     </p>
                     <div className="flex items-center gap-2">
@@ -843,7 +843,7 @@ export function ProjectSettingsView({
                   <Button
                     type="button"
                     variant="outline"
-                    className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                    className="border-destructive/25 text-destructive hover:bg-surface-danger hover:text-destructive"
                     onClick={() => {
                       setDeleteError(null)
                       setConfirmDelete(true)
@@ -855,7 +855,7 @@ export function ProjectSettingsView({
                 )}
 
                 {deleteError ? (
-                  <p className="text-xs text-red-600">{deleteError}</p>
+                  <p className="text-destructive text-xs">{deleteError}</p>
                 ) : null}
               </div>
             </Card>
@@ -928,9 +928,9 @@ export function ProjectSettingsView({
               : "Settings are synced with the backend."}
           </p>
           {saveError ? (
-            <p className="text-xs text-red-600">{saveError}</p>
+            <p className="text-destructive text-xs">{saveError}</p>
           ) : saveSuccessMessage ? (
-            <p className="text-xs text-emerald-600">{saveSuccessMessage}</p>
+            <p className="text-success text-xs">{saveSuccessMessage}</p>
           ) : null}
         </div>
 

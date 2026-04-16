@@ -209,7 +209,7 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
         {props.errorMessage ? (
           <div
             id={errorTextId}
-            className="rounded-md border border-rose-300/70 bg-rose-50/80 px-3 py-2 font-mono text-[11px] text-rose-700"
+            className="bg-surface-danger text-destructive rounded-md border border-destructive/25 px-3 py-2 font-mono text-[11px]"
           >
             {props.errorMessage}
           </div>

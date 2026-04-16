@@ -63,7 +63,7 @@ function ChatMessageView({ block }: ChatMessageProps) {
       className={cn(
         "w-full p-2",
         block.pending && styles["pending-shell"],
-        isUser ? "bg-green-500/10" : "bg-sky-400/30",
+        isUser ? "bg-surface-success" : "bg-surface-info",
       )}
       aria-label={`${label} message`}
     >

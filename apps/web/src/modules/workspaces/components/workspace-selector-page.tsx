@@ -108,7 +108,7 @@ export function WorkspaceSelectorPage() {
               ) : null}
 
               {workspacesQuery.isError ? (
-                <div className="rounded-lg border border-red-200 bg-red-50/70 p-4 text-sm text-red-700">
+                <div className="bg-surface-danger text-destructive rounded-lg border border-destructive/25 p-4 text-sm">
                   {getWorkspaceActionError(workspacesQuery.error)}
                 </div>
               ) : null}
@@ -177,7 +177,7 @@ export function WorkspaceSelectorPage() {
               />
 
               {createError ? (
-                <p className="text-sm text-red-700">{createError}</p>
+                <p className="text-destructive text-sm">{createError}</p>
               ) : null}
 
               <Button

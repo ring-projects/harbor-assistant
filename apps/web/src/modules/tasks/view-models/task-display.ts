@@ -9,28 +9,28 @@ export const STATUS_META: Record<
 > = {
   queued: {
     label: "Queued",
-    badgeClassName: "bg-slate-100 text-slate-700 border-slate-200",
+    badgeClassName: "border-border bg-secondary/40 text-muted-foreground",
   },
   running: {
     label: "Running",
-    badgeClassName: "bg-blue-100 text-blue-700 border-blue-200",
+    badgeClassName: "border-info/25 bg-surface-info text-info",
   },
   completed: {
     label: "Completed",
-    badgeClassName: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    badgeClassName: "border-success/25 bg-surface-success text-success",
   },
   failed: {
     label: "Failed",
-    badgeClassName: "bg-rose-100 text-rose-700 border-rose-200",
+    badgeClassName: "border-destructive/25 bg-surface-danger text-destructive",
   },
   cancelled: {
     label: "Cancelled",
-    badgeClassName: "bg-amber-100 text-amber-700 border-amber-200",
+    badgeClassName: "border-warning/25 bg-surface-warning text-warning",
   },
   archived: {
     label: "Archived",
-    badgeClassName: "bg-amber-100 text-amber-700 border-amber-200",
-  }
+    badgeClassName: "border-border bg-secondary/40 text-muted-foreground",
+  },
 }
 
 export function getPromptSummary(prompt: string) {

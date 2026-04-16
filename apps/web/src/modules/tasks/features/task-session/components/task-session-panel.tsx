@@ -78,7 +78,7 @@ export function TaskSessionPanel({ projectId, taskId }: TaskSessionPanelProps) {
       ) : null}
 
       {isError ? (
-        <div className="min-h-0 rounded-lg bg-rose-50 p-3 font-mono text-[12px] text-rose-700">
+        <div className="bg-surface-danger text-destructive min-h-0 rounded-lg p-3 font-mono text-[12px]">
           {getErrorMessage(detailQuery.error ?? eventsQuery.error)}
         </div>
       ) : null}

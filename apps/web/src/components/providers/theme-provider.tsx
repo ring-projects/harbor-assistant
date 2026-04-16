@@ -12,6 +12,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       attribute="class"
       defaultTheme="system"
       enableSystem
+      themes={["light", "dark"]}
       disableTransitionOnChange
       storageKey="harbor-theme"
     >

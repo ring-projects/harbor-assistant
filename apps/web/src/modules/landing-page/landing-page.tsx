@@ -43,19 +43,19 @@ export function LandingPage(props: { workspaceId?: string | null }) {
 
   return (
     <div
-      className="min-h-svh bg-[#201d1d] text-[#fdfcfc]"
+      className="bg-background text-foreground min-h-svh"
       style={{ fontFamily: landingPageFontFamily }}
     >
       <div className="grid min-h-svh lg:grid-cols-[0.92fr_1.08fr]">
-        <aside className="flex min-h-[42svh] flex-col border-b border-[rgba(15,0,0,0.12)] bg-[#201d1d] px-6 py-8 sm:px-10 sm:py-10 lg:min-h-svh lg:border-r lg:border-b-0 lg:px-12 lg:py-12">
+        <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border flex min-h-[42svh] flex-col border-b px-6 py-8 sm:px-10 sm:py-10 lg:min-h-svh lg:border-r lg:border-b-0 lg:px-12 lg:py-12">
           <div className="flex items-center gap-3">
             <HarborMark
-              variant="white"
+              variant="adaptive"
               width={24}
               height={24}
               className="size-6 shrink-0"
             />
-            <p className="text-base leading-6 font-medium text-[#fdfcfc]">
+            <p className="text-base leading-6 font-medium">
               harbor assistant
             </p>
           </div>
@@ -63,44 +63,44 @@ export function LandingPage(props: { workspaceId?: string | null }) {
           <div className="flex flex-1 items-center py-12 sm:py-14 lg:py-0">
             <div className="max-w-xl space-y-10">
               <div className="space-y-6">
-                <p className="text-sm leading-6 font-medium text-[#9a9898]">
+                <p className="text-muted-foreground text-sm leading-6 font-medium">
                   new project
                 </p>
-                <h1 className="max-w-[14ch] text-[32px] leading-[1.5] font-bold text-[#fdfcfc] sm:text-[38px]">
+                <h1 className="max-w-[14ch] text-[32px] leading-[1.5] font-bold sm:text-[38px]">
                   Create a project and open it immediately.
                 </h1>
-                <p className="max-w-xl text-base leading-7 text-[#9a9898]">
+                <p className="text-muted-foreground max-w-xl text-base leading-7">
                   Register a local path, connect a GitHub repository, or paste a
                   manual git URL. The project opens as soon as setup completes.
                 </p>
               </div>
 
-              <div className="space-y-5 border-t border-[rgba(15,0,0,0.12)] pt-8">
+              <div className="border-border/80 space-y-5 border-t pt-8">
                 <div className="space-y-1">
-                  <p className="text-base leading-6 font-bold text-[#fdfcfc]">
+                  <p className="text-base leading-6 font-bold">
                     Local workspace
                   </p>
-                  <p className="text-base leading-7 text-[#9a9898]">
+                  <p className="text-muted-foreground text-base leading-7">
                     Point Harbor at an existing server-local directory and use it
                     as the project root.
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <p className="text-base leading-6 font-bold text-[#fdfcfc]">
+                  <p className="text-base leading-6 font-bold">
                     GitHub-connected repos
                   </p>
-                  <p className="text-base leading-7 text-[#9a9898]">
+                  <p className="text-muted-foreground text-base leading-7">
                     Select an installed GitHub App account and create a project
                     from an authorized repository.
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <p className="text-base leading-6 font-bold text-[#fdfcfc]">
+                  <p className="text-base leading-6 font-bold">
                     Manual git source
                   </p>
-                  <p className="text-base leading-7 text-[#9a9898]">
+                  <p className="text-muted-foreground text-base leading-7">
                     Paste any repository URL when you want Harbor to track the
                     source without GitHub App setup.
                   </p>
@@ -109,18 +109,18 @@ export function LandingPage(props: { workspaceId?: string | null }) {
             </div>
           </div>
 
-          <p className="text-sm leading-6 text-[#9a9898]">
+          <p className="text-muted-foreground text-sm leading-6">
             The creation flow starts here directly. No extra launcher step.
           </p>
         </aside>
 
-        <main className="flex min-h-svh items-start bg-[#f8f7f7] px-6 py-8 text-[#201d1d] sm:px-10 sm:py-10 lg:px-12 lg:py-12">
+        <main className="bg-background text-foreground flex min-h-svh items-start px-6 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-12">
           <section className="mx-auto w-full max-w-2xl">
-            <div className="border-b border-[rgba(15,0,0,0.12)] pb-6">
-              <h2 className="text-[24px] leading-[1.5] font-bold text-[#201d1d]">
+            <div className="border-border/80 border-b pb-6">
+              <h2 className="text-[24px] leading-[1.5] font-bold">
                 New project
               </h2>
-              <p className="mt-2 max-w-[52ch] text-base leading-7 text-[#6e6e73]">
+              <p className="text-muted-foreground mt-2 max-w-[52ch] text-base leading-7">
                 Choose the source that matches this workspace and finish setup in
                 one pass.
               </p>

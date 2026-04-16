@@ -69,8 +69,8 @@ function selectionButtonClassName(
     return cn(
       "grid w-full gap-1 rounded-[4px] border px-4 py-4 text-left transition-colors",
       selected
-        ? "border-[#201d1d] bg-[#201d1d] text-[#fdfcfc]"
-        : "border-[rgba(15,0,0,0.12)] bg-[#f8f7f7] text-[#201d1d] hover:bg-white",
+        ? "border-primary bg-primary text-primary-foreground"
+        : "border-border bg-card text-foreground hover:bg-secondary/35",
     )
   }
 
@@ -109,7 +109,7 @@ function GitHubInstallationList(props: {
               <span
                 className={cn(
                   "text-xs capitalize",
-                  selected ? "text-[#d6d2d2]" : "text-[#6e6e73]",
+                  selected ? "text-primary-foreground/75" : "text-muted-foreground",
                 )}
               >
                 {installation.accountType}
@@ -118,7 +118,7 @@ function GitHubInstallationList(props: {
             <div
               className={cn(
                 "flex items-center justify-between gap-3 text-xs",
-                selected ? "text-[#d6d2d2]" : "text-[#6e6e73]",
+                selected ? "text-primary-foreground/75" : "text-muted-foreground",
               )}
             >
               <span>Repository scope: {installation.targetType}</span>
@@ -157,7 +157,7 @@ function GitHubRepositoryList(props: {
               <span
                 className={cn(
                   "text-xs capitalize",
-                  selected ? "text-[#d6d2d2]" : "text-[#6e6e73]",
+                  selected ? "text-primary-foreground/75" : "text-muted-foreground",
                 )}
               >
                 {repository.visibility ?? "unknown"}
@@ -166,7 +166,7 @@ function GitHubRepositoryList(props: {
             <div
               className={cn(
                 "flex items-center justify-between gap-3 text-xs",
-                selected ? "text-[#d6d2d2]" : "text-[#6e6e73]",
+                selected ? "text-primary-foreground/75" : "text-muted-foreground",
               )}
             >
               <span>{repository.url}</span>
@@ -430,27 +430,27 @@ export function CreateProject(props: CreateProjectProps) {
   const isMutating = createMutation.isPending || provisionMutation.isPending
   const isLandingAppearance = appearance === "landing"
   const inputClassName = isLandingAppearance
-    ? "h-auto rounded-[6px] border-[rgba(15,0,0,0.12)] bg-[#f8f7f7] px-5 py-5 text-base text-[#201d1d] placeholder:text-[#6e6e73] shadow-none focus-visible:border-[#646262] focus-visible:ring-0"
+    ? "h-auto rounded-[6px] border-input bg-background px-5 py-5 text-base text-foreground placeholder:text-muted-foreground shadow-none focus-visible:border-ring focus-visible:ring-0"
     : undefined
   const containerClassName = isLandingAppearance ? "grid gap-6" : "grid gap-5 p-5"
   const panelClassName = isLandingAppearance
-    ? "grid gap-5 rounded-[4px] border border-[rgba(15,0,0,0.12)] bg-white p-5"
+    ? "grid gap-5 rounded-[4px] border border-border bg-card p-5"
     : "grid gap-4 rounded-lg border p-4"
   const secondaryButtonClassName = isLandingAppearance
-    ? "rounded-[4px] border-[rgba(15,0,0,0.12)] bg-transparent text-[#201d1d] shadow-none hover:bg-[#f1eeee] hover:text-[#201d1d]"
+    ? "rounded-[4px] border-border bg-transparent text-foreground shadow-none hover:bg-secondary hover:text-foreground"
     : undefined
   const ghostButtonClassName = isLandingAppearance
-    ? "rounded-[4px] text-[#201d1d] hover:bg-[#f1eeee] hover:text-[#201d1d]"
+    ? "rounded-[4px] text-foreground hover:bg-secondary hover:text-foreground"
     : undefined
   const primaryButtonClassName = isLandingAppearance
-    ? "rounded-[4px] border-[#201d1d] bg-[#201d1d] text-[#fdfcfc] shadow-none hover:bg-[#302c2c] hover:text-[#fdfcfc]"
+    ? "rounded-[4px] border-primary bg-primary text-primary-foreground shadow-none hover:opacity-90"
     : undefined
 
   return (
     <div
       className={cn(
         containerClassName,
-        isLandingAppearance && "text-[#201d1d]",
+        isLandingAppearance && "text-foreground",
         className,
       )}
     >
@@ -467,7 +467,7 @@ export function CreateProject(props: CreateProjectProps) {
           <p
             className={cn(
               isLandingAppearance
-                ? "text-sm leading-6 text-[#6e6e73]"
+                ? "text-muted-foreground text-sm leading-6"
                 : "text-muted-foreground text-sm",
             )}
           >
@@ -501,7 +501,7 @@ export function CreateProject(props: CreateProjectProps) {
         <p
           className={cn(
             isLandingAppearance
-              ? "text-sm leading-6 text-[#6e6e73]"
+              ? "text-muted-foreground text-sm leading-6"
               : "text-muted-foreground text-xs",
           )}
         >
@@ -518,7 +518,7 @@ export function CreateProject(props: CreateProjectProps) {
           variant={isLandingAppearance ? "line" : "default"}
           className={cn(
             isLandingAppearance
-              ? "h-auto w-full justify-start gap-6 border-b border-[rgba(15,0,0,0.12)] p-0"
+              ? "border-border h-auto w-full justify-start gap-6 border-b p-0"
               : "grid w-full grid-cols-3",
           )}
         >
@@ -526,7 +526,7 @@ export function CreateProject(props: CreateProjectProps) {
             value="rootPath"
             className={cn(
               isLandingAppearance &&
-                "h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 text-[#6e6e73] after:hidden data-[state=active]:border-[#9a9898] data-[state=active]:bg-transparent data-[state=active]:text-[#201d1d]",
+                "text-muted-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 after:hidden data-[state=active]:border-foreground/35 data-[state=active]:bg-transparent data-[state=active]:text-foreground",
             )}
           >
             Local Path
@@ -535,7 +535,7 @@ export function CreateProject(props: CreateProjectProps) {
             value="github"
             className={cn(
               isLandingAppearance &&
-                "h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 text-[#6e6e73] after:hidden data-[state=active]:border-[#9a9898] data-[state=active]:bg-transparent data-[state=active]:text-[#201d1d]",
+                "text-muted-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 after:hidden data-[state=active]:border-foreground/35 data-[state=active]:bg-transparent data-[state=active]:text-foreground",
             )}
           >
             GitHub
@@ -544,7 +544,7 @@ export function CreateProject(props: CreateProjectProps) {
             value="manualGit"
             className={cn(
               isLandingAppearance &&
-                "h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 text-[#6e6e73] after:hidden data-[state=active]:border-[#9a9898] data-[state=active]:bg-transparent data-[state=active]:text-[#201d1d]",
+                "text-muted-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 after:hidden data-[state=active]:border-foreground/35 data-[state=active]:bg-transparent data-[state=active]:text-foreground",
             )}
           >
             Manual URL
@@ -559,7 +559,7 @@ export function CreateProject(props: CreateProjectProps) {
             className={cn(
               "border-border/70",
               isLandingAppearance &&
-                "rounded-[4px] border-[rgba(15,0,0,0.12)] bg-white text-[#201d1d]",
+                "rounded-[4px] border-border bg-card text-foreground",
             )}
             title={null}
             confirmLabel={isMutating ? "Creating..." : submitLabel}
@@ -588,7 +588,7 @@ export function CreateProject(props: CreateProjectProps) {
               <p
                 className={cn(
                   isLandingAppearance
-                    ? "text-sm leading-6 text-[#6e6e73]"
+                    ? "text-muted-foreground text-sm leading-6"
                     : "text-muted-foreground text-xs leading-5",
                 )}
               >
@@ -629,8 +629,8 @@ export function CreateProject(props: CreateProjectProps) {
               <p
                 className={cn(
                   isLandingAppearance
-                    ? "text-sm leading-6 text-[#ff3b30]"
-                    : "text-xs text-red-600",
+                    ? "text-destructive text-sm leading-6"
+                    : "text-destructive text-xs",
                 )}
               >
                 {getProjectActionError(installUrlQuery.error)}
@@ -640,8 +640,8 @@ export function CreateProject(props: CreateProjectProps) {
               <p
                 className={cn(
                   isLandingAppearance
-                    ? "text-sm leading-6 text-[#30d158]"
-                    : "text-xs text-emerald-600",
+                    ? "text-success text-sm leading-6"
+                    : "text-success text-xs",
                 )}
               >
                 {githubAppFeedback}
@@ -661,7 +661,7 @@ export function CreateProject(props: CreateProjectProps) {
                 <p
                   className={cn(
                     isLandingAppearance
-                      ? "text-sm leading-6 text-[#6e6e73]"
+                      ? "text-muted-foreground text-sm leading-6"
                       : "text-muted-foreground text-sm",
                   )}
                 >
@@ -671,8 +671,8 @@ export function CreateProject(props: CreateProjectProps) {
                 <p
                   className={cn(
                     isLandingAppearance
-                      ? "text-sm leading-6 text-[#ff3b30]"
-                      : "text-sm text-red-600",
+                      ? "text-destructive text-sm leading-6"
+                      : "text-destructive text-sm",
                   )}
                 >
                   {getProjectActionError(installationsQuery.error)}
@@ -694,7 +694,7 @@ export function CreateProject(props: CreateProjectProps) {
                 <div
                   className={cn(
                     isLandingAppearance
-                      ? "rounded-[4px] border border-dashed border-[rgba(15,0,0,0.12)] p-4 text-sm leading-6 text-[#6e6e73]"
+                      ? "text-muted-foreground rounded-[4px] border border-dashed border-border p-4 text-sm leading-6"
                       : "text-muted-foreground rounded-lg border border-dashed p-4 text-sm",
                   )}
                 >
@@ -717,7 +717,7 @@ export function CreateProject(props: CreateProjectProps) {
                 <p
                   className={cn(
                     isLandingAppearance
-                      ? "text-sm leading-6 text-[#6e6e73]"
+                      ? "text-muted-foreground text-sm leading-6"
                       : "text-muted-foreground text-sm",
                   )}
                 >
@@ -727,7 +727,7 @@ export function CreateProject(props: CreateProjectProps) {
                 <p
                   className={cn(
                     isLandingAppearance
-                      ? "text-sm leading-6 text-[#6e6e73]"
+                      ? "text-muted-foreground text-sm leading-6"
                       : "text-muted-foreground text-sm",
                   )}
                 >
@@ -737,8 +737,8 @@ export function CreateProject(props: CreateProjectProps) {
                 <p
                   className={cn(
                     isLandingAppearance
-                      ? "text-sm leading-6 text-[#ff3b30]"
-                      : "text-sm text-red-600",
+                      ? "text-destructive text-sm leading-6"
+                      : "text-destructive text-sm",
                   )}
                 >
                   {getProjectActionError(repositoriesQuery.error)}
@@ -759,7 +759,7 @@ export function CreateProject(props: CreateProjectProps) {
                 <div
                   className={cn(
                     isLandingAppearance
-                      ? "rounded-[4px] border border-dashed border-[rgba(15,0,0,0.12)] p-4 text-sm leading-6 text-[#6e6e73]"
+                      ? "text-muted-foreground rounded-[4px] border border-dashed border-border p-4 text-sm leading-6"
                       : "text-muted-foreground rounded-lg border border-dashed p-4 text-sm",
                   )}
                 >
@@ -793,7 +793,7 @@ export function CreateProject(props: CreateProjectProps) {
               <p
                 className={cn(
                   isLandingAppearance
-                    ? "text-sm leading-6 text-[#6e6e73]"
+                    ? "text-muted-foreground text-sm leading-6"
                     : "text-muted-foreground text-xs",
                 )}
               >
@@ -872,7 +872,7 @@ export function CreateProject(props: CreateProjectProps) {
               <p
                 className={cn(
                   isLandingAppearance
-                    ? "text-sm leading-6 text-[#6e6e73]"
+                    ? "text-muted-foreground text-sm leading-6"
                     : "text-muted-foreground text-xs",
                 )}
               >
@@ -932,15 +932,15 @@ export function CreateProject(props: CreateProjectProps) {
         <div
           className={cn(
             isLandingAppearance
-              ? "grid gap-3 rounded-[4px] border border-[#ffb4ae] bg-[#fff5f5] p-4"
-              : "grid gap-3 rounded-lg border border-red-200 bg-red-50/60 p-3",
+              ? "bg-surface-danger grid gap-3 rounded-[4px] border border-destructive/25 p-4"
+              : "bg-surface-danger grid gap-3 rounded-lg border border-destructive/25 p-3",
           )}
         >
           <p
             className={cn(
               isLandingAppearance
-                ? "text-sm leading-6 text-[#ff3b30]"
-                : "text-sm text-red-700",
+                ? "text-destructive text-sm leading-6"
+                : "text-destructive text-sm",
             )}
           >
             {formError}

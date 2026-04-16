@@ -49,7 +49,7 @@ export function DeleteTaskDialog({
         </DialogHeader>
 
         {errorMessage ? (
-          <div className="rounded-md border border-rose-300 bg-rose-50 p-2 text-xs text-rose-700">
+          <div className="bg-surface-danger text-destructive rounded-md border border-destructive/25 p-2 text-xs">
             {errorMessage}
           </div>
         ) : null}

@@ -54,34 +54,34 @@ const TASK_STATUS_ACCENT_CLASS_NAME: Record<
   }
 > = {
   queued: {
-    dot: "bg-slate-400",
-    line: "bg-slate-400",
-    text: "text-slate-600",
+    dot: "bg-muted-foreground/50",
+    line: "bg-muted-foreground/50",
+    text: "text-muted-foreground",
   },
   running: {
-    dot: "bg-sky-500",
-    line: "bg-sky-500",
-    text: "text-sky-600",
+    dot: "bg-info",
+    line: "bg-info",
+    text: "text-info",
   },
   completed: {
-    dot: "bg-emerald-500",
-    line: "bg-emerald-500",
-    text: "text-emerald-600",
+    dot: "bg-success",
+    line: "bg-success",
+    text: "text-success",
   },
   failed: {
-    dot: "bg-rose-500",
-    line: "bg-rose-500",
-    text: "text-rose-600",
+    dot: "bg-destructive",
+    line: "bg-destructive",
+    text: "text-destructive",
   },
   cancelled: {
-    dot: "bg-amber-500",
-    line: "bg-amber-500",
-    text: "text-amber-600",
+    dot: "bg-warning",
+    line: "bg-warning",
+    text: "text-warning",
   },
   archived: {
-    dot: "bg-zinc-400",
-    line: "bg-zinc-400",
-    text: "text-zinc-500",
+    dot: "bg-muted-foreground/40",
+    line: "bg-muted-foreground/40",
+    text: "text-muted-foreground",
   },
 }
 
@@ -110,14 +110,14 @@ function TaskListItemActions({
           variant="ghost"
           size="sm"
           className={cn(
-            "w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 hover:text-slate-700 outline-none!",
+            "outline-none! h-6 w-6 rounded-full hover:bg-secondary hover:text-foreground",
             className,
           )}
           aria-label={`Task actions for ${taskTitle}`}
           onClick={stopItemSelection}
           onPointerDown={stopItemSelection}
         >
-          <Trash2Icon className="size-4 text-red-500/50" />
+          <Trash2Icon className="text-destructive/55 size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -235,14 +235,14 @@ export function TaskListItem({
 
       <div className="text-muted-foreground grid grid-cols-3 text-xs">
         <span className="inline-flex min-w-0 items-baseline gap-3">
-          <span className="text-slate-400">exec</span>
-          <span className="max-w-full break-all text-slate-700">
+          <span className="text-muted-foreground/75">exec</span>
+          <span className="max-w-full break-all text-foreground/80">
             {executorLabel}
           </span>
         </span>
         <span className="inline-flex min-w-0 items-baseline gap-3">
-          <span className="text-slate-400">mod</span>
-          <span className="max-w-full break-all text-slate-700">
+          <span className="text-muted-foreground/75">mod</span>
+          <span className="max-w-full break-all text-foreground/80">
             {modelLabel}
           </span>
         </span>

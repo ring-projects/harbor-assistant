@@ -157,8 +157,8 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
             className={cn(
               "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium",
               block.status === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-rose-200 bg-rose-50 text-rose-700",
+                ? "border-success/25 bg-surface-success text-success"
+                : "border-destructive/25 bg-surface-danger text-destructive",
             )}
           >
             {block.status === "success" ? "Applied" : "Failed"}
@@ -198,8 +198,8 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
             className={cn(
               "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
               block.status === "completed"
-                ? "border-sky-200 bg-sky-50 text-sky-700"
-                : "border-amber-200 bg-amber-50 text-amber-700",
+                ? "border-info/25 bg-surface-info text-info"
+                : "border-warning/25 bg-surface-warning text-warning",
             )}
           >
             <SearchIcon className="size-3.5" />
@@ -227,22 +227,22 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
       block.status === "success"
         ? {
             label: block.exitCode === null ? "Completed" : `Completed (exit ${block.exitCode})`,
-            className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+            className: "border-success/25 bg-surface-success text-success",
             icon: CheckCircle2Icon,
-            iconClassName: "text-emerald-700",
+            iconClassName: "text-success",
           }
         : block.status === "failed"
           ? {
               label: block.exitCode === null ? "Failed" : `Failed (exit ${block.exitCode})`,
-              className: "border-rose-200 bg-rose-50 text-rose-700",
+              className: "border-destructive/25 bg-surface-danger text-destructive",
               icon: XCircleIcon,
-              iconClassName: "text-rose-700",
+              iconClassName: "text-destructive",
             }
           : {
               label: "Running",
-              className: "border-sky-200 bg-sky-50 text-sky-700",
+              className: "border-info/25 bg-surface-info text-info",
               icon: LoaderCircleIcon,
-              iconClassName: "animate-spin text-sky-700",
+              iconClassName: "text-info animate-spin",
             }
     const StatusIcon = statusMeta.icon
 
@@ -310,10 +310,10 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
           className={cn(
             "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium",
             block.status === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              ? "border-success/25 bg-surface-success text-success"
               : block.status === "failed"
-                ? "border-rose-200 bg-rose-50 text-rose-700"
-                : "border-sky-200 bg-sky-50 text-sky-700",
+                ? "border-destructive/25 bg-surface-danger text-destructive"
+                : "border-info/25 bg-surface-info text-info",
           )}
         >
           {block.status === "running"
@@ -340,7 +340,7 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
 
       {block.errorText ? (
         <DetailSection label="Error">
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-rose-200 bg-rose-50/70 p-4 text-xs leading-6 text-rose-700">
+          <pre className="bg-surface-danger text-destructive overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-destructive/25 p-4 text-xs leading-6">
             {block.errorText}
           </pre>
         </DetailSection>

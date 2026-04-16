@@ -27,27 +27,27 @@ function ChatCommandGroupView({ block }: ChatCommandGroupProps) {
       ? {
         label: block.exitCode === null ? "Completed" : `Completed (exit ${block.exitCode})`,
         icon: CheckCircle2Icon,
-        iconClassName: "text-emerald-600",
-        metaClassName: "text-emerald-700",
+        iconClassName: "text-success",
+        metaClassName: "text-success",
       }
       : block.status === "failed"
         ? {
           label: block.exitCode === null ? "Failed" : `Failed (exit ${block.exitCode})`,
           icon: XCircleIcon,
-          iconClassName: "text-rose-600",
-          metaClassName: "text-rose-700",
+          iconClassName: "text-destructive",
+          metaClassName: "text-destructive",
         }
         : {
           label: "Running",
           icon: LoaderCircleIcon,
-          iconClassName: "animate-spin text-sky-600",
-          metaClassName: "text-sky-700",
+          iconClassName: "text-info animate-spin",
+          metaClassName: "text-info",
         }
 
   const StatusIcon = statusMeta.icon
 
   return (
-    <div className="w-full bg-slate-100/55 p-2">
+    <div className="bg-surface-subtle w-full p-2">
       <div className="flex items-start gap-3">
         <StatusIcon className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)} />
 

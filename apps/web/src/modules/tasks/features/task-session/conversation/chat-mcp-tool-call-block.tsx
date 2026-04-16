@@ -35,18 +35,18 @@ function ChatMcpToolCallBlockView({
     block.status === "success"
       ? {
           label: "Completed",
-          metaClassName: "text-emerald-700",
+          metaClassName: "text-success",
           icon: CheckCircle2Icon,
         }
       : block.status === "failed"
         ? {
             label: "Failed",
-            metaClassName: "text-rose-700",
+            metaClassName: "text-destructive",
             icon: XCircleIcon,
           }
         : {
             label: "Running",
-            metaClassName: "text-sky-700",
+            metaClassName: "text-info",
             icon: CircleIcon,
           }
   const StatusIcon = statusMeta.icon
@@ -72,9 +72,9 @@ function ChatMcpToolCallBlockView({
               </p>
               <span className={cn(
                 "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium",
-                block.status === "success" && "border-emerald-200 bg-emerald-50/75 text-emerald-700",
-                block.status === "failed" && "border-rose-200 bg-rose-50/80 text-rose-700",
-                block.status === "running" && "border-sky-200 bg-sky-50/75 text-sky-700",
+                block.status === "success" && "border-success/25 bg-surface-success text-success",
+                block.status === "failed" && "border-destructive/25 bg-surface-danger text-destructive",
+                block.status === "running" && "border-info/25 bg-surface-info text-info",
               )}>
                 <StatusIcon className="size-3" />
                 {statusMeta.label}
@@ -93,7 +93,7 @@ function ChatMcpToolCallBlockView({
             ) : null}
 
             {block.errorText ? (
-              <p className="mt-2 font-mono text-[11px] text-rose-700">
+              <p className="text-destructive mt-2 font-mono text-[11px]">
                 {block.errorText}
               </p>
             ) : null}

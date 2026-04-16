@@ -189,21 +189,21 @@ const editorTheme = EditorView.theme({
   },
   ".cm-gutters": {
     backgroundColor: "transparent",
-    borderRight: "1px solid hsl(var(--border))",
-    color: "hsl(var(--muted-foreground))",
+    borderRight: "1px solid var(--border)",
+    color: "var(--muted-foreground)",
     fontSize: "11px",
   },
   ".cm-activeLine, .cm-activeLineGutter": {
     backgroundColor: "transparent",
   },
   ".cm-selectionBackground, .cm-content ::selection": {
-    backgroundColor: "hsl(var(--primary) / 0.2) !important",
+    backgroundColor: "var(--surface-selection) !important",
   },
   ".cm-annotation-line": {
-    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    backgroundColor: "var(--surface-warning)",
   },
   ".cm-selected-line": {
-    backgroundColor: "rgba(14, 165, 233, 0.12)",
+    backgroundColor: "var(--surface-info)",
   },
 })
 
@@ -366,7 +366,7 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
       </div>
 
       {selectedRange ? (
-        <div className="space-y-2 rounded-md border border-sky-500/30 bg-sky-500/10 p-2">
+        <div className="bg-surface-info space-y-2 rounded-md border border-info/25 p-2">
           <div className="text-xs">
             Selected lines:{" "}
             <span className="font-medium">{selectedRange.startLine}</span> -{" "}
