@@ -13,6 +13,10 @@ async function run() {
     )
   }
   const app = await buildServiceApp(config)
+  const normalizedAppBaseUrl = config.appBaseUrl.replace(/\/$/, "")
+  const openApiJsonUrl = `${normalizedAppBaseUrl}/openapi.json`
+  const openApiYamlUrl = `${normalizedAppBaseUrl}/openapi.yaml`
+  const scalarReferenceUrl = `${normalizedAppBaseUrl}/reference/`
 
   const closeApp = async () => {
     await app.close()
@@ -27,10 +31,14 @@ async function run() {
   })
 
   try {
-    await app.listen({
+    const listeningAddress = await app.listen({
       port: config.port,
       host: config.host,
     })
+    console.info(`[harbor:bootstrap] listening at ${listeningAddress}`)
+    console.info(`[harbor:bootstrap] openapi json ${openApiJsonUrl}`)
+    console.info(`[harbor:bootstrap] openapi yaml ${openApiYamlUrl}`)
+    console.info(`[harbor:bootstrap] api reference ${scalarReferenceUrl}`)
   } catch (error) {
     app.log.error(error)
     process.exitCode = 1

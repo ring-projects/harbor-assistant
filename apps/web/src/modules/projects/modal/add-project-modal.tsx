@@ -15,6 +15,7 @@ import { useUiStore } from "@/stores/ui.store"
 export function AddProjectModal() {
   const navigate = useNavigate()
   const open = useUiStore((state) => state.addProjectModalOpen)
+  const workspaceId = useUiStore((state) => state.addProjectModalWorkspaceId)
   const closeAddProjectModal = useUiStore((state) => state.closeAddProjectModal)
 
   return (
@@ -35,13 +36,15 @@ export function AddProjectModal() {
         </DialogHeader>
         <CreateProject
           className="rounded-none border-0"
+          workspaceId={workspaceId}
           pickerTitle={null}
           onCancel={closeAddProjectModal}
           onCreated={(project) => {
             closeAddProjectModal()
             void navigate({
-              to: "/$projectId",
+              to: "/workspaces/$workspaceId/projects/$projectId",
               params: {
+                workspaceId: project.workspaceId ?? workspaceId ?? "personal",
                 projectId: project.id,
               },
             })

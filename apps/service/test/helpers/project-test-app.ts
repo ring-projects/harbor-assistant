@@ -13,7 +13,7 @@ import {
 import type { GitHubAppClient } from "../../src/modules/integration/github/application/github-app-client"
 import type { GitHubInstallationRepository } from "../../src/modules/integration/github/application/github-installation-repository"
 import type { ProjectRepositoryBindingRepository } from "../../src/modules/integration/github/application/project-repository-binding-repository"
-import type { ProjectWorkspaceManager } from "../../src/modules/integration/github/application/project-workspace-manager"
+import type { ProjectLocalPathManager } from "../../src/modules/integration/github/application/project-local-path-manager"
 import { PrismaGitHubInstallationRepository } from "../../src/modules/integration/github/infrastructure/persistence/prisma-github-installation-repository"
 import { PrismaProjectRepositoryBindingRepository } from "../../src/modules/integration/github/infrastructure/persistence/prisma-project-repository-binding-repository"
 import { PrismaWorkspaceInstallationRepository } from "../../src/modules/integration/github/infrastructure/persistence/prisma-workspace-installation-repository"
@@ -33,8 +33,8 @@ export async function createProjectTestApp(
     installationRepository?: GitHubInstallationRepository
     repositoryBindingRepository?: ProjectRepositoryBindingRepository
     githubAppClient?: GitHubAppClient
-    workspaceManager?: ProjectWorkspaceManager
-    workspaceRootDirectory?: string
+    localPathManager?: ProjectLocalPathManager
+    projectLocalPathRootDirectory?: string
   },
 ) {
   const repository = prisma
@@ -71,7 +71,7 @@ export async function createProjectTestApp(
       serviceName: "harbor-test",
       database: "file:test.sqlite",
       fileBrowserRootDirectory: "/tmp",
-      workspaceRootDirectory: "/tmp/workspaces",
+      projectLocalPathRootDirectory: "/tmp/workspaces",
       publicSkillsRootDirectory: "/tmp/skills/profiles/default",
       nodeEnv: "test",
       isProduction: false,
@@ -99,8 +99,8 @@ export async function createProjectTestApp(
         installationRepository,
         repositoryBindingRepository,
         githubAppClient: options?.githubAppClient,
-        workspaceManager: options?.workspaceManager,
-        workspaceRootDirectory: options?.workspaceRootDirectory,
+        localPathManager: options?.localPathManager,
+        projectLocalPathRootDirectory: options?.projectLocalPathRootDirectory,
       })
     },
     {

@@ -152,7 +152,7 @@ describe("project routes", () => {
     })
   })
 
-  it("creates a git-backed project without a local workspace", async () => {
+  it("creates a git-backed project without a local path", async () => {
     const { app } = await createApp()
 
     const created = await app.inject({

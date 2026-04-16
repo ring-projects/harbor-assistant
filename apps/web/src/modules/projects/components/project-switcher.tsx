@@ -19,6 +19,7 @@ import { useAppStore } from "@/stores/app.store"
 import { useUiStore } from "@/stores/ui.store"
 
 type ProjectSwitcherProps = {
+  workspaceId: string
   activeProjectId: string
   initialProjects?: Project[]
   className?: string
@@ -37,6 +38,7 @@ function describeProjectSource(project: Project) {
 }
 
 export function ProjectSwitcher({
+  workspaceId,
   activeProjectId,
   initialProjects,
   className,
@@ -46,9 +48,11 @@ export function ProjectSwitcher({
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId)
+  const setActiveWorkspaceId = useAppStore((state) => state.setActiveWorkspaceId)
   const openAddProjectModal = useUiStore((state) => state.openAddProjectModal)
   const projectsQuery = useReadProjectsQuery({
     initialData: initialProjects,
+    workspaceId,
   })
   const projectItems = projectsQuery.data ?? []
 
@@ -81,10 +85,12 @@ export function ProjectSwitcher({
                 key={project.id}
                 className="gap-2 p-2"
                 onSelect={() => {
+                  setActiveWorkspaceId(workspaceId)
                   setActiveProjectId(project.id)
                   void navigate({
-                    to: "/$projectId",
+                    to: "/workspaces/$workspaceId/projects/$projectId",
                     params: {
+                      workspaceId,
                       projectId: project.id,
                     },
                   })
@@ -111,7 +117,7 @@ export function ProjectSwitcher({
 
         <DropdownMenuItem
           className="gap-2 p-2"
-          onSelect={() => openAddProjectModal()}
+          onSelect={() => openAddProjectModal(workspaceId)}
         >
           <PlusIcon className="size-4" />
           <div className="text-muted-foreground font-medium">Add project</div>

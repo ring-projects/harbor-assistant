@@ -115,7 +115,7 @@ describe("project routes integration", () => {
     await app.close()
   })
 
-  it("persists git source projects without a local workspace", async () => {
+  it("persists git source projects without a local path", async () => {
     testDatabase = await createTestDatabase()
     const app = await createProjectTestApp(testDatabase.prisma)
     const session = await createAuthSessionCookie(testDatabase.prisma)

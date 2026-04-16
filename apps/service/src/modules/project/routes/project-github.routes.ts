@@ -4,8 +4,8 @@ import { ERROR_CODES } from "../../../constants/errors"
 import { AppError } from "../../../lib/errors/app-error"
 import { ensureWorkspaceInstallationAccess } from "../../integration/github/application/ensure-workspace-installation-access"
 import { buildGitHubProjectRepositoryBinding } from "../../integration/github/application/build-github-project-repository-binding"
-import { provisionProjectWorkspaceUseCase } from "../../integration/github/application/provision-project-workspace"
-import { syncProjectWorkspaceUseCase } from "../../integration/github/application/sync-project-workspace"
+import { provisionProjectLocalPathUseCase } from "../../integration/github/application/provision-project-local-path"
+import { syncProjectLocalPathUseCase } from "../../integration/github/application/sync-project-local-path"
 import { getProjectUseCase } from "../application/get-project"
 import { createProjectError } from "../errors"
 import { toProjectAppError } from "../project-app-error"
@@ -16,8 +16,8 @@ import type {
 import {
   getProjectRepositoryBindingRouteSchema,
   putProjectRepositoryBindingRouteSchema,
-  provisionProjectWorkspaceRouteSchema,
-  syncProjectWorkspaceRouteSchema,
+  provisionProjectLocalPathRouteSchema,
+  syncProjectLocalPathRouteSchema,
 } from "../schemas"
 import type { ProjectModuleRouteOptions } from "./shared"
 import {
@@ -185,9 +185,9 @@ export async function registerProjectGitHubRoutes(
   )
 
   app.post<{ Params: ProjectIdParams }>(
-    "/projects/:id/provision-workspace",
+    "/projects/:id/provision-local-path",
     {
-      schema: provisionProjectWorkspaceRouteSchema,
+      schema: provisionProjectLocalPathRouteSchema,
     },
     async (request) => {
       try {
@@ -197,7 +197,7 @@ export async function registerProjectGitHubRoutes(
         await requireRouteAuthorization(
           options.authorization,
           actor,
-          "project.workspace.provision",
+          "project.local_path.provision",
           {
             kind: "project",
             projectId: request.params.id,
@@ -205,24 +205,25 @@ export async function registerProjectGitHubRoutes(
         )
 
         if (
-          !githubAccess.workspaceManager ||
-          !githubAccess.workspaceRootDirectory
+          !githubAccess.localPathManager ||
+          !githubAccess.projectLocalPathRootDirectory
         ) {
           throw new AppError(
             ERROR_CODES.AUTH_NOT_CONFIGURED,
             503,
-            "GitHub workspace provisioning is not configured.",
+            "GitHub local path provisioning is not configured.",
           )
         }
 
-        const project = await provisionProjectWorkspaceUseCase(
+        const project = await provisionProjectLocalPathUseCase(
           {
             projectRepository: repository,
             installationRepository: githubAccess.installationRepository,
             bindingRepository: githubAccess.repositoryBindingRepository,
             githubAppClient: githubAccess.githubAppClient,
-            workspaceManager: githubAccess.workspaceManager,
-            workspaceRootDirectory: githubAccess.workspaceRootDirectory,
+            localPathManager: githubAccess.localPathManager,
+            projectLocalPathRootDirectory:
+              githubAccess.projectLocalPathRootDirectory,
           },
           {
             projectId: request.params.id,
@@ -256,7 +257,7 @@ export async function registerProjectGitHubRoutes(
   app.post<{ Params: ProjectIdParams }>(
     "/projects/:id/sync",
     {
-      schema: syncProjectWorkspaceRouteSchema,
+      schema: syncProjectLocalPathRouteSchema,
     },
     async (request) => {
       try {
@@ -266,28 +267,28 @@ export async function registerProjectGitHubRoutes(
         await requireRouteAuthorization(
           options.authorization,
           actor,
-          "project.workspace.sync",
+          "project.local_path.sync",
           {
             kind: "project",
             projectId: request.params.id,
           },
         )
 
-        if (!githubAccess.workspaceManager) {
+        if (!githubAccess.localPathManager) {
           throw new AppError(
             ERROR_CODES.AUTH_NOT_CONFIGURED,
             503,
-            "GitHub workspace sync is not configured.",
+            "GitHub local path sync is not configured.",
           )
         }
 
-        const result = await syncProjectWorkspaceUseCase(
+        const result = await syncProjectLocalPathUseCase(
           {
             projectRepository: repository,
             installationRepository: githubAccess.installationRepository,
             bindingRepository: githubAccess.repositoryBindingRepository,
             githubAppClient: githubAccess.githubAppClient,
-            workspaceManager: githubAccess.workspaceManager,
+            localPathManager: githubAccess.localPathManager,
           },
           {
             projectId: request.params.id,

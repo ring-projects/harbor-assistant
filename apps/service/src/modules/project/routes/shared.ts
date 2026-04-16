@@ -13,7 +13,7 @@ import type {
   ProjectRepositoryBindingRepository,
 } from "../../integration/github/application/project-repository-binding-repository"
 import type { WorkspaceInstallationRepository } from "../../integration/github/application/workspace-installation-repository"
-import type { ProjectWorkspaceManager } from "../../integration/github/application/project-workspace-manager"
+import type { ProjectLocalPathManager } from "../../integration/github/application/project-local-path-manager"
 import type { WorkspaceRepository } from "../../workspace"
 import type { ProjectPathPolicy } from "../application/project-path-policy"
 import type { ProjectRepository } from "../application/project-repository"
@@ -28,16 +28,16 @@ export type ProjectModuleRouteOptions = {
   installationRepository?: GitHubInstallationRepository
   repositoryBindingRepository?: ProjectRepositoryBindingRepository
   githubAppClient?: GitHubAppClient
-  workspaceManager?: ProjectWorkspaceManager
-  workspaceRootDirectory?: string
+  localPathManager?: ProjectLocalPathManager
+  projectLocalPathRootDirectory?: string
 }
 
 export type ProjectGitHubAccess = {
   installationRepository: GitHubInstallationRepository
   repositoryBindingRepository: ProjectRepositoryBindingRepository
   githubAppClient: GitHubAppClient
-  workspaceManager?: ProjectWorkspaceManager
-  workspaceRootDirectory?: string
+  localPathManager?: ProjectLocalPathManager
+  projectLocalPathRootDirectory?: string
 }
 
 export function getOwnerUserId(request: { auth: { userId: string } | null }) {
@@ -85,14 +85,14 @@ export function requireGitHubRepositoryAccess(
     installationRepository: options.installationRepository,
     repositoryBindingRepository: options.repositoryBindingRepository,
     githubAppClient: options.githubAppClient,
-    workspaceManager: options.workspaceManager,
-    workspaceRootDirectory: options.workspaceRootDirectory,
+    localPathManager: options.localPathManager,
+    projectLocalPathRootDirectory: options.projectLocalPathRootDirectory,
   }
 }
 
 export function toRepositoryBindingResponse(
   binding: ProjectRepositoryBinding,
-  hasWorkspace: boolean,
+  hasLocalPath: boolean,
 ): ProjectRepositoryBindingResponse {
   return {
     projectId: binding.projectId,
@@ -104,6 +104,6 @@ export function toRepositoryBindingResponse(
     repositoryUrl: binding.repositoryUrl,
     defaultBranch: binding.defaultBranch,
     visibility: binding.visibility,
-    workspaceState: hasWorkspace ? "ready" : "unprovisioned",
+    localPathState: hasLocalPath ? "ready" : "missing",
   }
 }

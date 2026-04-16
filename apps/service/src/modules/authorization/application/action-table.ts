@@ -62,8 +62,8 @@ export const WORKSPACE_ACTION_TABLE: ActionPolicyTable<WorkspaceRoleKey> = {
   "project.settings.update": {},
   "project.repository_binding.read": {},
   "project.repository_binding.write": {},
-  "project.workspace.provision": {},
-  "project.workspace.sync": {},
+  "project.local_path.provision": {},
+  "project.local_path.sync": {},
   "project.files.read": {},
   "project.files.write": {},
   "project.git.read": {},
@@ -137,12 +137,12 @@ export const PROJECT_ACTION_TABLE: ActionPolicyTable<ProjectRoleKey> = {
     workspace_member: "deny",
     legacy_project_owner: "allow",
   },
-  "project.workspace.provision": {
+  "project.local_path.provision": {
     workspace_owner: "allow",
     workspace_member: "deny",
     legacy_project_owner: "allow",
   },
-  "project.workspace.sync": {
+  "project.local_path.sync": {
     workspace_owner: "allow",
     workspace_member: "deny",
     legacy_project_owner: "allow",

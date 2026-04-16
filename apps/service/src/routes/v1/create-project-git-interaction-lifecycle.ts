@@ -1,5 +1,5 @@
 import type { ProjectGitInteractionLifecycle } from "../../modules/interaction/application/ports"
-import { requireProjectWorkspace } from "../../modules/project/domain/project"
+import { requireProjectLocalPath } from "../../modules/project/domain/project"
 import { getProjectUseCase } from "../../modules/project/application/get-project"
 import type { ProjectRepository } from "../../modules/project/application/project-repository"
 import { toProjectAppError } from "../../modules/project/project-app-error"
@@ -13,8 +13,8 @@ export function createProjectGitInteractionLifecycle(args: {
     async subscribe(projectId, listener) {
       try {
         const project = await getProjectUseCase(args.projectRepository, projectId)
-        const workspace = requireProjectWorkspace(project)
-        return await args.gitPathWatcher.subscribe(workspace.rootPath, (event) => {
+        const localPath = requireProjectLocalPath(project)
+        return await args.gitPathWatcher.subscribe(localPath.rootPath, (event) => {
           listener({
             projectId: project.id,
             changedAt: event.changedAt,

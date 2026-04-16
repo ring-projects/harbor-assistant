@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify"
 
 import type { AuthorizationService } from "../../authorization"
 import { getProjectUseCase } from "../../project/application/get-project"
-import { requireProjectWorkspace } from "../../project/domain/project"
+import { requireProjectLocalPath } from "../../project/domain/project"
 import type { ProjectRepository } from "../../project/application/project-repository"
 import type { WorkspaceRepository } from "../../workspace"
 import type { GitRepository } from "../application/git-repository"
@@ -39,7 +39,7 @@ export async function registerGitModuleRoutes(
       options.projectRepository as ProjectRepository,
       projectId,
     )
-    return requireProjectWorkspace(project).rootPath
+    return requireProjectLocalPath(project).rootPath
   }
 
   app.get<{ Params: GitProjectParams }>(

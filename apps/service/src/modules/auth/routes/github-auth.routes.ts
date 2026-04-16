@@ -21,12 +21,21 @@ import {
   HARBOR_SESSION_COOKIE_NAME,
 } from "../constants"
 import { PrismaAuthSessionStore } from "../infrastructure/prisma-auth-session-store"
+import { buildSessionCookieOptions } from "../lib/session-cookie-options"
 import { createOAuthState } from "../lib/session"
 import {
   buildGitHubAuthorizeUrl,
   GitHubOAuthProvider,
   type GitHubIdentity,
 } from "../providers/github"
+import type {
+  GitHubAuthCallbackQuery,
+  GitHubAuthStartQuery,
+} from "../schemas"
+import {
+  completeGitHubAuthRouteSchema,
+  startGitHubAuthRouteSchema,
+} from "../schemas"
 
 function isSecureCookie(config: ServiceConfig) {
   return config.isProduction
@@ -181,12 +190,11 @@ export async function registerGitHubAuthRoutes(
           clientSecret: options.config.githubClientSecret!,
         }))
 
-  app.get<{
-    Querystring: {
-      redirect?: string
-    }
-  }>(
+  app.get<{ Querystring: GitHubAuthStartQuery }>(
     "/auth/github/start",
+    {
+      schema: startGitHubAuthRouteSchema,
+    },
     async (request, reply) => {
       ensureGitHubOAuthConfigured(options.config)
 
@@ -227,13 +235,11 @@ export async function registerGitHubAuthRoutes(
     },
   )
 
-  app.get<{
-    Querystring: {
-      code?: string
-      state?: string
-    }
-  }>(
+  app.get<{ Querystring: GitHubAuthCallbackQuery }>(
     "/auth/github/callback",
+    {
+      schema: completeGitHubAuthRouteSchema,
+    },
     async (request, reply) => {
       const cookies = parseCookieHeader(request.headers.cookie)
       const storedRedirect = normalizeLoginRedirectTarget(
@@ -294,9 +300,7 @@ export async function registerGitHubAuthRoutes(
 
         reply.header("set-cookie", [
           serializeCookie(HARBOR_SESSION_COOKIE_NAME, session.token, {
-            secure: isSecureCookie(options.config),
-            sameSite: "Lax",
-            path: "/",
+            ...buildSessionCookieOptions(options.config),
             maxAge: DEFAULT_SESSION_TTL_DAYS * 24 * 60 * 60,
           }),
           expireCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, {

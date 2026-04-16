@@ -15,7 +15,7 @@ function createConfig(): ServiceConfig {
     serviceName: "harbor",
     database: "https://example.com/db",
     fileBrowserRootDirectory: "/tmp",
-    workspaceRootDirectory: "/tmp/harbor/workspaces",
+    projectLocalPathRootDirectory: "/tmp/harbor/workspaces",
     publicSkillsRootDirectory: "/tmp/harbor/skills/profiles/default",
     nodeEnv: "test",
     isProduction: false,

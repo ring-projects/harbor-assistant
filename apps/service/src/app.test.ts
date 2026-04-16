@@ -25,7 +25,7 @@ async function createConfig(): Promise<ServiceConfig> {
     serviceName: "harbor",
     database: databaseUrl,
     fileBrowserRootDirectory: rootPath,
-    workspaceRootDirectory: path.join(rootPath, "workspaces"),
+    projectLocalPathRootDirectory: path.join(rootPath, "workspaces"),
     publicSkillsRootDirectory: path.join(
       rootPath,
       "skills",
@@ -89,6 +89,95 @@ describe("buildServiceApp", () => {
       gitSha: null,
       buildTime: null,
     })
+
+    await app.close()
+  })
+
+  it("exposes the generated openapi document as json", async () => {
+    const app = await buildServiceApp(await createConfig())
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/openapi.json",
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.headers["content-type"]).toContain("application/json")
+
+    const body = response.json()
+
+    expect(body).toMatchObject({
+      openapi: "3.0.3",
+      info: {
+        title: "Harbor Service API",
+      },
+    })
+    expect(body.paths).toHaveProperty("/v1/projects")
+    expect(body.paths).toHaveProperty("/v1/workspaces")
+    expect(body.paths).toHaveProperty("/v1/workspaces/{id}/members")
+    expect(body.paths).toHaveProperty("/v1/workspaces/{id}/invitations")
+    expect(body.paths).toHaveProperty("/v1/workspace-invitations/{invitationId}/accept")
+    expect(body.paths).toHaveProperty("/v1/integrations/github/app/install-url")
+    expect(body.paths).toHaveProperty("/v1/integrations/github/setup")
+    expect(body.paths).toHaveProperty("/v1/integrations/github/installations")
+    expect(body.paths).toHaveProperty(
+      "/v1/integrations/github/installations/{installationId}/repositories",
+    )
+    expect(body.paths).toHaveProperty("/v1/auth/session")
+    expect(body.paths).toHaveProperty("/v1/auth/logout")
+    expect(body.paths).toHaveProperty("/v1/auth/github/start")
+    expect(body.paths).toHaveProperty("/v1/auth/github/callback")
+    expect(body.paths).toHaveProperty("/v1/agents/capabilities")
+    expect(body.paths).toHaveProperty("/v1/bootstrap/filesystem/roots")
+    expect(body.paths).toHaveProperty("/v1/bootstrap/filesystem/list")
+    expect(body.paths).toHaveProperty("/v1/bootstrap/filesystem/stat")
+    expect(body.paths).toHaveProperty("/v1/projects/{projectId}/files/list")
+    expect(body.paths).toHaveProperty("/v1/projects/{projectId}/git")
+    expect(body.paths).toHaveProperty("/v1/orchestrations")
+    expect(body.paths).toHaveProperty("/v1/orchestrations/bootstrap")
+    expect(body.paths).toHaveProperty("/v1/tasks/{taskId}")
+    expect(body.paths).toHaveProperty("/healthz")
+    expect(body.paths).toHaveProperty("/version")
+    expect(body.paths).not.toHaveProperty("/v1/projects/{projectId}/task-input-images")
+    expect(body.paths["/v1/projects/{projectId}/task-input-files"].post).toMatchObject({
+      operationId: "uploadTaskInputFile",
+      tags: ["tasks"],
+    })
+    expect(body.paths["/v1/projects/{id}"].get).toMatchObject({
+      operationId: "getProject",
+      tags: ["projects"],
+      security: [{ cookieAuth: [] }],
+    })
+
+    await app.close()
+  })
+
+  it("exposes the generated openapi document as yaml", async () => {
+    const app = await buildServiceApp(await createConfig())
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/openapi.yaml",
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.headers["content-type"]).toContain("application/yaml")
+    expect(response.body).toContain("openapi: 3.0.3")
+
+    await app.close()
+  })
+
+  it("serves the scalar api reference", async () => {
+    const app = await buildServiceApp(await createConfig())
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/reference/",
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.headers["content-type"]).toContain("text/html")
+    expect(response.body).toContain("Scalar")
 
     await app.close()
   })

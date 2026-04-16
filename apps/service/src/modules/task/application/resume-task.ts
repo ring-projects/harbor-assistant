@@ -14,9 +14,9 @@ function normalizeNullableString(value: string | null | undefined) {
   return normalized ? normalized : null
 }
 
-function requireProjectWorkspaceRoot(rootPath: string | null) {
+function requireProjectRootPath(rootPath: string | null) {
   if (!rootPath) {
-    throw createTaskError().invalidInput("project workspace is not available")
+    throw createTaskError().invalidInput("project root path is not available")
   }
 
   return rootPath
@@ -55,7 +55,7 @@ export async function resumeTaskUseCase(args: {
   if (!project) {
     throw createTaskError().projectNotFound()
   }
-  const projectRootPath = requireProjectWorkspaceRoot(project.rootPath)
+  const projectRootPath = requireProjectRootPath(project.rootPath)
 
   const requestedEffort = normalizeNullableTaskEffort(input.effort)
   if (input.effort !== undefined && input.effort !== null && !requestedEffort) {

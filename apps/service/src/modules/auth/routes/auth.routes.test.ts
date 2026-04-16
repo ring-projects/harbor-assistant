@@ -16,6 +16,7 @@ import {
   GITHUB_OAUTH_REDIRECT_COOKIE_NAME,
   HARBOR_SESSION_COOKIE_NAME,
 } from "../constants"
+import { PrismaAuthSessionStore } from "../infrastructure/prisma-auth-session-store"
 
 function createAuthTestConfig(): ServiceConfig {
   return {
@@ -24,7 +25,7 @@ function createAuthTestConfig(): ServiceConfig {
     serviceName: "harbor-test",
     database: "file:test.sqlite",
     fileBrowserRootDirectory: "/tmp",
-    workspaceRootDirectory: "/tmp/workspaces",
+    projectLocalPathRootDirectory: "/tmp/workspaces",
     publicSkillsRootDirectory: "/tmp/skills/profiles/default",
     nodeEnv: "test",
     isProduction: false,
@@ -38,6 +39,7 @@ function createAuthTestConfig(): ServiceConfig {
     githubAppWebhookSecret: undefined,
     allowedGitHubUsers: [],
     allowedGitHubOrgs: [],
+    sessionCookieDomain: undefined,
   }
 }
 
@@ -453,6 +455,86 @@ describe("auth routes", () => {
         email: "octo@example.com",
       },
     })
+
+    await app.close()
+  })
+
+  it("sets the configured cookie domain on the Harbor session cookie", async () => {
+    testDatabase = await createTestDatabase()
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      config: {
+        ...createAuthTestConfig(),
+        sessionCookieDomain: ".example.com",
+      },
+      githubClient: {
+        async exchangeCodeForIdentity() {
+          return {
+            providerUserId: "github-user-1",
+            login: "octocat-team",
+            name: "Octo Cat",
+            email: "octo@example.com",
+            avatarUrl: "https://avatars.example.com/u/1",
+            organizations: [],
+          }
+        },
+      },
+    })
+
+    const start = await app.inject({
+      method: "GET",
+      url: "/v1/auth/github/start",
+    })
+    const state = extractCookieValue(start.headers, "harbor_github_oauth_state")
+
+    const callback = await app.inject({
+      method: "GET",
+      url: `/v1/auth/github/callback?code=test-code&state=${state}`,
+      headers: {
+        cookie: buildCookieHeader(start.headers, ["harbor_github_oauth_state"]),
+      },
+    })
+
+    expect(callback.statusCode).toBe(302)
+    expect(extractCookie(callback.headers, HARBOR_SESSION_COOKIE_NAME)).toContain(
+      "Domain=example.com",
+    )
+
+    await app.close()
+  })
+
+  it("uses the configured cookie domain when clearing the Harbor session", async () => {
+    testDatabase = await createTestDatabase()
+    const app = await createAuthTestApp(testDatabase.prisma, {
+      config: {
+        ...createAuthTestConfig(),
+        sessionCookieDomain: "example.com",
+      },
+    })
+    const user = await testDatabase.prisma.user.create({
+      data: {
+        githubLogin: "octocat-team",
+      },
+    })
+    const sessionStore = new PrismaAuthSessionStore(testDatabase.prisma)
+    const sessionRecord = await sessionStore.createSession({
+      userId: user.id,
+      ttlDays: 30,
+      userAgent: null,
+      ip: null,
+    })
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/auth/logout",
+      headers: {
+        cookie: `${HARBOR_SESSION_COOKIE_NAME}=${encodeURIComponent(sessionRecord.token)}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(extractCookie(response.headers, HARBOR_SESSION_COOKIE_NAME)).toContain(
+      "Domain=example.com",
+    )
 
     await app.close()
   })

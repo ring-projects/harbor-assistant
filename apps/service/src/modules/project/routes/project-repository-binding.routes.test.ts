@@ -14,7 +14,7 @@ import { InMemoryGitHubInstallationRepository } from "../../integration/github/i
 import { InMemoryProjectRepositoryBindingRepository } from "../../integration/github/infrastructure/in-memory-project-repository-binding-repository"
 import { InMemoryWorkspaceInstallationRepository } from "../../integration/github/infrastructure/in-memory-workspace-installation-repository"
 import type { GitHubAppClient } from "../../integration/github/application/github-app-client"
-import type { ProjectWorkspaceManager } from "../../integration/github/application/project-workspace-manager"
+import type { ProjectLocalPathManager } from "../../integration/github/application/project-local-path-manager"
 import { InMemoryOrchestrationRepository } from "../../orchestration/infrastructure/in-memory-orchestration-repository"
 import { createProject } from "../domain/project"
 import { InMemoryProjectRepository } from "../infrastructure/in-memory-project-repository"
@@ -30,7 +30,7 @@ async function createApp(args?: {
   workspaceInstallationRepository?: InMemoryWorkspaceInstallationRepository
   bindingRepository?: InMemoryProjectRepositoryBindingRepository
   githubAppClient?: GitHubAppClient
-  workspaceManager?: ProjectWorkspaceManager
+  localPathManager?: ProjectLocalPathManager
 }) {
   const app = Fastify({ logger: false })
   const workspaceRepository =
@@ -86,9 +86,9 @@ async function createApp(args?: {
           args?.bindingRepository ??
           new InMemoryProjectRepositoryBindingRepository(),
         githubAppClient: args?.githubAppClient ?? createGitHubAppClientStub(),
-        workspaceManager:
-          args?.workspaceManager ?? createWorkspaceManagerStub(),
-        workspaceRootDirectory: "/managed-workspaces",
+        localPathManager:
+          args?.localPathManager ?? createLocalPathManagerStub(),
+        projectLocalPathRootDirectory: "/managed-workspaces",
       })
     },
     { prefix: "/v1" },
@@ -124,9 +124,9 @@ function createGitHubAppClientStub(
   }
 }
 
-function createWorkspaceManagerStub(
-  overrides: Partial<ProjectWorkspaceManager> = {},
-): ProjectWorkspaceManager {
+function createLocalPathManagerStub(
+  overrides: Partial<ProjectLocalPathManager> = {},
+): ProjectLocalPathManager {
   return {
     cloneRepository: vi.fn(async () => undefined),
     syncRepository: vi.fn(async () => undefined),
@@ -192,7 +192,7 @@ describe("project repository binding routes", () => {
         repositoryUrl: "https://github.com/acme/harbor-assistant.git",
         defaultBranch: "main",
         visibility: "private",
-        workspaceState: "unprovisioned",
+        localPathState: "missing",
       },
     })
   })
@@ -306,7 +306,7 @@ describe("project repository binding routes", () => {
         repositoryUrl: "https://github.com/acme/harbor-assistant.git",
         defaultBranch: "main",
         visibility: "private",
-        workspaceState: "unprovisioned",
+        localPathState: "missing",
       },
     })
   })
@@ -479,7 +479,7 @@ describe("project repository binding routes", () => {
     await expect(projectRepository.findById("project-1")).resolves.toBeNull()
   })
 
-  it("provisions a local workspace for a bound git project", async () => {
+  it("provisions a local path for a bound git project", async () => {
     const installationRepository = new InMemoryGitHubInstallationRepository()
     await installationRepository.save({
       id: "12345",
@@ -492,11 +492,11 @@ describe("project repository binding routes", () => {
       updatedAt: new Date("2026-04-02T00:00:00.000Z"),
       lastValidatedAt: null,
     })
-    const workspaceManager = createWorkspaceManagerStub()
+    const localPathManager = createLocalPathManagerStub()
 
     const app = await createApp({
       installationRepository,
-      workspaceManager,
+      localPathManager,
     })
 
     const created = await app.inject({
@@ -521,11 +521,11 @@ describe("project repository binding routes", () => {
 
     const provisioned = await app.inject({
       method: "POST",
-      url: "/v1/projects/project-1/provision-workspace",
+      url: "/v1/projects/project-1/provision-local-path",
     })
 
     expect(provisioned.statusCode).toBe(200)
-    expect(workspaceManager.cloneRepository).toHaveBeenCalledWith({
+    expect(localPathManager.cloneRepository).toHaveBeenCalledWith({
       repositoryUrl: "https://github.com/acme/harbor-assistant.git",
       branch: "main",
       targetPath: `/managed-workspaces/${createdProject.workspaceId}/project-1`,
@@ -539,7 +539,7 @@ describe("project repository binding routes", () => {
         normalizedPath: `/managed-workspaces/${createdProject.workspaceId}/project-1`,
       },
       repositoryBinding: {
-        workspaceState: "ready",
+        localPathState: "ready",
       },
     })
   })
@@ -834,7 +834,7 @@ describe("project repository binding routes", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/v1/projects/project-1/provision-workspace",
+      url: "/v1/projects/project-1/provision-local-path",
       headers: {
         "x-user-id": "user-2",
         "x-user-login": "user-2",

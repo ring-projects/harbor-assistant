@@ -40,6 +40,7 @@ export const GITHUB_INTEGRATION_QUERY_KEY = ["github-integration"] as const
 type ReadProjectsQueryOptions = {
   initialData?: Project[]
   enabled?: boolean
+  workspaceId?: string | null
 }
 
 export const projectSettingsQueryKey = (projectId: string) =>
@@ -51,18 +52,28 @@ export const projectQueryKey = (projectId: string) =>
 export const projectRepositoryBindingQueryKey = (projectId: string) =>
   [...PROJECTS_QUERY_KEY, "repository-binding", projectId] as const
 
-export const githubInstallUrlQueryKey = (returnTo: string | null) =>
-  [...GITHUB_INTEGRATION_QUERY_KEY, "install-url", returnTo ?? "none"] as const
+export const githubInstallUrlQueryKey = (
+  returnTo: string | null,
+  workspaceId: string | null,
+) =>
+  [
+    ...GITHUB_INTEGRATION_QUERY_KEY,
+    "install-url",
+    workspaceId ?? "none",
+    returnTo ?? "none",
+  ] as const
 
-export const githubInstallationsQueryKey = () =>
-  [...GITHUB_INTEGRATION_QUERY_KEY, "installations"] as const
+export const githubInstallationsQueryKey = (workspaceId: string | null) =>
+  [...GITHUB_INTEGRATION_QUERY_KEY, "installations", workspaceId ?? "none"] as const
 
 export const githubInstallationRepositoriesQueryKey = (
   installationId: string,
+  workspaceId: string | null,
 ) =>
   [
     ...GITHUB_INTEGRATION_QUERY_KEY,
     "installations",
+    workspaceId ?? "none",
     installationId,
     "repositories",
   ] as const
@@ -81,8 +92,8 @@ export function getProjectActionError(error: unknown) {
 
 export function useReadProjectsQuery(options?: ReadProjectsQueryOptions) {
   return useQuery<Project[]>({
-    queryKey: PROJECTS_QUERY_KEY,
-    queryFn: readProjects,
+    queryKey: [...PROJECTS_QUERY_KEY, "list", options?.workspaceId ?? "all"],
+    queryFn: () => readProjects(options?.workspaceId),
     initialData: options?.initialData,
     enabled: options?.enabled,
   })
@@ -90,34 +101,42 @@ export function useReadProjectsQuery(options?: ReadProjectsQueryOptions) {
 
 export function useGitHubInstallUrlQuery(
   returnTo: string | null,
+  workspaceId: string | null,
   enabled = true,
 ) {
   return useQuery<string>({
-    queryKey: githubInstallUrlQueryKey(returnTo),
-    queryFn: () => readGitHubAppInstallUrl(returnTo),
+    queryKey: githubInstallUrlQueryKey(returnTo, workspaceId),
+    queryFn: () => readGitHubAppInstallUrl(returnTo, workspaceId),
     enabled,
   })
 }
 
-export function useGitHubInstallationsQuery(enabled = true) {
+export function useGitHubInstallationsQuery(
+  workspaceId: string | null,
+  enabled = true,
+) {
   return useQuery<GitHubInstallation[]>({
-    queryKey: githubInstallationsQueryKey(),
-    queryFn: readGitHubInstallations,
+    queryKey: githubInstallationsQueryKey(workspaceId),
+    queryFn: () => readGitHubInstallations(workspaceId),
     enabled,
   })
 }
 
 export function useGitHubInstallationRepositoriesQuery(
   installationId: string | null,
+  workspaceId: string | null,
 ) {
   return useQuery<GitHubRepository[]>({
-    queryKey: githubInstallationRepositoriesQueryKey(installationId ?? "none"),
+    queryKey: githubInstallationRepositoriesQueryKey(
+      installationId ?? "none",
+      workspaceId,
+    ),
     queryFn: async () => {
       if (!installationId) {
         throw new ProjectApiClientError("Installation ID is required.")
       }
 
-      return readGitHubInstallationRepositories(installationId)
+      return readGitHubInstallationRepositories(installationId, workspaceId)
     },
     enabled: Boolean(installationId),
   })
@@ -187,9 +206,9 @@ export function useCreateProjectMutation() {
   return useMutation({
     mutationFn: createProject,
     onSuccess(project) {
-      queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, (current) =>
-        upsertProject(current, project),
-      )
+      queryClient.invalidateQueries({
+        queryKey: PROJECTS_QUERY_KEY,
+      })
       queryClient.setQueryData(projectQueryKey(project.id), project)
       queryClient.setQueryData(
         projectSettingsQueryKey(project.id),
@@ -204,9 +223,9 @@ export function useUpdateProjectMutation() {
   return useMutation({
     mutationFn: updateProject,
     onSuccess(project) {
-      queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, (current) =>
-        upsertProject(current, project),
-      )
+      queryClient.invalidateQueries({
+        queryKey: PROJECTS_QUERY_KEY,
+      })
       queryClient.setQueryData(projectQueryKey(project.id), project)
       queryClient.setQueryData(
         projectSettingsQueryKey(project.id),
@@ -226,9 +245,9 @@ export function useUpdateProjectSettingsMutation(projectId: string) {
         ...input,
       }),
     onSuccess(project) {
-      queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, (current) =>
-        upsertProject(current, project),
-      )
+      queryClient.invalidateQueries({
+        queryKey: PROJECTS_QUERY_KEY,
+      })
       queryClient.setQueryData(projectQueryKey(project.id), project)
       queryClient.setQueryData(
         projectSettingsQueryKey(projectId),
@@ -242,9 +261,9 @@ function updateProvisionedProjectState(
   queryClient: ReturnType<typeof useQueryClient>,
   result: ProvisionProjectWorkspaceResult,
 ) {
-  queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, (current) =>
-    upsertProject(current, result.project),
-  )
+  queryClient.invalidateQueries({
+    queryKey: PROJECTS_QUERY_KEY,
+  })
   queryClient.setQueryData(projectQueryKey(result.project.id), result.project)
   queryClient.setQueryData(
     projectSettingsQueryKey(result.project.id),
@@ -315,9 +334,9 @@ function createProjectStatusMutation(
     return useMutation({
       mutationFn,
       onSuccess(project) {
-        queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, (current) =>
-          upsertProject(current, project),
-        )
+        queryClient.invalidateQueries({
+          queryKey: PROJECTS_QUERY_KEY,
+        })
         queryClient.setQueryData(projectQueryKey(project.id), project)
         queryClient.setQueryData(
           projectSettingsQueryKey(project.id),
@@ -339,13 +358,9 @@ export function useDeleteProjectMutation() {
   return useMutation({
     mutationFn: (input: DeleteProjectInput) => deleteProject(input),
     onSuccess(result) {
-      const currentProjects =
-        queryClient.getQueryData<Project[]>(PROJECTS_QUERY_KEY) ?? []
-      const nextProjects = currentProjects.filter(
-        (project) => project.id !== result.projectId,
-      )
-
-      queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, nextProjects)
+      queryClient.invalidateQueries({
+        queryKey: PROJECTS_QUERY_KEY,
+      })
       queryClient.removeQueries({
         queryKey: projectQueryKey(result.projectId),
       })

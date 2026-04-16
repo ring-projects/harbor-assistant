@@ -65,3 +65,5 @@ _bmad-output/
 
 # local service database
 apps/service/prisma/dev.sqlite
+apps/service/generated/
+apps/web/src/lib/api/generated/

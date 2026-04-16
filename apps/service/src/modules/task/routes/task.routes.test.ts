@@ -559,7 +559,7 @@ describe("task routes", () => {
     })
   })
 
-  it("uploads a task input image into the project workspace", async () => {
+  it("uploads a task input image into the project root path", async () => {
     const rootPath = await mkdtemp(path.join(os.tmpdir(), "harbor-task-input-"))
     tempRoots.add(rootPath)
     const app = await createApp(rootPath)
@@ -594,7 +594,7 @@ describe("task routes", () => {
     expect(stored.toString()).toBe("test-image")
   })
 
-  it("uploads a task input document into the project workspace", async () => {
+  it("uploads a task input document into the project root path", async () => {
     const rootPath = await mkdtemp(path.join(os.tmpdir(), "harbor-task-input-"))
     tempRoots.add(rootPath)
     const app = await createApp(rootPath)

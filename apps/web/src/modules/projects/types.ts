@@ -45,6 +45,7 @@ export type ProjectRepositoryBinding = {
 
 export type Project = {
   id: string
+  workspaceId: string | null
   slug: string
   name: string
   description: string | null

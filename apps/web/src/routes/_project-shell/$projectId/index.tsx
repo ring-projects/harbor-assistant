@@ -20,7 +20,7 @@ function ProjectTaskRoutePage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <ProjectHeader />
+      <ProjectHeader projectId={projectId} />
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <TaskWorkbench projectId={projectId} />

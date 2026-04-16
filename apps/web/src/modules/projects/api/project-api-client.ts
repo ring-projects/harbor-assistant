@@ -52,6 +52,7 @@ export type GitHubRepositoryBindingInput = {
 }
 
 export type CreateProjectInput = {
+  workspaceId?: string | null
   name: string
   description?: string | null
 } & (
@@ -369,6 +370,7 @@ function extractProject(candidate: unknown): Project | null {
   }
 
   const id = toStringOrNull(source.id)
+  const workspaceId = toStringOrNull(source.workspaceId)
   const slug = toStringOrNull(source.slug)
   const name = toStringOrNull(source.name)
   const rootPath = toStringOrNull(source.rootPath)
@@ -390,6 +392,7 @@ function extractProject(candidate: unknown): Project | null {
 
   return {
     id,
+    workspaceId,
     slug,
     name,
     description: toStringOrNull(source.description),
@@ -519,7 +522,9 @@ function extractSyncProjectWorkspacePayload(
   }
 }
 
-export async function readProjects(): Promise<Project[]> {
+export async function readProjects(
+  workspaceId?: string | null,
+): Promise<Project[]> {
   const response = await executorApiFetch("/v1/projects", {
     method: "GET",
     cache: "no-store",
@@ -539,7 +544,11 @@ export async function readProjects(): Promise<Project[]> {
     })
   }
 
-  return projects
+  if (!workspaceId?.trim()) {
+    return projects
+  }
+
+  return projects.filter((project) => project.workspaceId === workspaceId)
 }
 
 export async function createProject(
@@ -549,6 +558,7 @@ export async function createProject(
     input.source.type === "git"
       ? {
           id: crypto.randomUUID(),
+          workspaceId: input.workspaceId ?? null,
           name: input.name,
           description: input.description,
           source: input.source,
@@ -557,6 +567,7 @@ export async function createProject(
         }
       : {
           id: crypto.randomUUID(),
+          workspaceId: input.workspaceId ?? null,
           name: input.name,
           description: input.description,
           source: input.source,
@@ -587,10 +598,14 @@ export async function createProject(
 
 export async function readGitHubAppInstallUrl(
   returnTo?: string | null,
+  workspaceId?: string | null,
 ): Promise<string> {
   const searchParams = new URLSearchParams()
   if (returnTo?.trim()) {
     searchParams.set("returnTo", returnTo)
+  }
+  if (workspaceId?.trim()) {
+    searchParams.set("workspaceId", workspaceId)
   }
 
   const response = await executorApiFetch(
@@ -621,9 +636,16 @@ export async function readGitHubAppInstallUrl(
   return installUrl
 }
 
-export async function readGitHubInstallations(): Promise<GitHubInstallation[]> {
+export async function readGitHubInstallations(
+  workspaceId?: string | null,
+): Promise<GitHubInstallation[]> {
+  const searchParams = new URLSearchParams()
+  if (workspaceId?.trim()) {
+    searchParams.set("workspaceId", workspaceId)
+  }
+
   const response = await executorApiFetch(
-    "/v1/integrations/github/installations",
+    `/v1/integrations/github/installations${searchParams.size ? `?${searchParams}` : ""}`,
     {
       method: "GET",
       cache: "no-store",
@@ -652,9 +674,15 @@ export async function readGitHubInstallations(): Promise<GitHubInstallation[]> {
 
 export async function readGitHubInstallationRepositories(
   installationId: string,
+  workspaceId?: string | null,
 ): Promise<GitHubRepository[]> {
+  const searchParams = new URLSearchParams()
+  if (workspaceId?.trim()) {
+    searchParams.set("workspaceId", workspaceId)
+  }
+
   const response = await executorApiFetch(
-    `/v1/integrations/github/installations/${encodeURIComponent(installationId)}/repositories`,
+    `/v1/integrations/github/installations/${encodeURIComponent(installationId)}/repositories${searchParams.size ? `?${searchParams}` : ""}`,
     {
       method: "GET",
       cache: "no-store",

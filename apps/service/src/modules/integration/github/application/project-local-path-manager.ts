@@ -1,4 +1,4 @@
-export interface ProjectWorkspaceManager {
+export interface ProjectLocalPathManager {
   cloneRepository(args: {
     repositoryUrl: string
     branch: string | null

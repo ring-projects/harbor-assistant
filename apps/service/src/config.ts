@@ -10,7 +10,7 @@ const configSchema = z.object({
   serviceName: z.string().default("harbor"),
   database: z.string().min(1),
   fileBrowserRootDirectory: z.string().min(1),
-  workspaceRootDirectory: z.string().min(1),
+  projectLocalPathRootDirectory: z.string().min(1),
   publicSkillsRootDirectory: z.string().min(1),
   nodeEnv: z.enum(["development", "test", "production"]).default("development"),
   appBaseUrl: z.url(),
@@ -23,6 +23,7 @@ const configSchema = z.object({
   githubAppWebhookSecret: z.string().min(1).optional(),
   allowedGitHubUsers: z.array(z.string().min(1)).default([]),
   allowedGitHubOrgs: z.array(z.string().min(1)).default([]),
+  sessionCookieDomain: z.string().min(1).optional(),
 })
 
 const fileConfigSchema = z.object({
@@ -37,6 +38,7 @@ const fileConfigSchema = z.object({
     .object({
       runtimeRootDirectory: z.string().min(1).optional(),
       fileBrowserRootDirectory: z.string().min(1).optional(),
+      projectLocalPathRootDirectory: z.string().min(1).optional(),
       workspaceRootDirectory: z.string().min(1).optional(),
       publicSkillsRootDirectory: z.string().min(1).optional(),
     })
@@ -51,6 +53,7 @@ const fileConfigSchema = z.object({
     .object({
       allowedGitHubUsers: z.array(z.string().min(1)).optional(),
       allowedGitHubOrgs: z.array(z.string().min(1)).optional(),
+      sessionCookieDomain: z.string().min(1).optional(),
     })
     .optional(),
 })
@@ -126,8 +129,11 @@ export async function loadServiceConfig(args?: {
   const fileBrowserRootDirectory = fileConfig.paths?.fileBrowserRootDirectory
     ? resolveAbsolutePath(fileConfig.paths.fileBrowserRootDirectory, configDirectory)
     : path.resolve(serviceRootDirectory, "../..")
-  const workspaceRootDirectory = fileConfig.paths?.workspaceRootDirectory
-    ? resolveAbsolutePath(fileConfig.paths.workspaceRootDirectory, configDirectory)
+  const configuredProjectLocalPathRootDirectory =
+    fileConfig.paths?.projectLocalPathRootDirectory ??
+    fileConfig.paths?.workspaceRootDirectory
+  const projectLocalPathRootDirectory = configuredProjectLocalPathRootDirectory
+    ? resolveAbsolutePath(configuredProjectLocalPathRootDirectory, configDirectory)
     : path.join(runtimeRootDirectory, "workspaces")
   const publicSkillsRootDirectory = fileConfig.paths?.publicSkillsRootDirectory
     ? resolveAbsolutePath(fileConfig.paths.publicSkillsRootDirectory, configDirectory)
@@ -138,7 +144,7 @@ export async function loadServiceConfig(args?: {
     serviceName: fileConfig.service?.name,
     database: env.DATABASE_URL,
     fileBrowserRootDirectory,
-    workspaceRootDirectory,
+    projectLocalPathRootDirectory,
     publicSkillsRootDirectory,
     nodeEnv: env.NODE_ENV,
     appBaseUrl: fileConfig.urls?.appBaseUrl,
@@ -151,6 +157,7 @@ export async function loadServiceConfig(args?: {
     githubAppWebhookSecret: env.GITHUB_APP_WEBHOOK_SECRET,
     allowedGitHubUsers: fileConfig.auth?.allowedGitHubUsers,
     allowedGitHubOrgs: fileConfig.auth?.allowedGitHubOrgs,
+    sessionCookieDomain: fileConfig.auth?.sessionCookieDomain,
   })
 
   if (!parsed.success) {

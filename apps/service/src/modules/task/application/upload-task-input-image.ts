@@ -61,7 +61,7 @@ export async function uploadTaskInputFileUseCase(args: {
     throw createTaskError().projectNotFound()
   }
   if (!project.rootPath) {
-    throw createTaskError().invalidInput("project workspace is not available")
+    throw createTaskError().invalidInput("project root path is not available")
   }
 
   const content = decodeBase64(input.dataBase64)

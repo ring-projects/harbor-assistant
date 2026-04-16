@@ -115,7 +115,10 @@ export async function registerTaskModuleRoutes(
   app.post<{ Params: ProjectIdParams; Body: UploadTaskInputImageBody }>(
     "/projects/:projectId/task-input-images",
     {
-      schema: uploadTaskInputImageRouteSchema,
+      schema: {
+        ...uploadTaskInputImageRouteSchema,
+        hide: true,
+      },
     },
     async (request) => {
       try {

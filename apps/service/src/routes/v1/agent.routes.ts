@@ -3,6 +3,9 @@ import type { FastifyInstance } from "fastify"
 import { getAgentCapabilities } from "../../lib/agents"
 
 const getAgentCapabilitiesRouteSchema = {
+  tags: ["agents"],
+  operationId: "getAgentCapabilities",
+  security: [{ cookieAuth: [] }],
   response: {
     200: {
       type: "object",

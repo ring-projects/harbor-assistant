@@ -4,6 +4,7 @@ type CookieOptions = {
   httpOnly?: boolean
   secure?: boolean
   sameSite?: SameSitePolicy
+  domain?: string
   path?: string
   maxAge?: number
   expires?: Date
@@ -50,6 +51,11 @@ export function serializeCookie(
   options: CookieOptions = {},
 ) {
   const segments = [`${name}=${encodeURIComponent(value)}`]
+
+  const normalizedDomain = options.domain?.trim().replace(/^\.+/, "")
+  if (normalizedDomain) {
+    segments.push(`Domain=${normalizedDomain}`)
+  }
 
   segments.push(`Path=${options.path ?? "/"}`)
 

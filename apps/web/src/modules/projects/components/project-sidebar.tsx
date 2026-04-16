@@ -3,6 +3,7 @@
 import { Link, useLocation } from "@tanstack/react-router"
 import {
   BotIcon,
+  HomeIcon,
   SearchIcon,
   Settings2Icon,
   type LucideIcon,
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils"
 import { ProjectSwitcher } from "./project-switcher"
 
 type ProjectSidebarProps = {
+  workspaceId: string
   projectId: string
   className?: string
   initialProjects?: Project[]
@@ -43,12 +45,14 @@ type ProjectSidebarItem = {
 }
 
 export function ProjectSidebar({
+  workspaceId,
   projectId,
   className,
   initialProjects,
 }: ProjectSidebarProps) {
   const location = useLocation()
-  const projectPath = `/${encodeURIComponent(projectId)}`
+  const workspacePath = `/workspaces/${encodeURIComponent(workspaceId)}`
+  const projectPath = `${workspacePath}/projects/${encodeURIComponent(projectId)}`
   const settingsPath = `${projectPath}/settings`
   const pathname = location.pathname
 
@@ -70,25 +74,62 @@ export function ProjectSidebar({
         } as React.CSSProperties
       }
     >
-      <Sidebar
+        <Sidebar
         collapsible="none"
         className={cn("border-border/60 w-16 border-r", className)}
       >
         <SidebarHeader className="border-border/60 h-14 items-center border-b">
-          <ProjectSwitcher
-            activeProjectId={projectId}
-            initialProjects={initialProjects}
-            triggerLabel="Open project switcher"
-            className="max-w-none justify-center gap-0"
+          <Link
+            to="/workspaces/$workspaceId"
+            params={{ workspaceId }}
+            className="flex size-12 items-center justify-center"
+            aria-label="Open workspace overview"
           >
             <HarborMark className="size-7" />
-          </ProjectSwitcher>
+          </Link>
         </SidebarHeader>
 
         <SidebarContent>
           <SidebarGroup className="p-2">
             <SidebarGroupContent>
+              <div className="mb-2">
+                <ProjectSwitcher
+                  workspaceId={workspaceId}
+                  activeProjectId={projectId}
+                  initialProjects={initialProjects}
+                  triggerLabel="Open project switcher"
+                  className="h-10 w-full justify-between px-2"
+                >
+                  <span className="text-xs font-medium">Projects</span>
+                </ProjectSwitcher>
+              </div>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === workspacePath}
+                        className="size-12 justify-center p-0 [&>svg]:size-5"
+                      >
+                        <Link
+                          to="/workspaces/$workspaceId"
+                          params={{ workspaceId }}
+                          aria-label="workspace overview"
+                        >
+                          <HomeIcon
+                            aria-hidden="true"
+                            className={cn(pathname === workspacePath && "text-primary")}
+                          />
+                        </Link>
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" align="center">
+                      Workspace overview
+                    </TooltipContent>
+                  </Tooltip>
+                </SidebarMenuItem>
+
                 <SidebarMenuItem>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -98,8 +139,8 @@ export function ProjectSidebar({
                         className="size-12 justify-center p-0 [&>svg]:size-5"
                       >
                         <Link
-                          to="/$projectId"
-                          params={{ projectId }}
+                          to="/workspaces/$workspaceId/projects/$projectId"
+                          params={{ workspaceId, projectId }}
                           aria-label="agent"
                         >
                           <BotIcon
@@ -124,8 +165,8 @@ export function ProjectSidebar({
                         className="size-12 justify-center p-0 [&>svg]:size-5"
                       >
                         <Link
-                          to="/$projectId/settings"
-                          params={{ projectId }}
+                          to="/workspaces/$workspaceId/projects/$projectId/settings"
+                          params={{ workspaceId, projectId }}
                           aria-label="setting"
                         >
                           <Settings2Icon

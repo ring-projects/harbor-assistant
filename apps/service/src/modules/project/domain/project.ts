@@ -328,7 +328,7 @@ export function relocateProjectRoot(
   }
 }
 
-export function attachProjectWorkspace(
+export function attachProjectLocalPath(
   project: Project,
   input: {
     normalizedPath: string
@@ -349,18 +349,18 @@ export function attachProjectWorkspace(
   }
 }
 
-export function hasProjectWorkspace(project: Project): project is Project & {
+export function hasProjectLocalPath(project: Project): project is Project & {
   rootPath: string
   normalizedPath: string
 } {
   return Boolean(project.rootPath && project.normalizedPath)
 }
 
-export function requireProjectWorkspace(
+export function requireProjectLocalPath(
   project: Project,
-  message = "project workspace is not available",
+  message = "project local path is not available",
 ) {
-  if (!hasProjectWorkspace(project)) {
+  if (!hasProjectLocalPath(project)) {
     throw createProjectError().invalidState(message)
   }
 
@@ -378,6 +378,6 @@ export function assertProjectReadyForWorkflow(
     throw createProjectError().invalidState(message)
   }
 
-  requireProjectWorkspace(project, message)
+  requireProjectLocalPath(project, message)
   return project
 }

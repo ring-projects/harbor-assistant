@@ -220,6 +220,9 @@ export const projectCreateDirectoryBodySchema = {
 } as const
 
 export const listProjectFilesRouteSchema = {
+  tags: ["filesystem"],
+  operationId: "listProjectFiles",
+  security: [{ cookieAuth: [] }],
   params: projectFilesParamsSchema,
   body: projectListDirectoryBodySchema,
   response: {
@@ -250,6 +253,9 @@ export const listProjectFilesRouteSchema = {
 } as const
 
 export const listBootstrapRootsRouteSchema = {
+  tags: ["filesystem"],
+  operationId: "listBootstrapFilesystemRoots",
+  security: [{ cookieAuth: [] }],
   response: {
     200: {
       type: "object",
@@ -267,6 +273,9 @@ export const listBootstrapRootsRouteSchema = {
 } as const
 
 export const listBootstrapFilesRouteSchema = {
+  tags: ["filesystem"],
+  operationId: "listBootstrapFilesystemEntries",
+  security: [{ cookieAuth: [] }],
   body: bootstrapListDirectoryBodySchema,
   response: {
     200: {
@@ -308,6 +317,9 @@ export const listBootstrapFilesRouteSchema = {
 } as const
 
 export const statBootstrapPathRouteSchema = {
+  tags: ["filesystem"],
+  operationId: "statBootstrapFilesystemPath",
+  security: [{ cookieAuth: [] }],
   querystring: bootstrapFilePathQuerySchema,
   response: {
     200: {
@@ -323,6 +335,9 @@ export const statBootstrapPathRouteSchema = {
 } as const
 
 export const statProjectPathRouteSchema = {
+  tags: ["filesystem"],
+  operationId: "statProjectPath",
+  security: [{ cookieAuth: [] }],
   params: projectFilesParamsSchema,
   querystring: projectFilePathQuerySchema,
   response: {
@@ -339,6 +354,9 @@ export const statProjectPathRouteSchema = {
 } as const
 
 export const readProjectTextFileRouteSchema = {
+  tags: ["filesystem"],
+  operationId: "readProjectTextFile",
+  security: [{ cookieAuth: [] }],
   params: projectFilesParamsSchema,
   querystring: projectFilePathQuerySchema,
   response: {
@@ -355,6 +373,9 @@ export const readProjectTextFileRouteSchema = {
 } as const
 
 export const writeProjectTextFileRouteSchema = {
+  tags: ["filesystem"],
+  operationId: "writeProjectTextFile",
+  security: [{ cookieAuth: [] }],
   params: projectFilesParamsSchema,
   body: projectWriteTextFileBodySchema,
   response: {
@@ -371,6 +392,9 @@ export const writeProjectTextFileRouteSchema = {
 } as const
 
 export const createProjectDirectoryRouteSchema = {
+  tags: ["filesystem"],
+  operationId: "createProjectDirectory",
+  security: [{ cookieAuth: [] }],
   params: projectFilesParamsSchema,
   body: projectCreateDirectoryBodySchema,
   response: {

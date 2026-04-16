@@ -43,6 +43,7 @@ describe("loadServiceConfig", () => {
           auth: {
             allowedGitHubUsers: ["octocat"],
             allowedGitHubOrgs: ["harbor"],
+            sessionCookieDomain: ".example.com",
           },
         },
         null,
@@ -66,7 +67,7 @@ describe("loadServiceConfig", () => {
     expect(config.fileBrowserRootDirectory).toBe(
       path.join(rootDirectory, "workspace"),
     )
-    expect(config.workspaceRootDirectory).toBe(
+    expect(config.projectLocalPathRootDirectory).toBe(
       path.join(rootDirectory, "runtime", "workspaces"),
     )
     expect(config.publicSkillsRootDirectory).toBe(
@@ -76,6 +77,7 @@ describe("loadServiceConfig", () => {
     expect(config.webBaseUrl).toBe("https://app.example.com")
     expect(config.allowedGitHubUsers).toEqual(["octocat"])
     expect(config.allowedGitHubOrgs).toEqual(["harbor"])
+    expect(config.sessionCookieDomain).toBe(".example.com")
   })
 
   it("does not let env shadow project-level values from the config file", async () => {
@@ -95,7 +97,7 @@ describe("loadServiceConfig", () => {
           paths: {
             runtimeRootDirectory: "./runtime",
             fileBrowserRootDirectory: "./workspace",
-            workspaceRootDirectory: "./custom-workspaces",
+            projectLocalPathRootDirectory: "./custom-workspaces",
             publicSkillsRootDirectory: "./custom-skills",
           },
           urls: {
@@ -105,6 +107,7 @@ describe("loadServiceConfig", () => {
           auth: {
             allowedGitHubUsers: ["octocat"],
             allowedGitHubOrgs: ["harbor"],
+            sessionCookieDomain: "example.com",
           },
         },
         null,
@@ -132,7 +135,7 @@ describe("loadServiceConfig", () => {
     expect(config.fileBrowserRootDirectory).toBe(
       path.join(rootDirectory, "workspace"),
     )
-    expect(config.workspaceRootDirectory).toBe(
+    expect(config.projectLocalPathRootDirectory).toBe(
       path.join(rootDirectory, "custom-workspaces"),
     )
     expect(config.publicSkillsRootDirectory).toBe(
@@ -142,6 +145,48 @@ describe("loadServiceConfig", () => {
     expect(config.webBaseUrl).toBe("https://app.example.com")
     expect(config.allowedGitHubUsers).toEqual(["octocat"])
     expect(config.allowedGitHubOrgs).toEqual(["harbor"])
+    expect(config.sessionCookieDomain).toBe("example.com")
+  })
+
+  it("accepts workspaceRootDirectory as a backward-compatible alias", async () => {
+    const rootDirectory = await mkdtemp(path.join(tmpdir(), "harbor-config-"))
+    tempDirs.push(rootDirectory)
+    const configPath = path.join(rootDirectory, "harbor.config.json")
+
+    await writeFile(
+      configPath,
+      JSON.stringify(
+        {
+          service: {
+            host: "127.0.0.1",
+            port: 4500,
+            name: "harbor-local",
+          },
+          paths: {
+            runtimeRootDirectory: "./runtime",
+            workspaceRootDirectory: "./legacy-workspaces",
+          },
+          urls: {
+            appBaseUrl: "https://service.example.com",
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    )
+
+    const config = await loadServiceConfig({
+      env: {
+        HARBOR_CONFIG_PATH: configPath,
+        DATABASE_URL: "file:./dev.sqlite",
+        NODE_ENV: "test",
+      },
+    })
+
+    expect(config.projectLocalPathRootDirectory).toBe(
+      path.join(rootDirectory, "legacy-workspaces"),
+    )
   })
 
   it("requires DATABASE_URL once Harbor home config fallback is removed", async () => {

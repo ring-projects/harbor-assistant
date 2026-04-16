@@ -21,18 +21,21 @@ const landingPageFontFamily = [
   "monospace",
 ].join(", ")
 
-export function LandingPage() {
+export function LandingPage(props: { workspaceId?: string | null }) {
   const navigate = useNavigate()
   const clearActiveProjectId = useAppStore((state) => state.clearActiveProjectId)
+  const setActiveWorkspaceId = useAppStore((state) => state.setActiveWorkspaceId)
 
   useEffect(() => {
+    setActiveWorkspaceId(props.workspaceId ?? null)
     clearActiveProjectId()
-  }, [clearActiveProjectId])
+  }, [clearActiveProjectId, props.workspaceId, setActiveWorkspaceId])
 
   function handleProjectCreated(project: Project) {
     void navigate({
-      to: "/$projectId",
+      to: "/workspaces/$workspaceId/projects/$projectId",
       params: {
+        workspaceId: project.workspaceId ?? props.workspaceId ?? "personal",
         projectId: project.id,
       },
     })
@@ -64,7 +67,7 @@ export function LandingPage() {
                   new project
                 </p>
                 <h1 className="max-w-[14ch] text-[32px] leading-[1.5] font-bold text-[#fdfcfc] sm:text-[38px]">
-                  Create a workspace and open it immediately.
+                  Create a project and open it immediately.
                 </h1>
                 <p className="max-w-xl text-base leading-7 text-[#9a9898]">
                   Register a local path, connect a GitHub repository, or paste a
@@ -126,6 +129,7 @@ export function LandingPage() {
             <CreateProject
               appearance="landing"
               className="pt-6"
+              workspaceId={props.workspaceId}
               pickerTitle={null}
               submitLabel="Create and Open"
               onCreated={handleProjectCreated}

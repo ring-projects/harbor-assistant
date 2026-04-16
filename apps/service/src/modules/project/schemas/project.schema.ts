@@ -43,7 +43,7 @@ export type ProjectRepositoryBindingResponse = {
   repositoryUrl: string
   defaultBranch: string | null
   visibility: "public" | "private" | "internal" | null
-  workspaceState: "unprovisioned" | "ready"
+  localPathState: "missing" | "ready"
 }
 
 export type PutProjectRepositoryBindingBody = {
@@ -244,7 +244,7 @@ const projectRepositoryBindingEntitySchema = {
     "repositoryUrl",
     "defaultBranch",
     "visibility",
-    "workspaceState",
+    "localPathState",
   ],
   properties: {
     projectId: { type: "string", minLength: 1 },
@@ -259,9 +259,9 @@ const projectRepositoryBindingEntitySchema = {
       type: ["string", "null"],
       enum: ["public", "private", "internal", null],
     },
-    workspaceState: {
+    localPathState: {
       type: "string",
-      enum: ["unprovisioned", "ready"],
+      enum: ["missing", "ready"],
     },
   },
 } as const
@@ -314,6 +314,9 @@ export const updateProjectSettingsBodySchema = {
 } as const
 
 export const listProjectsRouteSchema = {
+  tags: ["projects"],
+  operationId: "listProjects",
+  security: [{ cookieAuth: [] }],
   response: {
     200: {
       type: "object",
@@ -331,6 +334,9 @@ export const listProjectsRouteSchema = {
 } as const
 
 export const createProjectRouteSchema = {
+  tags: ["projects"],
+  operationId: "createProject",
+  security: [{ cookieAuth: [] }],
   body: createProjectBodySchema,
   response: {
     201: {
@@ -346,6 +352,9 @@ export const createProjectRouteSchema = {
 } as const
 
 export const getProjectRouteSchema = {
+  tags: ["projects"],
+  operationId: "getProject",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   response: {
     200: {
@@ -361,6 +370,9 @@ export const getProjectRouteSchema = {
 } as const
 
 export const updateProjectRouteSchema = {
+  tags: ["projects"],
+  operationId: "updateProject",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   body: updateProjectBodySchema,
   response: {
@@ -377,6 +389,9 @@ export const updateProjectRouteSchema = {
 } as const
 
 export const getProjectSettingsRouteSchema = {
+  tags: ["projects"],
+  operationId: "getProjectSettings",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   response: {
     200: {
@@ -392,6 +407,9 @@ export const getProjectSettingsRouteSchema = {
 } as const
 
 export const updateProjectSettingsRouteSchema = {
+  tags: ["projects"],
+  operationId: "updateProjectSettings",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   body: updateProjectSettingsBodySchema,
   response: {
@@ -408,6 +426,9 @@ export const updateProjectSettingsRouteSchema = {
 } as const
 
 export const archiveProjectRouteSchema = {
+  tags: ["projects"],
+  operationId: "archiveProject",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   response: {
     200: {
@@ -423,6 +444,9 @@ export const archiveProjectRouteSchema = {
 } as const
 
 export const getProjectRepositoryBindingRouteSchema = {
+  tags: ["projects"],
+  operationId: "getProjectRepositoryBinding",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   response: {
     200: {
@@ -438,6 +462,9 @@ export const getProjectRepositoryBindingRouteSchema = {
 } as const
 
 export const putProjectRepositoryBindingRouteSchema = {
+  tags: ["projects"],
+  operationId: "putProjectRepositoryBinding",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   body: repositoryBindingSchema,
   response: {
@@ -453,7 +480,10 @@ export const putProjectRepositoryBindingRouteSchema = {
   },
 } as const
 
-export const provisionProjectWorkspaceRouteSchema = {
+export const provisionProjectLocalPathRouteSchema = {
+  tags: ["projects"],
+  operationId: "provisionProjectLocalPath",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   response: {
     200: {
@@ -469,7 +499,10 @@ export const provisionProjectWorkspaceRouteSchema = {
   },
 } as const
 
-export const syncProjectWorkspaceRouteSchema = {
+export const syncProjectLocalPathRouteSchema = {
+  tags: ["projects"],
+  operationId: "syncProjectLocalPath",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   response: {
     200: {
@@ -485,9 +518,28 @@ export const syncProjectWorkspaceRouteSchema = {
   },
 } as const
 
-export const restoreProjectRouteSchema = archiveProjectRouteSchema
+export const restoreProjectRouteSchema = {
+  tags: ["projects"],
+  operationId: "restoreProject",
+  security: [{ cookieAuth: [] }],
+  params: projectIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "project"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        project: projectEntitySchema,
+      },
+    },
+  },
+} as const
 
 export const deleteProjectRouteSchema = {
+  tags: ["projects"],
+  operationId: "deleteProject",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   response: {
     200: {

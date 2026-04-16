@@ -39,9 +39,9 @@ export async function createTaskUseCase(args: {
   executionMode: string
   effort: TaskEffort
 }): Promise<TaskDetail> {
-  function requireProjectWorkspaceRoot(rootPath: string | null) {
+  function requireProjectRootPath(rootPath: string | null) {
     if (!rootPath) {
-      throw createTaskError().invalidInput("project workspace is not available")
+      throw createTaskError().invalidInput("project root path is not available")
     }
 
     return rootPath
@@ -89,7 +89,7 @@ export async function createTaskUseCase(args: {
   if (!project) {
     throw createTaskError().projectNotFound()
   }
-  const projectRootPath = requireProjectWorkspaceRoot(project.rootPath)
+  const projectRootPath = requireProjectRootPath(project.rootPath)
 
   const validatedRuntimeConfig = await validateTaskRuntimeConfig({
     executor,

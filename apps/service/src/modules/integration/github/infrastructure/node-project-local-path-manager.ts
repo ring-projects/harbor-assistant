@@ -5,7 +5,7 @@ import { spawn } from "node:child_process"
 import { buildChildProcessEnv } from "../../../../lib/process-env"
 import { AppError } from "../../../../lib/errors/app-error"
 import { ERROR_CODES } from "../../../../constants/errors"
-import type { ProjectWorkspaceManager } from "../application/project-workspace-manager"
+import type { ProjectLocalPathManager } from "../application/project-local-path-manager"
 
 function createGitHubAuthorizationHeader(accessToken: string) {
   const basic = Buffer.from(`x-access-token:${accessToken}`).toString("base64")
@@ -53,7 +53,7 @@ function createGitCommandEnv(repositoryUrl: string, accessToken: string) {
   })
 }
 
-export function createNodeProjectWorkspaceManager(): ProjectWorkspaceManager {
+export function createNodeProjectLocalPathManager(): ProjectLocalPathManager {
   return {
     async cloneRepository(args) {
       await mkdir(path.dirname(args.targetPath), { recursive: true })

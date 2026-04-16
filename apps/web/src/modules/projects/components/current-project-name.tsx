@@ -3,24 +3,22 @@
 import { useMemo } from "react"
 
 import { cn } from "@/lib/utils"
-import { useReadProjectsQuery } from "@/modules/projects/hooks"
-import { useAppStore } from "@/stores/app.store"
+import { useProjectQuery } from "@/modules/projects/hooks"
 
 type CurrentProjectNameProps = {
+  projectId: string
   className?: string
 }
 
 export function CurrentProjectName({
+  projectId,
   className,
 }: CurrentProjectNameProps) {
-  const activeProjectId = useAppStore((state) => state.activeProjectId)
-  const projectsQuery = useReadProjectsQuery()
+  const projectQuery = useProjectQuery(projectId)
 
   const activeProject = useMemo(
-    () =>
-      projectsQuery.data?.find((project) => project.id === activeProjectId) ??
-      null,
-    [activeProjectId, projectsQuery.data],
+    () => projectQuery.data ?? null,
+    [projectQuery.data],
   )
 
   return (

@@ -1,25 +1,25 @@
 import path from "node:path"
 
 import {
-  attachProjectWorkspace,
-  requireProjectWorkspace,
+  attachProjectLocalPath,
+  requireProjectLocalPath,
 } from "../../../project/domain/project"
 import { createProjectError } from "../../../project/errors"
 import type { ProjectRepository } from "../../../project/application/project-repository"
 import type { GitHubAppClient } from "./github-app-client"
 import type { GitHubInstallationRepository } from "./github-installation-repository"
 import type { ProjectRepositoryBindingRepository } from "./project-repository-binding-repository"
-import type { ProjectWorkspaceManager } from "./project-workspace-manager"
+import type { ProjectLocalPathManager } from "./project-local-path-manager"
 import { resolveGitHubManagedProjectContext } from "./resolve-github-managed-project-context"
 
-export async function provisionProjectWorkspaceUseCase(
+export async function provisionProjectLocalPathUseCase(
   deps: {
     projectRepository: ProjectRepository
     installationRepository: GitHubInstallationRepository
     bindingRepository: ProjectRepositoryBindingRepository
     githubAppClient: GitHubAppClient
-    workspaceManager: ProjectWorkspaceManager
-    workspaceRootDirectory: string
+    localPathManager: ProjectLocalPathManager
+    projectLocalPathRootDirectory: string
   },
   input: {
     projectId: string
@@ -30,27 +30,27 @@ export async function provisionProjectWorkspaceUseCase(
   const { project, binding, accessToken } = context
 
   if (project.rootPath || project.normalizedPath) {
-    requireProjectWorkspace(project)
-    throw createProjectError().invalidState("project workspace is already available")
+    requireProjectLocalPath(project)
+    throw createProjectError().invalidState("project local path is already available")
   }
-  const workspacePath = path.join(
-    deps.workspaceRootDirectory,
+  const localPath = path.join(
+    deps.projectLocalPathRootDirectory,
     project.workspaceId ?? project.ownerUserId ?? input.actorUserId,
     project.id,
   )
 
-  await deps.workspaceManager.cloneRepository({
+  await deps.localPathManager.cloneRepository({
     repositoryUrl: binding.repositoryUrl,
     branch: project.source.branch ?? binding.defaultBranch,
-    targetPath: workspacePath,
+    targetPath: localPath,
     accessToken: accessToken.token,
   })
 
-  const next = attachProjectWorkspace(
+  const next = attachProjectLocalPath(
     project,
     {
-      rootPath: workspacePath,
-      normalizedPath: workspacePath,
+      rootPath: localPath,
+      normalizedPath: localPath,
     },
   )
   await deps.projectRepository.save(next)

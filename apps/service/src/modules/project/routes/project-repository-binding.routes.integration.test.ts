@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { GitHubAppClient } from "../../integration/github/application/github-app-client"
-import type { ProjectWorkspaceManager } from "../../integration/github/application/project-workspace-manager"
+import type { ProjectLocalPathManager } from "../../integration/github/application/project-local-path-manager"
 import { PrismaGitHubInstallationRepository } from "../../integration/github/infrastructure/persistence/prisma-github-installation-repository"
 import {
   createProjectTestApp,
@@ -34,9 +34,9 @@ function createGitHubAppClientStub(
   }
 }
 
-function createWorkspaceManagerStub(
-  overrides: Partial<ProjectWorkspaceManager> = {},
-): ProjectWorkspaceManager {
+function createLocalPathManagerStub(
+  overrides: Partial<ProjectLocalPathManager> = {},
+): ProjectLocalPathManager {
   return {
     cloneRepository: vi.fn(async () => undefined),
     syncRepository: vi.fn(async () => undefined),
@@ -72,8 +72,8 @@ describe("project repository binding routes integration", () => {
 
     const app = await createProjectTestApp(testDatabase.prisma, {
       githubAppClient: createGitHubAppClientStub(),
-      workspaceManager: createWorkspaceManagerStub(),
-      workspaceRootDirectory: "/managed-workspaces",
+      localPathManager: createLocalPathManagerStub(),
+      projectLocalPathRootDirectory: "/managed-workspaces",
     })
 
     const created = await app.inject({
@@ -115,7 +115,7 @@ describe("project repository binding routes integration", () => {
         projectId: "project-1",
         installationId: "12345",
         repositoryFullName: "acme/harbor-assistant",
-        workspaceState: "unprovisioned",
+        localPathState: "missing",
       },
     })
 

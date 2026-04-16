@@ -25,6 +25,7 @@
     "db:migrate:dev": "pnpm --dir apps/service db:migrate:dev",
     "db:migrate:deploy": "pnpm --dir apps/service db:migrate:deploy",
     "db:studio": "pnpm --dir apps/service db:studio",
+    "openapi:generate": "pnpm --dir apps/service openapi:generate && pnpm --dir apps/web openapi:generate",
     "dev:service": "pnpm --dir apps/service dev",
     "start:service": "pnpm --dir apps/service start",
     "release:status": "pnpm dlx @changesets/cli status --verbose",

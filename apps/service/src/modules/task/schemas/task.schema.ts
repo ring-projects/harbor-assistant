@@ -309,6 +309,9 @@ export const uploadTaskInputImageBodySchema = {
 } as const
 
 export const uploadTaskInputImageRouteSchema = {
+  tags: ["tasks"],
+  operationId: "uploadTaskInputFile",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   body: uploadTaskInputImageBodySchema,
   response: {
@@ -328,6 +331,9 @@ export const uploadTaskInputImageRouteSchema = {
 } as const
 
 export const getTaskRouteSchema = {
+  tags: ["tasks"],
+  operationId: "getTask",
+  security: [{ cookieAuth: [] }],
   params: taskIdParamsSchema,
   response: {
     200: {
@@ -343,6 +349,9 @@ export const getTaskRouteSchema = {
 } as const
 
 export const updateTaskTitleRouteSchema = {
+  tags: ["tasks"],
+  operationId: "updateTaskTitle",
+  security: [{ cookieAuth: [] }],
   params: taskIdParamsSchema,
   body: updateTaskTitleBodySchema,
   response: {
@@ -359,6 +368,9 @@ export const updateTaskTitleRouteSchema = {
 } as const
 
 export const archiveTaskRouteSchema = {
+  tags: ["tasks"],
+  operationId: "archiveTask",
+  security: [{ cookieAuth: [] }],
   params: taskIdParamsSchema,
   response: {
     200: {
@@ -374,6 +386,9 @@ export const archiveTaskRouteSchema = {
 } as const
 
 export const resumeTaskRouteSchema = {
+  tags: ["tasks"],
+  operationId: "resumeTask",
+  security: [{ cookieAuth: [] }],
   params: taskIdParamsSchema,
   body: resumeTaskBodySchema,
   response: {
@@ -390,6 +405,9 @@ export const resumeTaskRouteSchema = {
 } as const
 
 export const cancelTaskRouteSchema = {
+  tags: ["tasks"],
+  operationId: "cancelTask",
+  security: [{ cookieAuth: [] }],
   params: taskIdParamsSchema,
   body: cancelTaskBodySchema,
   response: {
@@ -406,6 +424,9 @@ export const cancelTaskRouteSchema = {
 } as const
 
 export const deleteTaskRouteSchema = {
+  tags: ["tasks"],
+  operationId: "deleteTask",
+  security: [{ cookieAuth: [] }],
   params: taskIdParamsSchema,
   response: {
     200: {
@@ -423,6 +444,9 @@ export const deleteTaskRouteSchema = {
 } as const
 
 export const getTaskEventsRouteSchema = {
+  tags: ["tasks"],
+  operationId: "getTaskEvents",
+  security: [{ cookieAuth: [] }],
   params: taskIdParamsSchema,
   querystring: getTaskEventsQuerySchema,
   response: {

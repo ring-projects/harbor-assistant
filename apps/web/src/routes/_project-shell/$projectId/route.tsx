@@ -1,22 +1,29 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router"
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
 
-import { ProjectSidebar } from "@/modules/projects"
+import { readProject } from "@/modules/projects/api"
 import { RootNotFoundBoundary } from "@/routes/__root"
 
 export const Route = createFileRoute("/_project-shell/$projectId")({
-  component: ProjectLayoutRoute,
+  beforeLoad: async ({ params }) => {
+    const project = await readProject(params.projectId)
+
+    if (!project.workspaceId) {
+      return
+    }
+
+    throw redirect({
+      to: "/workspaces/$workspaceId/projects/$projectId",
+      params: {
+        workspaceId: project.workspaceId,
+        projectId: project.id,
+      },
+      replace: true,
+    })
+  },
+  component: LegacyProjectLayoutRoute,
   notFoundComponent: RootNotFoundBoundary,
 })
 
-function ProjectLayoutRoute() {
-  const { projectId } = Route.useParams()
-
-  return (
-    <div className="flex h-full min-h-0 overflow-hidden">
-      <ProjectSidebar projectId={projectId} />
-      <div className="min-w-0 flex-1 overflow-hidden">
-        <Outlet />
-      </div>
-    </div>
-  )
+function LegacyProjectLayoutRoute() {
+  return <Outlet />
 }

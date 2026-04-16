@@ -140,6 +140,9 @@ const createGitBranchBodySchema = {
 } as const
 
 export const getProjectGitRepositoryRouteSchema = {
+  tags: ["git"],
+  operationId: "getProjectGitRepository",
+  security: [{ cookieAuth: [] }],
   params: gitProjectParamsSchema,
   response: {
     200: {
@@ -155,6 +158,9 @@ export const getProjectGitRepositoryRouteSchema = {
 } as const
 
 export const listProjectGitBranchesRouteSchema = {
+  tags: ["git"],
+  operationId: "listProjectGitBranches",
+  security: [{ cookieAuth: [] }],
   params: gitProjectParamsSchema,
   response: {
     200: {
@@ -170,6 +176,9 @@ export const listProjectGitBranchesRouteSchema = {
 } as const
 
 export const getProjectGitDiffRouteSchema = {
+  tags: ["git"],
+  operationId: "getProjectGitDiff",
+  security: [{ cookieAuth: [] }],
   params: gitProjectParamsSchema,
   response: {
     200: {
@@ -196,6 +205,9 @@ export const getProjectGitDiffRouteSchema = {
 } as const
 
 export const checkoutProjectGitBranchRouteSchema = {
+  tags: ["git"],
+  operationId: "checkoutProjectGitBranch",
+  security: [{ cookieAuth: [] }],
   params: gitProjectParamsSchema,
   body: checkoutGitBranchBodySchema,
   response: {
@@ -212,6 +224,9 @@ export const checkoutProjectGitBranchRouteSchema = {
 } as const
 
 export const createProjectGitBranchRouteSchema = {
+  tags: ["git"],
+  operationId: "createProjectGitBranch",
+  security: [{ cookieAuth: [] }],
   params: gitProjectParamsSchema,
   body: createGitBranchBodySchema,
   response: {

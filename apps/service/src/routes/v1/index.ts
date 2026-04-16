@@ -19,7 +19,7 @@ import {
   requireAuthenticatedPreHandler,
 } from "../../modules/auth"
 import { NodeGitHubAppClient } from "../../modules/integration/github/infrastructure/node-github-app-client"
-import { createNodeProjectWorkspaceManager } from "../../modules/integration/github/infrastructure/node-project-workspace-manager"
+import { createNodeProjectLocalPathManager } from "../../modules/integration/github/infrastructure/node-project-local-path-manager"
 import { PrismaGitHubInstallationRepository } from "../../modules/integration/github/infrastructure/persistence/prisma-github-installation-repository"
 import { PrismaProjectRepositoryBindingRepository } from "../../modules/integration/github/infrastructure/persistence/prisma-project-repository-binding-repository"
 import { PrismaWorkspaceInstallationRepository } from "../../modules/integration/github/infrastructure/persistence/prisma-workspace-installation-repository"
@@ -143,7 +143,7 @@ export async function registerV1Routes(
     appId: config.githubAppId,
     privateKey: config.githubAppPrivateKey,
   })
-  const projectWorkspaceManager = createNodeProjectWorkspaceManager()
+  const projectLocalPathManager = createNodeProjectLocalPathManager()
   const fileSystemRepository = createNodeFileSystemRepository()
   const bootstrapRoots = [
     {
@@ -186,8 +186,8 @@ export async function registerV1Routes(
       installationRepository: githubInstallationRepository,
       repositoryBindingRepository: projectRepositoryBindingRepository,
       githubAppClient,
-      workspaceManager: projectWorkspaceManager,
-      workspaceRootDirectory: config.workspaceRootDirectory,
+      localPathManager: projectLocalPathManager,
+      projectLocalPathRootDirectory: config.projectLocalPathRootDirectory,
     })
     await registerOrchestrationModuleRoutes(protectedApp, {
       authorization: authorizationService,

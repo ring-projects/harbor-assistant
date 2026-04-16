@@ -206,7 +206,7 @@ describe("project git routes", () => {
     })
   })
 
-  it("returns invalid project state for git projects without a local workspace", async () => {
+  it("returns invalid project state for git projects without a local path", async () => {
     const projectRepository = new InMemoryProjectRepository()
     await projectRepository.save(
       createProject({

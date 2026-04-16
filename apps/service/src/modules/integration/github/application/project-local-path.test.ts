@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createProject } from "../../../project/domain/project"
 import { InMemoryProjectRepository } from "../../../project/infrastructure/in-memory-project-repository"
-import { provisionProjectWorkspaceUseCase } from "./provision-project-workspace"
-import { syncProjectWorkspaceUseCase } from "./sync-project-workspace"
+import { provisionProjectLocalPathUseCase } from "./provision-project-local-path"
+import { syncProjectLocalPathUseCase } from "./sync-project-local-path"
 import { InMemoryGitHubInstallationRepository } from "../infrastructure/in-memory-github-installation-repository"
 import { InMemoryProjectRepositoryBindingRepository } from "../infrastructure/in-memory-project-repository-binding-repository"
 import type { GitHubAppClient } from "./github-app-client"
-import type { ProjectWorkspaceManager } from "./project-workspace-manager"
+import type { ProjectLocalPathManager } from "./project-local-path-manager"
 
 function createGitHubAppClientStub(
   overrides: Partial<GitHubAppClient> = {},
@@ -24,9 +24,9 @@ function createGitHubAppClientStub(
   }
 }
 
-function createWorkspaceManagerStub(
-  overrides: Partial<ProjectWorkspaceManager> = {},
-): ProjectWorkspaceManager {
+function createLocalPathManagerStub(
+  overrides: Partial<ProjectLocalPathManager> = {},
+): ProjectLocalPathManager {
   return {
     cloneRepository: vi.fn(async () => undefined),
     syncRepository: vi.fn(async () => undefined),
@@ -34,13 +34,13 @@ function createWorkspaceManagerStub(
   }
 }
 
-describe("project workspace use cases", () => {
-  it("provisions a workspace for a bound git project and writes the resolved path back to the project", async () => {
+describe("project local path use cases", () => {
+  it("provisions a local path for a bound git project and writes the resolved path back to the project", async () => {
     const projectRepository = new InMemoryProjectRepository()
     const installationRepository = new InMemoryGitHubInstallationRepository()
     const bindingRepository = new InMemoryProjectRepositoryBindingRepository()
     const githubAppClient = createGitHubAppClientStub()
-    const workspaceManager = createWorkspaceManagerStub()
+    const localPathManager = createLocalPathManagerStub()
 
     await projectRepository.save(
       createProject({
@@ -82,14 +82,14 @@ describe("project workspace use cases", () => {
       lastVerifiedAt: null,
     })
 
-    const project = await provisionProjectWorkspaceUseCase(
+    const project = await provisionProjectLocalPathUseCase(
       {
         projectRepository,
         installationRepository,
         bindingRepository,
         githubAppClient,
-        workspaceManager,
-        workspaceRootDirectory: "/managed-workspaces",
+        localPathManager,
+        projectLocalPathRootDirectory: "/managed-workspaces",
       },
       {
         projectId: "project-1",
@@ -97,7 +97,7 @@ describe("project workspace use cases", () => {
       },
     )
 
-    expect(workspaceManager.cloneRepository).toHaveBeenCalledWith({
+    expect(localPathManager.cloneRepository).toHaveBeenCalledWith({
       repositoryUrl: "https://github.com/acme/harbor-assistant.git",
       branch: "main",
       targetPath: "/managed-workspaces/ws_1/project-1",
@@ -107,7 +107,7 @@ describe("project workspace use cases", () => {
     expect(project.normalizedPath).toBe("/managed-workspaces/ws_1/project-1")
   })
 
-  it("rejects sync for a git project that still has no local workspace", async () => {
+  it("rejects sync for a git project that still has no local path", async () => {
     const projectRepository = new InMemoryProjectRepository()
     const installationRepository = new InMemoryGitHubInstallationRepository()
     const bindingRepository = new InMemoryProjectRepositoryBindingRepository()
@@ -153,13 +153,13 @@ describe("project workspace use cases", () => {
     })
 
     await expect(
-      syncProjectWorkspaceUseCase(
+      syncProjectLocalPathUseCase(
         {
           projectRepository,
           installationRepository,
           bindingRepository,
           githubAppClient: createGitHubAppClientStub(),
-          workspaceManager: createWorkspaceManagerStub(),
+          localPathManager: createLocalPathManagerStub(),
         },
         {
           projectId: "project-1",

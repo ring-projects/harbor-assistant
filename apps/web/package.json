@@ -7,6 +7,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
+    "openapi:generate": "openapi-ts",
     "deploy": "pnpm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "start": "node dist/server/server.mjs",
@@ -71,6 +72,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.30.3",
+    "@hey-api/openapi-ts": "0.96.0",
     "@tailwindcss/postcss": "^4",
     "@tanstack/router-plugin": "^1.167.12",
     "@testing-library/jest-dom": "^6.9.1",

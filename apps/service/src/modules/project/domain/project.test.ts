@@ -28,7 +28,7 @@ describe("project domain", () => {
     expect(project.settings.skills.harborSkillsEnabled).toBe(false)
   })
 
-  it("creates a git-backed project without a local workspace", () => {
+  it("creates a git-backed project without a local path", () => {
     const project = createProject({
       id: "project-1",
       name: "Harbor Assistant",

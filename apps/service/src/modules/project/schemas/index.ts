@@ -17,9 +17,9 @@ export {
   listProjectsRouteSchema,
   projectIdParamsSchema,
   putProjectRepositoryBindingRouteSchema,
-  provisionProjectWorkspaceRouteSchema,
+  provisionProjectLocalPathRouteSchema,
   restoreProjectRouteSchema,
-  syncProjectWorkspaceRouteSchema,
+  syncProjectLocalPathRouteSchema,
   updateProjectRouteSchema,
   updateProjectSettingsRouteSchema,
 } from "./project.schema"

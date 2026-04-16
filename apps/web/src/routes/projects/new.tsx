@@ -1,6 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router"
 
-import { LandingPage } from "@/modules/landing-page"
 import { readCurrentAuthSession } from "@/modules/auth/server/read-current-auth-session"
 
 export const Route = createFileRoute("/projects/new")({
@@ -12,16 +11,13 @@ export const Route = createFileRoute("/projects/new")({
     }
 
     throw redirect({
-      to: "/login",
-      search: {
-        redirect: "/projects/new",
-      },
+      to: "/workspaces",
       replace: true,
     })
   },
-  component: NewProjectPage,
+  component: LegacyProjectsNewRoutePage,
 })
 
-function NewProjectPage() {
-  return <LandingPage />
+function LegacyProjectsNewRoutePage() {
+  return null
 }

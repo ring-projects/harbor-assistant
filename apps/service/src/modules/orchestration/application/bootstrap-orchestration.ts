@@ -67,9 +67,9 @@ export async function bootstrapOrchestrationUseCase(
     }
   },
 ): Promise<BootstrapOrchestrationResult> {
-  function requireProjectWorkspaceRoot(rootPath: string | null) {
+  function requireProjectRootPath(rootPath: string | null) {
     if (!rootPath) {
-      throw createTaskError().invalidInput("project workspace is not available")
+      throw createTaskError().invalidInput("project root path is not available")
     }
 
     return rootPath
@@ -114,7 +114,7 @@ export async function bootstrapOrchestrationUseCase(
     throw createProjectError().notFound()
   }
   assertProjectReadyForWorkflow(project)
-  const projectRootPath = requireProjectWorkspaceRoot(project.rootPath)
+  const projectRootPath = requireProjectRootPath(project.rootPath)
 
   const validatedRuntimeConfig = await validateTaskRuntimeConfig({
     executor,

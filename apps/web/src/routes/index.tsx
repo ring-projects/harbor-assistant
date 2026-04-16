@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import { readCurrentAuthSession } from "@/modules/auth/server/read-current-auth-session"
-import { readHomeProjectRedirect } from "@/modules/projects/server/read-home-project-redirect"
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
@@ -15,7 +14,7 @@ export const Route = createFileRoute("/")({
     }
 
     throw redirect({
-      href: await readHomeProjectRedirect(),
+      to: "/workspaces",
       replace: true,
     })
   },

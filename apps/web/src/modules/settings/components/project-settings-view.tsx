@@ -223,9 +223,11 @@ export function ProjectSettingsView({
   const returnTo = location.href
   const installUrlQuery = useGitHubInstallUrlQuery(
     returnTo,
+    projectQuery.data?.workspaceId ?? null,
     projectQuery.data?.source.type === "git",
   )
   const installationsQuery = useGitHubInstallationsQuery(
+    projectQuery.data?.workspaceId ?? null,
     projectQuery.data?.source.type === "git",
   )
   const bindRepositoryMutation = useBindProjectRepositoryMutation(projectId)
@@ -254,6 +256,7 @@ export function ProjectSettingsView({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const repositoriesQuery = useGitHubInstallationRepositoriesQuery(
     selectedInstallationId,
+    projectQuery.data?.workspaceId ?? null,
   )
 
   const baselineDraft = useMemo(

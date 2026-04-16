@@ -20,6 +20,7 @@ import type { Project } from "@/modules/projects/types"
 import { useUiStore } from "@/stores/ui.store"
 
 type ProjectsListProps = {
+  workspaceId: string
   activeProjectId?: string
   className?: string
   initialProjects?: Project[]
@@ -36,6 +37,7 @@ function describeProjectSource(project: Project) {
 }
 
 export function ProjectsList({
+  workspaceId,
   activeProjectId,
   className,
   initialProjects,
@@ -43,6 +45,7 @@ export function ProjectsList({
   const openAddProjectModal = useUiStore((state) => state.openAddProjectModal)
   const projectsQuery = useReadProjectsQuery({
     initialData: initialProjects,
+    workspaceId,
   })
   const resolvedActiveProjectId = activeProjectId
 
@@ -65,7 +68,7 @@ export function ProjectsList({
             size="icon"
             className="size-6"
             aria-label="Add project"
-            onClick={() => openAddProjectModal()}
+            onClick={() => openAddProjectModal(workspaceId)}
           >
             <PlusIcon className="size-4" />
           </Button>
@@ -104,8 +107,8 @@ export function ProjectsList({
                       className="h-auto py-2"
                     >
                       <Link
-                        to="/$projectId"
-                        params={{ projectId: project.id }}
+                        to="/workspaces/$workspaceId/projects/$projectId"
+                        params={{ workspaceId, projectId: project.id }}
                       >
                         <FolderOpenIcon
                           className="text-muted-foreground size-4 shrink-0"

@@ -17,7 +17,7 @@ describe("createNodeDocumentContentStore", () => {
     )
   })
 
-  it("creates project-local workspace directories and writes markdown content", async () => {
+  it("creates project-local directories and writes markdown content", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harbor-document-store-"))
     roots.push(root)
 
@@ -39,7 +39,7 @@ describe("createNodeDocumentContentStore", () => {
     expect(content).toBe("# Runtime Drift\n\nCapture requirements.")
   })
 
-  it("reads json content from the project-local workspace", async () => {
+  it("reads json content from the project-local path", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harbor-document-store-"))
     roots.push(root)
 

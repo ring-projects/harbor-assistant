@@ -252,6 +252,9 @@ export const listOrchestrationTasksQuerySchema = {
 } as const
 
 export const createOrchestrationRouteSchema = {
+  tags: ["orchestration"],
+  operationId: "createOrchestration",
+  security: [{ cookieAuth: [] }],
   body: createOrchestrationBodySchema,
   response: {
     201: {
@@ -267,6 +270,9 @@ export const createOrchestrationRouteSchema = {
 } as const
 
 export const bootstrapOrchestrationRouteSchema = {
+  tags: ["orchestration"],
+  operationId: "bootstrapOrchestration",
+  security: [{ cookieAuth: [] }],
   body: bootstrapOrchestrationBodySchema,
   response: {
     201: {
@@ -297,6 +303,9 @@ export const bootstrapOrchestrationRouteSchema = {
 } as const
 
 export const getOrchestrationRouteSchema = {
+  tags: ["orchestration"],
+  operationId: "getOrchestration",
+  security: [{ cookieAuth: [] }],
   params: orchestrationIdParamsSchema,
   response: {
     200: {
@@ -312,6 +321,9 @@ export const getOrchestrationRouteSchema = {
 } as const
 
 export const listProjectOrchestrationsRouteSchema = {
+  tags: ["orchestration"],
+  operationId: "listProjectOrchestrations",
+  security: [{ cookieAuth: [] }],
   params: projectIdParamsSchema,
   response: {
     200: {
@@ -330,6 +342,9 @@ export const listProjectOrchestrationsRouteSchema = {
 } as const
 
 export const createOrchestrationTaskRouteSchema = {
+  tags: ["orchestration"],
+  operationId: "createOrchestrationTask",
+  security: [{ cookieAuth: [] }],
   params: orchestrationIdParamsSchema,
   body: createOrchestrationTaskBodySchema,
   response: {
@@ -346,6 +361,9 @@ export const createOrchestrationTaskRouteSchema = {
 } as const
 
 export const listOrchestrationTasksRouteSchema = {
+  tags: ["orchestration"],
+  operationId: "listOrchestrationTasks",
+  security: [{ cookieAuth: [] }],
   params: orchestrationIdParamsSchema,
   querystring: listOrchestrationTasksQuerySchema,
   response: {

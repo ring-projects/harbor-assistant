@@ -40,8 +40,11 @@ export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
 }
 
 type AppState = {
+  activeWorkspaceId: string | null
   activeProjectId: string | null
   taskCreationDefaults: TaskCreationDefaults
+  setActiveWorkspaceId: (workspaceId: string | null) => void
+  clearActiveWorkspaceId: () => void
   setActiveProjectId: (projectId: string | null) => void
   clearActiveProjectId: () => void
   updateTaskCreationDefaults: (patch: TaskCreationDefaultsPatch) => void
@@ -51,8 +54,17 @@ type AppState = {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
+      activeWorkspaceId: null,
       activeProjectId: null,
       taskCreationDefaults: DEFAULT_TASK_CREATION_DEFAULTS,
+      setActiveWorkspaceId: (workspaceId) =>
+        set({
+          activeWorkspaceId: workspaceId,
+        }),
+      clearActiveWorkspaceId: () =>
+        set({
+          activeWorkspaceId: null,
+        }),
       setActiveProjectId: (projectId) =>
         set({
           activeProjectId: projectId,
@@ -85,6 +97,7 @@ export const useAppStore = create<AppState>()(
     {
       name: "harbor-app",
       partialize: (state) => ({
+        activeWorkspaceId: state.activeWorkspaceId,
         activeProjectId: state.activeProjectId,
         taskCreationDefaults: state.taskCreationDefaults,
       }),

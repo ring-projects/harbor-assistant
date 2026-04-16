@@ -1,18 +1,18 @@
-import { requireProjectWorkspace } from "../../../project/domain/project"
+import { requireProjectLocalPath } from "../../../project/domain/project"
 import type { ProjectRepository } from "../../../project/application/project-repository"
 import type { GitHubAppClient } from "./github-app-client"
 import type { GitHubInstallationRepository } from "./github-installation-repository"
 import type { ProjectRepositoryBindingRepository } from "./project-repository-binding-repository"
-import type { ProjectWorkspaceManager } from "./project-workspace-manager"
+import type { ProjectLocalPathManager } from "./project-local-path-manager"
 import { resolveGitHubManagedProjectContext } from "./resolve-github-managed-project-context"
 
-export async function syncProjectWorkspaceUseCase(
+export async function syncProjectLocalPathUseCase(
   deps: {
     projectRepository: ProjectRepository
     installationRepository: GitHubInstallationRepository
     bindingRepository: ProjectRepositoryBindingRepository
     githubAppClient: GitHubAppClient
-    workspaceManager: ProjectWorkspaceManager
+    localPathManager: ProjectLocalPathManager
   },
   input: {
     projectId: string
@@ -21,10 +21,10 @@ export async function syncProjectWorkspaceUseCase(
 ) {
   const context = await resolveGitHubManagedProjectContext(deps, input)
   const { project, binding, accessToken } = context
-  const workspace = requireProjectWorkspace(project)
-  await deps.workspaceManager.syncRepository({
+  const localPath = requireProjectLocalPath(project)
+  await deps.localPathManager.syncRepository({
     repositoryUrl: binding.repositoryUrl,
-    rootPath: workspace.rootPath,
+    rootPath: localPath.rootPath,
     accessToken: accessToken.token,
   })
 

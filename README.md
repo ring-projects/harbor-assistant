@@ -86,7 +86,7 @@ export DATABASE_URL=file:./apps/service/dev.sqlite
 The web app must know how to reach the service:
 
 ```bash
-export VITE_EXECUTOR_API_BASE_URL=http://127.0.0.1:3400
+export VITE_EXECUTOR_API_BASE_URL=http://localhost:3400
 ```
 
 ### Start both apps
@@ -104,8 +104,8 @@ pnpm run dev:web
 
 Default local endpoints:
 
-- Web: `http://localhost:3000`
-- Service: `http://127.0.0.1:3400`
+- Web: `http://localhost:5173`
+- Service: `http://localhost:3400`
 
 ## Configuration Notes
 

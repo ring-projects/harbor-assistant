@@ -16,6 +16,18 @@ import {
   findWorkspaceAccessibleToUser,
   type WorkspaceRepository,
 } from "../../../workspace"
+import type {
+  GitHubInstallationRepositoriesParams,
+  GitHubInstallationsQuery,
+  GitHubInstallUrlQuery,
+  GitHubSetupQuery,
+} from "../schemas"
+import {
+  completeGitHubSetupRouteSchema,
+  getGitHubInstallUrlRouteSchema,
+  listGitHubInstallationRepositoriesRouteSchema,
+  listGitHubInstallationsRouteSchema,
+} from "../schemas"
 
 function resolveCurrentUserId(request: { auth: { userId: string } | null }) {
   return request.auth!.userId
@@ -194,12 +206,12 @@ export async function registerGitHubIntegrationRoutes(
     githubAppClient: GitHubAppClient
   },
 ) {
-  app.get<{
-    Querystring: {
-      returnTo?: string
-      workspaceId?: string
-    }
-  }>("/integrations/github/app/install-url", async (request, reply) => {
+  app.get<{ Querystring: GitHubInstallUrlQuery }>(
+    "/integrations/github/app/install-url",
+    {
+      schema: getGitHubInstallUrlRouteSchema,
+    },
+    async (request, reply) => {
     ensureGitHubAppConfigured(options.githubAppSlug)
     const state = createGitHubAppInstallState()
     const returnTo = normalizeReturnTo(request.query.returnTo)
@@ -236,15 +248,15 @@ export async function registerGitHubIntegrationRoutes(
       ok: true,
       installUrl: options.githubAppClient.buildInstallUrl(state),
     }
-  })
+    },
+  )
 
-  app.get<{
-    Querystring: {
-      installation_id?: string
-      setup_action?: string
-      state?: string
-    }
-  }>("/integrations/github/setup", async (request, reply) => {
+  app.get<{ Querystring: GitHubSetupQuery }>(
+    "/integrations/github/setup",
+    {
+      schema: completeGitHubSetupRouteSchema,
+    },
+    async (request, reply) => {
     ensureGitHubAppConfigured(options.githubAppSlug)
     const currentUserId = resolveCurrentUserId(request)
     const cookies = parseCookieHeader(request.headers.cookie)
@@ -361,13 +373,15 @@ export async function registerGitHubIntegrationRoutes(
         }),
       )
     }
-  })
+    },
+  )
 
-  app.get<{
-    Querystring: {
-      workspaceId?: string
-    }
-  }>("/integrations/github/installations", async (request) => {
+  app.get<{ Querystring: GitHubInstallationsQuery }>(
+    "/integrations/github/installations",
+    {
+      schema: listGitHubInstallationsRouteSchema,
+    },
+    async (request) => {
     const workspaceId = request.query.workspaceId?.trim() || null
     let installations
 
@@ -398,17 +412,17 @@ export async function registerGitHubIntegrationRoutes(
       ok: true,
       installations,
     }
-  })
+    },
+  )
 
   app.get<{
-    Params: {
-      installationId: string
-    }
-    Querystring: {
-      workspaceId?: string
-    }
+    Params: GitHubInstallationRepositoriesParams
+    Querystring: GitHubInstallationsQuery
   }>(
     "/integrations/github/installations/:installationId/repositories",
+    {
+      schema: listGitHubInstallationRepositoriesRouteSchema,
+    },
     async (request) => {
       const workspaceId = request.query.workspaceId?.trim() || null
       const installation = workspaceId

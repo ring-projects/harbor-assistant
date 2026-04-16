@@ -71,6 +71,18 @@ pnpm --dir apps/service db:migrate:deploy
 }
 ```
 
+如果 web 和 service 部署在同一个父域的不同子域下，例如 `app.example.com` 和 `api.example.com`，可以额外配置：
+
+```json
+{
+  "auth": {
+    "sessionCookieDomain": "example.com"
+  }
+}
+```
+
+这样登录后的 `harbor_session` cookie 就能在两个子域之间共享。本地 `localhost` 开发通常不要设置这个字段。
+
 如果你需要清空本地 SQLite 数据库并按最新 schema 重建：
 
 1. 停掉当前 service 进程。
@@ -121,7 +133,8 @@ docker run --rm \
 说明：
 
 - 镜像默认使用 `HARBOR_CONFIG_PATH=/app/apps/service/harbor.docker.json`
-- `harbor.docker.json` 默认把 runtime root 指向 `/var/lib/harbor`，把 workspace root 指向 `/workspace`
+- `harbor.docker.json` 默认把 runtime root 指向 `/var/lib/harbor`，把 project local path root 指向 `/workspace`
 - `appBaseUrl` 现在是必填配置项；如果部署后的公开地址不是 `http://127.0.0.1:3400`，需要提供一份新的 JSON 配置文件并通过 `HARBOR_CONFIG_PATH` 挂载进去
 - 如果 web 侧启用了 `/v1/auth/*` 同源代理，`appBaseUrl` 应该配置成 web 对外域名，这样 GitHub OAuth callback 和 session cookie 才会落在 web 域名上
+- 如果 web 和 service 使用同一个父域的不同子域，建议同时配置 `auth.sessionCookieDomain`，例如 `example.com`
 - 如果需要在容器内真正执行任务，请确保运行环境中同时提供所需的 provider 认证信息

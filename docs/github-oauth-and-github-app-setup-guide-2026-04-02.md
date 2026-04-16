@@ -172,7 +172,7 @@ GitHub 官方明确提醒：OAuth App 中不要放你认为敏感的信息。
 
 ```text
 https://api.example.com/v1/auth/github/callback
-http://localhost:3400/v1/auth/github/callback
+http://localhost:5173/v1/auth/github/callback
 ```
 
 ### 5.5 OAuth App 的几个重要限制
@@ -536,8 +536,8 @@ GitHub 官方文档明确提醒：
 开发环境可以单独创建一个：
 
 - `Application name`: `Harbor Local`
-- `Homepage URL`: `http://localhost:3000`
-- `Authorization callback URL`: `http://localhost:3400/v1/auth/github/callback`
+- `Homepage URL`: `http://localhost:5173`
+- `Authorization callback URL`: `http://localhost:5173/v1/auth/github/callback`
 
 ### 7.2 GitHub App 示例
 

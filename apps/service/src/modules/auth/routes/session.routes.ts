@@ -6,11 +6,12 @@ import {
   HARBOR_SESSION_COOKIE_NAME,
 } from "../constants"
 import type { PrismaAuthSessionStore } from "../infrastructure/prisma-auth-session-store"
+import { buildSessionCookieOptions } from "../lib/session-cookie-options"
 import { requireAuthenticatedRequest } from "../plugin/auth-session"
-
-function isSecureCookie(config: ServiceConfig) {
-  return config.isProduction
-}
+import {
+  getAuthSessionRouteSchema,
+  logoutRouteSchema,
+} from "../schemas"
 
 export async function registerAuthSessionRoutes(
   app: FastifyInstance,
@@ -22,52 +23,7 @@ export async function registerAuthSessionRoutes(
   app.get(
     "/auth/session",
     {
-      schema: {
-        response: {
-          200: {
-            type: "object",
-            additionalProperties: false,
-            required: ["ok", "authenticated", "user"],
-            properties: {
-              ok: { type: "boolean", const: true },
-              authenticated: { type: "boolean" },
-              user: {
-                anyOf: [
-                  {
-                    type: "null",
-                  },
-                  {
-                    type: "object",
-                    additionalProperties: false,
-                    required: [
-                      "id",
-                      "githubLogin",
-                      "name",
-                      "email",
-                      "avatarUrl",
-                      "status",
-                      "lastLoginAt",
-                      "createdAt",
-                      "updatedAt",
-                    ],
-                    properties: {
-                      id: { type: "string" },
-                      githubLogin: { type: "string" },
-                      name: { type: ["string", "null"] },
-                      email: { type: ["string", "null"] },
-                      avatarUrl: { type: ["string", "null"] },
-                      status: { type: "string", enum: ["active", "disabled"] },
-                      lastLoginAt: { type: ["string", "null"], format: "date-time" },
-                      createdAt: { type: "string", format: "date-time" },
-                      updatedAt: { type: "string", format: "date-time" },
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      },
+      schema: getAuthSessionRouteSchema,
     },
     async (request) => {
       return {
@@ -80,6 +36,9 @@ export async function registerAuthSessionRoutes(
 
   app.post(
     "/auth/logout",
+    {
+      schema: logoutRouteSchema,
+    },
     async (request, reply) => {
       const auth = requireAuthenticatedRequest(request)
       const cookies = parseCookieHeader(request.headers.cookie)
@@ -93,11 +52,10 @@ export async function registerAuthSessionRoutes(
 
       reply.header(
         "set-cookie",
-        expireCookie(HARBOR_SESSION_COOKIE_NAME, {
-          secure: isSecureCookie(options.config),
-          sameSite: "Lax",
-          path: "/",
-        }),
+        expireCookie(
+          HARBOR_SESSION_COOKIE_NAME,
+          buildSessionCookieOptions(options.config),
+        ),
       )
 
       return {

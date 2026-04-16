@@ -30,6 +30,7 @@ import type {
 type CreateProjectProps = {
   className?: string
   appearance?: "default" | "landing"
+  workspaceId?: string | null
   submitLabel?: string
   cancelLabel?: string
   pickerTitle?: string | null
@@ -184,6 +185,7 @@ export function CreateProject(props: CreateProjectProps) {
   const {
     className,
     appearance = "default",
+    workspaceId = null,
     submitLabel = "Create Project",
     cancelLabel = "Cancel",
     pickerTitle = "Project Source",
@@ -210,10 +212,18 @@ export function CreateProject(props: CreateProjectProps) {
   const createMutation = useCreateProjectMutation()
   const provisionMutation = useProvisionProjectWorkspaceMutation()
   const returnTo = location.href
-  const installUrlQuery = useGitHubInstallUrlQuery(returnTo, mode === "github")
-  const installationsQuery = useGitHubInstallationsQuery(mode === "github")
+  const installUrlQuery = useGitHubInstallUrlQuery(
+    returnTo,
+    workspaceId,
+    mode === "github",
+  )
+  const installationsQuery = useGitHubInstallationsQuery(
+    workspaceId,
+    mode === "github",
+  )
   const repositoriesQuery = useGitHubInstallationRepositoriesQuery(
     mode === "github" ? selectedInstallationId : null,
+    workspaceId,
   )
 
   const selectedRepository = useMemo(
@@ -315,6 +325,7 @@ export function CreateProject(props: CreateProjectProps) {
       clearFeedback()
       const pathInfo = await statBootstrapDirectorySelection(selection)
       const project = await createMutation.mutateAsync({
+        workspaceId,
         name: deriveProjectName(
           name,
           deriveNameFromPath(pathInfo.absolutePath),
@@ -338,6 +349,7 @@ export function CreateProject(props: CreateProjectProps) {
       clearFeedback()
       const trimmedRepositoryUrl = manualRepositoryUrl.trim()
       const project = await createMutation.mutateAsync({
+        workspaceId,
         name: deriveProjectName(
           name,
           deriveNameFromRepositoryUrl(trimmedRepositoryUrl),
@@ -364,6 +376,7 @@ export function CreateProject(props: CreateProjectProps) {
     try {
       clearFeedback()
       const project = await createMutation.mutateAsync({
+        workspaceId,
         name: deriveProjectName(name, selectedRepository.name),
         source: {
           type: "git",

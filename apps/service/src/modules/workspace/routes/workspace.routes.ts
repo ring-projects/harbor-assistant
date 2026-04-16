@@ -15,6 +15,23 @@ import {
 import type { WorkspaceInvitationRepository } from "../application/workspace-invitation-repository"
 import { listUserWorkspacesUseCase } from "../application/list-user-workspaces"
 import type { WorkspaceRepository } from "../application/workspace-repository"
+import type {
+  AcceptWorkspaceInvitationParams,
+  CreateWorkspaceBody,
+  WorkspaceGithubLoginBody,
+  WorkspaceIdParams,
+  WorkspaceMemberParams,
+} from "../schemas"
+import {
+  acceptWorkspaceInvitationRouteSchema,
+  addWorkspaceMemberRouteSchema,
+  createWorkspaceInvitationRouteSchema,
+  createWorkspaceRouteSchema,
+  listUserWorkspacesRouteSchema,
+  listWorkspaceInvitationsRouteSchema,
+  listWorkspaceMembersRouteSchema,
+  removeWorkspaceMemberRouteSchema,
+} from "../schemas"
 import { toWorkspaceAppError } from "../workspace-app-error"
 
 type WorkspaceRouteOptions = {
@@ -27,7 +44,12 @@ export async function registerWorkspaceRoutes(
   app: FastifyInstance,
   options: WorkspaceRouteOptions,
 ) {
-  app.get("/workspaces", async (request) => {
+  app.get(
+    "/workspaces",
+    {
+      schema: listUserWorkspacesRouteSchema,
+    },
+    async (request) => {
     const workspaces = await listUserWorkspacesUseCase(options.repository, {
       userId: request.auth!.userId,
       fallbackName: request.auth!.user.name?.trim() || request.auth!.user.githubLogin,
@@ -37,14 +59,15 @@ export async function registerWorkspaceRoutes(
       ok: true,
       workspaces,
     }
-  })
+    },
+  )
 
-  app.post<{
-    Body: {
-      id?: string
-      name: string
-    }
-  }>("/workspaces", async (request, reply) => {
+  app.post<{ Body: CreateWorkspaceBody }>(
+    "/workspaces",
+    {
+      schema: createWorkspaceRouteSchema,
+    },
+    async (request, reply) => {
     try {
       const workspace = await createWorkspaceUseCase(options.repository, {
         id: request.body.id,
@@ -60,13 +83,15 @@ export async function registerWorkspaceRoutes(
     } catch (error) {
       throw toWorkspaceAppError(error)
     }
-  })
+    },
+  )
 
-  app.get<{
-    Params: {
-      id: string
-    }
-  }>("/workspaces/:id/members", async (request) => {
+  app.get<{ Params: WorkspaceIdParams }>(
+    "/workspaces/:id/members",
+    {
+      schema: listWorkspaceMembersRouteSchema,
+    },
+    async (request) => {
     try {
       const memberships = await listWorkspaceMembersForUserUseCase(
         options.repository,
@@ -83,16 +108,15 @@ export async function registerWorkspaceRoutes(
     } catch (error) {
       throw toWorkspaceAppError(error)
     }
-  })
+    },
+  )
 
-  app.post<{
-    Params: {
-      id: string
-    }
-    Body: {
-      githubLogin: string
-    }
-  }>("/workspaces/:id/members", async (request) => {
+  app.post<{ Params: WorkspaceIdParams; Body: WorkspaceGithubLoginBody }>(
+    "/workspaces/:id/members",
+    {
+      schema: addWorkspaceMemberRouteSchema,
+    },
+    async (request) => {
     try {
       const result = await addWorkspaceMemberUseCase(
         {
@@ -113,14 +137,15 @@ export async function registerWorkspaceRoutes(
     } catch (error) {
       throw toWorkspaceAppError(error)
     }
-  })
+    },
+  )
 
-  app.delete<{
-    Params: {
-      id: string
-      userId: string
-    }
-  }>("/workspaces/:id/members/:userId", async (request) => {
+  app.delete<{ Params: WorkspaceMemberParams }>(
+    "/workspaces/:id/members/:userId",
+    {
+      schema: removeWorkspaceMemberRouteSchema,
+    },
+    async (request) => {
     try {
       const result = await removeWorkspaceMemberUseCase(
         {
@@ -140,13 +165,15 @@ export async function registerWorkspaceRoutes(
     } catch (error) {
       throw toWorkspaceAppError(error)
     }
-  })
+    },
+  )
 
-  app.get<{
-    Params: {
-      id: string
-    }
-  }>("/workspaces/:id/invitations", async (request) => {
+  app.get<{ Params: WorkspaceIdParams }>(
+    "/workspaces/:id/invitations",
+    {
+      schema: listWorkspaceInvitationsRouteSchema,
+    },
+    async (request) => {
     try {
       const invitations = await listWorkspaceInvitationsForUserUseCase(
         {
@@ -166,16 +193,15 @@ export async function registerWorkspaceRoutes(
     } catch (error) {
       throw toWorkspaceAppError(error)
     }
-  })
+    },
+  )
 
-  app.post<{
-    Params: {
-      id: string
-    }
-    Body: {
-      githubLogin: string
-    }
-  }>("/workspaces/:id/invitations", async (request, reply) => {
+  app.post<{ Params: WorkspaceIdParams; Body: WorkspaceGithubLoginBody }>(
+    "/workspaces/:id/invitations",
+    {
+      schema: createWorkspaceInvitationRouteSchema,
+    },
+    async (request, reply) => {
     try {
       const invitation = await createWorkspaceInvitationUseCase(
         {
@@ -197,13 +223,15 @@ export async function registerWorkspaceRoutes(
     } catch (error) {
       throw toWorkspaceAppError(error)
     }
-  })
+    },
+  )
 
-  app.post<{
-    Params: {
-      invitationId: string
-    }
-  }>("/workspace-invitations/:invitationId/accept", async (request) => {
+  app.post<{ Params: AcceptWorkspaceInvitationParams }>(
+    "/workspace-invitations/:invitationId/accept",
+    {
+      schema: acceptWorkspaceInvitationRouteSchema,
+    },
+    async (request) => {
     try {
       const result = await acceptWorkspaceInvitationUseCase(
         {
@@ -228,5 +256,6 @@ export async function registerWorkspaceRoutes(
     } catch (error) {
       throw toWorkspaceAppError(error)
     }
-  })
+    },
+  )
 }
