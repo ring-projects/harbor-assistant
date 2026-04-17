@@ -1,22 +1,30 @@
-import { createFileRoute } from "@tanstack/react-router"
+"use client"
+
 import { useEffect } from "react"
 
-import { ProjectHeader } from "@/modules/projects"
+import { useAppStore } from "@/stores/app.store"
+import { ProjectHeader } from "../components/project-header"
 import { SettingsShell } from "@/modules/settings"
 import { TaskWorkbench } from "@/modules/tasks/screens"
-import { useAppStore } from "@/stores/app.store"
 
-export const Route = createFileRoute("/_project-shell/$projectId/")({
-  component: ProjectTaskRoutePage,
-})
+type ProjectConsoleScreenProps = {
+  projectId: string
+  workspaceId?: string | null
+}
 
-function ProjectTaskRoutePage() {
-  const { projectId } = Route.useParams()
+export function ProjectConsoleScreen({
+  projectId,
+  workspaceId = null,
+}: ProjectConsoleScreenProps) {
+  const setActiveWorkspaceId = useAppStore((state) => state.setActiveWorkspaceId)
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId)
 
   useEffect(() => {
+    if (workspaceId) {
+      setActiveWorkspaceId(workspaceId)
+    }
     setActiveProjectId(projectId)
-  }, [projectId, setActiveProjectId])
+  }, [projectId, setActiveProjectId, setActiveWorkspaceId, workspaceId])
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">

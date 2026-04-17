@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { ProjectSettingsView } from "@/modules/settings"
+import { ProjectSettingsScreen } from "@/modules/projects"
 
 export const Route = createFileRoute(
   "/workspaces/$workspaceId/projects/$projectId/settings",
@@ -11,9 +11,5 @@ export const Route = createFileRoute(
 function WorkspaceProjectSettingsRoutePage() {
   const { projectId } = Route.useParams()
 
-  return (
-    <div className="h-full overflow-auto">
-      <ProjectSettingsView projectId={projectId} />
-    </div>
-  )
+  return <ProjectSettingsScreen projectId={projectId} />
 }

@@ -12,19 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkspacesRouteImport } from './routes/workspaces'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as BrandRouteImport } from './routes/brand'
-import { Route as ProjectShellRouteImport } from './routes/_project-shell'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkspacesIndexRouteImport } from './routes/workspaces/index'
-import { Route as ProjectsNewRouteImport } from './routes/projects/new'
 import { Route as WorkspacesWorkspaceIdRouteRouteImport } from './routes/workspaces/$workspaceId/route'
-import { Route as ProjectShellProjectIdRouteRouteImport } from './routes/_project-shell/$projectId/route'
 import { Route as WorkspacesWorkspaceIdIndexRouteImport } from './routes/workspaces/$workspaceId/index'
-import { Route as ProjectShellProjectIdIndexRouteImport } from './routes/_project-shell/$projectId/index'
 import { Route as V1AuthSessionRouteImport } from './routes/v1/auth/session'
 import { Route as V1AuthLogoutRouteImport } from './routes/v1/auth/logout'
 import { Route as GithubAppCallbackRouteImport } from './routes/github/app/callback'
-import { Route as ProjectShellProjectIdSettingsRouteImport } from './routes/_project-shell/$projectId/settings'
-import { Route as WorkspacesWorkspaceIdProjectsNewRouteImport } from './routes/workspaces/$workspaceId/projects/new'
 import { Route as V1AuthGithubStartRouteImport } from './routes/v1/auth/github/start'
 import { Route as V1AuthGithubCallbackRouteImport } from './routes/v1/auth/github/callback'
 import { Route as WorkspacesWorkspaceIdProjectsProjectIdRouteRouteImport } from './routes/workspaces/$workspaceId/projects/$projectId/route'
@@ -46,10 +40,6 @@ const BrandRoute = BrandRouteImport.update({
   path: '/brand',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectShellRoute = ProjectShellRouteImport.update({
-  id: '/_project-shell',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -60,34 +50,17 @@ const WorkspacesIndexRoute = WorkspacesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => WorkspacesRoute,
 } as any)
-const ProjectsNewRoute = ProjectsNewRouteImport.update({
-  id: '/projects/new',
-  path: '/projects/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WorkspacesWorkspaceIdRouteRoute =
   WorkspacesWorkspaceIdRouteRouteImport.update({
     id: '/$workspaceId',
     path: '/$workspaceId',
     getParentRoute: () => WorkspacesRoute,
   } as any)
-const ProjectShellProjectIdRouteRoute =
-  ProjectShellProjectIdRouteRouteImport.update({
-    id: '/$projectId',
-    path: '/$projectId',
-    getParentRoute: () => ProjectShellRoute,
-  } as any)
 const WorkspacesWorkspaceIdIndexRoute =
   WorkspacesWorkspaceIdIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => WorkspacesWorkspaceIdRouteRoute,
-  } as any)
-const ProjectShellProjectIdIndexRoute =
-  ProjectShellProjectIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => ProjectShellProjectIdRouteRoute,
   } as any)
 const V1AuthSessionRoute = V1AuthSessionRouteImport.update({
   id: '/v1/auth/session',
@@ -104,18 +77,6 @@ const GithubAppCallbackRoute = GithubAppCallbackRouteImport.update({
   path: '/github/app/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectShellProjectIdSettingsRoute =
-  ProjectShellProjectIdSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => ProjectShellProjectIdRouteRoute,
-  } as any)
-const WorkspacesWorkspaceIdProjectsNewRoute =
-  WorkspacesWorkspaceIdProjectsNewRouteImport.update({
-    id: '/projects/new',
-    path: '/projects/new',
-    getParentRoute: () => WorkspacesWorkspaceIdRouteRoute,
-  } as any)
 const V1AuthGithubStartRoute = V1AuthGithubStartRouteImport.update({
   id: '/v1/auth/github/start',
   path: '/v1/auth/github/start',
@@ -150,20 +111,15 @@ export interface FileRoutesByFullPath {
   '/brand': typeof BrandRoute
   '/login': typeof LoginRoute
   '/workspaces': typeof WorkspacesRouteWithChildren
-  '/$projectId': typeof ProjectShellProjectIdRouteRouteWithChildren
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteRouteWithChildren
-  '/projects/new': typeof ProjectsNewRoute
   '/workspaces/': typeof WorkspacesIndexRoute
-  '/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
   '/github/app/callback': typeof GithubAppCallbackRoute
   '/v1/auth/logout': typeof V1AuthLogoutRoute
   '/v1/auth/session': typeof V1AuthSessionRoute
-  '/$projectId/': typeof ProjectShellProjectIdIndexRoute
   '/workspaces/$workspaceId/': typeof WorkspacesWorkspaceIdIndexRoute
   '/workspaces/$workspaceId/projects/$projectId': typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren
   '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
   '/v1/auth/github/start': typeof V1AuthGithubStartRoute
-  '/workspaces/$workspaceId/projects/new': typeof WorkspacesWorkspaceIdProjectsNewRoute
   '/workspaces/$workspaceId/projects/$projectId/settings': typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
   '/workspaces/$workspaceId/projects/$projectId/': typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
 }
@@ -171,41 +127,31 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/brand': typeof BrandRoute
   '/login': typeof LoginRoute
-  '/projects/new': typeof ProjectsNewRoute
   '/workspaces': typeof WorkspacesIndexRoute
-  '/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
   '/github/app/callback': typeof GithubAppCallbackRoute
   '/v1/auth/logout': typeof V1AuthLogoutRoute
   '/v1/auth/session': typeof V1AuthSessionRoute
-  '/$projectId': typeof ProjectShellProjectIdIndexRoute
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdIndexRoute
   '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
   '/v1/auth/github/start': typeof V1AuthGithubStartRoute
-  '/workspaces/$workspaceId/projects/new': typeof WorkspacesWorkspaceIdProjectsNewRoute
   '/workspaces/$workspaceId/projects/$projectId/settings': typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
   '/workspaces/$workspaceId/projects/$projectId': typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_project-shell': typeof ProjectShellRouteWithChildren
   '/brand': typeof BrandRoute
   '/login': typeof LoginRoute
   '/workspaces': typeof WorkspacesRouteWithChildren
-  '/_project-shell/$projectId': typeof ProjectShellProjectIdRouteRouteWithChildren
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteRouteWithChildren
-  '/projects/new': typeof ProjectsNewRoute
   '/workspaces/': typeof WorkspacesIndexRoute
-  '/_project-shell/$projectId/settings': typeof ProjectShellProjectIdSettingsRoute
   '/github/app/callback': typeof GithubAppCallbackRoute
   '/v1/auth/logout': typeof V1AuthLogoutRoute
   '/v1/auth/session': typeof V1AuthSessionRoute
-  '/_project-shell/$projectId/': typeof ProjectShellProjectIdIndexRoute
   '/workspaces/$workspaceId/': typeof WorkspacesWorkspaceIdIndexRoute
   '/workspaces/$workspaceId/projects/$projectId': typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren
   '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
   '/v1/auth/github/start': typeof V1AuthGithubStartRoute
-  '/workspaces/$workspaceId/projects/new': typeof WorkspacesWorkspaceIdProjectsNewRoute
   '/workspaces/$workspaceId/projects/$projectId/settings': typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
   '/workspaces/$workspaceId/projects/$projectId/': typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
 }
@@ -216,20 +162,15 @@ export interface FileRouteTypes {
     | '/brand'
     | '/login'
     | '/workspaces'
-    | '/$projectId'
     | '/workspaces/$workspaceId'
-    | '/projects/new'
     | '/workspaces/'
-    | '/$projectId/settings'
     | '/github/app/callback'
     | '/v1/auth/logout'
     | '/v1/auth/session'
-    | '/$projectId/'
     | '/workspaces/$workspaceId/'
     | '/workspaces/$workspaceId/projects/$projectId'
     | '/v1/auth/github/callback'
     | '/v1/auth/github/start'
-    | '/workspaces/$workspaceId/projects/new'
     | '/workspaces/$workspaceId/projects/$projectId/settings'
     | '/workspaces/$workspaceId/projects/$projectId/'
   fileRoutesByTo: FileRoutesByTo
@@ -237,51 +178,39 @@ export interface FileRouteTypes {
     | '/'
     | '/brand'
     | '/login'
-    | '/projects/new'
     | '/workspaces'
-    | '/$projectId/settings'
     | '/github/app/callback'
     | '/v1/auth/logout'
     | '/v1/auth/session'
-    | '/$projectId'
     | '/workspaces/$workspaceId'
     | '/v1/auth/github/callback'
     | '/v1/auth/github/start'
-    | '/workspaces/$workspaceId/projects/new'
     | '/workspaces/$workspaceId/projects/$projectId/settings'
     | '/workspaces/$workspaceId/projects/$projectId'
   id:
     | '__root__'
     | '/'
-    | '/_project-shell'
     | '/brand'
     | '/login'
     | '/workspaces'
-    | '/_project-shell/$projectId'
     | '/workspaces/$workspaceId'
-    | '/projects/new'
     | '/workspaces/'
-    | '/_project-shell/$projectId/settings'
     | '/github/app/callback'
     | '/v1/auth/logout'
     | '/v1/auth/session'
-    | '/_project-shell/$projectId/'
     | '/workspaces/$workspaceId/'
     | '/workspaces/$workspaceId/projects/$projectId'
     | '/v1/auth/github/callback'
     | '/v1/auth/github/start'
-    | '/workspaces/$workspaceId/projects/new'
     | '/workspaces/$workspaceId/projects/$projectId/settings'
     | '/workspaces/$workspaceId/projects/$projectId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ProjectShellRoute: typeof ProjectShellRouteWithChildren
   BrandRoute: typeof BrandRoute
   LoginRoute: typeof LoginRoute
   WorkspacesRoute: typeof WorkspacesRouteWithChildren
-  ProjectsNewRoute: typeof ProjectsNewRoute
   GithubAppCallbackRoute: typeof GithubAppCallbackRoute
   V1AuthLogoutRoute: typeof V1AuthLogoutRoute
   V1AuthSessionRoute: typeof V1AuthSessionRoute
@@ -312,13 +241,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_project-shell': {
-      id: '/_project-shell'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof ProjectShellRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -333,13 +255,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacesIndexRouteImport
       parentRoute: typeof WorkspacesRoute
     }
-    '/projects/new': {
-      id: '/projects/new'
-      path: '/projects/new'
-      fullPath: '/projects/new'
-      preLoaderRoute: typeof ProjectsNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/workspaces/$workspaceId': {
       id: '/workspaces/$workspaceId'
       path: '/$workspaceId'
@@ -347,26 +262,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacesWorkspaceIdRouteRouteImport
       parentRoute: typeof WorkspacesRoute
     }
-    '/_project-shell/$projectId': {
-      id: '/_project-shell/$projectId'
-      path: '/$projectId'
-      fullPath: '/$projectId'
-      preLoaderRoute: typeof ProjectShellProjectIdRouteRouteImport
-      parentRoute: typeof ProjectShellRoute
-    }
     '/workspaces/$workspaceId/': {
       id: '/workspaces/$workspaceId/'
       path: '/'
       fullPath: '/workspaces/$workspaceId/'
       preLoaderRoute: typeof WorkspacesWorkspaceIdIndexRouteImport
       parentRoute: typeof WorkspacesWorkspaceIdRouteRoute
-    }
-    '/_project-shell/$projectId/': {
-      id: '/_project-shell/$projectId/'
-      path: '/'
-      fullPath: '/$projectId/'
-      preLoaderRoute: typeof ProjectShellProjectIdIndexRouteImport
-      parentRoute: typeof ProjectShellProjectIdRouteRoute
     }
     '/v1/auth/session': {
       id: '/v1/auth/session'
@@ -388,20 +289,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/github/app/callback'
       preLoaderRoute: typeof GithubAppCallbackRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_project-shell/$projectId/settings': {
-      id: '/_project-shell/$projectId/settings'
-      path: '/settings'
-      fullPath: '/$projectId/settings'
-      preLoaderRoute: typeof ProjectShellProjectIdSettingsRouteImport
-      parentRoute: typeof ProjectShellProjectIdRouteRoute
-    }
-    '/workspaces/$workspaceId/projects/new': {
-      id: '/workspaces/$workspaceId/projects/new'
-      path: '/projects/new'
-      fullPath: '/workspaces/$workspaceId/projects/new'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdProjectsNewRouteImport
-      parentRoute: typeof WorkspacesWorkspaceIdRouteRoute
     }
     '/v1/auth/github/start': {
       id: '/v1/auth/github/start'
@@ -441,34 +328,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface ProjectShellProjectIdRouteRouteChildren {
-  ProjectShellProjectIdSettingsRoute: typeof ProjectShellProjectIdSettingsRoute
-  ProjectShellProjectIdIndexRoute: typeof ProjectShellProjectIdIndexRoute
-}
-
-const ProjectShellProjectIdRouteRouteChildren: ProjectShellProjectIdRouteRouteChildren =
-  {
-    ProjectShellProjectIdSettingsRoute: ProjectShellProjectIdSettingsRoute,
-    ProjectShellProjectIdIndexRoute: ProjectShellProjectIdIndexRoute,
-  }
-
-const ProjectShellProjectIdRouteRouteWithChildren =
-  ProjectShellProjectIdRouteRoute._addFileChildren(
-    ProjectShellProjectIdRouteRouteChildren,
-  )
-
-interface ProjectShellRouteChildren {
-  ProjectShellProjectIdRouteRoute: typeof ProjectShellProjectIdRouteRouteWithChildren
-}
-
-const ProjectShellRouteChildren: ProjectShellRouteChildren = {
-  ProjectShellProjectIdRouteRoute: ProjectShellProjectIdRouteRouteWithChildren,
-}
-
-const ProjectShellRouteWithChildren = ProjectShellRoute._addFileChildren(
-  ProjectShellRouteChildren,
-)
-
 interface WorkspacesWorkspaceIdProjectsProjectIdRouteRouteChildren {
   WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
   WorkspacesWorkspaceIdProjectsProjectIdIndexRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
@@ -490,7 +349,6 @@ const WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren =
 interface WorkspacesWorkspaceIdRouteRouteChildren {
   WorkspacesWorkspaceIdIndexRoute: typeof WorkspacesWorkspaceIdIndexRoute
   WorkspacesWorkspaceIdProjectsProjectIdRouteRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren
-  WorkspacesWorkspaceIdProjectsNewRoute: typeof WorkspacesWorkspaceIdProjectsNewRoute
 }
 
 const WorkspacesWorkspaceIdRouteRouteChildren: WorkspacesWorkspaceIdRouteRouteChildren =
@@ -498,8 +356,6 @@ const WorkspacesWorkspaceIdRouteRouteChildren: WorkspacesWorkspaceIdRouteRouteCh
     WorkspacesWorkspaceIdIndexRoute: WorkspacesWorkspaceIdIndexRoute,
     WorkspacesWorkspaceIdProjectsProjectIdRouteRoute:
       WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren,
-    WorkspacesWorkspaceIdProjectsNewRoute:
-      WorkspacesWorkspaceIdProjectsNewRoute,
   }
 
 const WorkspacesWorkspaceIdRouteRouteWithChildren =
@@ -523,11 +379,9 @@ const WorkspacesRouteWithChildren = WorkspacesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ProjectShellRoute: ProjectShellRouteWithChildren,
   BrandRoute: BrandRoute,
   LoginRoute: LoginRoute,
   WorkspacesRoute: WorkspacesRouteWithChildren,
-  ProjectsNewRoute: ProjectsNewRoute,
   GithubAppCallbackRoute: GithubAppCallbackRoute,
   V1AuthLogoutRoute: V1AuthLogoutRoute,
   V1AuthSessionRoute: V1AuthSessionRoute,

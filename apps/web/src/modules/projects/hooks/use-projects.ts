@@ -374,7 +374,3 @@ export function useDeleteProjectMutation() {
     },
   })
 }
-
-// Backward-compatible aliases for existing callers.
-export const useProjectsQuery = useReadProjectsQuery
-export const useAddProjectMutation = useCreateProjectMutation
