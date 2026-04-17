@@ -1,10 +1,11 @@
 "use client"
 
 import { Github, Mail } from "lucide-react"
-import { useEffect, useState } from "react"
 
 import { HarborMark } from "@/components/logo"
 import { ERROR_CODES } from "@/constants"
+import { ThemeToggle } from "@/modules/app"
+import { useUiStore } from "@/stores/ui.store"
 import { getGitHubLoginUrl } from "../api"
 import { CookieNotice } from "./cookie-notice"
 import { Button } from "@/components/ui/button"
@@ -13,8 +14,6 @@ type LoginPageProps = {
   redirectTo?: string | null
   errorCode?: string | null
 }
-
-const COOKIE_NOTICE_DISMISSED_KEY = "harbor.cookie-notice-dismissed"
 
 const loginFontFamily = [
   '"Berkeley Mono"',
@@ -46,41 +45,38 @@ function resolveLoginErrorMessage(errorCode: string | null | undefined) {
 }
 
 export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
-  const [cookieNoticeVisible, setCookieNoticeVisible] = useState(true)
+  const uiHydrated = useUiStore((state) => state.uiHydrated)
+  const cookieNoticeDismissed = useUiStore(
+    (state) => state.cookieNoticeDismissed,
+  )
+  const dismissCookieNotice = useUiStore((state) => state.dismissCookieNotice)
+  const cookieNoticeVisible = uiHydrated && !cookieNoticeDismissed
   const loginUrl = getGitHubLoginUrl(redirectTo)
   const errorMessage = resolveLoginErrorMessage(errorCode)
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-
-    if (window.localStorage.getItem(COOKIE_NOTICE_DISMISSED_KEY) === "true") {
-      setCookieNoticeVisible(false)
-    }
-  }, [])
-
-  function dismissCookieNotice() {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(COOKIE_NOTICE_DISMISSED_KEY, "true")
-    }
-
-    setCookieNoticeVisible(false)
-  }
-
   return (
     <div
-      className="bg-background text-foreground min-h-svh font-mono"
+      className="bg-background text-foreground relative min-h-svh font-mono"
       style={{ fontFamily: loginFontFamily }}
     >
+      <div className="absolute top-6 right-6 z-10 sm:top-8 sm:right-8 lg:top-10 lg:right-10">
+        <ThemeToggle className="bg-background/72 text-foreground/80 hover:bg-surface-subtle hover:text-foreground shadow-none backdrop-blur" />
+      </div>
+
       <div className="grid min-h-svh lg:grid-cols-[1.2fr_0.8fr]">
-        <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border relative flex min-h-[42svh] flex-col border-b px-6 py-8 sm:px-10 sm:py-10 lg:min-h-svh lg:border-r lg:border-b-0 lg:px-12 lg:py-12">
+        <aside className="bg-primary text-primary-foreground relative flex min-h-[42svh] flex-col border-b border-primary/15 px-6 py-8 sm:px-10 sm:py-10 lg:min-h-svh lg:border-r lg:border-b-0 lg:px-12 lg:py-12">
           <div className="flex items-center gap-3">
             <HarborMark
-              variant="adaptive"
+              variant="white"
               width={24}
               height={24}
-              className="mt-0.5 size-6 shrink-0"
+              className="mt-0.5 size-6 shrink-0 dark:hidden"
+            />
+            <HarborMark
+              variant="black"
+              width={24}
+              height={24}
+              className="mt-0.5 hidden size-6 shrink-0 dark:block"
             />
             <p className="text-base leading-5 font-medium">
               harbor assistant
@@ -88,17 +84,14 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
           </div>
 
           <div
-            className={`flex flex-1 items-center py-12 sm:py-14 lg:py-0 ${
-              cookieNoticeVisible ? "pb-40 sm:pb-44 lg:pb-48" : ""
-            }`}
+            className="flex flex-1 items-center py-12 sm:py-14 lg:py-0"
           >
             <div className="max-w-3xl lg:pb-10">
               <h1 className="max-w-2xl text-[34px] font-bold leading-[1.38] sm:text-[44px] lg:text-[52px]">
-                Sign in once and continue directly into your Harbor workspace.
+                A workspace for code and agents.
               </h1>
-              <p className="text-muted-foreground mt-8 max-w-xl text-[17px] leading-[1.8]">
-                Sign in with your GitHub account to access projects, settings, and
-                workspace tools in Harbor.
+              <p className="mt-8 max-w-xl text-[17px] leading-[1.8] text-primary-foreground/68">
+                Connect repositories, run agents, and work in one place.
               </p>
             </div>
           </div>
@@ -106,14 +99,18 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
           {cookieNoticeVisible ? <CookieNotice onDismiss={dismissCookieNotice} /> : null}
         </aside>
 
-        <main className="bg-background text-foreground flex min-h-svh items-center px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
+        <main className="bg-background text-foreground dark:bg-primary-foreground dark:text-primary flex min-h-svh items-center px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
           <section className="mx-auto w-full max-w-md">
             <h2 className="text-[24px] font-bold leading-[1.5]">
               Continue to Harbor
             </h2>
 
             <div className="mt-8">
-              <Button asChild size="xl" className="w-full shadow-none">
+              <Button
+                asChild
+                size="xl"
+                className="w-full shadow-none"
+              >
                 <a href={loginUrl}>
                   <Github className="size-4" />
                   Sign in with GitHub
@@ -127,7 +124,7 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
                     <p className="text-sm font-medium leading-6">
                       Google / Gmail OAuth
                     </p>
-                    <p className="text-muted-foreground text-sm leading-6">
+                    <p className="text-muted-foreground dark:text-primary/55 text-sm leading-6">
                       Available after GitHub sign-in when email workflows are enabled.
                     </p>
                   </div>
@@ -136,7 +133,7 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
             </div>
 
             {errorMessage ? (
-              <div className="text-destructive border-destructive mt-6 border-l pl-4 text-sm leading-6">
+              <div className="text-destructive border-destructive mt-6 border-l pl-4 text-sm leading-6 dark:border-destructive/60">
                 {errorMessage}
               </div>
             ) : null}

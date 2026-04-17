@@ -127,11 +127,6 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
             <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight">
               {workspace?.name ?? "Loading workspace"}
             </h1>
-            <p className="text-muted-foreground mt-1 text-sm leading-6">
-              {workspace
-                ? `${describeWorkspaceKind(workspace.type)} console with workspace and project switching in one place.`
-                : "Preparing workspace context."}
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
