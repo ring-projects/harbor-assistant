@@ -1,5 +1,0 @@
----
-"@harbor/service": minor
----
-
-init
