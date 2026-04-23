@@ -1,7 +1,7 @@
 # Web Cloudflare Workers Deployment
 
 - Status: `Reference`
-- Last updated: `2026-04-01`
+- Last updated: `2026-04-23`
 - Scope: `apps/web`
 
 本文档说明如何将 `apps/web` 以手动方式部署到 Cloudflare Workers。
@@ -11,7 +11,7 @@
 - 前端使用 `TanStack Start + Cloudflare Workers`
 - 后端 `executor service` 保持独立部署
 - 前端业务请求通过公开的 `VITE_EXECUTOR_API_BASE_URL` 直接访问 executor
-- 认证请求通过 Worker 同源代理 `/v1/auth/*`
+- 认证请求必须通过正式对外域名的同源 `/v1/auth/*`
 
 这也是当前仓库成本最低、风险最小的上线方式。本文档暂时不覆盖 GitHub Actions 自动发布。
 
@@ -42,6 +42,7 @@
 2. 你已经在本机安装依赖，并能在仓库里执行 `pnpm --dir apps/web build`。
 3. `executor service` 已经部署到一个可被公网访问的域名。
 4. `executor service` 已正确配置 CORS，允许你的前端站点域名访问。
+5. 生产环境会通过正式对外域名提供同源的 `/v1/auth/*`。
 
 如果第 3 条和第 4 条不满足，前端页面虽然能部署成功，但会在浏览器里请求后端失败。
 
@@ -67,17 +68,21 @@ VITE_EXECUTOR_API_BASE_URL=https://api.harbor.example.com
 
 ## Auth Same-Origin 要求
 
-如果你要使用当前仓库里的同源认证链路，需要同时满足下面两点：
+生产环境认证链路必须满足下面两点：
 
-1. `apps/web` 对外暴露 `/v1/auth/*`，并由 Worker 转发到 executor service。
-2. service 配置里的 `appBaseUrl` 使用 web 的公开域名，例如 `https://harbor.example.com`，而不是 executor 自己的域名。
+1. 用户访问的登录、session、logout、OAuth callback 都落在 web 的正式公开域名下，例如 `https://harbor.example.com/v1/auth/*`。
+2. service 配置里的 `appBaseUrl` 使用这个正式公开域名，而不是 executor 自己的直连域名。
 
 原因很直接：
 
 - GitHub OAuth `redirect_uri` 由 service 的 `appBaseUrl` 生成
 - 当前 callback 路径仍然是 `/v1/auth/github/callback`
-- 只有当这个地址落在 web 域名上时，OAuth callback 返回的 session cookie 才会写到 web 域名
+- 只有当这个地址落在正式 web 域名上时，OAuth callback 返回的 session cookie 才会写到 web 域名
 - 这样 TanStack Start 才能在 SSR / `beforeLoad` 阶段读取登录态，避免客户端 auth gate 闪烁
+
+补充说明：
+
+- 如果登录入口、callback 或 session 读取落在另一个域名上，同源认证假设就不成立
 
 ## 首次登录 Cloudflare
 
@@ -136,14 +141,14 @@ wrangler deploy
 1. 先确认 `executor service` 已在生产环境可访问。
 2. 用真实生产域名填入 `VITE_EXECUTOR_API_BASE_URL`。
 3. 执行手动部署命令。
-4. 先访问 Cloudflare 分配的 `workers.dev` 域名。
-5. 检查首页加载、项目列表、任务相关接口是否正常。
-6. 确认无误后再绑定正式自定义域名。
+4. 绑定并使用正式自定义域名。
+5. 在正式域名下检查首页加载、项目列表、任务相关接口以及 `/v1/auth/*` 认证链路。
 
 这样可以把问题分成两类：
 
 - Worker 部署问题
 - 前端到 executor 的网络问题
+- 正式域名下的同源认证问题
 
 排查会更直接。
 
@@ -155,6 +160,8 @@ wrangler deploy
 - executor API 使用单独域名，例如 `api.harbor.example.com`
 
 这样边界更清晰，CORS 和后续网关治理也更容易收敛。
+
+如果你的线上网关会把认证流量统一收口到 `harbor.example.com/v1/auth/*`，也可以保持这个约束不变；关键点不是内部怎么转发，而是用户和 GitHub OAuth 最终看到的公开地址必须同源。
 
 ## Cloudflare 资源绑定
 
