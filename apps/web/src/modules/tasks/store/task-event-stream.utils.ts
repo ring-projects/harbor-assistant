@@ -21,7 +21,11 @@ export function mergeTaskEventStreams(
 
   const currentLast = current.items.at(-1)
   const incomingFirst = incoming.items[0]
-  if (currentLast && incomingFirst && incomingFirst.sequence > currentLast.sequence) {
+  if (
+    currentLast &&
+    incomingFirst &&
+    incomingFirst.sequence > currentLast.sequence
+  ) {
     return {
       taskId: incoming.taskId || current.taskId || "",
       items: [...current.items, ...incoming.items],
@@ -35,7 +39,11 @@ export function mergeTaskEventStreams(
 
   const currentFirst = current.items[0]
   const incomingLast = incoming.items.at(-1)
-  if (currentFirst && incomingLast && incomingLast.sequence < currentFirst.sequence) {
+  if (
+    currentFirst &&
+    incomingLast &&
+    incomingLast.sequence < currentFirst.sequence
+  ) {
     return {
       taskId: incoming.taskId || current.taskId || "",
       items: [...incoming.items, ...current.items],
@@ -93,13 +101,15 @@ export function mergeTaskAgentEvent(
     }
   }
 
-  return mergeTaskEventStreams(current, {
-    taskId: event.taskId,
-    items: [event],
-    nextSequence: event.sequence,
-  }) ?? {
-    taskId: event.taskId,
-    items: [event],
-    nextSequence: event.sequence,
-  }
+  return (
+    mergeTaskEventStreams(current, {
+      taskId: event.taskId,
+      items: [event],
+      nextSequence: event.sequence,
+    }) ?? {
+      taskId: event.taskId,
+      items: [event],
+      nextSequence: event.sequence,
+    }
+  )
 }

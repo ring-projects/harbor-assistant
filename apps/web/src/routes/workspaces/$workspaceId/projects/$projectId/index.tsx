@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { ProjectConsoleScreen } from "@/modules/projects"
+import { TaskWorkbench } from "@/modules/tasks/screens"
 
 export const Route = createFileRoute(
   "/workspaces/$workspaceId/projects/$projectId/",
@@ -9,7 +9,7 @@ export const Route = createFileRoute(
 })
 
 function WorkspaceProjectTaskRoutePage() {
-  const { workspaceId, projectId } = Route.useParams()
+  const { projectId } = Route.useParams()
 
-  return <ProjectConsoleScreen projectId={projectId} workspaceId={workspaceId} />
+  return <TaskWorkbench projectId={projectId} />
 }

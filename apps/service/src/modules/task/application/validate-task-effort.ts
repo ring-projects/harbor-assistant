@@ -17,7 +17,9 @@ async function getExecutorCapabilities(input: {
 }) {
   const executor = input.executor.trim()
   if (!AgentFactory.has(executor as AgentType)) {
-    throw createTaskError().invalidInput(`executor "${executor}" is not supported`)
+    throw createTaskError().invalidInput(
+      `executor "${executor}" is not supported`,
+    )
   }
 
   const inspectCapabilities =
@@ -43,7 +45,8 @@ export async function validateTaskRuntimeConfig(input: {
   const { executor, capabilities } = await getExecutorCapabilities(input)
   const modelId = normalizeNullableString(input.model)
   const model = modelId
-    ? capabilities.models.find((candidate) => candidate.id === modelId) ?? null
+    ? (capabilities.models.find((candidate) => candidate.id === modelId) ??
+      null)
     : null
 
   if (modelId && !model) {

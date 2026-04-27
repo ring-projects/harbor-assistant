@@ -7,10 +7,7 @@ import {
   type TaskDetail,
   type TaskEffort,
 } from "@/modules/tasks/contracts"
-import {
-  selectChatUi,
-  useTasksSessionStore,
-} from "@/modules/tasks/store"
+import { selectChatUi, useTasksSessionStore } from "@/modules/tasks/store"
 import {
   buildTaskInput,
   summarizeTaskInput,
@@ -38,11 +35,11 @@ export function useTaskSessionResume(args: {
 }) {
   const cancelTaskMutation = useCancelTaskMutation(args.projectId)
   const resumeTaskMutation = useResumeTaskMutation(args.projectId)
-  const draftAttachments = useTasksSessionStore((state) =>
-    selectChatUi(state, args.taskId).draftAttachments,
+  const draftAttachments = useTasksSessionStore(
+    (state) => selectChatUi(state, args.taskId).draftAttachments,
   )
-  const queuedPrompt = useTasksSessionStore((state) =>
-    selectChatUi(state, args.taskId).queuedPrompt,
+  const queuedPrompt = useTasksSessionStore(
+    (state) => selectChatUi(state, args.taskId).queuedPrompt,
   )
   const previousStatusRef = useRef<TaskDetail["status"] | null>(
     args.detail?.status ?? null,
@@ -141,7 +138,10 @@ export function useTaskSessionResume(args: {
         return []
       }
 
-      return useTasksSessionStore.getState().chatUiByTaskId[args.taskId]?.draftAttachments ?? []
+      return (
+        useTasksSessionStore.getState().chatUiByTaskId[args.taskId]
+          ?.draftAttachments ?? []
+      )
     },
     onAttachmentsChange: updateDraftAttachments,
   })
@@ -151,36 +151,33 @@ export function useTaskSessionResume(args: {
     args.detail?.archivedAt === null &&
     Boolean(
       args.detail?.status &&
-        (args.detail.status === "running" ||
-          TERMINAL_TASK_STATUSES.includes(args.detail.status)),
+      (args.detail.status === "running" ||
+        TERMINAL_TASK_STATUSES.includes(args.detail.status)),
     ) &&
     !cancelTaskMutation.isPending &&
     !resumeTaskMutation.isPending &&
     !isUploading
 
-  const errorMessage = useMemo(
-    () => {
-      if (uploadTaskInputImageMutation.isError) {
-        return getErrorMessage(uploadTaskInputImageMutation.error)
-      }
+  const errorMessage = useMemo(() => {
+    if (uploadTaskInputImageMutation.isError) {
+      return getErrorMessage(uploadTaskInputImageMutation.error)
+    }
 
-      if (cancelTaskMutation.isError) {
-        return getErrorMessage(cancelTaskMutation.error)
-      }
+    if (cancelTaskMutation.isError) {
+      return getErrorMessage(cancelTaskMutation.error)
+    }
 
-      return resumeTaskMutation.isError
-        ? getErrorMessage(resumeTaskMutation.error)
-        : null
-    },
-    [
-      cancelTaskMutation.error,
-      cancelTaskMutation.isError,
-      resumeTaskMutation.error,
-      resumeTaskMutation.isError,
-      uploadTaskInputImageMutation.error,
-      uploadTaskInputImageMutation.isError,
-    ],
-  )
+    return resumeTaskMutation.isError
+      ? getErrorMessage(resumeTaskMutation.error)
+      : null
+  }, [
+    cancelTaskMutation.error,
+    cancelTaskMutation.isError,
+    resumeTaskMutation.error,
+    resumeTaskMutation.isError,
+    uploadTaskInputImageMutation.error,
+    uploadTaskInputImageMutation.isError,
+  ])
 
   const submitInput = useCallback(
     async (
@@ -227,7 +224,13 @@ export function useTaskSessionResume(args: {
         }
       }
     },
-    [args.lastSequence, args.runtimeConfig.effort, args.runtimeConfig.model, args.taskId, resumeTaskMutation],
+    [
+      args.lastSequence,
+      args.runtimeConfig.effort,
+      args.runtimeConfig.model,
+      args.taskId,
+      resumeTaskMutation,
+    ],
   )
 
   const handleResumeTask = useCallback(async () => {
@@ -259,7 +262,11 @@ export function useTaskSessionResume(args: {
   }, [args.detail, args.taskId, currentInput, queuedPrompt, submitInput])
 
   const handleCancelTask = useCallback(async () => {
-    if (!args.taskId || args.detail?.status !== "running" || cancelTaskMutation.isPending) {
+    if (
+      !args.taskId ||
+      args.detail?.status !== "running" ||
+      cancelTaskMutation.isPending
+    ) {
       return
     }
 
@@ -283,12 +290,7 @@ export function useTaskSessionResume(args: {
         message: getErrorMessage(error),
       })
     }
-  }, [
-    args.detail?.status,
-    args.projectId,
-    args.taskId,
-    cancelTaskMutation,
-  ])
+  }, [args.detail?.status, args.projectId, args.taskId, cancelTaskMutation])
 
   const removeDraftAttachment = useCallback(
     (path: string) => {

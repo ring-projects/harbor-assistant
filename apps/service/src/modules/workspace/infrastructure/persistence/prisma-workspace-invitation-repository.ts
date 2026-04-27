@@ -3,20 +3,18 @@ import type { PrismaClient } from "@prisma/client"
 import type { WorkspaceInvitationRepository } from "../../application/workspace-invitation-repository"
 import type { WorkspaceInvitation } from "../../domain/workspace"
 
-function toDomainInvitation(
-  invitation: {
-    id: string
-    workspaceId: string
-    inviteeGithubLogin: string
-    role: "member"
-    status: "pending" | "accepted" | "revoked"
-    invitedByUserId: string
-    acceptedByUserId: string | null
-    createdAt: Date
-    updatedAt: Date
-    acceptedAt: Date | null
-  },
-): WorkspaceInvitation {
+function toDomainInvitation(invitation: {
+  id: string
+  workspaceId: string
+  inviteeGithubLogin: string
+  role: "member"
+  status: "pending" | "accepted" | "revoked"
+  invitedByUserId: string
+  acceptedByUserId: string | null
+  createdAt: Date
+  updatedAt: Date
+  acceptedAt: Date | null
+}): WorkspaceInvitation {
   return {
     id: invitation.id,
     workspaceId: invitation.workspaceId,
@@ -31,9 +29,7 @@ function toDomainInvitation(
   }
 }
 
-export class PrismaWorkspaceInvitationRepository
-  implements WorkspaceInvitationRepository
-{
+export class PrismaWorkspaceInvitationRepository implements WorkspaceInvitationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(id: string): Promise<WorkspaceInvitation | null> {

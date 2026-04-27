@@ -25,11 +25,12 @@ export async function createGitTestApp(prisma: PrismaClient) {
   const workspaceInstallationRepository =
     new PrismaWorkspaceInstallationRepository(prisma)
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
-    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    taskQuery: createRepositoryAuthorizationTaskQuery(
+      new InMemoryTaskRepository(),
+    ),
     orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
       new InMemoryOrchestrationRepository(),
     ),

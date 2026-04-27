@@ -34,7 +34,8 @@ export const STATUS_META: Record<
 }
 
 export function getPromptSummary(prompt: string) {
-  const summary = prompt.split("\n").find((line) => line.trim().length > 0) ?? prompt
+  const summary =
+    prompt.split("\n").find((line) => line.trim().length > 0) ?? prompt
   if (!summary) {
     return "(empty prompt)"
   }
@@ -85,7 +86,9 @@ export function formatExecutorLabel(executor: string | null | undefined) {
   return executor ?? "-"
 }
 
-export function formatExecutionModeLabel(executionMode: string | null | undefined) {
+export function formatExecutionModeLabel(
+  executionMode: string | null | undefined,
+) {
   switch (executionMode?.trim().toLowerCase()) {
     case "safe":
       return "Safe"

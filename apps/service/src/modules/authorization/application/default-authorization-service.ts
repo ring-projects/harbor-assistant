@@ -9,10 +9,7 @@ import type {
 } from "./authorization-queries"
 import type { AuthorizationPolicyProvider } from "./policy-provider"
 import { createStaticAuthorizationPolicyProvider } from "./static-authorization-policy-provider"
-import type {
-  ProjectRoleKey,
-  WorkspaceRoleKey,
-} from "./policy-types"
+import type { ProjectRoleKey, WorkspaceRoleKey } from "./policy-types"
 import type {
   AuthorizationActor,
   AuthorizationDecision,
@@ -52,9 +49,19 @@ function isActiveMembership(
   return membership?.status === "active"
 }
 
-function validateActor(input: AuthorizationInput): AuthorizationDecision | null {
+function validateActor(
+  input: AuthorizationInput,
+): AuthorizationDecision | null {
   if (input.actor.kind === "system") {
     return createAllowDecision(input)
+  }
+
+  if (input.actor.kind === "agent") {
+    if (!input.actor.tokenId.trim() || input.actor.scopes.length === 0) {
+      return createDenyDecision(input, "actor_invalid", 401)
+    }
+
+    return null
   }
 
   if (!input.actor.userId.trim()) {
@@ -64,7 +71,173 @@ function validateActor(input: AuthorizationInput): AuthorizationDecision | null 
   return null
 }
 
-function toAppError(decision: Extract<AuthorizationDecision, { effect: "deny" }>) {
+function hasAgentScope(
+  actor: Extract<AuthorizationActor, { kind: "agent" }>,
+  action: AuthorizationAction,
+) {
+  return actor.scopes.includes(action)
+}
+
+async function authorizeAgentProjectResource(
+  deps: {
+    projectQuery: AuthorizationProjectQuery
+  },
+  input: AuthorizationInput & {
+    actor: Extract<AuthorizationActor, { kind: "agent" }>
+    resource: Extract<AuthorizationResource, { kind: "project" }>
+  },
+): Promise<AuthorizationDecision> {
+  if (!hasAgentScope(input.actor, input.action)) {
+    return createDenyDecision(input, "permission_denied", 403)
+  }
+
+  const project = await deps.projectQuery.getProjectAuthorizationContext(
+    input.resource.projectId,
+  )
+  if (!project) {
+    return createDenyDecision(input, "resource_not_found", 404)
+  }
+
+  if (input.actor.taskId || input.actor.orchestrationId) {
+    return createDenyDecision(input, "resource_not_visible", 404)
+  }
+
+  if (
+    input.actor.projectId &&
+    input.actor.projectId !== input.resource.projectId
+  ) {
+    return createDenyDecision(input, "resource_not_visible", 404)
+  }
+
+  return createAllowDecision(input)
+}
+
+async function authorizeAgentTaskResource(
+  deps: {
+    taskQuery: AuthorizationTaskQuery
+  },
+  input: AuthorizationInput & {
+    actor: Extract<AuthorizationActor, { kind: "agent" }>
+    resource: Extract<AuthorizationResource, { kind: "task" }>
+  },
+): Promise<AuthorizationDecision> {
+  if (!hasAgentScope(input.actor, input.action)) {
+    return createDenyDecision(input, "permission_denied", 403)
+  }
+
+  const task = await deps.taskQuery.getTaskAuthorizationContext(
+    input.resource.taskId,
+  )
+  if (!task) {
+    return createDenyDecision(input, "resource_not_found", 404)
+  }
+
+  if (input.actor.taskId && input.actor.taskId !== task.taskId) {
+    return createDenyDecision(input, "resource_not_visible", 404)
+  }
+
+  if (
+    input.actor.orchestrationId &&
+    input.actor.orchestrationId !== task.orchestrationId
+  ) {
+    return createDenyDecision(input, "resource_not_visible", 404)
+  }
+
+  if (input.actor.projectId && input.actor.projectId !== task.projectId) {
+    return createDenyDecision(input, "resource_not_visible", 404)
+  }
+
+  return createAllowDecision(input)
+}
+
+async function authorizeAgentOrchestrationResource(
+  deps: {
+    orchestrationQuery: AuthorizationOrchestrationQuery
+    taskQuery: AuthorizationTaskQuery
+  },
+  input: AuthorizationInput & {
+    actor: Extract<AuthorizationActor, { kind: "agent" }>
+    resource: Extract<AuthorizationResource, { kind: "orchestration" }>
+  },
+): Promise<AuthorizationDecision> {
+  if (!hasAgentScope(input.actor, input.action)) {
+    return createDenyDecision(input, "permission_denied", 403)
+  }
+
+  const orchestration =
+    await deps.orchestrationQuery.getOrchestrationAuthorizationContext(
+      input.resource.orchestrationId,
+    )
+  if (!orchestration) {
+    return createDenyDecision(input, "resource_not_found", 404)
+  }
+
+  if (input.actor.taskId) {
+    const task = await deps.taskQuery.getTaskAuthorizationContext(
+      input.actor.taskId,
+    )
+    if (!task || task.orchestrationId !== orchestration.orchestrationId) {
+      return createDenyDecision(input, "resource_not_visible", 404)
+    }
+  }
+
+  if (
+    input.actor.orchestrationId &&
+    input.actor.orchestrationId !== orchestration.orchestrationId
+  ) {
+    return createDenyDecision(input, "resource_not_visible", 404)
+  }
+
+  if (
+    input.actor.projectId &&
+    input.actor.projectId !== orchestration.projectId
+  ) {
+    return createDenyDecision(input, "resource_not_visible", 404)
+  }
+
+  return createAllowDecision(input)
+}
+
+async function authorizeAgentResource(
+  deps: {
+    projectQuery: AuthorizationProjectQuery
+    taskQuery: AuthorizationTaskQuery
+    orchestrationQuery: AuthorizationOrchestrationQuery
+  },
+  input: AuthorizationInput & {
+    actor: Extract<AuthorizationActor, { kind: "agent" }>
+  },
+): Promise<AuthorizationDecision> {
+  switch (input.resource.kind) {
+    case "workspace":
+      return createDenyDecision(input, "permission_denied", 403)
+    case "project":
+      return authorizeAgentProjectResource(
+        deps,
+        input as typeof input & {
+          resource: Extract<AuthorizationResource, { kind: "project" }>
+        },
+      )
+    case "task":
+      return authorizeAgentTaskResource(
+        deps,
+        input as typeof input & {
+          resource: Extract<AuthorizationResource, { kind: "task" }>
+        },
+      )
+    case "orchestration":
+      return authorizeAgentOrchestrationResource(
+        deps,
+        input as typeof input & {
+          resource: Extract<AuthorizationResource, { kind: "orchestration" }>
+        },
+      )
+  }
+}
+
+function toAppError(
+  decision: Extract<AuthorizationDecision, { effect: "deny" }>,
+) {
   switch (decision.httpStatus) {
     case 401:
       return new AppError(
@@ -195,7 +368,8 @@ async function authorizeProjectResource(
 
   const projectRoleKey = toProjectRoleKey({
     legacyOwner:
-      project.ownerUserId === null || project.ownerUserId === input.actor.userId,
+      project.ownerUserId === null ||
+      project.ownerUserId === input.actor.userId,
   })
   if (projectRoleKey) {
     const effect = deps.policyProvider.getProjectRoleEffect(
@@ -223,12 +397,16 @@ async function authorizeTaskResource(
     resource: Extract<AuthorizationResource, { kind: "task" }>
   },
 ): Promise<AuthorizationDecision> {
-  const projectAction = deps.policyProvider.getDerivedProjectAction(input.action)
+  const projectAction = deps.policyProvider.getDerivedProjectAction(
+    input.action,
+  )
   if (!projectAction) {
     return createDenyDecision(input, "permission_denied", 403)
   }
 
-  const task = await deps.taskQuery.getTaskAuthorizationContext(input.resource.taskId)
+  const task = await deps.taskQuery.getTaskAuthorizationContext(
+    input.resource.taskId,
+  )
   if (!task) {
     return createDenyDecision(input, "resource_not_found", 404)
   }
@@ -251,7 +429,11 @@ async function authorizeTaskResource(
 
   return projectDecision.effect === "allow"
     ? createAllowDecision(input)
-    : createDenyDecision(input, projectDecision.reason, projectDecision.httpStatus)
+    : createDenyDecision(
+        input,
+        projectDecision.reason,
+        projectDecision.httpStatus,
+      )
 }
 
 async function authorizeOrchestrationResource(
@@ -266,7 +448,9 @@ async function authorizeOrchestrationResource(
     resource: Extract<AuthorizationResource, { kind: "orchestration" }>
   },
 ): Promise<AuthorizationDecision> {
-  const projectAction = deps.policyProvider.getDerivedProjectAction(input.action)
+  const projectAction = deps.policyProvider.getDerivedProjectAction(
+    input.action,
+  )
   if (!projectAction) {
     return createDenyDecision(input, "permission_denied", 403)
   }
@@ -297,7 +481,11 @@ async function authorizeOrchestrationResource(
 
   return projectDecision.effect === "allow"
     ? createAllowDecision(input)
-    : createDenyDecision(input, projectDecision.reason, projectDecision.httpStatus)
+    : createDenyDecision(
+        input,
+        projectDecision.reason,
+        projectDecision.httpStatus,
+      )
 }
 
 export function createDefaultAuthorizationService(deps: {
@@ -315,6 +503,19 @@ export function createDefaultAuthorizationService(deps: {
       const actorDecision = validateActor(input)
       if (actorDecision) {
         return actorDecision
+      }
+
+      if (input.actor.kind === "agent") {
+        return authorizeAgentResource(
+          {
+            projectQuery: deps.projectQuery,
+            taskQuery: deps.taskQuery,
+            orchestrationQuery: deps.orchestrationQuery,
+          },
+          input as AuthorizationInput & {
+            actor: Extract<AuthorizationActor, { kind: "agent" }>
+          },
+        )
       }
 
       const userInput = input as AuthorizationInput & {
@@ -364,7 +565,10 @@ export function createDefaultAuthorizationService(deps: {
               policyProvider,
             },
             userInput as typeof userInput & {
-              resource: Extract<AuthorizationResource, { kind: "orchestration" }>
+              resource: Extract<
+                AuthorizationResource,
+                { kind: "orchestration" }
+              >
             },
           )
       }

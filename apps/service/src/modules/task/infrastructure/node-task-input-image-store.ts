@@ -27,10 +27,7 @@ export function createNodeTaskInputFileStore(): TaskInputFileStore {
       const storedFileName = `${randomUUID()}-${sanitizedName}`
       const relativeDirectory = resolveAttachmentDirectory(input.mediaType)
       const relativePath = `${relativeDirectory}/${storedFileName}`
-      const absoluteDirectory = path.join(
-        input.projectPath,
-        relativeDirectory,
-      )
+      const absoluteDirectory = path.join(input.projectPath, relativeDirectory)
       const absolutePath = path.join(input.projectPath, relativePath)
 
       await mkdir(absoluteDirectory, { recursive: true })

@@ -366,7 +366,7 @@ export function InteractiveCodeBlock(props: InteractiveCodeBlockProps) {
       </div>
 
       {selectedRange ? (
-        <div className="bg-surface-info space-y-2 rounded-md border border-info/25 p-2">
+        <div className="bg-surface-info border-info/25 space-y-2 rounded-md border p-2">
           <div className="text-xs">
             Selected lines:{" "}
             <span className="font-medium">{selectedRange.startLine}</span> -{" "}

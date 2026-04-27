@@ -64,7 +64,7 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
       </div>
 
       <div className="grid min-h-svh lg:grid-cols-[1.2fr_0.8fr]">
-        <aside className="bg-primary text-primary-foreground relative flex min-h-[42svh] flex-col border-b border-primary/15 px-6 py-8 sm:px-10 sm:py-10 lg:min-h-svh lg:border-r lg:border-b-0 lg:px-12 lg:py-12">
+        <aside className="bg-primary text-primary-foreground border-primary/15 relative flex min-h-[42svh] flex-col border-b px-6 py-8 sm:px-10 sm:py-10 lg:min-h-svh lg:border-r lg:border-b-0 lg:px-12 lg:py-12">
           <div className="flex items-center gap-3">
             <HarborMark
               variant="white"
@@ -78,39 +78,33 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
               height={24}
               className="mt-0.5 hidden size-6 shrink-0 dark:block"
             />
-            <p className="text-base leading-5 font-medium">
-              harbor assistant
-            </p>
+            <p className="text-base leading-5 font-medium">harbor assistant</p>
           </div>
 
-          <div
-            className="flex flex-1 items-center py-12 sm:py-14 lg:py-0"
-          >
+          <div className="flex flex-1 items-center py-12 sm:py-14 lg:py-0">
             <div className="max-w-3xl lg:pb-10">
-              <h1 className="max-w-2xl text-[34px] font-bold leading-[1.38] sm:text-[44px] lg:text-[52px]">
+              <h1 className="max-w-2xl text-[34px] leading-[1.38] font-bold sm:text-[44px] lg:text-[52px]">
                 A workspace for code and agents.
               </h1>
-              <p className="mt-8 max-w-xl text-[17px] leading-[1.8] text-primary-foreground/68">
+              <p className="text-primary-foreground/68 mt-8 max-w-xl text-[17px] leading-[1.8]">
                 Connect repositories, run agents, and work in one place.
               </p>
             </div>
           </div>
 
-          {cookieNoticeVisible ? <CookieNotice onDismiss={dismissCookieNotice} /> : null}
+          {cookieNoticeVisible ? (
+            <CookieNotice onDismiss={dismissCookieNotice} />
+          ) : null}
         </aside>
 
         <main className="bg-background text-foreground dark:bg-primary-foreground dark:text-primary flex min-h-svh items-center px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
           <section className="mx-auto w-full max-w-md">
-            <h2 className="text-[24px] font-bold leading-[1.5]">
+            <h2 className="text-[24px] leading-[1.5] font-bold">
               Continue to Harbor
             </h2>
 
             <div className="mt-8">
-              <Button
-                asChild
-                size="xl"
-                className="w-full shadow-none"
-              >
+              <Button asChild size="xl" className="w-full shadow-none">
                 <a href={loginUrl}>
                   <Github className="size-4" />
                   Sign in with GitHub
@@ -121,11 +115,12 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
                 <div className="flex items-start gap-3">
                   <Mail className="text-muted-foreground mt-1 size-4" />
                   <div>
-                    <p className="text-sm font-medium leading-6">
+                    <p className="text-sm leading-6 font-medium">
                       Google / Gmail OAuth
                     </p>
                     <p className="text-muted-foreground dark:text-primary/55 text-sm leading-6">
-                      Available after GitHub sign-in when email workflows are enabled.
+                      Available after GitHub sign-in when email workflows are
+                      enabled.
                     </p>
                   </div>
                 </div>
@@ -133,7 +128,7 @@ export function LoginPage({ redirectTo, errorCode }: LoginPageProps) {
             </div>
 
             {errorMessage ? (
-              <div className="text-destructive border-destructive mt-6 border-l pl-4 text-sm leading-6 dark:border-destructive/60">
+              <div className="text-destructive border-destructive dark:border-destructive/60 mt-6 border-l pl-4 text-sm leading-6">
                 {errorMessage}
               </div>
             ) : null}

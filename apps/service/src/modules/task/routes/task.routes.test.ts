@@ -15,7 +15,10 @@ import {
 import { InMemoryOrchestrationRepository } from "../../orchestration/infrastructure/in-memory-orchestration-repository"
 import { createWorkspace } from "../../workspace/domain/workspace"
 import { InMemoryWorkspaceRepository } from "../../workspace/infrastructure/in-memory-workspace-repository"
-import { attachTaskRuntime, type TaskRecord } from "../application/task-read-models"
+import {
+  attachTaskRuntime,
+  type TaskRecord,
+} from "../application/task-read-models"
 import { createTask } from "../domain/task"
 import { InMemoryTaskEventProjection } from "../infrastructure/in-memory-task-event-projection"
 import { InMemoryTaskRepository } from "../infrastructure/in-memory-task-repository"
@@ -45,21 +48,25 @@ async function createApp(
   },
 ) {
   const repository = new InMemoryTaskRepository([
-    withRuntime(createTask({
-      id: "task-1",
-      projectId: "project-1",
-      orchestrationId: "orch-1",
-      prompt: "Investigate runtime drift",
-      status: "completed",
-    })),
-    withRuntime(createTask({
-      id: "task-2",
-      projectId: "project-1",
-      orchestrationId: "orch-1",
-      prompt: "Summarize runtime drift",
-      status: "failed",
-      archivedAt: new Date("2026-03-25T00:00:00.000Z"),
-    })),
+    withRuntime(
+      createTask({
+        id: "task-1",
+        projectId: "project-1",
+        orchestrationId: "orch-1",
+        prompt: "Investigate runtime drift",
+        status: "completed",
+      }),
+    ),
+    withRuntime(
+      createTask({
+        id: "task-2",
+        projectId: "project-1",
+        orchestrationId: "orch-1",
+        prompt: "Summarize runtime drift",
+        status: "failed",
+        archivedAt: new Date("2026-03-25T00:00:00.000Z"),
+      }),
+    ),
     ...seedTasks,
   ])
   const eventProjection = new InMemoryTaskEventProjection({
@@ -110,18 +117,17 @@ async function createApp(
             logRetentionDays: 30,
             eventRetentionDays: 7,
           },
-          skills: {
-            harborSkillsEnabled: false,
-            harborSkillProfile: "default",
+          codex: {
+            baseUrl: null,
+            apiKey: null,
           },
         },
       }
     },
   }
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
     taskQuery: createRepositoryAuthorizationTaskQuery(repository),
     orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
@@ -169,6 +175,10 @@ async function createApp(
             return {
               projectId,
               rootPath,
+              codex: {
+                baseUrl: null,
+                apiKey: null,
+              },
             }
           },
         },
@@ -293,18 +303,17 @@ describe("task routes", () => {
   })
 
   it("rejects deleting a running task", async () => {
-    const app = await createApp(
-      "/tmp/harbor-assistant",
-      [
-        withRuntime(createTask({
+    const app = await createApp("/tmp/harbor-assistant", [
+      withRuntime(
+        createTask({
           id: "task-running",
           projectId: "project-1",
           orchestrationId: "orch-1",
           prompt: "Still running",
           status: "running",
-        })),
-      ],
-    )
+        }),
+      ),
+    ])
 
     const deleted = await app.inject({
       method: "DELETE",
@@ -422,25 +431,26 @@ describe("task routes", () => {
   })
 
   it("cancels a running task and treats terminal cancel as idempotent", async () => {
-    const app = await createApp(
-      "/tmp/harbor-assistant",
-      [
-        withRuntime(createTask({
+    const app = await createApp("/tmp/harbor-assistant", [
+      withRuntime(
+        createTask({
           id: "task-running",
           projectId: "project-1",
           orchestrationId: "orch-1",
           prompt: "Still running",
           status: "running",
-        })),
-        withRuntime(createTask({
+        }),
+      ),
+      withRuntime(
+        createTask({
           id: "task-cancelled",
           projectId: "project-1",
           orchestrationId: "orch-1",
           prompt: "Already cancelled",
           status: "cancelled",
-        })),
-      ],
-    )
+        }),
+      ),
+    ])
 
     const cancelled = await app.inject({
       method: "POST",
@@ -476,19 +486,18 @@ describe("task routes", () => {
   })
 
   it("rejects cancelling archived tasks", async () => {
-    const app = await createApp(
-      "/tmp/harbor-assistant",
-      [
-        withRuntime(createTask({
+    const app = await createApp("/tmp/harbor-assistant", [
+      withRuntime(
+        createTask({
           id: "task-archived-running",
           projectId: "project-1",
           orchestrationId: "orch-1",
           prompt: "Archived task",
           status: "running",
           archivedAt: new Date("2026-03-29T00:00:00.000Z"),
-        })),
-      ],
-    )
+        }),
+      ),
+    ])
 
     const response = await app.inject({
       method: "POST",
@@ -589,7 +598,9 @@ describe("task routes", () => {
       size: number
     }
 
-    expect(body.path).toMatch(/^\.harbor\/task-input-images\/.+-screenshot\.png$/)
+    expect(body.path).toMatch(
+      /^\.harbor\/task-input-images\/.+-screenshot\.png$/,
+    )
     const stored = await readFile(path.join(rootPath, body.path))
     expect(stored.toString()).toBe("test-image")
   })
@@ -652,15 +663,11 @@ describe("task routes", () => {
       ],
     })
 
-    const app = await createApp(
-      "/tmp/harbor-assistant",
-      [],
-      {
-        workspaceRepository,
-        workspaceId: "ws-team",
-        ownerUserId: "user-1",
-      },
-    )
+    const app = await createApp("/tmp/harbor-assistant", [], {
+      workspaceRepository,
+      workspaceId: "ws-team",
+      ownerUserId: "user-1",
+    })
 
     const detail = await app.inject({
       method: "GET",

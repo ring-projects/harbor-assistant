@@ -67,9 +67,7 @@ const agentCapabilitiesSchema = {
   },
 } as const
 
-export async function registerAgentRoutes(
-  app: FastifyInstance,
-) {
+export async function registerAgentRoutes(app: FastifyInstance) {
   app.addSchema(agentCapabilitiesSchema)
 
   app.get(

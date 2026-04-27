@@ -88,7 +88,9 @@ describe("relocateProjectRootUseCase", () => {
       delete: vi.fn().mockResolvedValue(undefined),
     }
     const pathPolicy: ProjectPathPolicy = {
-      canonicalizeProjectRoot: vi.fn().mockResolvedValue("/private/tmp/harbor-service"),
+      canonicalizeProjectRoot: vi
+        .fn()
+        .mockResolvedValue("/private/tmp/harbor-service"),
     }
 
     await expect(

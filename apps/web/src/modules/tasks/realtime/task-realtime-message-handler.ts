@@ -70,7 +70,10 @@ export class TaskRealtimeMessageHandler {
     }
   }
 
-  private handleEvent(topic: InteractionTopic, message: InteractionEventMessage) {
+  private handleEvent(
+    topic: InteractionTopic,
+    message: InteractionEventMessage,
+  ) {
     const data = message.data ?? {}
 
     switch (message.name) {

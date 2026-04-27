@@ -61,9 +61,8 @@ export function createAgentRuntimeOptions(args: {
   effort?: TaskEffort | null
   env?: Record<string, string>
 }): AgentRuntimeOptions {
-  const policy = RUNTIME_POLICY_PRESETS[
-    normalizeTaskExecutionMode(args.executionMode)
-  ]
+  const policy =
+    RUNTIME_POLICY_PRESETS[normalizeTaskExecutionMode(args.executionMode)]
 
   return {
     workingDirectory: args.workingDirectory,

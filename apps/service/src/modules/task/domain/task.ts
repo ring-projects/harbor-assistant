@@ -79,11 +79,7 @@ export function createTask(input: {
 }
 
 export function isTerminalTaskStatus(status: TaskStatus) {
-  return (
-    status === "completed" ||
-    status === "failed" ||
-    status === "cancelled"
-  )
+  return status === "completed" || status === "failed" || status === "cancelled"
 }
 
 export function archiveTask(task: Task, now = new Date()): Task {

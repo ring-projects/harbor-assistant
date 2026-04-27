@@ -32,7 +32,9 @@ vi.mock("@/components/ui/button", () => ({
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenu: ({ children }: { children: ReactNode }) => <>{children}</>,
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   DropdownMenuItem: ({
     children,
     onClick,
@@ -44,12 +46,16 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
       {children}
     </div>
   ),
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
 }))
 
 import { TaskListItem } from "./task-list-item"
 
-function buildTask(overrides: Partial<TaskListItemRecord> = {}): TaskListItemRecord {
+function buildTask(
+  overrides: Partial<TaskListItemRecord> = {},
+): TaskListItemRecord {
   return {
     id: "task-1",
     projectId: "project-1",

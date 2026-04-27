@@ -12,7 +12,7 @@ function resolveSessionCookieDomain(config: ServiceConfig) {
 export function buildSessionCookieOptions(config: ServiceConfig) {
   return {
     secure: config.isProduction,
-    sameSite: "Lax" as const,
+    sameSite: "lax" as const,
     path: "/",
     domain: resolveSessionCookieDomain(config),
   }

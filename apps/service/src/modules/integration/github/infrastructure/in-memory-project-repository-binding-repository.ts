@@ -3,12 +3,12 @@ import type {
   ProjectRepositoryBindingRepository,
 } from "../application/project-repository-binding-repository"
 
-export class InMemoryProjectRepositoryBindingRepository
-  implements ProjectRepositoryBindingRepository
-{
+export class InMemoryProjectRepositoryBindingRepository implements ProjectRepositoryBindingRepository {
   private readonly bindings = new Map<string, ProjectRepositoryBinding>()
 
-  async findByProjectId(projectId: string): Promise<ProjectRepositoryBinding | null> {
+  async findByProjectId(
+    projectId: string,
+  ): Promise<ProjectRepositoryBinding | null> {
     return this.bindings.get(projectId) ?? null
   }
 

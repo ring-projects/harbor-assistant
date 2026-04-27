@@ -1,10 +1,7 @@
 "use client"
 
 import type { KeyboardEvent, MouseEvent, PointerEvent } from "react"
-import {
-  ArchiveIcon,
-  Trash2Icon,
-} from "lucide-react"
+import { ArchiveIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -110,7 +107,7 @@ function TaskListItemActions({
           variant="ghost"
           size="sm"
           className={cn(
-            "outline-none! h-6 w-6 rounded-full hover:bg-secondary hover:text-foreground",
+            "hover:bg-secondary hover:text-foreground h-6 w-6 rounded-full outline-none!",
             className,
           )}
           aria-label={`Task actions for ${taskTitle}`}
@@ -170,7 +167,7 @@ export function TaskListItem({
   const statusAccent = TASK_STATUS_ACCENT_CLASS_NAME[displayStatus]
   const timestamp = isArchived
     ? task.archivedAt
-    : task.finishedAt ?? task.startedAt ?? task.createdAt
+    : (task.finishedAt ?? task.startedAt ?? task.createdAt)
   const executorLabel = formatExecutorLabel(task.executor)
   const modelLabel = task.model?.trim() || "-"
   const handleSelect = () => onSelectTask(task.id)
@@ -191,7 +188,7 @@ export function TaskListItem({
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
       className={cn(
-        "p-2 relative w-full flex flex-col gap-2 overflow-hidden rounded-md text-left outline-none transition-all focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "focus-visible:border-ring focus-visible:ring-ring/50 relative flex w-full flex-col gap-2 overflow-hidden rounded-md p-2 text-left transition-all outline-none focus-visible:ring-[3px]",
         isArchived && "border border-dashed",
         isActive
           ? "bg-primary/10"
@@ -229,25 +226,24 @@ export function TaskListItem({
         </div>
       </div>
 
-      <p className="line-clamp-2 text-left text-sm wrap-break-words">
+      <p className="wrap-break-words line-clamp-2 text-left text-sm">
         {taskTitle}
       </p>
 
       <div className="text-muted-foreground grid grid-cols-3 text-xs">
         <span className="inline-flex min-w-0 items-baseline gap-3">
           <span className="text-muted-foreground/75">exec</span>
-          <span className="max-w-full break-all text-foreground/80">
+          <span className="text-foreground/80 max-w-full break-all">
             {executorLabel}
           </span>
         </span>
         <span className="inline-flex min-w-0 items-baseline gap-3">
           <span className="text-muted-foreground/75">mod</span>
-          <span className="max-w-full break-all text-foreground/80">
+          <span className="text-foreground/80 max-w-full break-all">
             {modelLabel}
           </span>
         </span>
       </div>
     </div>
-
   )
 }

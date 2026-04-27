@@ -20,17 +20,28 @@ export class OrchestrationError extends Error {
 export function createOrchestrationError() {
   return {
     invalidInput(message: string) {
-      return new OrchestrationError(ORCHESTRATION_ERROR_CODES.INVALID_INPUT, message)
+      return new OrchestrationError(
+        ORCHESTRATION_ERROR_CODES.INVALID_INPUT,
+        message,
+      )
     },
     notFound(message = "orchestration not found") {
-      return new OrchestrationError(ORCHESTRATION_ERROR_CODES.NOT_FOUND, message)
+      return new OrchestrationError(
+        ORCHESTRATION_ERROR_CODES.NOT_FOUND,
+        message,
+      )
     },
     invalidState(message: string) {
-      return new OrchestrationError(ORCHESTRATION_ERROR_CODES.INVALID_STATE, message)
+      return new OrchestrationError(
+        ORCHESTRATION_ERROR_CODES.INVALID_STATE,
+        message,
+      )
     },
   }
 }
 
-export function isOrchestrationError(error: unknown): error is OrchestrationError {
+export function isOrchestrationError(
+  error: unknown,
+): error is OrchestrationError {
   return error instanceof OrchestrationError
 }

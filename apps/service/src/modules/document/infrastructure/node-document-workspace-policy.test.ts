@@ -17,7 +17,9 @@ describe("createNodeDocumentWorkspacePolicy", () => {
   })
 
   it("resolves a document path within the project .harbor workspace", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "harbor-document-workspace-"))
+    const root = await mkdtemp(
+      path.join(tmpdir(), "harbor-document-workspace-"),
+    )
     roots.push(root)
 
     const policy = createNodeDocumentWorkspacePolicy()
@@ -33,7 +35,9 @@ describe("createNodeDocumentWorkspacePolicy", () => {
   })
 
   it("rejects document paths outside the project .harbor workspace", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "harbor-document-workspace-"))
+    const root = await mkdtemp(
+      path.join(tmpdir(), "harbor-document-workspace-"),
+    )
     roots.push(root)
 
     const policy = createNodeDocumentWorkspacePolicy()
@@ -49,8 +53,12 @@ describe("createNodeDocumentWorkspacePolicy", () => {
   })
 
   it("rejects symlinked workspace segments that escape the project", async () => {
-    const root = await mkdtemp(path.join(tmpdir(), "harbor-document-workspace-"))
-    const outside = await mkdtemp(path.join(tmpdir(), "harbor-document-outside-"))
+    const root = await mkdtemp(
+      path.join(tmpdir(), "harbor-document-workspace-"),
+    )
+    const outside = await mkdtemp(
+      path.join(tmpdir(), "harbor-document-outside-"),
+    )
     roots.push(root, outside)
 
     await mkdir(path.join(root, ".harbor"), { recursive: true })

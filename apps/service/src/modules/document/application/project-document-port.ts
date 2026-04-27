@@ -4,5 +4,7 @@ export type DocumentProjectReference = {
 }
 
 export interface ProjectDocumentPort {
-  getProjectForDocument(projectId: string): Promise<DocumentProjectReference | null>
+  getProjectForDocument(
+    projectId: string,
+  ): Promise<DocumentProjectReference | null>
 }

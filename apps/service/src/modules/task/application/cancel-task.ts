@@ -6,13 +6,16 @@ import type { TaskRuntimePort } from "./task-runtime-port"
 
 const DEFAULT_CANCEL_REASON = "User requested stop"
 
-export async function cancelTaskUseCase(args: {
-  repository: Pick<TaskRepository, "findById">
-  runtimePort: TaskRuntimePort
-}, input: {
-  taskId: string
-  reason?: string | null
-}): Promise<TaskDetail> {
+export async function cancelTaskUseCase(
+  args: {
+    repository: Pick<TaskRepository, "findById">
+    runtimePort: TaskRuntimePort
+  },
+  input: {
+    taskId: string
+    reason?: string | null
+  },
+): Promise<TaskDetail> {
   const taskId = input.taskId.trim()
   const reason = input.reason?.trim() || DEFAULT_CANCEL_REASON
 

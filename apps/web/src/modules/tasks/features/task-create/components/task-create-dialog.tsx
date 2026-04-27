@@ -6,7 +6,6 @@ import { type ReactNode, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   EffortDropdown,
-  ExecutionModeDropdown,
   ExecutorDropdown,
   ModelDropdown,
   TaskInputAttachmentList,
@@ -19,9 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  useCreateTaskMutation,
-} from "@/modules/tasks/hooks/use-task-queries"
+import { useCreateTaskMutation } from "@/modules/tasks/hooks/use-task-queries"
 import { useTaskInputAttachments } from "@/modules/tasks/hooks/use-task-input-attachments"
 import { useTaskCreationParams } from "../use-task-creation-params"
 import {
@@ -38,7 +35,6 @@ type TaskCreateDialogProps = {
   onTaskCreated: (id: string) => void
   trigger?: ReactNode
 }
-
 
 export function TaskCreateDialog({
   projectId,
@@ -87,12 +83,16 @@ export function TaskCreateDialog({
 
   async function handleCreateTask() {
     if (!createTaskInput) {
-      setCreateTaskError("Enter a prompt or attach an image before creating the task.")
+      setCreateTaskError(
+        "Enter a prompt or attach an image before creating the task.",
+      )
       return
     }
 
     if (!taskCreationParams.model || !taskCreationParams.effort) {
-      setCreateTaskError("Wait for runtime options to load before creating the task.")
+      setCreateTaskError(
+        "Wait for runtime options to load before creating the task.",
+      )
       return
     }
 
@@ -168,9 +168,7 @@ export function TaskCreateDialog({
               taskCreationParams.hasResolvedRuntimeConfig
             }
             inputDisabled={createTaskMutation.isPending}
-            isSubmitting={
-              createTaskMutation.isPending || isUploading
-            }
+            isSubmitting={createTaskMutation.isPending || isUploading}
             autoFocus
             placeholder="Describe the task you want the agent to start with..."
             value={newTaskPrompt}
@@ -207,12 +205,6 @@ export function TaskCreateDialog({
                       taskCreationParams.setEffort(nextEffort)
                     }
                   }}
-                />
-
-                <ExecutionModeDropdown
-                  disabled={createTaskMutation.isPending}
-                  value={taskCreationParams.executionMode}
-                  onValueChange={taskCreationParams.setExecutionMode}
                 />
               </>
             }

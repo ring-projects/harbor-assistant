@@ -1,6 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { afterEach, describe, expect, it } from "vitest"
 
@@ -8,6 +9,10 @@ import { loadServiceConfig } from "./config"
 
 describe("loadServiceConfig", () => {
   const tempDirs: string[] = []
+  const serviceRootDirectory = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+  )
 
   afterEach(async () => {
     await Promise.all(
@@ -55,7 +60,7 @@ describe("loadServiceConfig", () => {
     const config = await loadServiceConfig({
       env: {
         HARBOR_CONFIG_PATH: configPath,
-        DATABASE_URL: "file:./dev.sqlite",
+        DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/harbor",
         NODE_ENV: "test",
       },
     })
@@ -63,15 +68,20 @@ describe("loadServiceConfig", () => {
     expect(config.host).toBe("127.0.0.1")
     expect(config.port).toBe(4500)
     expect(config.serviceName).toBe("harbor-local")
-    expect(config.database).toBe("file:./dev.sqlite")
+    expect(config.database).toBe(
+      "postgresql://postgres:postgres@127.0.0.1:5432/harbor",
+    )
     expect(config.fileBrowserRootDirectory).toBe(
       path.join(rootDirectory, "workspace"),
     )
     expect(config.projectLocalPathRootDirectory).toBe(
       path.join(rootDirectory, "runtime", "workspaces"),
     )
+    expect(config.sandboxRootDirectory).toBe(
+      path.join(rootDirectory, "runtime", "sandboxes"),
+    )
     expect(config.publicSkillsRootDirectory).toBe(
-      path.join(rootDirectory, "runtime", "skills", "profiles", "default"),
+      path.join(serviceRootDirectory, "public-skills"),
     )
     expect(config.appBaseUrl).toBe("https://service.example.com")
     expect(config.webBaseUrl).toBe("https://app.example.com")
@@ -98,6 +108,7 @@ describe("loadServiceConfig", () => {
             runtimeRootDirectory: "./runtime",
             fileBrowserRootDirectory: "./workspace",
             projectLocalPathRootDirectory: "./custom-workspaces",
+            sandboxRootDirectory: "./custom-sandboxes",
             publicSkillsRootDirectory: "./custom-skills",
           },
           urls: {
@@ -138,6 +149,9 @@ describe("loadServiceConfig", () => {
     expect(config.projectLocalPathRootDirectory).toBe(
       path.join(rootDirectory, "custom-workspaces"),
     )
+    expect(config.sandboxRootDirectory).toBe(
+      path.join(rootDirectory, "custom-sandboxes"),
+    )
     expect(config.publicSkillsRootDirectory).toBe(
       path.join(rootDirectory, "custom-skills"),
     )
@@ -146,47 +160,6 @@ describe("loadServiceConfig", () => {
     expect(config.allowedGitHubUsers).toEqual(["octocat"])
     expect(config.allowedGitHubOrgs).toEqual(["harbor"])
     expect(config.sessionCookieDomain).toBe("example.com")
-  })
-
-  it("accepts workspaceRootDirectory as a backward-compatible alias", async () => {
-    const rootDirectory = await mkdtemp(path.join(tmpdir(), "harbor-config-"))
-    tempDirs.push(rootDirectory)
-    const configPath = path.join(rootDirectory, "harbor.config.json")
-
-    await writeFile(
-      configPath,
-      JSON.stringify(
-        {
-          service: {
-            host: "127.0.0.1",
-            port: 4500,
-            name: "harbor-local",
-          },
-          paths: {
-            runtimeRootDirectory: "./runtime",
-            workspaceRootDirectory: "./legacy-workspaces",
-          },
-          urls: {
-            appBaseUrl: "https://service.example.com",
-          },
-        },
-        null,
-        2,
-      ),
-      "utf8",
-    )
-
-    const config = await loadServiceConfig({
-      env: {
-        HARBOR_CONFIG_PATH: configPath,
-        DATABASE_URL: "file:./dev.sqlite",
-        NODE_ENV: "test",
-      },
-    })
-
-    expect(config.projectLocalPathRootDirectory).toBe(
-      path.join(rootDirectory, "legacy-workspaces"),
-    )
   })
 
   it("requires DATABASE_URL once Harbor home config fallback is removed", async () => {
@@ -224,7 +197,7 @@ describe("loadServiceConfig", () => {
       loadServiceConfig({
         env: {
           HARBOR_CONFIG_PATH: configPath,
-          DATABASE_URL: "file:./dev.sqlite",
+          DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/harbor",
           NODE_ENV: "test",
         },
       }),

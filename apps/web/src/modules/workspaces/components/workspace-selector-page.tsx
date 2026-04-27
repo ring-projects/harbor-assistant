@@ -17,8 +17,12 @@ import { useAppStore } from "@/stores/app.store"
 
 export function WorkspaceSelectorPage() {
   const navigate = useNavigate()
-  const setActiveWorkspaceId = useAppStore((state) => state.setActiveWorkspaceId)
-  const clearActiveProjectId = useAppStore((state) => state.clearActiveProjectId)
+  const setActiveWorkspaceId = useAppStore(
+    (state) => state.setActiveWorkspaceId,
+  )
+  const clearActiveProjectId = useAppStore(
+    (state) => state.clearActiveProjectId,
+  )
   const activeWorkspaceId = useAppStore((state) => state.activeWorkspaceId)
   const workspacesQuery = useReadWorkspacesQuery()
   const createWorkspaceMutation = useCreateWorkspaceMutation()
@@ -108,7 +112,7 @@ export function WorkspaceSelectorPage() {
               ) : null}
 
               {workspacesQuery.isError ? (
-                <div className="bg-surface-danger text-destructive rounded-lg border border-destructive/25 p-4 text-sm">
+                <div className="bg-surface-danger text-destructive border-destructive/25 rounded-lg border p-4 text-sm">
                   {getWorkspaceActionError(workspacesQuery.error)}
                 </div>
               ) : null}

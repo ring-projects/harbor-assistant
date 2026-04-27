@@ -17,14 +17,20 @@ import type {
   TaskRuntimePort,
 } from "../../task/application/task-runtime-port"
 import { validateTaskRuntimeConfig } from "../../task/application/validate-task-effort"
-import { resolveAgentInput, summarizeAgentInput } from "../../task/domain/task-input"
+import {
+  resolveAgentInput,
+  summarizeAgentInput,
+} from "../../task/domain/task-input"
 import {
   normalizeNullableTaskEffort,
   type TaskEffort,
 } from "../../task/domain/task-effort"
 import { createTask } from "../../task/domain/task"
 import { TASK_ERROR_CODES, createTaskError } from "../../task/errors"
-import { createOrchestration } from "../domain/orchestration"
+import {
+  createOrchestration,
+  DEFAULT_ORCHESTRATION_TITLE,
+} from "../domain/orchestration"
 import { toOrchestrationReadModel } from "./orchestration-read-models"
 import type { OrchestrationBootstrapStore } from "./orchestration-bootstrap-store"
 
@@ -52,8 +58,8 @@ export async function bootstrapOrchestrationUseCase(
   },
   input: {
     projectId: string
-    orchestration: {
-      title: string
+    orchestration?: {
+      title?: string | null
       description?: string | null
     }
     initialTask: {
@@ -67,6 +73,22 @@ export async function bootstrapOrchestrationUseCase(
     }
   },
 ): Promise<BootstrapOrchestrationResult> {
+  function summarizeSessionTitle(prompt: string) {
+    const firstNonEmptyLine =
+      prompt
+        .split("\n")
+        .find((line) => line.trim().length > 0)
+        ?.trim() ?? ""
+
+    if (!firstNonEmptyLine) {
+      return DEFAULT_ORCHESTRATION_TITLE
+    }
+
+    return firstNonEmptyLine.length > 100
+      ? `${firstNonEmptyLine.slice(0, 100)}...`
+      : firstNonEmptyLine
+  }
+
   function requireProjectRootPath(rootPath: string | null) {
     if (!rootPath) {
       throw createTaskError().invalidInput("project root path is not available")
@@ -125,18 +147,20 @@ export async function bootstrapOrchestrationUseCase(
     ...validatedRuntimeConfig,
     executionMode,
   }
+  const taskPrompt = summarizeAgentInput(agentInput)
 
   const orchestration = createOrchestration({
     id: args.orchestrationIdGenerator?.() ?? randomUUID(),
     projectId,
-    title: input.orchestration.title,
-    description: input.orchestration.description,
+    title: input.orchestration?.title,
+    fallbackTitle: summarizeSessionTitle(taskPrompt),
+    description: input.orchestration?.description,
   })
   const task = createTask({
     id: args.taskIdGenerator?.() ?? randomUUID(),
     projectId,
     orchestrationId: orchestration.id,
-    prompt: summarizeAgentInput(agentInput),
+    prompt: taskPrompt,
     titleSource: title ? "user" : "prompt",
     ...(title ? { title } : {}),
   })

@@ -66,7 +66,8 @@ describe("getRepositorySummaryUseCase", () => {
     const repository = createGitRepositoryStub({
       getRepositoryRoot: async () => ({
         stdout: "",
-        stderr: "fatal: not a git repository (or any of the parent directories): .git",
+        stderr:
+          "fatal: not a git repository (or any of the parent directories): .git",
         exitCode: 128,
       }),
     })

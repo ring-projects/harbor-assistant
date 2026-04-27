@@ -12,9 +12,17 @@ export function toProjectAppError(error: unknown): AppError {
       case PROJECT_ERROR_CODES.DUPLICATE_SLUG:
         return new AppError(ERROR_CODES.DUPLICATE_SLUG, 409, error.message)
       case PROJECT_ERROR_CODES.INVALID_STATE:
-        return new AppError(ERROR_CODES.INVALID_PROJECT_STATE, 409, error.message)
+        return new AppError(
+          ERROR_CODES.INVALID_PROJECT_STATE,
+          409,
+          error.message,
+        )
       case PROJECT_ERROR_CODES.INVALID_INPUT:
-        return new AppError(ERROR_CODES.INVALID_REQUEST_BODY, 400, error.message)
+        return new AppError(
+          ERROR_CODES.INVALID_REQUEST_BODY,
+          400,
+          error.message,
+        )
     }
   }
 
@@ -22,5 +30,9 @@ export function toProjectAppError(error: unknown): AppError {
     return error
   }
 
-  return new AppError(ERROR_CODES.INTERNAL_ERROR, 500, "Unexpected service error.")
+  return new AppError(
+    ERROR_CODES.INTERNAL_ERROR,
+    500,
+    "Unexpected service error.",
+  )
 }

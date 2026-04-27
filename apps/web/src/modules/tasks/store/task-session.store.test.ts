@@ -100,43 +100,58 @@ describe("tasks session store", () => {
   it("moves a task between orchestration buckets when a newer upsert corrects its parent", () => {
     const store = createTasksStore()
 
-    store.getState().applyTaskUpsert(buildTask({
-      id: "task-1",
-      orchestrationId: "project-1",
-    }))
+    store.getState().applyTaskUpsert(
+      buildTask({
+        id: "task-1",
+        orchestrationId: "project-1",
+      }),
+    )
 
-    store.getState().applyTaskUpsert(buildTask({
-      id: "task-1",
-      orchestrationId: "orch-1",
-    }))
+    store.getState().applyTaskUpsert(
+      buildTask({
+        id: "task-1",
+        orchestrationId: "orch-1",
+      }),
+    )
 
     expect(store.getState().taskIdsByOrchestration["project-1"]).toEqual([])
-    expect(store.getState().taskIdsByOrchestration["orch-1"]).toEqual(["task-1"])
+    expect(store.getState().taskIdsByOrchestration["orch-1"]).toEqual([
+      "task-1",
+    ])
     expect(store.getState().tasksById["task-1"]?.orchestrationId).toBe("orch-1")
   })
 
   it("merges task events from snapshot and socket input without dropping newer items", () => {
     const store = createTasksStore()
 
-    store.getState().hydrateTaskEvents("task-1", buildStream({
-      items: [buildMessageEvent()],
-      nextSequence: 1,
-    }))
+    store.getState().hydrateTaskEvents(
+      "task-1",
+      buildStream({
+        items: [buildMessageEvent()],
+        nextSequence: 1,
+      }),
+    )
 
-    store.getState().applyAgentEvent("task-1", buildMessageEvent({
-      id: "event-2",
-      sequence: 2,
-      payload: {
-        type: "message",
-        role: "assistant",
-        content: "live reply",
-      },
-    }))
+    store.getState().applyAgentEvent(
+      "task-1",
+      buildMessageEvent({
+        id: "event-2",
+        sequence: 2,
+        payload: {
+          type: "message",
+          role: "assistant",
+          content: "live reply",
+        },
+      }),
+    )
 
-    store.getState().hydrateTaskEvents("task-1", buildStream({
-      items: [buildMessageEvent()],
-      nextSequence: 1,
-    }))
+    store.getState().hydrateTaskEvents(
+      "task-1",
+      buildStream({
+        items: [buildMessageEvent()],
+        nextSequence: 1,
+      }),
+    )
 
     expect(store.getState().eventStreamsByTaskId["task-1"]).toEqual({
       taskId: "task-1",
@@ -165,15 +180,18 @@ describe("tasks session store", () => {
       input: buildTaskInput("continue"),
     })
 
-    store.getState().applyAgentEvent("task-1", buildMessageEvent({
-      id: "event-2",
-      sequence: 2,
-      payload: {
-        type: "message",
-        role: "user",
-        content: "continue",
-      },
-    }))
+    store.getState().applyAgentEvent(
+      "task-1",
+      buildMessageEvent({
+        id: "event-2",
+        sequence: 2,
+        payload: {
+          type: "message",
+          role: "user",
+          content: "continue",
+        },
+      }),
+    )
 
     expect(selectVisiblePendingPrompt(store.getState(), "task-1")).toBeNull()
   })
@@ -193,11 +211,10 @@ describe("tasks session store", () => {
     ])
 
     expect(
-      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.id),
-    ).toEqual([
-      "task-2",
-      "task-1",
-    ])
+      selectOrchestrationTasks(store.getState(), "orch-1").map(
+        (task) => task.id,
+      ),
+    ).toEqual(["task-2", "task-1"])
   })
 
   it("returns a stable orchestration task array when task inputs are unchanged", () => {
@@ -273,10 +290,13 @@ describe("tasks session store", () => {
   it("returns stable conversation blocks when stream and pending prompt are unchanged", () => {
     const store = createTasksStore()
 
-    store.getState().hydrateTaskEvents("task-1", buildStream({
-      items: [buildMessageEvent()],
-      nextSequence: 1,
-    }))
+    store.getState().hydrateTaskEvents(
+      "task-1",
+      buildStream({
+        items: [buildMessageEvent()],
+        nextSequence: 1,
+      }),
+    )
 
     const first = selectConversationBlocks(store.getState(), "task-1")
     store.getState().setDraft("task-1", "draft update")
@@ -306,14 +326,16 @@ describe("tasks session store", () => {
     const second = selectOrchestrationTasks(store.getState(), "orch-1")
 
     expect(second).toBe(first)
-    expect(store.getState().chatUiByTaskId["task-1"]?.draftAttachments).toEqual([
-      {
-        path: ".harbor/task-input-images/example.png",
-        mediaType: "image/png",
-        name: "example.png",
-        size: 1024,
-      },
-    ])
+    expect(store.getState().chatUiByTaskId["task-1"]?.draftAttachments).toEqual(
+      [
+        {
+          path: ".harbor/task-input-images/example.png",
+          mediaType: "image/png",
+          name: "example.png",
+          size: 1024,
+        },
+      ],
+    )
   })
 
   it("replaces the visible orchestration task list from query snapshots", () => {
@@ -335,7 +357,9 @@ describe("tasks session store", () => {
     ])
 
     expect(
-      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.id),
+      selectOrchestrationTasks(store.getState(), "orch-1").map(
+        (task) => task.id,
+      ),
     ).toEqual(["task-2"])
   })
 
@@ -348,13 +372,17 @@ describe("tasks session store", () => {
       }),
     ])
 
-    store.getState().applyTaskUpsert(buildTask({
-      id: "task-1",
-      archivedAt: "2026-03-18T08:00:00.000Z",
-    }))
+    store.getState().applyTaskUpsert(
+      buildTask({
+        id: "task-1",
+        archivedAt: "2026-03-18T08:00:00.000Z",
+      }),
+    )
 
     expect(
-      selectOrchestrationTasks(store.getState(), "orch-1").map((task) => task.id),
+      selectOrchestrationTasks(store.getState(), "orch-1").map(
+        (task) => task.id,
+      ),
     ).toEqual(["task-1"])
     expect(store.getState().tasksById["task-1"]?.archivedAt).toBe(
       "2026-03-18T08:00:00.000Z",
@@ -369,10 +397,13 @@ describe("tasks session store", () => {
         id: "task-1",
       }),
     ])
-    store.getState().hydrateTaskEvents("task-1", buildStream({
-      items: [buildMessageEvent()],
-      nextSequence: 1,
-    }))
+    store.getState().hydrateTaskEvents(
+      "task-1",
+      buildStream({
+        items: [buildMessageEvent()],
+        nextSequence: 1,
+      }),
+    )
     store.getState().setDraft("task-1", "draft")
 
     store.getState().deleteTask("orch-1", "task-1")

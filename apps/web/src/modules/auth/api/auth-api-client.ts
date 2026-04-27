@@ -1,12 +1,12 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
+import { buildHarborApiUrl, harborApiFetch } from "@/lib/harbor-api-url"
 import { parseJsonResponse } from "@/lib/protocol"
-import type { AuthSession } from "../types"
 import {
-  AuthProxyError,
+  AuthSessionResponseError,
   parseAuthSessionResponse,
-} from "../server/auth-proxy"
+} from "../lib/auth-session-response"
 
 const authApiErrorSchema = z.object({
   code: z.string(),
@@ -54,11 +54,10 @@ function throwIfFailed(
   )
 }
 
-export async function readAuthSession(): Promise<AuthSession> {
-  const response = await fetch("/v1/auth/session", {
+export async function readAuthSession() {
+  const response = await harborApiFetch("/v1/auth/session", {
     method: "GET",
     cache: "no-store",
-    credentials: "include",
     headers: {
       accept: "application/json",
     },
@@ -67,7 +66,7 @@ export async function readAuthSession(): Promise<AuthSession> {
   try {
     return await parseAuthSessionResponse(response)
   } catch (error) {
-    if (error instanceof AuthProxyError) {
+    if (error instanceof AuthSessionResponseError) {
       throw new AuthApiClientError(error.message, {
         code: error.code,
         status: error.status,
@@ -79,9 +78,8 @@ export async function readAuthSession(): Promise<AuthSession> {
 }
 
 export async function logout(): Promise<void> {
-  const response = await fetch("/v1/auth/logout", {
+  const response = await harborApiFetch("/v1/auth/logout", {
     method: "POST",
-    credentials: "include",
     headers: {
       accept: "application/json",
     },
@@ -92,16 +90,11 @@ export async function logout(): Promise<void> {
 }
 
 export function getGitHubLoginUrl(redirectTo?: string | null) {
-  const url = new URL(
-    "/v1/auth/github/start",
-    typeof window === "undefined" ? "http://localhost" : window.location.origin,
-  )
+  const url = new URL(buildHarborApiUrl("/v1/auth/github/start"))
 
   if (redirectTo?.trim()) {
     url.searchParams.set("redirect", redirectTo)
   }
 
-  return typeof window === "undefined"
-    ? `${url.pathname}${url.search}`
-    : url.toString()
+  return url.toString()
 }

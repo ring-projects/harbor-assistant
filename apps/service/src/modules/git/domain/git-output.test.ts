@@ -11,7 +11,10 @@ import {
 describe("git output helpers", () => {
   it("parses branch names and marks current branch", () => {
     expect(
-      parseBranchList("main\nfeature/refactor\nrelease/1.0\n", "feature/refactor"),
+      parseBranchList(
+        "main\nfeature/refactor\nrelease/1.0\n",
+        "feature/refactor",
+      ),
     ).toEqual([
       { name: "main", current: false },
       { name: "feature/refactor", current: true },
@@ -26,14 +29,17 @@ describe("git output helpers", () => {
 
   it("parses dirty state from git status --porcelain --branch output", () => {
     expect(parseStatusDirty("## main...origin/main\n")).toBe(false)
-    expect(parseStatusDirty("## main...origin/main\n M src/index.ts\n")).toBe(true)
+    expect(parseStatusDirty("## main...origin/main\n M src/index.ts\n")).toBe(
+      true,
+    )
   })
 
   it("classifies repository not found and git not available failures", () => {
     expect(
       classifyGitCommandFailure({
         stdout: "",
-        stderr: "fatal: not a git repository (or any of the parent directories): .git",
+        stderr:
+          "fatal: not a git repository (or any of the parent directories): .git",
         exitCode: 128,
       }),
     ).toBe("repository-not-found")

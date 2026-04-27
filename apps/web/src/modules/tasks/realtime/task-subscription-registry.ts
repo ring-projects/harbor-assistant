@@ -1,7 +1,4 @@
-import {
-  selectLastSequence,
-  useTasksSessionStore,
-} from "@/modules/tasks/store"
+import { selectLastSequence, useTasksSessionStore } from "@/modules/tasks/store"
 
 import type {
   InteractionSubscribeRequest,
@@ -21,8 +18,12 @@ export class TaskSubscriptionRegistry {
   ])
 
   constructor(
-    private readonly emitSubscribe: (payload: InteractionSubscribeRequest) => void,
-    private readonly emitUnsubscribe: (payload: InteractionSubscribeRequest) => void,
+    private readonly emitSubscribe: (
+      payload: InteractionSubscribeRequest,
+    ) => void,
+    private readonly emitUnsubscribe: (
+      payload: InteractionSubscribeRequest,
+    ) => void,
   ) {}
 
   subscribeProjectGit(projectId: string) {
@@ -89,7 +90,10 @@ export class TaskSubscriptionRegistry {
       case "task-events":
         return {
           topic,
-          afterSequence: selectLastSequence(useTasksSessionStore.getState(), id),
+          afterSequence: selectLastSequence(
+            useTasksSessionStore.getState(),
+            id,
+          ),
           limit: TASK_EVENTS_LIMIT,
         }
       default:

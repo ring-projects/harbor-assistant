@@ -64,7 +64,7 @@ describe("useTaskCreationParams", () => {
     expect(result.current.executor).toBe("codex")
     expect(result.current.model).toBe("gpt-5.3-codex")
     expect(result.current.effort).toBe("medium")
-    expect(result.current.executionMode).toBe("connected")
+    expect(result.current.executionMode).toBe("full-access")
   })
 
   it("updates executor-specific defaults through the store", () => {
@@ -72,13 +72,11 @@ describe("useTaskCreationParams", () => {
 
     act(() => {
       result.current.setModel("gpt-5.4-codex")
-      result.current.setExecutionMode("full-access")
     })
 
     expect(useAppStore.getState().taskCreationDefaults.runtimes.codex).toEqual({
       model: "gpt-5.4-codex",
       effort: null,
-      executionMode: "full-access",
     })
 
     expect(result.current.model).toBe("gpt-5.4-codex")
@@ -94,12 +92,10 @@ describe("useTaskCreationParams", () => {
             codex: {
               model: "missing-model",
               effort: "xhigh",
-              executionMode: "safe",
             },
             "claude-code": {
               model: null,
               effort: null,
-              executionMode: "connected",
             },
           },
         },
@@ -110,6 +106,6 @@ describe("useTaskCreationParams", () => {
 
     expect(result.current.model).toBe("gpt-5.3-codex")
     expect(result.current.effort).toBe("medium")
-    expect(result.current.executionMode).toBe("safe")
+    expect(result.current.executionMode).toBe("full-access")
   })
 })

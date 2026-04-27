@@ -34,6 +34,8 @@ export const AUTHORIZATION_ACTIONS = [
   "task.subscribe",
   "orchestration.view",
   "orchestration.create",
+  "orchestration.update",
+  "orchestration.schedule.update",
   "orchestration.task.create",
 ] as const
 

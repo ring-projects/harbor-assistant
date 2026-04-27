@@ -90,7 +90,10 @@ export class GitHubOAuthProvider {
       token,
     )
     const orgsPromise = args.includeOrganizations
-      ? this.fetchGitHubJson<GitHubOrg[]>("https://api.github.com/user/orgs", token)
+      ? this.fetchGitHubJson<GitHubOrg[]>(
+          "https://api.github.com/user/orgs",
+          token,
+        )
       : Promise.resolve([])
 
     const [profile, emails, orgs] = await Promise.all([
@@ -119,20 +122,23 @@ export class GitHubOAuthProvider {
     code: string
     redirectUri: string
   }) {
-    const response = await this.fetchImpl("https://github.com/login/oauth/access_token", {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        "user-agent": "harbor-service",
+    const response = await this.fetchImpl(
+      "https://github.com/login/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "user-agent": "harbor-service",
+        },
+        body: JSON.stringify({
+          client_id: this.options.clientId,
+          client_secret: this.options.clientSecret,
+          code: args.code,
+          redirect_uri: args.redirectUri,
+        }),
       },
-      body: JSON.stringify({
-        client_id: this.options.clientId,
-        client_secret: this.options.clientSecret,
-        code: args.code,
-        redirect_uri: args.redirectUri,
-      }),
-    })
+    )
 
     const payload = (await response.json()) as GitHubTokenResponse
     const accessToken = payload.access_token?.trim()
@@ -148,7 +154,10 @@ export class GitHubOAuthProvider {
     return accessToken
   }
 
-  private async fetchGitHubJson<T>(url: string, accessToken: string): Promise<T> {
+  private async fetchGitHubJson<T>(
+    url: string,
+    accessToken: string,
+  ): Promise<T> {
     const response = await this.fetchImpl(url, {
       headers: {
         accept: "application/json",

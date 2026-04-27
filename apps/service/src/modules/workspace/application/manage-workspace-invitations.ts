@@ -100,20 +100,25 @@ export async function acceptWorkspaceInvitationUseCase(
     now?: Date
   },
 ) {
-  const invitation = await deps.invitationRepository.findById(input.invitationId)
+  const invitation = await deps.invitationRepository.findById(
+    input.invitationId,
+  )
   if (!invitation) {
     throw createWorkspaceError().notFound("workspace invitation not found")
   }
 
   if (
-    invitation.inviteeGithubLogin !== input.actorGithubLogin.trim().toLowerCase()
+    invitation.inviteeGithubLogin !==
+    input.actorGithubLogin.trim().toLowerCase()
   ) {
     throw createWorkspaceError().invalidState(
       "workspace invitation does not belong to the current user",
     )
   }
 
-  const workspace = await deps.workspaceRepository.findById(invitation.workspaceId)
+  const workspace = await deps.workspaceRepository.findById(
+    invitation.workspaceId,
+  )
   if (!workspace) {
     throw createWorkspaceError().notFound()
   }

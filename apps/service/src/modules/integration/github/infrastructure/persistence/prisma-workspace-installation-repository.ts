@@ -21,9 +21,7 @@ function toDomainLink(link: {
   }
 }
 
-export class PrismaWorkspaceInstallationRepository
-  implements WorkspaceInstallationRepository
-{
+export class PrismaWorkspaceInstallationRepository implements WorkspaceInstallationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findLink(

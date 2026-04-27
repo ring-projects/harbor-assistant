@@ -22,11 +22,12 @@ export async function createFileSystemTestApp() {
   const projectRepository = new InMemoryProjectRepository()
   const workspaceRepository = new InMemoryWorkspaceRepository()
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
-    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    taskQuery: createRepositoryAuthorizationTaskQuery(
+      new InMemoryTaskRepository(),
+    ),
     orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
       new InMemoryOrchestrationRepository(),
     ),

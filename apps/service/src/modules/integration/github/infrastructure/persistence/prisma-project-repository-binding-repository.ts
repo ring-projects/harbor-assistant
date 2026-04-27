@@ -6,12 +6,12 @@ import type {
 } from "../../application/project-repository-binding-repository"
 import { toDomainProjectRepositoryBinding } from "./project-repository-binding-mapper"
 
-export class PrismaProjectRepositoryBindingRepository
-  implements ProjectRepositoryBindingRepository
-{
+export class PrismaProjectRepositoryBindingRepository implements ProjectRepositoryBindingRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findByProjectId(projectId: string): Promise<ProjectRepositoryBinding | null> {
+  async findByProjectId(
+    projectId: string,
+  ): Promise<ProjectRepositoryBinding | null> {
     const binding = await this.prisma.projectRepositoryBinding.findUnique({
       where: {
         projectId,

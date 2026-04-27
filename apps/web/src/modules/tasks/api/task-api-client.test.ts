@@ -8,21 +8,21 @@ import {
   uploadTaskInputImage,
 } from "./task-api-client"
 
-const originalExecutorApiBaseUrl = process.env.VITE_EXECUTOR_API_BASE_URL
+const originalHarborApiBaseUrl = process.env.VITE_HARBOR_API_BASE_URL
 
 describe("task-api-client", () => {
   afterEach(() => {
-    if (originalExecutorApiBaseUrl === undefined) {
-      delete process.env.VITE_EXECUTOR_API_BASE_URL
+    if (originalHarborApiBaseUrl === undefined) {
+      delete process.env.VITE_HARBOR_API_BASE_URL
     } else {
-      process.env.VITE_EXECUTOR_API_BASE_URL = originalExecutorApiBaseUrl
+      process.env.VITE_HARBOR_API_BASE_URL = originalHarborApiBaseUrl
     }
 
     vi.restoreAllMocks()
   })
 
   it("sends structured task input on create", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -95,7 +95,7 @@ describe("task-api-client", () => {
   })
 
   it("sends structured task input on resume", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -124,9 +124,7 @@ describe("task-api-client", () => {
       ],
     })
 
-    expect(
-      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
-    ).toEqual({
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
       items: [
         {
           type: "local_image",
@@ -137,7 +135,7 @@ describe("task-api-client", () => {
   })
 
   it("serializes resume runtime overrides including explicit null resets", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -163,9 +161,7 @@ describe("task-api-client", () => {
       effort: null,
     })
 
-    expect(
-      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
-    ).toEqual({
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
       prompt: "Continue with runtime defaults.",
       model: null,
       effort: null,
@@ -173,7 +169,7 @@ describe("task-api-client", () => {
   })
 
   it("calls the cancel endpoint and returns the updated task", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -213,7 +209,7 @@ describe("task-api-client", () => {
   })
 
   it("uploads a task input attachment as base64 payload", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -256,7 +252,7 @@ describe("task-api-client", () => {
   })
 
   it("infers media type for markdown attachments from file extension", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -286,7 +282,7 @@ describe("task-api-client", () => {
   })
 
   it("rejects unsupported task input attachment types before uploading", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)
@@ -309,7 +305,7 @@ describe("task-api-client", () => {
   })
 
   it("rejects task input attachments larger than 10MB before uploading", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)
@@ -331,7 +327,7 @@ describe("task-api-client", () => {
   })
 
   it("deletes a task and returns task/project ids", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

@@ -34,7 +34,11 @@ async function findAccessibleProject(args: {
   userId: string
 }): Promise<Project | null> {
   const project = await args.projectRepository.findById(args.projectId)
-  return (await canAccessProject(project, args.workspaceRepository, args.userId))
+  return (await canAccessProject(
+    project,
+    args.workspaceRepository,
+    args.userId,
+  ))
     ? project
     : null
 }
@@ -85,7 +89,11 @@ export function createAccessibleProjectRepository(
 
       for (const project of projects) {
         if (
-          await canAccessProject(project, workspaceRepository, requestedOwnerUserId)
+          await canAccessProject(
+            project,
+            workspaceRepository,
+            requestedOwnerUserId,
+          )
         ) {
           allowed.push(project)
         }
@@ -218,11 +226,11 @@ export function createAccessibleOrchestrationRepository(args: {
 
       return project ? orchestration : null
     },
-    async listByProject(projectId) {
+    async listByProject(input) {
       const project = await findAccessibleProject({
         projectRepository: args.projectRepository,
         workspaceRepository: args.workspaceRepository,
-        projectId,
+        projectId: input.projectId,
         userId: args.userId,
       })
 
@@ -230,10 +238,24 @@ export function createAccessibleOrchestrationRepository(args: {
         return []
       }
 
-      return args.repository.listByProject(projectId)
+      return args.repository.listByProject(input)
     },
     save(orchestration) {
       return args.repository.save(orchestration)
+    },
+    async findScheduleByOrchestrationId(orchestrationId) {
+      const orchestration = await this.findById(orchestrationId)
+      if (!orchestration) {
+        return null
+      }
+
+      return args.repository.findScheduleByOrchestrationId(orchestrationId)
+    },
+    saveSchedule(schedule) {
+      return args.repository.saveSchedule(schedule)
+    },
+    listDueSchedules(input) {
+      return args.repository.listDueSchedules(input)
     },
   }
 }

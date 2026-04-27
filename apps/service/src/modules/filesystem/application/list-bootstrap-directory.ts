@@ -1,4 +1,7 @@
-import { createBootstrapRootRegistry, type BootstrapFileSystemRootConfig } from "./bootstrap-root-registry"
+import {
+  createBootstrapRootRegistry,
+  type BootstrapFileSystemRootConfig,
+} from "./bootstrap-root-registry"
 import type { FileSystemRepository } from "./filesystem-repository"
 import { listDirectoryUseCase } from "./list-directory"
 import { toBootstrapRelativePath } from "./bootstrap-shared"

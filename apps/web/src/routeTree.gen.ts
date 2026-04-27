@@ -8,202 +8,182 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as WorkspacesRouteImport } from './routes/workspaces'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as BrandRouteImport } from './routes/brand'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as WorkspacesIndexRouteImport } from './routes/workspaces/index'
-import { Route as WorkspacesWorkspaceIdRouteRouteImport } from './routes/workspaces/$workspaceId/route'
-import { Route as WorkspacesWorkspaceIdIndexRouteImport } from './routes/workspaces/$workspaceId/index'
-import { Route as V1AuthSessionRouteImport } from './routes/v1/auth/session'
-import { Route as V1AuthLogoutRouteImport } from './routes/v1/auth/logout'
-import { Route as GithubAppCallbackRouteImport } from './routes/github/app/callback'
-import { Route as V1AuthGithubStartRouteImport } from './routes/v1/auth/github/start'
-import { Route as V1AuthGithubCallbackRouteImport } from './routes/v1/auth/github/callback'
-import { Route as WorkspacesWorkspaceIdProjectsProjectIdRouteRouteImport } from './routes/workspaces/$workspaceId/projects/$projectId/route'
-import { Route as WorkspacesWorkspaceIdProjectsProjectIdIndexRouteImport } from './routes/workspaces/$workspaceId/projects/$projectId/index'
-import { Route as WorkspacesWorkspaceIdProjectsProjectIdSettingsRouteImport } from './routes/workspaces/$workspaceId/projects/$projectId/settings'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as WorkspacesRouteImport } from "./routes/workspaces"
+import { Route as LoginRouteImport } from "./routes/login"
+import { Route as BrandRouteImport } from "./routes/brand"
+import { Route as IndexRouteImport } from "./routes/index"
+import { Route as WorkspacesIndexRouteImport } from "./routes/workspaces/index"
+import { Route as WorkspacesWorkspaceIdRouteRouteImport } from "./routes/workspaces/$workspaceId/route"
+import { Route as WorkspacesWorkspaceIdIndexRouteImport } from "./routes/workspaces/$workspaceId/index"
+import { Route as GithubAppCallbackRouteImport } from "./routes/github/app/callback"
+import { Route as WorkspacesWorkspaceIdProjectsProjectIdRouteRouteImport } from "./routes/workspaces/$workspaceId/projects/$projectId/route"
+import { Route as WorkspacesWorkspaceIdProjectsProjectIdIndexRouteImport } from "./routes/workspaces/$workspaceId/projects/$projectId/index"
+import { Route as WorkspacesWorkspaceIdProjectsProjectIdSettingsRouteImport } from "./routes/workspaces/$workspaceId/projects/$projectId/settings"
+import { Route as WorkspacesWorkspaceIdProjectsProjectIdScheduleRouteImport } from "./routes/workspaces/$workspaceId/projects/$projectId/schedule"
+import { Route as WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRouteImport } from "./routes/workspaces/$workspaceId/projects/$projectId/schedule_.$orchestrationId"
 
 const WorkspacesRoute = WorkspacesRouteImport.update({
-  id: '/workspaces',
-  path: '/workspaces',
+  id: "/workspaces",
+  path: "/workspaces",
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+  id: "/login",
+  path: "/login",
   getParentRoute: () => rootRouteImport,
 } as any)
 const BrandRoute = BrandRouteImport.update({
-  id: '/brand',
-  path: '/brand',
+  id: "/brand",
+  path: "/brand",
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const WorkspacesIndexRoute = WorkspacesIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => WorkspacesRoute,
 } as any)
 const WorkspacesWorkspaceIdRouteRoute =
   WorkspacesWorkspaceIdRouteRouteImport.update({
-    id: '/$workspaceId',
-    path: '/$workspaceId',
+    id: "/$workspaceId",
+    path: "/$workspaceId",
     getParentRoute: () => WorkspacesRoute,
   } as any)
 const WorkspacesWorkspaceIdIndexRoute =
   WorkspacesWorkspaceIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => WorkspacesWorkspaceIdRouteRoute,
   } as any)
-const V1AuthSessionRoute = V1AuthSessionRouteImport.update({
-  id: '/v1/auth/session',
-  path: '/v1/auth/session',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const V1AuthLogoutRoute = V1AuthLogoutRouteImport.update({
-  id: '/v1/auth/logout',
-  path: '/v1/auth/logout',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const GithubAppCallbackRoute = GithubAppCallbackRouteImport.update({
-  id: '/github/app/callback',
-  path: '/github/app/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const V1AuthGithubStartRoute = V1AuthGithubStartRouteImport.update({
-  id: '/v1/auth/github/start',
-  path: '/v1/auth/github/start',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const V1AuthGithubCallbackRoute = V1AuthGithubCallbackRouteImport.update({
-  id: '/v1/auth/github/callback',
-  path: '/v1/auth/github/callback',
+  id: "/github/app/callback",
+  path: "/github/app/callback",
   getParentRoute: () => rootRouteImport,
 } as any)
 const WorkspacesWorkspaceIdProjectsProjectIdRouteRoute =
   WorkspacesWorkspaceIdProjectsProjectIdRouteRouteImport.update({
-    id: '/projects/$projectId',
-    path: '/projects/$projectId',
+    id: "/projects/$projectId",
+    path: "/projects/$projectId",
     getParentRoute: () => WorkspacesWorkspaceIdRouteRoute,
   } as any)
 const WorkspacesWorkspaceIdProjectsProjectIdIndexRoute =
   WorkspacesWorkspaceIdProjectsProjectIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => WorkspacesWorkspaceIdProjectsProjectIdRouteRoute,
   } as any)
 const WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute =
   WorkspacesWorkspaceIdProjectsProjectIdSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
+    id: "/settings",
+    path: "/settings",
     getParentRoute: () => WorkspacesWorkspaceIdProjectsProjectIdRouteRoute,
   } as any)
+const WorkspacesWorkspaceIdProjectsProjectIdScheduleRoute =
+  WorkspacesWorkspaceIdProjectsProjectIdScheduleRouteImport.update({
+    id: "/schedule",
+    path: "/schedule",
+    getParentRoute: () => WorkspacesWorkspaceIdProjectsProjectIdRouteRoute,
+  } as any)
+const WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRoute =
+  WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRouteImport.update(
+    {
+      id: "/schedule_/$orchestrationId",
+      path: "/schedule/$orchestrationId",
+      getParentRoute: () => WorkspacesWorkspaceIdProjectsProjectIdRouteRoute,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/brand': typeof BrandRoute
-  '/login': typeof LoginRoute
-  '/workspaces': typeof WorkspacesRouteWithChildren
-  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteRouteWithChildren
-  '/workspaces/': typeof WorkspacesIndexRoute
-  '/github/app/callback': typeof GithubAppCallbackRoute
-  '/v1/auth/logout': typeof V1AuthLogoutRoute
-  '/v1/auth/session': typeof V1AuthSessionRoute
-  '/workspaces/$workspaceId/': typeof WorkspacesWorkspaceIdIndexRoute
-  '/workspaces/$workspaceId/projects/$projectId': typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren
-  '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
-  '/v1/auth/github/start': typeof V1AuthGithubStartRoute
-  '/workspaces/$workspaceId/projects/$projectId/settings': typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
-  '/workspaces/$workspaceId/projects/$projectId/': typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
+  "/": typeof IndexRoute
+  "/brand": typeof BrandRoute
+  "/login": typeof LoginRoute
+  "/workspaces": typeof WorkspacesRouteWithChildren
+  "/workspaces/$workspaceId": typeof WorkspacesWorkspaceIdRouteRouteWithChildren
+  "/workspaces/": typeof WorkspacesIndexRoute
+  "/github/app/callback": typeof GithubAppCallbackRoute
+  "/workspaces/$workspaceId/": typeof WorkspacesWorkspaceIdIndexRoute
+  "/workspaces/$workspaceId/projects/$projectId": typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren
+  "/workspaces/$workspaceId/projects/$projectId/schedule": typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleRoute
+  "/workspaces/$workspaceId/projects/$projectId/settings": typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
+  "/workspaces/$workspaceId/projects/$projectId/": typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
+  "/workspaces/$workspaceId/projects/$projectId/schedule/$orchestrationId": typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/brand': typeof BrandRoute
-  '/login': typeof LoginRoute
-  '/workspaces': typeof WorkspacesIndexRoute
-  '/github/app/callback': typeof GithubAppCallbackRoute
-  '/v1/auth/logout': typeof V1AuthLogoutRoute
-  '/v1/auth/session': typeof V1AuthSessionRoute
-  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdIndexRoute
-  '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
-  '/v1/auth/github/start': typeof V1AuthGithubStartRoute
-  '/workspaces/$workspaceId/projects/$projectId/settings': typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
-  '/workspaces/$workspaceId/projects/$projectId': typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
+  "/": typeof IndexRoute
+  "/brand": typeof BrandRoute
+  "/login": typeof LoginRoute
+  "/workspaces": typeof WorkspacesIndexRoute
+  "/github/app/callback": typeof GithubAppCallbackRoute
+  "/workspaces/$workspaceId": typeof WorkspacesWorkspaceIdIndexRoute
+  "/workspaces/$workspaceId/projects/$projectId/schedule": typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleRoute
+  "/workspaces/$workspaceId/projects/$projectId/settings": typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
+  "/workspaces/$workspaceId/projects/$projectId": typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
+  "/workspaces/$workspaceId/projects/$projectId/schedule/$orchestrationId": typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/brand': typeof BrandRoute
-  '/login': typeof LoginRoute
-  '/workspaces': typeof WorkspacesRouteWithChildren
-  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRouteRouteWithChildren
-  '/workspaces/': typeof WorkspacesIndexRoute
-  '/github/app/callback': typeof GithubAppCallbackRoute
-  '/v1/auth/logout': typeof V1AuthLogoutRoute
-  '/v1/auth/session': typeof V1AuthSessionRoute
-  '/workspaces/$workspaceId/': typeof WorkspacesWorkspaceIdIndexRoute
-  '/workspaces/$workspaceId/projects/$projectId': typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren
-  '/v1/auth/github/callback': typeof V1AuthGithubCallbackRoute
-  '/v1/auth/github/start': typeof V1AuthGithubStartRoute
-  '/workspaces/$workspaceId/projects/$projectId/settings': typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
-  '/workspaces/$workspaceId/projects/$projectId/': typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
+  "/": typeof IndexRoute
+  "/brand": typeof BrandRoute
+  "/login": typeof LoginRoute
+  "/workspaces": typeof WorkspacesRouteWithChildren
+  "/workspaces/$workspaceId": typeof WorkspacesWorkspaceIdRouteRouteWithChildren
+  "/workspaces/": typeof WorkspacesIndexRoute
+  "/github/app/callback": typeof GithubAppCallbackRoute
+  "/workspaces/$workspaceId/": typeof WorkspacesWorkspaceIdIndexRoute
+  "/workspaces/$workspaceId/projects/$projectId": typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren
+  "/workspaces/$workspaceId/projects/$projectId/schedule": typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleRoute
+  "/workspaces/$workspaceId/projects/$projectId/settings": typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
+  "/workspaces/$workspaceId/projects/$projectId/": typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
+  "/workspaces/$workspaceId/projects/$projectId/schedule_/$orchestrationId": typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/brand'
-    | '/login'
-    | '/workspaces'
-    | '/workspaces/$workspaceId'
-    | '/workspaces/'
-    | '/github/app/callback'
-    | '/v1/auth/logout'
-    | '/v1/auth/session'
-    | '/workspaces/$workspaceId/'
-    | '/workspaces/$workspaceId/projects/$projectId'
-    | '/v1/auth/github/callback'
-    | '/v1/auth/github/start'
-    | '/workspaces/$workspaceId/projects/$projectId/settings'
-    | '/workspaces/$workspaceId/projects/$projectId/'
+    | "/"
+    | "/brand"
+    | "/login"
+    | "/workspaces"
+    | "/workspaces/$workspaceId"
+    | "/workspaces/"
+    | "/github/app/callback"
+    | "/workspaces/$workspaceId/"
+    | "/workspaces/$workspaceId/projects/$projectId"
+    | "/workspaces/$workspaceId/projects/$projectId/schedule"
+    | "/workspaces/$workspaceId/projects/$projectId/settings"
+    | "/workspaces/$workspaceId/projects/$projectId/"
+    | "/workspaces/$workspaceId/projects/$projectId/schedule/$orchestrationId"
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/brand'
-    | '/login'
-    | '/workspaces'
-    | '/github/app/callback'
-    | '/v1/auth/logout'
-    | '/v1/auth/session'
-    | '/workspaces/$workspaceId'
-    | '/v1/auth/github/callback'
-    | '/v1/auth/github/start'
-    | '/workspaces/$workspaceId/projects/$projectId/settings'
-    | '/workspaces/$workspaceId/projects/$projectId'
+    | "/"
+    | "/brand"
+    | "/login"
+    | "/workspaces"
+    | "/github/app/callback"
+    | "/workspaces/$workspaceId"
+    | "/workspaces/$workspaceId/projects/$projectId/schedule"
+    | "/workspaces/$workspaceId/projects/$projectId/settings"
+    | "/workspaces/$workspaceId/projects/$projectId"
+    | "/workspaces/$workspaceId/projects/$projectId/schedule/$orchestrationId"
   id:
-    | '__root__'
-    | '/'
-    | '/brand'
-    | '/login'
-    | '/workspaces'
-    | '/workspaces/$workspaceId'
-    | '/workspaces/'
-    | '/github/app/callback'
-    | '/v1/auth/logout'
-    | '/v1/auth/session'
-    | '/workspaces/$workspaceId/'
-    | '/workspaces/$workspaceId/projects/$projectId'
-    | '/v1/auth/github/callback'
-    | '/v1/auth/github/start'
-    | '/workspaces/$workspaceId/projects/$projectId/settings'
-    | '/workspaces/$workspaceId/projects/$projectId/'
+    | "__root__"
+    | "/"
+    | "/brand"
+    | "/login"
+    | "/workspaces"
+    | "/workspaces/$workspaceId"
+    | "/workspaces/"
+    | "/github/app/callback"
+    | "/workspaces/$workspaceId/"
+    | "/workspaces/$workspaceId/projects/$projectId"
+    | "/workspaces/$workspaceId/projects/$projectId/schedule"
+    | "/workspaces/$workspaceId/projects/$projectId/settings"
+    | "/workspaces/$workspaceId/projects/$projectId/"
+    | "/workspaces/$workspaceId/projects/$projectId/schedule_/$orchestrationId"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -212,133 +192,121 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   WorkspacesRoute: typeof WorkspacesRouteWithChildren
   GithubAppCallbackRoute: typeof GithubAppCallbackRoute
-  V1AuthLogoutRoute: typeof V1AuthLogoutRoute
-  V1AuthSessionRoute: typeof V1AuthSessionRoute
-  V1AuthGithubCallbackRoute: typeof V1AuthGithubCallbackRoute
-  V1AuthGithubStartRoute: typeof V1AuthGithubStartRoute
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/workspaces': {
-      id: '/workspaces'
-      path: '/workspaces'
-      fullPath: '/workspaces'
+    "/workspaces": {
+      id: "/workspaces"
+      path: "/workspaces"
+      fullPath: "/workspaces"
       preLoaderRoute: typeof WorkspacesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
+    "/login": {
+      id: "/login"
+      path: "/login"
+      fullPath: "/login"
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/brand': {
-      id: '/brand'
-      path: '/brand'
-      fullPath: '/brand'
+    "/brand": {
+      id: "/brand"
+      path: "/brand"
+      fullPath: "/brand"
       preLoaderRoute: typeof BrandRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
+    "/": {
+      id: "/"
+      path: "/"
+      fullPath: "/"
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workspaces/': {
-      id: '/workspaces/'
-      path: '/'
-      fullPath: '/workspaces/'
+    "/workspaces/": {
+      id: "/workspaces/"
+      path: "/"
+      fullPath: "/workspaces/"
       preLoaderRoute: typeof WorkspacesIndexRouteImport
       parentRoute: typeof WorkspacesRoute
     }
-    '/workspaces/$workspaceId': {
-      id: '/workspaces/$workspaceId'
-      path: '/$workspaceId'
-      fullPath: '/workspaces/$workspaceId'
+    "/workspaces/$workspaceId": {
+      id: "/workspaces/$workspaceId"
+      path: "/$workspaceId"
+      fullPath: "/workspaces/$workspaceId"
       preLoaderRoute: typeof WorkspacesWorkspaceIdRouteRouteImport
       parentRoute: typeof WorkspacesRoute
     }
-    '/workspaces/$workspaceId/': {
-      id: '/workspaces/$workspaceId/'
-      path: '/'
-      fullPath: '/workspaces/$workspaceId/'
+    "/workspaces/$workspaceId/": {
+      id: "/workspaces/$workspaceId/"
+      path: "/"
+      fullPath: "/workspaces/$workspaceId/"
       preLoaderRoute: typeof WorkspacesWorkspaceIdIndexRouteImport
       parentRoute: typeof WorkspacesWorkspaceIdRouteRoute
     }
-    '/v1/auth/session': {
-      id: '/v1/auth/session'
-      path: '/v1/auth/session'
-      fullPath: '/v1/auth/session'
-      preLoaderRoute: typeof V1AuthSessionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/v1/auth/logout': {
-      id: '/v1/auth/logout'
-      path: '/v1/auth/logout'
-      fullPath: '/v1/auth/logout'
-      preLoaderRoute: typeof V1AuthLogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/github/app/callback': {
-      id: '/github/app/callback'
-      path: '/github/app/callback'
-      fullPath: '/github/app/callback'
+    "/github/app/callback": {
+      id: "/github/app/callback"
+      path: "/github/app/callback"
+      fullPath: "/github/app/callback"
       preLoaderRoute: typeof GithubAppCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/v1/auth/github/start': {
-      id: '/v1/auth/github/start'
-      path: '/v1/auth/github/start'
-      fullPath: '/v1/auth/github/start'
-      preLoaderRoute: typeof V1AuthGithubStartRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/v1/auth/github/callback': {
-      id: '/v1/auth/github/callback'
-      path: '/v1/auth/github/callback'
-      fullPath: '/v1/auth/github/callback'
-      preLoaderRoute: typeof V1AuthGithubCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/workspaces/$workspaceId/projects/$projectId': {
-      id: '/workspaces/$workspaceId/projects/$projectId'
-      path: '/projects/$projectId'
-      fullPath: '/workspaces/$workspaceId/projects/$projectId'
+    "/workspaces/$workspaceId/projects/$projectId": {
+      id: "/workspaces/$workspaceId/projects/$projectId"
+      path: "/projects/$projectId"
+      fullPath: "/workspaces/$workspaceId/projects/$projectId"
       preLoaderRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRouteImport
       parentRoute: typeof WorkspacesWorkspaceIdRouteRoute
     }
-    '/workspaces/$workspaceId/projects/$projectId/': {
-      id: '/workspaces/$workspaceId/projects/$projectId/'
-      path: '/'
-      fullPath: '/workspaces/$workspaceId/projects/$projectId/'
+    "/workspaces/$workspaceId/projects/$projectId/": {
+      id: "/workspaces/$workspaceId/projects/$projectId/"
+      path: "/"
+      fullPath: "/workspaces/$workspaceId/projects/$projectId/"
       preLoaderRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRouteImport
       parentRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRoute
     }
-    '/workspaces/$workspaceId/projects/$projectId/settings': {
-      id: '/workspaces/$workspaceId/projects/$projectId/settings'
-      path: '/settings'
-      fullPath: '/workspaces/$workspaceId/projects/$projectId/settings'
+    "/workspaces/$workspaceId/projects/$projectId/settings": {
+      id: "/workspaces/$workspaceId/projects/$projectId/settings"
+      path: "/settings"
+      fullPath: "/workspaces/$workspaceId/projects/$projectId/settings"
       preLoaderRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRoute
+    }
+    "/workspaces/$workspaceId/projects/$projectId/schedule": {
+      id: "/workspaces/$workspaceId/projects/$projectId/schedule"
+      path: "/schedule"
+      fullPath: "/workspaces/$workspaceId/projects/$projectId/schedule"
+      preLoaderRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleRouteImport
+      parentRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRoute
+    }
+    "/workspaces/$workspaceId/projects/$projectId/schedule_/$orchestrationId": {
+      id: "/workspaces/$workspaceId/projects/$projectId/schedule_/$orchestrationId"
+      path: "/schedule/$orchestrationId"
+      fullPath: "/workspaces/$workspaceId/projects/$projectId/schedule/$orchestrationId"
+      preLoaderRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRouteImport
       parentRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdRouteRoute
     }
   }
 }
 
 interface WorkspacesWorkspaceIdProjectsProjectIdRouteRouteChildren {
+  WorkspacesWorkspaceIdProjectsProjectIdScheduleRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleRoute
   WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute
   WorkspacesWorkspaceIdProjectsProjectIdIndexRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdIndexRoute
+  WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRoute: typeof WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRoute
 }
 
 const WorkspacesWorkspaceIdProjectsProjectIdRouteRouteChildren: WorkspacesWorkspaceIdProjectsProjectIdRouteRouteChildren =
   {
+    WorkspacesWorkspaceIdProjectsProjectIdScheduleRoute:
+      WorkspacesWorkspaceIdProjectsProjectIdScheduleRoute,
     WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute:
       WorkspacesWorkspaceIdProjectsProjectIdSettingsRoute,
     WorkspacesWorkspaceIdProjectsProjectIdIndexRoute:
       WorkspacesWorkspaceIdProjectsProjectIdIndexRoute,
+    WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRoute:
+      WorkspacesWorkspaceIdProjectsProjectIdScheduleOrchestrationIdRoute,
   }
 
 const WorkspacesWorkspaceIdProjectsProjectIdRouteRouteWithChildren =
@@ -383,18 +351,14 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   WorkspacesRoute: WorkspacesRouteWithChildren,
   GithubAppCallbackRoute: GithubAppCallbackRoute,
-  V1AuthLogoutRoute: V1AuthLogoutRoute,
-  V1AuthSessionRoute: V1AuthSessionRoute,
-  V1AuthGithubCallbackRoute: V1AuthGithubCallbackRoute,
-  V1AuthGithubStartRoute: V1AuthGithubStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx"
+import type { startInstance } from "./start.ts"
+declare module "@tanstack/react-start" {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>

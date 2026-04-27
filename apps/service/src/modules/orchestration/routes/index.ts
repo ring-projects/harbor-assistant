@@ -1,12 +1,15 @@
 import type { FastifyInstance } from "fastify"
 
 import type { AuthorizationService } from "../../authorization"
+import { getAuthenticatedActor } from "../../auth"
 import { bootstrapOrchestrationUseCase } from "../application/bootstrap-orchestration"
 import { createOrchestrationUseCase } from "../application/create-orchestration"
 import { createOrchestrationTaskUseCase } from "../application/create-orchestration-task"
 import { getOrchestrationUseCase } from "../application/get-orchestration"
 import { listOrchestrationTasksUseCase } from "../application/list-orchestration-tasks"
 import { listProjectOrchestrationsUseCase } from "../application/list-project-orchestrations"
+import { updateOrchestrationUseCase } from "../application/update-orchestration"
+import { upsertOrchestrationScheduleUseCase } from "../application/upsert-orchestration-schedule"
 import type { OrchestrationBootstrapStore } from "../application/orchestration-bootstrap-store"
 import type { OrchestrationRepository } from "../application/orchestration-repository"
 import { toOrchestrationAppError } from "../orchestration-app-error"
@@ -25,11 +28,16 @@ import {
   getOrchestrationRouteSchema,
   listOrchestrationTasksRouteSchema,
   listProjectOrchestrationsRouteSchema,
+  updateOrchestrationRouteSchema,
+  upsertOrchestrationScheduleRouteSchema,
   type CreateOrchestrationBody,
   type CreateOrchestrationTaskBody,
+  type ListProjectOrchestrationsQuery,
   type ListOrchestrationTasksQuery,
   type OrchestrationIdParams,
   type ProjectIdParams,
+  type UpdateOrchestrationBody,
+  type UpsertOrchestrationScheduleBody,
 } from "../schemas"
 
 export async function registerOrchestrationModuleRoutes(
@@ -59,10 +67,6 @@ export async function registerOrchestrationModuleRoutes(
     notificationPublisher,
   } = options
 
-  function getOwnerUserId(request: { auth: { userId: string } | null }) {
-    return request.auth!.userId
-  }
-
   app.post<{ Body: CreateOrchestrationBody }>(
     "/orchestrations",
     {
@@ -71,7 +75,7 @@ export async function registerOrchestrationModuleRoutes(
     async (request, reply) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "project.tasks.create",
           resource: { kind: "project", projectId: request.body.projectId },
         })
@@ -101,7 +105,7 @@ export async function registerOrchestrationModuleRoutes(
     async (request, reply) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "project.tasks.create",
           resource: { kind: "project", projectId: request.body.projectId },
         })
@@ -128,7 +132,10 @@ export async function registerOrchestrationModuleRoutes(
     },
   )
 
-  app.get<{ Params: ProjectIdParams }>(
+  app.get<{
+    Params: ProjectIdParams
+    Querystring: ListProjectOrchestrationsQuery
+  }>(
     "/projects/:projectId/orchestrations",
     {
       schema: listProjectOrchestrationsRouteSchema,
@@ -136,7 +143,7 @@ export async function registerOrchestrationModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "project.view",
           resource: { kind: "project", projectId: request.params.projectId },
         })
@@ -145,7 +152,10 @@ export async function registerOrchestrationModuleRoutes(
             repository,
             projectRepository: projectRepository as ProjectRepository,
           },
-          request.params.projectId,
+          {
+            projectId: request.params.projectId,
+            surface: request.query.surface,
+          },
         )
 
         return {
@@ -166,7 +176,7 @@ export async function registerOrchestrationModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "orchestration.view",
           resource: {
             kind: "orchestration",
@@ -190,7 +200,86 @@ export async function registerOrchestrationModuleRoutes(
     },
   )
 
-  app.post<{ Params: OrchestrationIdParams; Body: CreateOrchestrationTaskBody }>(
+  app.patch<{
+    Params: OrchestrationIdParams
+    Body: UpdateOrchestrationBody
+  }>(
+    "/orchestrations/:orchestrationId",
+    {
+      schema: updateOrchestrationRouteSchema,
+    },
+    async (request) => {
+      try {
+        await options.authorization.requireAuthorized({
+          actor: getAuthenticatedActor(request),
+          action: "orchestration.update",
+          resource: {
+            kind: "orchestration",
+            orchestrationId: request.params.orchestrationId,
+          },
+        })
+        const orchestration = await updateOrchestrationUseCase(
+          {
+            repository,
+          },
+          {
+            orchestrationId: request.params.orchestrationId,
+            ...request.body,
+          },
+        )
+
+        return {
+          ok: true,
+          orchestration,
+        }
+      } catch (error) {
+        throw toOrchestrationAppError(error)
+      }
+    },
+  )
+
+  app.put<{
+    Params: OrchestrationIdParams
+    Body: UpsertOrchestrationScheduleBody
+  }>(
+    "/orchestrations/:orchestrationId/schedule",
+    {
+      schema: upsertOrchestrationScheduleRouteSchema,
+    },
+    async (request) => {
+      try {
+        await options.authorization.requireAuthorized({
+          actor: getAuthenticatedActor(request),
+          action: "orchestration.schedule.update",
+          resource: {
+            kind: "orchestration",
+            orchestrationId: request.params.orchestrationId,
+          },
+        })
+        const orchestration = await upsertOrchestrationScheduleUseCase(
+          {
+            repository,
+          },
+          {
+            orchestrationId: request.params.orchestrationId,
+            ...request.body,
+          },
+        )
+
+        return {
+          ok: true,
+          orchestration,
+        }
+      } catch (error) {
+        throw toOrchestrationAppError(error)
+      }
+    },
+  )
+
+  app.post<{
+    Params: OrchestrationIdParams
+    Body: CreateOrchestrationTaskBody
+  }>(
     "/orchestrations/:orchestrationId/tasks",
     {
       schema: createOrchestrationTaskRouteSchema,
@@ -198,7 +287,7 @@ export async function registerOrchestrationModuleRoutes(
     async (request, reply) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "orchestration.task.create",
           resource: {
             kind: "orchestration",
@@ -229,7 +318,10 @@ export async function registerOrchestrationModuleRoutes(
     },
   )
 
-  app.get<{ Params: OrchestrationIdParams; Querystring: ListOrchestrationTasksQuery }>(
+  app.get<{
+    Params: OrchestrationIdParams
+    Querystring: ListOrchestrationTasksQuery
+  }>(
     "/orchestrations/:orchestrationId/tasks",
     {
       schema: listOrchestrationTasksRouteSchema,
@@ -237,7 +329,7 @@ export async function registerOrchestrationModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "orchestration.view",
           resource: {
             kind: "orchestration",

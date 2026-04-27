@@ -11,9 +11,7 @@ function formatAttachmentSummary(args: {
   const parts: string[] = []
 
   if (args.imageCount > 0) {
-    parts.push(
-      args.imageCount === 1 ? "1 image" : `${args.imageCount} images`,
-    )
+    parts.push(args.imageCount === 1 ? "1 image" : `${args.imageCount} images`)
   }
 
   if (args.fileCount > 0) {
@@ -104,8 +102,10 @@ export function extractLocalAttachments(input: AgentInput) {
     .filter(
       (
         item,
-      ): item is Extract<AgentInputItem, { type: "local_image" | "local_file" }> =>
-        item.type === "local_image" || item.type === "local_file",
+      ): item is Extract<
+        AgentInputItem,
+        { type: "local_image" | "local_file" }
+      > => item.type === "local_image" || item.type === "local_file",
     )
     .map((item) => ({
       type: item.type,

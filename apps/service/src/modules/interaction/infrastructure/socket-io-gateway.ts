@@ -8,7 +8,10 @@ import type {
   TaskInteractionQueries,
   TaskInteractionStream,
 } from "../application/ports"
-import type { AuthorizationActor, AuthorizationService } from "../../authorization"
+import type {
+  AuthorizationActor,
+  AuthorizationService,
+} from "../../authorization"
 
 export type ResolveSocketActor = (
   socket: Socket,

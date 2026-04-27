@@ -3,9 +3,7 @@ import type {
   WorkspaceInstallationRepository,
 } from "../application/workspace-installation-repository"
 
-export class InMemoryWorkspaceInstallationRepository
-  implements WorkspaceInstallationRepository
-{
+export class InMemoryWorkspaceInstallationRepository implements WorkspaceInstallationRepository {
   private readonly links = new Map<string, WorkspaceGitHubInstallationLink>()
 
   private createKey(workspaceId: string, installationId: string) {

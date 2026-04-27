@@ -15,9 +15,9 @@ describe("filesystem path policy", () => {
   })
 
   it("keeps absolute paths absolute before boundary checks", () => {
-    expect(resolveRequestedPath("/workspace/root", "/workspace/root/src/index.ts")).toBe(
-      "/workspace/root/src/index.ts",
-    )
+    expect(
+      resolveRequestedPath("/workspace/root", "/workspace/root/src/index.ts"),
+    ).toBe("/workspace/root/src/index.ts")
   })
 
   it("rejects paths outside the allowed root", () => {

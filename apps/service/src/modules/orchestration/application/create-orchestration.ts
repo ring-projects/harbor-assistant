@@ -15,7 +15,7 @@ export async function createOrchestrationUseCase(
   },
   input: {
     projectId: string
-    title: string
+    title?: string | null
     description?: string | null
   },
 ) {

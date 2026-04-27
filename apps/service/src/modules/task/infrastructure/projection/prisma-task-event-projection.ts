@@ -6,8 +6,14 @@ import type {
 } from "../../application/task-event-projection"
 import type { TaskEventStream } from "../../application/task-read-models"
 
-function parseJsonObject(rawPayload: Prisma.JsonValue): Record<string, unknown> {
-  if (rawPayload && typeof rawPayload === "object" && !Array.isArray(rawPayload)) {
+function parseJsonObject(
+  rawPayload: Prisma.JsonValue,
+): Record<string, unknown> {
+  if (
+    rawPayload &&
+    typeof rawPayload === "object" &&
+    !Array.isArray(rawPayload)
+  ) {
     return rawPayload as Record<string, unknown>
   }
 

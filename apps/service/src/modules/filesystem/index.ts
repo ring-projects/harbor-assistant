@@ -5,9 +5,7 @@ export {
   isFileSystemError,
 } from "./errors"
 export type { BootstrapFileSystemRootConfig } from "./application/bootstrap-root-registry"
-export type {
-  FileSystemRepository,
-} from "./application/filesystem-repository"
+export type { FileSystemRepository } from "./application/filesystem-repository"
 export type {
   BootstrapDirectoryListing,
   BootstrapFileSystemPathInfo,

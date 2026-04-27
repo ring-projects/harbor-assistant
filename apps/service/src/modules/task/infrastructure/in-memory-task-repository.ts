@@ -7,7 +7,10 @@ import type {
   TaskRecordStore,
 } from "../application/task-record-store"
 import type { Task } from "../domain/task"
-import { attachTaskRuntime, type TaskRecord } from "../application/task-read-models"
+import {
+  attachTaskRuntime,
+  type TaskRecord,
+} from "../application/task-read-models"
 
 export class InMemoryTaskRepository implements TaskRepository, TaskRecordStore {
   private readonly tasks = new Map<string, TaskRecord>()
@@ -41,7 +44,9 @@ export class InMemoryTaskRepository implements TaskRepository, TaskRecordStore {
     const tasks = [...this.tasks.values()]
       .filter((task) => task.projectId === input.projectId)
       .filter((task) => includeArchived || task.archivedAt === null)
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
 
     if (limit === undefined) {
       return tasks
@@ -61,7 +66,9 @@ export class InMemoryTaskRepository implements TaskRepository, TaskRecordStore {
     const tasks = [...this.tasks.values()]
       .filter((task) => task.orchestrationId === input.orchestrationId)
       .filter((task) => includeArchived || task.archivedAt === null)
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
 
     if (limit === undefined) {
       return tasks
@@ -77,17 +84,20 @@ export class InMemoryTaskRepository implements TaskRepository, TaskRecordStore {
       task.id,
       attachTaskRuntime(task, {
         executor: Object.prototype.hasOwnProperty.call(nextRuntime, "executor")
-          ? nextRuntime.executor ?? null
-          : current?.executor ?? null,
+          ? (nextRuntime.executor ?? null)
+          : (current?.executor ?? null),
         model: Object.prototype.hasOwnProperty.call(nextRuntime, "model")
-          ? nextRuntime.model ?? null
-          : current?.model ?? null,
-        executionMode: Object.prototype.hasOwnProperty.call(nextRuntime, "executionMode")
-          ? nextRuntime.executionMode ?? null
-          : current?.executionMode ?? null,
+          ? (nextRuntime.model ?? null)
+          : (current?.model ?? null),
+        executionMode: Object.prototype.hasOwnProperty.call(
+          nextRuntime,
+          "executionMode",
+        )
+          ? (nextRuntime.executionMode ?? null)
+          : (current?.executionMode ?? null),
         effort: Object.prototype.hasOwnProperty.call(nextRuntime, "effort")
-          ? nextRuntime.effort ?? null
-          : current?.effort ?? null,
+          ? (nextRuntime.effort ?? null)
+          : (current?.effort ?? null),
       }),
     )
   }

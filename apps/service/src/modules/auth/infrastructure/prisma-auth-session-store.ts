@@ -1,5 +1,6 @@
 import type { PrismaClient, User as PrismaUser } from "@prisma/client"
 
+import type { AuthorizationActor } from "../../authorization"
 import type { User } from "../../user"
 import { toDomainUser } from "../../user/infrastructure/persistence/user-mapper"
 import { DEFAULT_SESSION_TTL_DAYS } from "../constants"
@@ -19,11 +20,28 @@ type PersistedSession = {
   user: PrismaUser
 }
 
-export type AuthenticatedRequestContext = {
-  sessionId: string
-  userId: string
-  user: User
-}
+export type AuthenticatedRequestContext =
+  | {
+      kind?: "user"
+      sessionId: string
+      userId: string
+      user: User
+      actor?: Extract<AuthorizationActor, { kind: "user" }>
+    }
+  | {
+      kind: "agent"
+      tokenId: string
+      issuedByUserId: string | null
+      userId: string
+      user: null
+      scopes: string[]
+      projectId: string | null
+      orchestrationId: string | null
+      taskId: string | null
+      sourceTaskId: string | null
+      expiresAt: Date
+      actor: Extract<AuthorizationActor, { kind: "agent" }>
+    }
 
 export class PrismaAuthSessionStore {
   constructor(private readonly prisma: PrismaClient) {}
@@ -39,7 +57,8 @@ export class PrismaAuthSessionStore {
     const token = createSessionToken()
     const tokenHash = hashSessionToken(token)
     const expiresAt = new Date(
-      now.getTime() + (input.ttlDays ?? DEFAULT_SESSION_TTL_DAYS) * 24 * 60 * 60 * 1000,
+      now.getTime() +
+        (input.ttlDays ?? DEFAULT_SESSION_TTL_DAYS) * 24 * 60 * 60 * 1000,
     )
 
     const session = await this.prisma.authSession.create({
@@ -129,9 +148,14 @@ export class PrismaAuthSessionStore {
     }
 
     return {
+      kind: "user",
       sessionId: session.id,
       userId: session.userId,
       user: toDomainUser(session.user),
+      actor: {
+        kind: "user",
+        userId: session.userId,
+      },
     }
   }
 }

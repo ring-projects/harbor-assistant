@@ -38,7 +38,11 @@ export function toTaskAppError(error: unknown): AppError {
           error.message,
         )
       case TASK_ERROR_CODES.INVALID_INPUT:
-        return new AppError(ERROR_CODES.INVALID_REQUEST_BODY, 400, error.message)
+        return new AppError(
+          ERROR_CODES.INVALID_REQUEST_BODY,
+          400,
+          error.message,
+        )
       case TASK_ERROR_CODES.CANCEL_FAILED:
         return new AppError(ERROR_CODES.TASK_BREAK_FAILED, 500, error.message)
       case TASK_ERROR_CODES.START_FAILED:
@@ -58,5 +62,9 @@ export function toTaskAppError(error: unknown): AppError {
     return error
   }
 
-  return new AppError(ERROR_CODES.INTERNAL_ERROR, 500, "Unexpected service error.")
+  return new AppError(
+    ERROR_CODES.INTERNAL_ERROR,
+    500,
+    "Unexpected service error.",
+  )
 }

@@ -66,10 +66,11 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    const nativeEvent = event.nativeEvent as KeyboardEvent<HTMLTextAreaElement>["nativeEvent"] & {
-      isComposing?: boolean
-      keyCode?: number
-    }
+    const nativeEvent =
+      event.nativeEvent as KeyboardEvent<HTMLTextAreaElement>["nativeEvent"] & {
+        isComposing?: boolean
+        keyCode?: number
+      }
     const isImeConfirming =
       isComposingRef.current ||
       nativeEvent.isComposing === true ||
@@ -169,8 +170,8 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl bg-muted/80 transition-colors",
-        isDraggingFile && "bg-muted/34 ring-1 ring-foreground/12",
+        "bg-muted/80 relative overflow-hidden rounded-xl transition-colors",
+        isDraggingFile && "bg-muted/34 ring-foreground/12 ring-1",
       )}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
@@ -178,9 +179,9 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
       onDrop={handleDrop}
     >
       {isDraggingFile ? (
-        <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg bg-background/90 backdrop-blur-sm">
-          <div className="flex items-center gap-2 rounded-md bg-muted/55 px-3 py-2 font-mono text-[12px] text-foreground">
-            <PaperclipIcon className="size-4 text-muted-foreground" />
+        <div className="bg-background/90 pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg backdrop-blur-sm">
+          <div className="bg-muted/55 text-foreground flex items-center gap-2 rounded-md px-3 py-2 font-mono text-[12px]">
+            <PaperclipIcon className="text-muted-foreground size-4" />
             <span>Drop files to attach</span>
           </div>
         </div>
@@ -202,14 +203,14 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
           aria-describedby={props.errorMessage ? errorTextId : undefined}
           aria-invalid={props.errorMessage ? true : undefined}
           className={cn(
-            "field-sizing-fixed min-h-24 max-h-[40svh] resize-none overflow-y-auto border-0 bg-transparent px-0 py-0 leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent",
+            "field-sizing-fixed max-h-[40svh] min-h-24 resize-none overflow-y-auto border-0 bg-transparent px-0 py-0 leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent",
           )}
         />
 
         {props.errorMessage ? (
           <div
             id={errorTextId}
-            className="bg-surface-danger text-destructive rounded-md border border-destructive/25 px-3 py-2 font-mono text-[11px]"
+            className="bg-surface-danger text-destructive border-destructive/25 rounded-md border px-3 py-2 font-mono text-[11px]"
           >
             {props.errorMessage}
           </div>
@@ -220,7 +221,9 @@ export function TaskInputComposer(props: TaskInputComposerProps) {
         <div className="flex items-end justify-between gap-3 pt-3">
           <div className="min-w-0 flex-1 space-y-2.5">
             {props.controls ? (
-              <div className="flex flex-wrap items-center gap-2">{props.controls}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                {props.controls}
+              </div>
             ) : null}
           </div>
 

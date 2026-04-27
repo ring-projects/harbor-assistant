@@ -1,3 +1,4 @@
+import fastifyCookie from "@fastify/cookie"
 import Fastify from "fastify"
 import { describe, expect, it, vi } from "vitest"
 
@@ -23,9 +24,9 @@ async function createApp(args?: {
 }) {
   const installationRepository =
     args?.installationRepository ?? new InMemoryGitHubInstallationRepository()
-    const workspaceRepository =
-      args?.workspaceRepository ?? new InMemoryWorkspaceRepository()
-    const workspaceInstallationRepository =
+  const workspaceRepository =
+    args?.workspaceRepository ?? new InMemoryWorkspaceRepository()
+  const workspaceInstallationRepository =
     args?.workspaceInstallationRepository ??
     new InMemoryWorkspaceInstallationRepository()
   const githubAppClient = args?.githubAppClient ?? createGitHubAppClientStub()
@@ -53,6 +54,7 @@ async function createApp(args?: {
   })
 
   await app.register(errorHandlerPlugin)
+  await app.register(fastifyCookie)
   await app.register(
     async (instance) => {
       await registerGitHubIntegrationRoutes(instance, {

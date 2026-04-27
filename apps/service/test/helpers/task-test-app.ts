@@ -38,15 +38,16 @@ export async function createTaskTestAppWithOptions(
   const workspaceRepository = new PrismaWorkspaceRepository(prisma)
   const projectTaskPort = createProjectTaskPort({
     projectRepository,
+    workspaceRepository,
   })
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
     taskQuery: createRepositoryAuthorizationTaskQuery(taskRepository),
-    orchestrationQuery:
-      createRepositoryAuthorizationOrchestrationQuery(orchestrationRepository),
+    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+      orchestrationRepository,
+    ),
   })
   const taskInputFileStore = createNodeTaskInputImageStore()
   const runtimePort = createCurrentTaskRuntimePort({

@@ -106,6 +106,8 @@ describe("createAccessibleProjectRepository", () => {
       "user-1",
     )
 
-    await expect(repository.findById("project-1")).resolves.toEqual(legacyProject)
+    await expect(repository.findById("project-1")).resolves.toEqual(
+      legacyProject,
+    )
   })
 })

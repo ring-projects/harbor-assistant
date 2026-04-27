@@ -26,11 +26,12 @@ async function createApp() {
   const workspaceInstallationRepository =
     new InMemoryWorkspaceInstallationRepository()
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
-    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    taskQuery: createRepositoryAuthorizationTaskQuery(
+      new InMemoryTaskRepository(),
+    ),
     orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
       new InMemoryOrchestrationRepository(),
     ),
@@ -185,7 +186,7 @@ describe("project routes", () => {
     })
   })
 
-  it("gets and updates project settings", async () => {
+  it("gets and updates project retention settings", async () => {
     const { app } = await createApp()
 
     await app.inject({
@@ -212,6 +213,7 @@ describe("project routes", () => {
         },
       },
     })
+    expect(settings.json().settings).not.toHaveProperty("codex")
 
     const updated = await app.inject({
       method: "PATCH",
@@ -235,6 +237,7 @@ describe("project routes", () => {
         },
       },
     })
+    expect(updated.json().project.settings).not.toHaveProperty("codex")
   })
 
   it("archives and restores a project", async () => {

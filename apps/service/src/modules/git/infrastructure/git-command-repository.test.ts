@@ -78,17 +78,20 @@ describe("createGitCommandRepository", () => {
       dirty: true,
     })
 
-    await expect(listBranchesUseCase(repository, { path: root })).resolves
-      .toMatchObject({
-        path: root,
-        currentBranch: "feature/refactor",
-        branches: expect.arrayContaining([
-          { name: "main", current: false },
-          { name: "feature/refactor", current: true },
-        ]),
-      })
+    await expect(
+      listBranchesUseCase(repository, { path: root }),
+    ).resolves.toMatchObject({
+      path: root,
+      currentBranch: "feature/refactor",
+      branches: expect.arrayContaining([
+        { name: "main", current: false },
+        { name: "feature/refactor", current: true },
+      ]),
+    })
 
-    await expect(getDiffUseCase(repository, { path: root })).resolves.toMatchObject({
+    await expect(
+      getDiffUseCase(repository, { path: root }),
+    ).resolves.toMatchObject({
       path: root,
       files: [
         expect.objectContaining({

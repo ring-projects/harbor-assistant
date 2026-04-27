@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest"
 
-import { createTestDatabase, type TestDatabase } from "../../../../../test/helpers/test-database"
+import {
+  createTestDatabase,
+  type TestDatabase,
+} from "../../../../../test/helpers/test-database"
 import { createInMemoryTaskNotificationBus } from "../notification/in-memory-task-notification-bus"
 import { PrismaTaskRepository } from "../persistence/prisma-task-repository"
 import { createTaskExecutionLifecycle } from "./task-execution-lifecycle"
@@ -105,10 +108,14 @@ describe("Task execution lifecycle", () => {
       }),
     ])
     expect(runningExecution.status).toBe("failed")
-    expect(runningExecution.errorMessage).toContain("restarted while the run was in progress")
+    expect(runningExecution.errorMessage).toContain(
+      "restarted while the run was in progress",
+    )
     expect(runningExecution.errorMessage).toContain("can be resumed")
     expect(queuedExecution.status).toBe("failed")
-    expect(queuedExecution.errorMessage).toContain("restarted before the queued run began")
+    expect(queuedExecution.errorMessage).toContain(
+      "restarted before the queued run began",
+    )
     expect(queuedExecution.errorMessage).toContain("No resumable session")
 
     const runningEvents = await prisma.executionEvent.findMany({

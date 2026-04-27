@@ -41,7 +41,6 @@ describe("PrismaProjectRepository", () => {
     expect(loaded).not.toBeNull()
     expect(loaded?.name).toBe("Harbor Assistant")
     expect(loaded?.settings.retention.logRetentionDays).toBe(14)
-    expect(loaded?.settings.skills.harborSkillsEnabled).toBe(false)
   })
 
   it("saves and reloads a git-backed project aggregate", async () => {

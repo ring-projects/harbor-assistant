@@ -32,14 +32,10 @@ function serializeAgentInput(input: AgentInput) {
     .join("\n\n")
     .trim()
   const images = input
-    .flatMap((item) =>
-      item.type === "local_image" ? [`- ${item.path}`] : [],
-    )
+    .flatMap((item) => (item.type === "local_image" ? [`- ${item.path}`] : []))
     .join("\n")
   const files = input
-    .flatMap((item) =>
-      item.type === "local_file" ? [`- ${item.path}`] : [],
-    )
+    .flatMap((item) => (item.type === "local_file" ? [`- ${item.path}`] : []))
     .join("\n")
   const attachmentSections = [
     images ? `Attached local images:\n${images}` : null,

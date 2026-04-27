@@ -3,17 +3,20 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import type { GitHubAppClient } from "../../integration/github/application/github-app-client"
 import type { ProjectLocalPathManager } from "../../integration/github/application/project-local-path-manager"
 import { PrismaGitHubInstallationRepository } from "../../integration/github/infrastructure/persistence/prisma-github-installation-repository"
-import {
-  createProjectTestApp,
-} from "../../../../test/helpers/project-test-app"
+import { createProjectTestApp } from "../../../../test/helpers/project-test-app"
 import { createAuthSessionCookie } from "../../../../test/helpers/auth-session"
-import { createTestDatabase, type TestDatabase } from "../../../../test/helpers/test-database"
+import {
+  createTestDatabase,
+  type TestDatabase,
+} from "../../../../test/helpers/test-database"
 
 function createGitHubAppClientStub(
   overrides: Partial<GitHubAppClient> = {},
 ): GitHubAppClient {
   return {
-    buildInstallUrl: vi.fn(() => "https://github.com/apps/harbor/installations/new"),
+    buildInstallUrl: vi.fn(
+      () => "https://github.com/apps/harbor/installations/new",
+    ),
     getInstallation: vi.fn(),
     listInstallationRepositories: vi.fn(async () => [
       {
@@ -57,7 +60,9 @@ describe("project repository binding routes integration", () => {
     const session = await createAuthSessionCookie(testDatabase.prisma, {
       githubLogin: "owner-one",
     })
-    const installationRepository = new PrismaGitHubInstallationRepository(testDatabase.prisma)
+    const installationRepository = new PrismaGitHubInstallationRepository(
+      testDatabase.prisma,
+    )
     await installationRepository.save({
       id: "12345",
       accountType: "organization",

@@ -1,12 +1,11 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { executorApiFetch } from "@/lib/executor-service-url"
+import { harborApiFetch } from "@/lib/harbor-api-url"
 import {
   asRecord,
   parseJsonResponse,
   pickString,
-  toBooleanOrNull,
   toIntegerOrNull,
   toIsoDateString,
   toOptionalIsoDateString,
@@ -107,9 +106,9 @@ export type UpdateProjectSettingsInput = {
     logRetentionDays: number | null
     eventRetentionDays: number | null
   }>
-  skills?: Partial<{
-    harborSkillsEnabled: boolean
-    harborSkillProfile: string | null
+  codex?: Partial<{
+    baseUrl: string | null
+    apiKey: string | null
   }>
 }
 
@@ -153,15 +152,9 @@ function extractProjectSettings(candidate: unknown): ProjectSettings | null {
   }
 
   const retention = asRecord(source.retention)
-  const skills = asRecord(source.skills)
+  const codex = asRecord(source.codex)
 
-  if (!retention || !skills) {
-    return null
-  }
-
-  const harborSkillsEnabled = toBooleanOrNull(skills.harborSkillsEnabled)
-
-  if (harborSkillsEnabled === null) {
+  if (!retention || !codex) {
     return null
   }
 
@@ -170,9 +163,9 @@ function extractProjectSettings(candidate: unknown): ProjectSettings | null {
       logRetentionDays: toIntegerOrNull(retention.logRetentionDays),
       eventRetentionDays: toIntegerOrNull(retention.eventRetentionDays),
     },
-    skills: {
-      harborSkillsEnabled,
-      harborSkillProfile: toStringOrNull(skills.harborSkillProfile),
+    codex: {
+      baseUrl: toStringOrNull(codex.baseUrl),
+      apiKey: toStringOrNull(codex.apiKey),
     },
   }
 }
@@ -525,7 +518,7 @@ function extractSyncProjectWorkspacePayload(
 export async function readProjects(
   workspaceId?: string | null,
 ): Promise<Project[]> {
-  const response = await executorApiFetch("/v1/projects", {
+  const response = await harborApiFetch("/v1/projects", {
     method: "GET",
     cache: "no-store",
     headers: {
@@ -573,7 +566,7 @@ export async function createProject(
           source: input.source,
         }
 
-  const response = await executorApiFetch("/v1/projects", {
+  const response = await harborApiFetch("/v1/projects", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -608,7 +601,7 @@ export async function readGitHubAppInstallUrl(
     searchParams.set("workspaceId", workspaceId)
   }
 
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/integrations/github/app/install-url${searchParams.size ? `?${searchParams}` : ""}`,
     {
       method: "GET",
@@ -644,7 +637,7 @@ export async function readGitHubInstallations(
     searchParams.set("workspaceId", workspaceId)
   }
 
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/integrations/github/installations${searchParams.size ? `?${searchParams}` : ""}`,
     {
       method: "GET",
@@ -681,7 +674,7 @@ export async function readGitHubInstallationRepositories(
     searchParams.set("workspaceId", workspaceId)
   }
 
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/integrations/github/installations/${encodeURIComponent(installationId)}/repositories${searchParams.size ? `?${searchParams}` : ""}`,
     {
       method: "GET",
@@ -709,7 +702,7 @@ export async function readGitHubInstallationRepositories(
 export async function bindProjectRepository(
   input: BindProjectRepositoryInput,
 ): Promise<ProjectRepositoryBinding> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(input.projectId)}/repository-binding`,
     {
       method: "PUT",
@@ -745,7 +738,7 @@ export async function bindProjectRepository(
 export async function updateProject(
   input: UpdateProjectInput,
 ): Promise<Project> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(input.id)}`,
     {
       method: "PATCH",
@@ -778,7 +771,7 @@ export async function updateProject(
 export async function readProjectRepositoryBinding(
   projectId: string,
 ): Promise<ProjectRepositoryBinding> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(projectId)}/repository-binding`,
     {
       method: "GET",
@@ -807,7 +800,7 @@ export async function readProjectRepositoryBinding(
 }
 
 export async function readProject(projectId: string): Promise<Project> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(projectId)}`,
     {
       method: "GET",
@@ -835,7 +828,7 @@ export async function readProject(projectId: string): Promise<Project> {
 export async function readProjectSettings(
   projectId: string,
 ): Promise<ProjectSettings> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(projectId)}/settings`,
     {
       method: "GET",
@@ -863,7 +856,7 @@ export async function readProjectSettings(
 export async function updateProjectSettings(
   input: UpdateProjectSettingsInput,
 ): Promise<Project> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(input.projectId)}/settings`,
     {
       method: "PATCH",
@@ -873,7 +866,7 @@ export async function updateProjectSettings(
       },
       body: JSON.stringify({
         retention: input.retention,
-        skills: input.skills,
+        codex: input.codex,
       }),
     },
   )
@@ -895,7 +888,7 @@ export async function updateProjectSettings(
 export async function provisionProjectWorkspace(
   projectId: string,
 ): Promise<ProvisionProjectWorkspaceResult> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(projectId)}/provision-workspace`,
     {
       method: "POST",
@@ -925,7 +918,7 @@ export async function provisionProjectWorkspace(
 export async function syncProjectWorkspace(
   projectId: string,
 ): Promise<SyncProjectWorkspaceResult> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(projectId)}/sync`,
     {
       method: "POST",
@@ -955,7 +948,7 @@ export async function syncProjectWorkspace(
 export async function archiveProject(
   input: ArchiveProjectInput,
 ): Promise<Project> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(input.projectId)}/archive`,
     {
       method: "POST",
@@ -982,7 +975,7 @@ export async function archiveProject(
 export async function restoreProject(
   input: ArchiveProjectInput,
 ): Promise<Project> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(input.projectId)}/restore`,
     {
       method: "POST",
@@ -1009,7 +1002,7 @@ export async function restoreProject(
 export async function deleteProject(
   input: DeleteProjectInput,
 ): Promise<DeleteProjectResult> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(input.projectId)}`,
     {
       method: "DELETE",

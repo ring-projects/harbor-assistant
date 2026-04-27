@@ -37,7 +37,11 @@ export function selectOrchestrationTasks(
   }
 
   const cached = orchestrationTasksCache.get(orchestrationId)
-  if (cached && cached.taskIds === taskIds && cached.tasksById === state.tasksById) {
+  if (
+    cached &&
+    cached.taskIds === taskIds &&
+    cached.tasksById === state.tasksById
+  ) {
     return cached.result
   }
 
@@ -83,10 +87,7 @@ export function selectTaskEvents(
   return selectTaskEventStream(state, taskId)?.items ?? EMPTY_TASK_EVENTS
 }
 
-export function selectChatUi(
-  state: TasksSessionState,
-  taskId: string | null,
-) {
+export function selectChatUi(state: TasksSessionState, taskId: string | null) {
   if (!taskId) {
     return DEFAULT_CHAT_UI
   }

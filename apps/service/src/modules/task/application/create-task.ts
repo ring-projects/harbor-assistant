@@ -21,24 +21,27 @@ import type { TaskRepository } from "./task-repository"
 import type { TaskRuntimePort } from "./task-runtime-port"
 import { validateTaskRuntimeConfig } from "./validate-task-effort"
 
-export async function createTaskUseCase(args: {
-  projectTaskPort: ProjectTaskPort
-  taskRecordStore: TaskRecordStore
-  repository: Pick<TaskRepository, "findById" | "save">
-  runtimePort: TaskRuntimePort
-  notificationPublisher: TaskNotificationPublisher
-  idGenerator?: () => string
-}, input: {
-  projectId: string
-  orchestrationId: string
-  prompt?: string | null
-  items?: AgentInputItem[] | null
-  title?: string
-  executor: string
-  model: string
-  executionMode: string
-  effort: TaskEffort
-}): Promise<TaskDetail> {
+export async function createTaskUseCase(
+  args: {
+    projectTaskPort: ProjectTaskPort
+    taskRecordStore: TaskRecordStore
+    repository: Pick<TaskRepository, "findById" | "save">
+    runtimePort: TaskRuntimePort
+    notificationPublisher: TaskNotificationPublisher
+    idGenerator?: () => string
+  },
+  input: {
+    projectId: string
+    orchestrationId: string
+    prompt?: string | null
+    items?: AgentInputItem[] | null
+    title?: string
+    executor: string
+    model: string
+    executionMode: string
+    effort: TaskEffort
+  },
+): Promise<TaskDetail> {
   function requireProjectRootPath(rootPath: string | null) {
     if (!rootPath) {
       throw createTaskError().invalidInput("project root path is not available")
@@ -128,6 +131,7 @@ export async function createTaskUseCase(args: {
       taskId: task.id,
       projectId: task.projectId,
       projectPath: projectRootPath,
+      projectCodex: project.codex,
       input: agentInput,
       runtimeConfig,
     })

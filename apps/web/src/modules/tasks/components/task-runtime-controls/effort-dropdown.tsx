@@ -13,10 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import {
-  TASK_EFFORT_VALUES,
-  type TaskEffort,
-} from "@/modules/tasks/contracts"
+import { TASK_EFFORT_VALUES, type TaskEffort } from "@/modules/tasks/contracts"
 import { formatEffortLabel } from "@/modules/tasks/view-models"
 
 const EFFORT_SET = new Set<TaskEffort>(TASK_EFFORT_VALUES)
@@ -46,18 +43,18 @@ export function EffortDropdown({
           variant="outline"
           size="sm"
           className={cn(
-            "h-9 rounded-full border-border/70 bg-background/80 px-3 text-xs font-medium shadow-none",
+            "border-border/70 bg-background/80 h-9 rounded-full px-3 text-xs font-medium shadow-none",
             buttonClassName,
           )}
           disabled={disabled}
         >
           <SparklesIcon className="size-3.5" />
           <span>{formatEffortLabel(value)}</span>
-          <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+          <ChevronDownIcon className="text-muted-foreground size-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 rounded-2xl p-2">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
+        <DropdownMenuLabel className="text-muted-foreground text-xs">
           Effort
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
@@ -75,7 +72,9 @@ export function EffortDropdown({
         >
           {defaultOptionLabel ? (
             <>
-              <DropdownMenuRadioItem value="">{defaultOptionLabel}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="">
+                {defaultOptionLabel}
+              </DropdownMenuRadioItem>
               {efforts.length > 0 ? <DropdownMenuSeparator /> : null}
             </>
           ) : null}

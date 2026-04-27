@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest"
 
-import { createTestDatabase, type TestDatabase } from "../../../../../test/helpers/test-database"
+import {
+  createTestDatabase,
+  type TestDatabase,
+} from "../../../../../test/helpers/test-database"
 import { createInMemoryTaskNotificationBus } from "../notification/in-memory-task-notification-bus"
 import { PrismaTaskRepository } from "../persistence/prisma-task-repository"
 import { createTaskExecutionStateStore } from "./task-execution-state"

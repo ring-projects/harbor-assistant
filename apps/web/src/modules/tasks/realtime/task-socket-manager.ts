@@ -52,6 +52,7 @@ export class TaskSocketManager {
     this.socket = io(getTaskSocketBaseUrl(), {
       path: "/socket.io",
       autoConnect: true,
+      withCredentials: true,
     })
 
     this.registerHandlers(this.socket)

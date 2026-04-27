@@ -1,6 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 
 import { useTasksSessionStore } from "@/modules/tasks/store"
 
@@ -27,18 +34,20 @@ export function useTaskConversationViewport(args: {
     visibleCount: CHAT_WINDOW_INITIAL_SIZE,
   }))
 
-  const visibleCount =
-    args.stickToBottom
-      ? CHAT_WINDOW_INITIAL_SIZE
-      : windowState.taskId === args.taskId
-        ? Math.max(CHAT_WINDOW_INITIAL_SIZE, windowState.visibleCount)
-        : CHAT_WINDOW_INITIAL_SIZE
+  const visibleCount = args.stickToBottom
+    ? CHAT_WINDOW_INITIAL_SIZE
+    : windowState.taskId === args.taskId
+      ? Math.max(CHAT_WINDOW_INITIAL_SIZE, windowState.visibleCount)
+      : CHAT_WINDOW_INITIAL_SIZE
   const conversationWindowStart = Math.max(0, args.blocks.length - visibleCount)
   const visibleBlocks = useMemo(
     () => args.blocks.slice(conversationWindowStart),
     [args.blocks, conversationWindowStart],
   )
-  const hiddenBlockCount = Math.max(0, args.blocks.length - visibleBlocks.length)
+  const hiddenBlockCount = Math.max(
+    0,
+    args.blocks.length - visibleBlocks.length,
+  )
 
   useLayoutEffect(() => {
     stickToBottomRef.current = args.stickToBottom
@@ -56,7 +65,8 @@ export function useTaskConversationViewport(args: {
       return
     }
 
-    const scrollHeightDelta = node.scrollHeight - pendingExpansion.previousScrollHeight
+    const scrollHeightDelta =
+      node.scrollHeight - pendingExpansion.previousScrollHeight
     node.scrollTop = pendingExpansion.previousScrollTop + scrollHeightDelta
     pendingWindowExpansionRef.current = null
   }, [visibleBlocks])
@@ -156,7 +166,8 @@ export function useTaskConversationViewport(args: {
       return
     }
 
-    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight
+    const distanceFromBottom =
+      node.scrollHeight - node.scrollTop - node.clientHeight
     const nextStickToBottom = distanceFromBottom < 48
     stickToBottomRef.current = nextStickToBottom
     useTasksSessionStore

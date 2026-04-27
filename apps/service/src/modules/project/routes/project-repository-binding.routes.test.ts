@@ -38,11 +38,12 @@ async function createApp(args?: {
   const projectRepository =
     args?.projectRepository ?? new InMemoryProjectRepository()
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
-    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    taskQuery: createRepositoryAuthorizationTaskQuery(
+      new InMemoryTaskRepository(),
+    ),
     orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
       new InMemoryOrchestrationRepository(),
     ),

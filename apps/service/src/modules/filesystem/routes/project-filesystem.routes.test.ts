@@ -23,18 +23,20 @@ async function createApp(args?: {
   workspaceRepository?: InMemoryWorkspaceRepository
   fileSystemRepository?: FileSystemRepository
 }) {
-  const projectRepository = args?.projectRepository ?? new InMemoryProjectRepository()
+  const projectRepository =
+    args?.projectRepository ?? new InMemoryProjectRepository()
   const workspaceRepository =
     args?.workspaceRepository ?? new InMemoryWorkspaceRepository()
   const fileSystemRepository =
     args?.fileSystemRepository ?? createFileSystemRepositoryStub()
   const app = Fastify({ logger: false })
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
-    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    taskQuery: createRepositoryAuthorizationTaskQuery(
+      new InMemoryTaskRepository(),
+    ),
     orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
       new InMemoryOrchestrationRepository(),
     ),
@@ -81,13 +83,21 @@ function createFileSystemRepositoryStub(
   return {
     resolveRealPath: async (targetPath) => targetPath,
     statPath: async (targetPath) => ({
-      kind: targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? "file" : "directory",
-      size: targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? 24 : null,
+      kind:
+        targetPath.endsWith(".ts") || targetPath.endsWith(".md")
+          ? "file"
+          : "directory",
+      size:
+        targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? 24 : null,
       mtime: new Date("2026-03-24T00:00:00.000Z"),
     }),
     lstatPath: async (targetPath) => ({
-      kind: targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? "file" : "directory",
-      size: targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? 24 : null,
+      kind:
+        targetPath.endsWith(".ts") || targetPath.endsWith(".md")
+          ? "file"
+          : "directory",
+      size:
+        targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? 24 : null,
       mtime: new Date("2026-03-24T00:00:00.000Z"),
     }),
     readDirectory: async () => [

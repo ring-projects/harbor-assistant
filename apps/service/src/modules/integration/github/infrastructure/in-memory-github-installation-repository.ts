@@ -5,9 +5,7 @@ import type {
 import { ERROR_CODES } from "../../../../constants/errors"
 import { AppError } from "../../../../lib/errors/app-error"
 
-export class InMemoryGitHubInstallationRepository
-  implements GitHubInstallationRepository
-{
+export class InMemoryGitHubInstallationRepository implements GitHubInstallationRepository {
   private readonly installations = new Map<string, GitHubAppInstallation>()
 
   async findById(id: string): Promise<GitHubAppInstallation | null> {

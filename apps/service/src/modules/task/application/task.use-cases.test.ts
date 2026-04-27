@@ -64,18 +64,26 @@ describe("task use cases", () => {
         const items = [...tasks.values()]
           .filter((task) => task.projectId === projectId)
           .filter((task) => includeArchived || task.archivedAt === null)
-          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+          .sort(
+            (left, right) =>
+              right.createdAt.getTime() - left.createdAt.getTime(),
+          )
 
         return limit === undefined ? items : items.slice(0, limit)
       }),
-      listByOrchestration: vi.fn(async ({ orchestrationId, includeArchived, limit }) => {
-        const items = [...tasks.values()]
-          .filter((task) => task.orchestrationId === orchestrationId)
-          .filter((task) => includeArchived || task.archivedAt === null)
-          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      listByOrchestration: vi.fn(
+        async ({ orchestrationId, includeArchived, limit }) => {
+          const items = [...tasks.values()]
+            .filter((task) => task.orchestrationId === orchestrationId)
+            .filter((task) => includeArchived || task.archivedAt === null)
+            .sort(
+              (left, right) =>
+                right.createdAt.getTime() - left.createdAt.getTime(),
+            )
 
-        return limit === undefined ? items : items.slice(0, limit)
-      }),
+          return limit === undefined ? items : items.slice(0, limit)
+        },
+      ),
       save: vi.fn(async (task) => {
         const current = tasks.get(task.id)
         const runtime = task as Partial<TaskRecord>
@@ -83,17 +91,20 @@ describe("task use cases", () => {
           task.id,
           attachTaskRuntime(task, {
             executor: Object.prototype.hasOwnProperty.call(runtime, "executor")
-              ? runtime.executor ?? "codex"
-              : current?.executor ?? "codex",
+              ? (runtime.executor ?? "codex")
+              : (current?.executor ?? "codex"),
             model: Object.prototype.hasOwnProperty.call(runtime, "model")
-              ? runtime.model ?? null
-              : current?.model ?? null,
-            executionMode: Object.prototype.hasOwnProperty.call(runtime, "executionMode")
-              ? runtime.executionMode ?? "safe"
-              : current?.executionMode ?? "safe",
+              ? (runtime.model ?? null)
+              : (current?.model ?? null),
+            executionMode: Object.prototype.hasOwnProperty.call(
+              runtime,
+              "executionMode",
+            )
+              ? (runtime.executionMode ?? "safe")
+              : (current?.executionMode ?? "safe"),
             effort: Object.prototype.hasOwnProperty.call(runtime, "effort")
-              ? runtime.effort ?? null
-              : current?.effort ?? null,
+              ? (runtime.effort ?? null)
+              : (current?.effort ?? null),
           }),
         )
       }),
@@ -114,6 +125,10 @@ describe("task use cases", () => {
       getProjectForTask: vi.fn(async () => ({
         projectId: "project-1",
         rootPath: "/tmp/harbor-assistant",
+        codex: {
+          baseUrl: null,
+          apiKey: null,
+        },
       })),
     }
   }
@@ -184,6 +199,10 @@ describe("task use cases", () => {
       taskId: "task-created-1",
       projectId: "project-1",
       projectPath: "/tmp/harbor-assistant",
+      projectCodex: {
+        baseUrl: null,
+        apiKey: null,
+      },
       input: "Investigate runtime drift",
       runtimeConfig: {
         executor: "codex",
@@ -234,6 +253,10 @@ describe("task use cases", () => {
       taskId: "task-created-2",
       projectId: "project-1",
       projectPath: "/tmp/harbor-assistant",
+      projectCodex: {
+        baseUrl: null,
+        apiKey: null,
+      },
       input: [
         {
           type: "text",
@@ -602,43 +625,47 @@ describe("task use cases", () => {
 
   it("resumes a terminal task through the same execution boundary", async () => {
     const repository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-1",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        prompt: "Investigate runtime drift",
-        status: "completed",
-      })),
+      createTaskRecord(
+        createTask({
+          id: "task-1",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+          prompt: "Investigate runtime drift",
+          status: "completed",
+        }),
+      ),
     ])
-    const resumeTaskExecution = vi.fn(async (input: {
-      taskId: string
-      projectId: string
-      projectPath: string
-      input: AgentInput
-      runtimeConfig: {
-        executor: string
-        model: string | null
-        executionMode: string | null
-        effort: string | null
-      }
-    }) => {
-      const current = await repository.findById(input.taskId)
-      if (!current) {
-        return
-      }
+    const resumeTaskExecution = vi.fn(
+      async (input: {
+        taskId: string
+        projectId: string
+        projectPath: string
+        input: AgentInput
+        runtimeConfig: {
+          executor: string
+          model: string | null
+          executionMode: string | null
+          effort: string | null
+        }
+      }) => {
+        const current = await repository.findById(input.taskId)
+        if (!current) {
+          return
+        }
 
-      const nextTask: TaskRecord = {
-        ...current,
-        model: input.runtimeConfig.model,
-        effort: input.runtimeConfig.effort as TaskRecord["effort"],
-        status: "running",
-        startedAt: new Date("2026-03-25T00:00:00.000Z"),
-        finishedAt: null,
-        updatedAt: new Date("2026-03-25T00:00:00.000Z"),
-      }
+        const nextTask: TaskRecord = {
+          ...current,
+          model: input.runtimeConfig.model,
+          effort: input.runtimeConfig.effort as TaskRecord["effort"],
+          status: "running",
+          startedAt: new Date("2026-03-25T00:00:00.000Z"),
+          finishedAt: null,
+          updatedAt: new Date("2026-03-25T00:00:00.000Z"),
+        }
 
-      await repository.save(nextTask)
-    })
+        await repository.save(nextTask)
+      },
+    )
 
     const task = await resumeTaskUseCase(
       {
@@ -659,6 +686,10 @@ describe("task use cases", () => {
       taskId: "task-1",
       projectId: "project-1",
       projectPath: "/tmp/harbor-assistant",
+      projectCodex: {
+        baseUrl: null,
+        apiKey: null,
+      },
       input: "Continue with the unresolved failures.",
       runtimeConfig: {
         executor: "codex",
@@ -686,35 +717,37 @@ describe("task use cases", () => {
         },
       ),
     ])
-    const resumeTaskExecution = vi.fn(async (input: {
-      taskId: string
-      projectId: string
-      projectPath: string
-      input: AgentInput
-      runtimeConfig: {
-        executor: string
-        model: string | null
-        executionMode: string | null
-        effort: string | null
-      }
-    }) => {
-      const current = await repository.findById(input.taskId)
-      if (!current) {
-        return
-      }
+    const resumeTaskExecution = vi.fn(
+      async (input: {
+        taskId: string
+        projectId: string
+        projectPath: string
+        input: AgentInput
+        runtimeConfig: {
+          executor: string
+          model: string | null
+          executionMode: string | null
+          effort: string | null
+        }
+      }) => {
+        const current = await repository.findById(input.taskId)
+        if (!current) {
+          return
+        }
 
-      const nextTask: TaskRecord = {
-        ...current,
-        model: input.runtimeConfig.model,
-        effort: input.runtimeConfig.effort as TaskRecord["effort"],
-        status: "running",
-        startedAt: new Date("2026-03-25T00:00:00.000Z"),
-        finishedAt: null,
-        updatedAt: new Date("2026-03-25T00:00:00.000Z"),
-      }
+        const nextTask: TaskRecord = {
+          ...current,
+          model: input.runtimeConfig.model,
+          effort: input.runtimeConfig.effort as TaskRecord["effort"],
+          status: "running",
+          startedAt: new Date("2026-03-25T00:00:00.000Z"),
+          finishedAt: null,
+          updatedAt: new Date("2026-03-25T00:00:00.000Z"),
+        }
 
-      await repository.save(nextTask)
-    })
+        await repository.save(nextTask)
+      },
+    )
 
     const task = await resumeTaskUseCase(
       {
@@ -737,6 +770,10 @@ describe("task use cases", () => {
       taskId: "task-1",
       projectId: "project-1",
       projectPath: "/tmp/harbor-assistant",
+      projectCodex: {
+        baseUrl: null,
+        apiKey: null,
+      },
       input: "Continue with a cheaper model.",
       runtimeConfig: {
         executor: "codex",
@@ -751,13 +788,15 @@ describe("task use cases", () => {
 
   it("resumes a terminal task with structured input without changing task prompt", async () => {
     const repository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-1",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        prompt: "Original summary",
-        status: "completed",
-      })),
+      createTaskRecord(
+        createTask({
+          id: "task-1",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+          prompt: "Original summary",
+          status: "completed",
+        }),
+      ),
     ])
     const resumeTaskExecution = vi.fn(async () => undefined)
 
@@ -789,6 +828,10 @@ describe("task use cases", () => {
       taskId: "task-1",
       projectId: "project-1",
       projectPath: "/tmp/harbor-assistant",
+      projectCodex: {
+        baseUrl: null,
+        apiKey: null,
+      },
       input: [
         {
           type: "text",
@@ -811,13 +854,15 @@ describe("task use cases", () => {
 
   it("rejects invalid resume model overrides before the runtime call", async () => {
     const repository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-1",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        prompt: "Investigate runtime drift",
-        status: "completed",
-      })),
+      createTaskRecord(
+        createTask({
+          id: "task-1",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+          prompt: "Investigate runtime drift",
+          status: "completed",
+        }),
+      ),
     ])
     const runtimePort = createRuntimePort()
 
@@ -843,13 +888,15 @@ describe("task use cases", () => {
 
   it("rejects resume for non-terminal tasks", async () => {
     const repository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-running",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        prompt: "Still running",
-        status: "running",
-      })),
+      createTaskRecord(
+        createTask({
+          id: "task-running",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+          prompt: "Still running",
+          status: "running",
+        }),
+      ),
     ])
 
     await expect(
@@ -871,29 +918,33 @@ describe("task use cases", () => {
 
   it("cancels running tasks and returns the converged task detail", async () => {
     const repository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-running",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        prompt: "Still running",
-        status: "running",
-      })),
+      createTaskRecord(
+        createTask({
+          id: "task-running",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+          prompt: "Still running",
+          status: "running",
+        }),
+      ),
     ])
     const runtimePort = createRuntimePort()
 
-    vi.mocked(runtimePort.cancelTaskExecution).mockImplementation(async ({ taskId }) => {
-      const current = await repository.findById(taskId)
-      if (!current) {
-        return
-      }
+    vi.mocked(runtimePort.cancelTaskExecution).mockImplementation(
+      async ({ taskId }) => {
+        const current = await repository.findById(taskId)
+        if (!current) {
+          return
+        }
 
-      await repository.save({
-        ...current,
-        status: "cancelled",
-        finishedAt: new Date("2026-03-29T00:00:00.000Z"),
-        updatedAt: new Date("2026-03-29T00:00:00.000Z"),
-      })
-    })
+        await repository.save({
+          ...current,
+          status: "cancelled",
+          finishedAt: new Date("2026-03-29T00:00:00.000Z"),
+          updatedAt: new Date("2026-03-29T00:00:00.000Z"),
+        })
+      },
+    )
 
     const result = await cancelTaskUseCase(
       {
@@ -916,13 +967,15 @@ describe("task use cases", () => {
     const runtimePort = createRuntimePort()
 
     const terminalRepository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-cancelled",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        prompt: "Already cancelled",
-        status: "cancelled",
-      })),
+      createTaskRecord(
+        createTask({
+          id: "task-cancelled",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+          prompt: "Already cancelled",
+          status: "cancelled",
+        }),
+      ),
     ])
 
     const result = await cancelTaskUseCase(
@@ -939,14 +992,16 @@ describe("task use cases", () => {
     expect(runtimePort.cancelTaskExecution).not.toHaveBeenCalled()
 
     const archivedRepository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-archived",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        prompt: "Archived run",
-        status: "running",
-        archivedAt: new Date("2026-03-29T00:00:00.000Z"),
-      })),
+      createTaskRecord(
+        createTask({
+          id: "task-archived",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+          prompt: "Archived run",
+          status: "running",
+          archivedAt: new Date("2026-03-29T00:00:00.000Z"),
+        }),
+      ),
     ])
 
     await expect(
@@ -966,13 +1021,15 @@ describe("task use cases", () => {
 
   it("deletes only terminal tasks and returns delete result", async () => {
     const runningRepository = createRepository([
-      createTaskRecord(createTask({
-        id: "task-running",
-        projectId: "project-1",
-        orchestrationId: "orch-1",
-        prompt: "First",
-        status: "running",
-      })),
+      createTaskRecord(
+        createTask({
+          id: "task-running",
+          projectId: "project-1",
+          orchestrationId: "orch-1",
+          prompt: "First",
+          status: "running",
+        }),
+      ),
     ])
     const publisher = createNotificationPublisher()
 
@@ -983,7 +1040,11 @@ describe("task use cases", () => {
     } satisfies Partial<TaskError>)
 
     const completedRepository = createRepository()
-    const result = await deleteTaskUseCase(completedRepository, publisher, "task-1")
+    const result = await deleteTaskUseCase(
+      completedRepository,
+      publisher,
+      "task-1",
+    )
     expect(result).toEqual({
       taskId: "task-1",
       projectId: "project-1",

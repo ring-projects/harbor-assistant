@@ -1,5 +1,10 @@
 import { ERROR_CODES } from "../../../constants/errors"
 import { AppError } from "../../../lib/errors/app-error"
+import {
+  type AuthenticatedRequestContext,
+  getAuthenticatedActor,
+  requireUserAuthenticatedRequest,
+} from "../../auth"
 import type {
   AuthorizationAction,
   AuthorizationActor,
@@ -23,6 +28,9 @@ export type ProjectModuleRouteOptions = {
   authorization: AuthorizationService
   repository: ProjectRepository
   workspaceRepository: WorkspaceRepository
+  onProjectCreated?: (
+    project: import("../domain/project").Project,
+  ) => void | Promise<void>
   workspaceInstallationRepository?: WorkspaceInstallationRepository
   pathPolicy: ProjectPathPolicy
   installationRepository?: GitHubInstallationRepository
@@ -40,17 +48,16 @@ export type ProjectGitHubAccess = {
   projectLocalPathRootDirectory?: string
 }
 
-export function getOwnerUserId(request: { auth: { userId: string } | null }) {
-  return request.auth!.userId
+export function getOwnerUserId(request: {
+  auth: AuthenticatedRequestContext | null
+}) {
+  return requireUserAuthenticatedRequest(request).userId
 }
 
 export function getAuthorizationActor(request: {
-  auth: { userId: string } | null
+  auth: AuthenticatedRequestContext | null
 }): AuthorizationActor {
-  return {
-    kind: "user",
-    userId: request.auth!.userId,
-  }
+  return getAuthenticatedActor(request)
 }
 
 export async function requireRouteAuthorization(

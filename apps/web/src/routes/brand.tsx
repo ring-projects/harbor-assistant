@@ -64,8 +64,8 @@ function BrandPreviewPage() {
         </div>
       </section>
 
-      <section className="bg-primary text-primary-foreground w-full max-w-5xl rounded-xl border border-primary/20 p-8 shadow-sm">
-        <p className="mb-6 text-sm font-medium text-primary-foreground/70">
+      <section className="bg-primary text-primary-foreground border-primary/20 w-full max-w-5xl rounded-xl border p-8 shadow-sm">
+        <p className="text-primary-foreground/70 mb-6 text-sm font-medium">
           White Edition (Logo + Favicon)
         </p>
         <div className="mb-6 flex justify-center">

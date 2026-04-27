@@ -8,9 +8,7 @@ import type {
 } from "../../application/github-installation-repository"
 import { toDomainGitHubAppInstallation } from "./github-installation-mapper"
 
-export class PrismaGitHubInstallationRepository
-  implements GitHubInstallationRepository
-{
+export class PrismaGitHubInstallationRepository implements GitHubInstallationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(id: string): Promise<GitHubAppInstallation | null> {

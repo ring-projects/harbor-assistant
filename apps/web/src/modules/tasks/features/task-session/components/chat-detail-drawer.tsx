@@ -38,7 +38,7 @@ type DetailSectionProps = {
 function DetailSection({ label, children }: DetailSectionProps) {
   return (
     <section className="space-y-2">
-      <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.12em]">
+      <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.12em] uppercase">
         {label}
       </p>
       {children}
@@ -96,7 +96,7 @@ function getDrawerMeta(block: ChatInspectorBlock | null) {
     title:
       block.server && block.tool
         ? `${block.server}.${block.tool}`
-        : block.tool ?? block.server ?? "Tool Call",
+        : (block.tool ?? block.server ?? "Tool Call"),
     subtitle: block.callId ?? "",
   }
 }
@@ -170,19 +170,21 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
             {block.changes.map((change) => (
               <div
                 key={`${change.kind}-${change.path}`}
-                className="flex items-center gap-2 rounded-xl border bg-muted/25 px-3 py-2"
+                className="bg-muted/25 flex items-center gap-2 rounded-xl border px-3 py-2"
               >
-                <span className="inline-flex min-w-14 justify-center rounded-full border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]">
+                <span className="bg-background inline-flex min-w-14 justify-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase">
                   {change.kind}
                 </span>
-                <span className="font-mono text-xs break-all">{change.path}</span>
+                <span className="font-mono text-xs break-all">
+                  {change.path}
+                </span>
               </div>
             ))}
           </div>
         </DetailSection>
 
         <DetailSection label="Raw Payload">
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border bg-muted/25 p-4 text-xs leading-6">
+          <pre className="bg-muted/25 overflow-x-auto rounded-xl border p-4 text-xs leading-6 break-words whitespace-pre-wrap">
             {stringifyPretty(block.event.payload)}
           </pre>
         </DetailSection>
@@ -208,13 +210,13 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
         </DetailSection>
 
         <DetailSection label="Query">
-          <div className="rounded-xl border bg-muted/25 px-4 py-3 text-sm leading-6">
+          <div className="bg-muted/25 rounded-xl border px-4 py-3 text-sm leading-6">
             {block.query}
           </div>
         </DetailSection>
 
         <DetailSection label="Raw Payload">
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border bg-muted/25 p-4 text-xs leading-6">
+          <pre className="bg-muted/25 overflow-x-auto rounded-xl border p-4 text-xs leading-6 break-words whitespace-pre-wrap">
             {stringifyPretty(block.event.payload)}
           </pre>
         </DetailSection>
@@ -226,15 +228,22 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
     const statusMeta =
       block.status === "success"
         ? {
-            label: block.exitCode === null ? "Completed" : `Completed (exit ${block.exitCode})`,
+            label:
+              block.exitCode === null
+                ? "Completed"
+                : `Completed (exit ${block.exitCode})`,
             className: "border-success/25 bg-surface-success text-success",
             icon: CheckCircle2Icon,
             iconClassName: "text-success",
           }
         : block.status === "failed"
           ? {
-              label: block.exitCode === null ? "Failed" : `Failed (exit ${block.exitCode})`,
-              className: "border-destructive/25 bg-surface-danger text-destructive",
+              label:
+                block.exitCode === null
+                  ? "Failed"
+                  : `Failed (exit ${block.exitCode})`,
+              className:
+                "border-destructive/25 bg-surface-danger text-destructive",
               icon: XCircleIcon,
               iconClassName: "text-destructive",
             }
@@ -261,10 +270,10 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
         </DetailSection>
 
         <DetailSection label="Command">
-          <div className="rounded-xl border bg-muted/25 p-4">
+          <div className="bg-muted/25 rounded-xl border p-4">
             <div className="flex items-start gap-2">
               <TerminalSquareIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-              <code className="block whitespace-pre-wrap break-words font-mono text-xs leading-6">
+              <code className="block font-mono text-xs leading-6 break-words whitespace-pre-wrap">
                 {block.command}
               </code>
             </div>
@@ -272,29 +281,37 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
         </DetailSection>
 
         <DetailSection label="Timeline">
-          <div className="space-y-2 rounded-xl border bg-muted/25 p-4 text-sm">
+          <div className="bg-muted/25 space-y-2 rounded-xl border p-4 text-sm">
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">Started</span>
               <span>{formatTimeShort(block.startedAt)}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">Completed</span>
-              <span>{block.completedAt ? formatTimeShort(block.completedAt) : "Pending"}</span>
+              <span>
+                {block.completedAt
+                  ? formatTimeShort(block.completedAt)
+                  : "Pending"}
+              </span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">Output</span>
-              <span>{block.output.trim() ? `${block.output.trim().split(/\r?\n/).length} lines` : "No output"}</span>
+              <span>
+                {block.output.trim()
+                  ? `${block.output.trim().split(/\r?\n/).length} lines`
+                  : "No output"}
+              </span>
             </div>
           </div>
         </DetailSection>
 
         <DetailSection label="Output">
           {block.output.trim() ? (
-            <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border bg-muted/25 p-4 text-xs leading-6">
+            <pre className="bg-muted/25 overflow-x-auto rounded-xl border p-4 text-xs leading-6 break-words whitespace-pre-wrap">
               {block.output}
             </pre>
           ) : (
-            <div className="text-muted-foreground rounded-xl border bg-muted/25 px-4 py-3 text-sm">
+            <div className="text-muted-foreground bg-muted/25 rounded-xl border px-4 py-3 text-sm">
               No output captured yet.
             </div>
           )}
@@ -325,14 +342,14 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
       </DetailSection>
 
       <DetailSection label="Arguments">
-        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border bg-muted/25 p-4 text-xs leading-6">
+        <pre className="bg-muted/25 overflow-x-auto rounded-xl border p-4 text-xs leading-6 break-words whitespace-pre-wrap">
           {block.argumentsText}
         </pre>
       </DetailSection>
 
       {block.resultText ? (
         <DetailSection label="Result">
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border bg-muted/25 p-4 text-xs leading-6">
+          <pre className="bg-muted/25 overflow-x-auto rounded-xl border p-4 text-xs leading-6 break-words whitespace-pre-wrap">
             {block.resultText}
           </pre>
         </DetailSection>
@@ -340,7 +357,7 @@ function renderDrawerBody(block: ChatInspectorBlock | null) {
 
       {block.errorText ? (
         <DetailSection label="Error">
-          <pre className="bg-surface-danger text-destructive overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-destructive/25 p-4 text-xs leading-6">
+          <pre className="bg-surface-danger text-destructive border-destructive/25 overflow-x-auto rounded-xl border p-4 text-xs leading-6 break-words whitespace-pre-wrap">
             {block.errorText}
           </pre>
         </DetailSection>
@@ -372,13 +389,21 @@ export function ChatDetailDrawer({
                   </div>
                 </DrawerTitle>
                 <DrawerDescription className="mt-1">
-                  {[meta.subtitle, block ? formatTimeShort(block.timestamp) : ""]
+                  {[
+                    meta.subtitle,
+                    block ? formatTimeShort(block.timestamp) : "",
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                 </DrawerDescription>
               </div>
 
-              <Button type="button" variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onOpenChange(false)}
+              >
                 <XIcon className="size-4" />
                 <span className="sr-only">Close drawer</span>
               </Button>

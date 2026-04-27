@@ -189,10 +189,7 @@ function parseFileChanges(
 
       const path = toStringOrNull(source.path)
       const kind = source.kind
-      if (
-        !path ||
-        (kind !== "add" && kind !== "delete" && kind !== "update")
-      ) {
+      if (!path || (kind !== "add" && kind !== "delete" && kind !== "update")) {
         return null
       }
 
@@ -412,7 +409,9 @@ function toMessageBlock(event: TaskAgentEvent): ChatConversationBlock {
     role === "user" ? parseUserInputAttachments(payload) : []
   const content =
     role === "user"
-      ? parseUserInputText(payload) ?? formatUserInputContent(payload) ?? eventContent(event)
+      ? (parseUserInputText(payload) ??
+        formatUserInputContent(payload) ??
+        eventContent(event))
       : eventContent(event)
 
   if (role === "user" || role === "assistant") {
@@ -462,7 +461,8 @@ function toWebSearchBlock(
     id: event.id,
     type: "web-search",
     timestamp: eventTimestamp(event),
-    status: event.eventType === "web_search.completed" ? "completed" : "running",
+    status:
+      event.eventType === "web_search.completed" ? "completed" : "running",
     searchId: toStringOrNull(payload?.searchId),
     query: toStringOrNull(payload?.query) ?? "(empty)",
     event,
@@ -545,8 +545,10 @@ function appendCommandEventToGroup(
 
   group.completedAt = eventTimestamp(event)
   group.timestamp = group.completedAt
-  group.status = toStringOrNull(payload?.status) === "failed" ? "failed" : "success"
-  group.exitCode = typeof payload?.exitCode === "number" ? payload.exitCode : null
+  group.status =
+    toStringOrNull(payload?.status) === "failed" ? "failed" : "success"
+  group.exitCode =
+    typeof payload?.exitCode === "number" ? payload.exitCode : null
 }
 
 function createTodoListBlock(
@@ -603,10 +605,7 @@ function applyTodoListEventToBlock(
 function pushTodoListBlock(
   event: TaskAgentEvent,
   blocks: ChatConversationBlock[],
-  todoLists: Map<
-    string,
-    Extract<ChatConversationBlock, { type: "todo-list" }>
-  >,
+  todoLists: Map<string, Extract<ChatConversationBlock, { type: "todo-list" }>>,
 ) {
   const payload = asRecord(event.payload)
   const todoListId = toStringOrNull(payload?.todoListId) ?? event.id

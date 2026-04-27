@@ -29,6 +29,7 @@ describe("workspace member management use cases", () => {
   ): UserDirectory {
     return {
       findByGithubLogin: vi.fn().mockResolvedValue(null),
+      findById: vi.fn().mockResolvedValue(null),
       ...overrides,
     }
   }
@@ -71,7 +72,9 @@ describe("workspace member management use cases", () => {
       status: "active",
     })
     expect(
-      result.workspace.memberships.some((membership) => membership.userId === "user-2"),
+      result.workspace.memberships.some(
+        (membership) => membership.userId === "user-2",
+      ),
     ).toBe(true)
   })
 

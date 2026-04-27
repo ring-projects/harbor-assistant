@@ -74,7 +74,10 @@ export function createFileSystemError() {
       )
     },
     permissionDenied(message: string) {
-      return new FileSystemError(FILESYSTEM_ERROR_CODES.PERMISSION_DENIED, message)
+      return new FileSystemError(
+        FILESYSTEM_ERROR_CODES.PERMISSION_DENIED,
+        message,
+      )
     },
     readFailed(message: string) {
       return new FileSystemError(FILESYSTEM_ERROR_CODES.READ_FAILED, message)

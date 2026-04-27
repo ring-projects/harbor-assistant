@@ -63,16 +63,12 @@ export type UpdateProjectSettingsBody = Partial<{
     logRetentionDays: number | null
     eventRetentionDays: number | null
   }>
-  skills: Partial<{
-    harborSkillsEnabled: boolean
-    harborSkillProfile: string | null
-  }>
 }>
 
 const projectSettingsSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["retention", "skills"],
+  required: ["retention"],
   properties: {
     retention: {
       type: "object",
@@ -81,15 +77,6 @@ const projectSettingsSchema = {
       properties: {
         logRetentionDays: { type: ["integer", "null"], minimum: 1 },
         eventRetentionDays: { type: ["integer", "null"], minimum: 1 },
-      },
-    },
-    skills: {
-      type: "object",
-      additionalProperties: false,
-      required: ["harborSkillsEnabled", "harborSkillProfile"],
-      properties: {
-        harborSkillsEnabled: { type: "boolean" },
-        harborSkillProfile: { type: ["string", "null"] },
       },
     },
   },
@@ -297,20 +284,8 @@ export const updateProjectSettingsBodySchema = {
         { required: ["eventRetentionDays"] },
       ],
     },
-    skills: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        harborSkillsEnabled: { type: "boolean" },
-        harborSkillProfile: { type: ["string", "null"] },
-      },
-      anyOf: [
-        { required: ["harborSkillsEnabled"] },
-        { required: ["harborSkillProfile"] },
-      ],
-    },
   },
-  anyOf: [{ required: ["retention"] }, { required: ["skills"] }],
+  required: ["retention"],
 } as const
 
 export const listProjectsRouteSchema = {

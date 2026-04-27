@@ -35,9 +35,15 @@ function normalizeProjectRoot(projectRootPath: string) {
   return path.resolve(normalized)
 }
 
-function assertWithinWorkspace(workspaceRootPath: string, absolutePath: string) {
+function assertWithinWorkspace(
+  workspaceRootPath: string,
+  absolutePath: string,
+) {
   const relative = path.relative(workspaceRootPath, absolutePath)
-  if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) {
+  if (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  ) {
     return
   }
 

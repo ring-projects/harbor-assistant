@@ -57,7 +57,6 @@ describe("createProjectUseCase", () => {
       normalizedPath: "/resolved/harbor-assistant",
     })
     expect(project.settings.retention.logRetentionDays).toBe(30)
-    expect(project.settings.skills.harborSkillProfile).toBe("default")
   })
 
   it("creates a git project without canonicalizing a local path", async () => {
@@ -109,10 +108,6 @@ describe("createProjectUseCase", () => {
           retention: {
             logRetentionDays: 30,
             eventRetentionDays: 7,
-          },
-          skills: {
-            harborSkillsEnabled: false,
-            harborSkillProfile: "default",
           },
         },
       }),

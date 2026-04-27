@@ -2,7 +2,6 @@ import cors from "@fastify/cors"
 import Fastify, { type FastifyInstance } from "fastify"
 
 import type { ServiceConfig } from "./config"
-import { ensureHarborPublicSkills } from "./lib/public-skills"
 import apiDocsPlugin from "./plugins/api-docs"
 import errorHandlerPlugin from "./plugins/error-handler"
 import prismaPlugin from "./plugins/prisma"
@@ -18,7 +17,14 @@ const healthzRouteSchema = {
     200: {
       type: "object",
       additionalProperties: false,
-      required: ["ok", "service", "version", "gitSha", "buildTime", "timestamp"],
+      required: [
+        "ok",
+        "service",
+        "version",
+        "gitSha",
+        "buildTime",
+        "timestamp",
+      ],
       properties: {
         ok: { type: "boolean", const: true },
         service: { type: "string", minLength: 1 },
@@ -82,17 +88,11 @@ export async function buildServiceApp(
     credentials: true,
     methods: SERVICE_CORS_METHODS,
   })
-  await app.register(apiDocsPlugin, {
-    config,
-  })
+  await app.register(apiDocsPlugin, { config })
   await app.register(errorHandlerPlugin)
   await app.register(prismaPlugin, {
     datasourceUrl: config.database,
     log: config.isProduction ? ["error"] : ["error", "warn", "info"],
-  })
-
-  await ensureHarborPublicSkills({
-    publicSkillsRootDirectory: config.publicSkillsRootDirectory,
   })
 
   app.get(

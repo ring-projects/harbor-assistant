@@ -4,16 +4,14 @@ import type { WorkspaceRepository } from "../../application/workspace-repository
 import type { Membership, Workspace } from "../../domain/workspace"
 import { createWorkspaceError } from "../../errors"
 
-function toDomainMembership(
-  membership: {
-    workspaceId: string
-    userId: string
-    role: "owner" | "member"
-    status: "active" | "removed"
-    createdAt: Date
-    updatedAt: Date
-  },
-): Membership {
+function toDomainMembership(membership: {
+  workspaceId: string
+  userId: string
+  role: "owner" | "member"
+  status: "active" | "removed"
+  createdAt: Date
+  updatedAt: Date
+}): Membership {
   return {
     workspaceId: membership.workspaceId,
     userId: membership.userId,
@@ -24,27 +22,27 @@ function toDomainMembership(
   }
 }
 
-function toDomainWorkspace(
-  workspace: {
-    id: string
-    slug: string
-    name: string
-    type: "personal" | "team"
-    status: "active" | "archived"
-    createdByUserId: string
+function toDomainWorkspace(workspace: {
+  id: string
+  slug: string
+  name: string
+  type: "personal" | "team"
+  status: "active" | "archived"
+  codexBaseUrl: string | null
+  codexApiKey: string | null
+  createdByUserId: string
+  createdAt: Date
+  updatedAt: Date
+  archivedAt: Date | null
+  memberships: Array<{
+    workspaceId: string
+    userId: string
+    role: "owner" | "member"
+    status: "active" | "removed"
     createdAt: Date
     updatedAt: Date
-    archivedAt: Date | null
-    memberships: Array<{
-      workspaceId: string
-      userId: string
-      role: "owner" | "member"
-      status: "active" | "removed"
-      createdAt: Date
-      updatedAt: Date
-    }>
-  },
-): Workspace {
+  }>
+}): Workspace {
   return {
     id: workspace.id,
     slug: workspace.slug,
@@ -55,6 +53,12 @@ function toDomainWorkspace(
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
     archivedAt: workspace.archivedAt,
+    settings: {
+      codex: {
+        baseUrl: workspace.codexBaseUrl,
+        apiKey: workspace.codexApiKey,
+      },
+    },
     memberships: workspace.memberships.map(toDomainMembership),
   }
 }
@@ -125,6 +129,8 @@ export class PrismaWorkspaceRepository implements WorkspaceRepository {
           name: workspace.name,
           type: workspace.type,
           status: workspace.status,
+          codexBaseUrl: workspace.settings.codex.baseUrl,
+          codexApiKey: workspace.settings.codex.apiKey,
           createdAt: workspace.createdAt,
           updatedAt: workspace.updatedAt,
           archivedAt: workspace.archivedAt,
@@ -152,6 +158,8 @@ export class PrismaWorkspaceRepository implements WorkspaceRepository {
           name: workspace.name,
           type: workspace.type,
           status: workspace.status,
+          codexBaseUrl: workspace.settings.codex.baseUrl,
+          codexApiKey: workspace.settings.codex.apiKey,
           updatedAt: workspace.updatedAt,
           archivedAt: workspace.archivedAt,
           memberships: {
@@ -171,7 +179,10 @@ export class PrismaWorkspaceRepository implements WorkspaceRepository {
         },
       })
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
         throw createWorkspaceError().duplicateSlug()
       }
 

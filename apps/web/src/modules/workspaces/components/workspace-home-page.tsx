@@ -13,7 +13,6 @@ import {
 import { ThemeToggle } from "@/modules/app"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
 import { ProjectSwitcher } from "@/modules/projects"
 import { useReadProjectsQuery } from "@/modules/projects/hooks"
 import {
@@ -31,45 +30,13 @@ function describeWorkspaceKind(type: "personal" | "team") {
   return type === "personal" ? "Personal workspace" : "Team workspace"
 }
 
-function formatProjectSource(source: {
-  type: "git" | "rootPath"
-  repositoryUrl?: string
-  rootPath?: string
-}) {
-  if (source.type === "git") {
-    return source.repositoryUrl ?? "Git source"
-  }
-
-  return source.rootPath ?? "Local source"
-}
-
-function formatProjectStatus(status: "active" | "archived" | "missing") {
-  if (status === "active") {
-    return "Active"
-  }
-
-  if (status === "missing") {
-    return "Missing"
-  }
-
-  return "Archived"
-}
-
-function formatProjectUpdatedAt(value: string) {
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "numeric",
-      day: "numeric",
-      year: "2-digit",
-    }).format(new Date(value))
-  } catch {
-    return value
-  }
-}
-
 export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
-  const setActiveWorkspaceId = useAppStore((state) => state.setActiveWorkspaceId)
-  const clearActiveProjectId = useAppStore((state) => state.clearActiveProjectId)
+  const setActiveWorkspaceId = useAppStore(
+    (state) => state.setActiveWorkspaceId,
+  )
+  const clearActiveProjectId = useAppStore(
+    (state) => state.clearActiveProjectId,
+  )
   const openAddProjectModal = useUiStore((state) => state.openAddProjectModal)
   const workspaceQuery = useWorkspaceQuery(workspaceId)
   const projectsQuery = useReadProjectsQuery({ workspaceId })
@@ -85,11 +52,13 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
   const projects = projectsQuery.data ?? []
   const projectCount = projects.length
   const memberCount =
-    workspace?.memberships.filter((membership) => membership.status === "active")
-      .length ?? 0
+    workspace?.memberships.filter(
+      (membership) => membership.status === "active",
+    ).length ?? 0
   const invitationCount =
-    invitationsQuery.data?.filter((invitation) => invitation.status === "pending")
-      .length ?? 0
+    invitationsQuery.data?.filter(
+      (invitation) => invitation.status === "pending",
+    ).length ?? 0
   const gitProjectCount = projects.filter(
     (project) => project.source.type === "git",
   ).length
@@ -107,7 +76,7 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
         project.description ?? "",
         project.source.type === "git"
           ? project.source.repositoryUrl
-          : project.rootPath ?? project.source.rootPath,
+          : (project.rootPath ?? project.source.rootPath),
       ]
         .join(" ")
         .toLowerCase()
@@ -117,11 +86,11 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
   }, [projects, searchValue])
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="bg-surface-subtle h-full overflow-auto">
       <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col px-5 py-4 sm:px-6 lg:px-8">
         <header className="border-border/60 flex flex-wrap items-start justify-between gap-4 border-b pb-4">
           <div className="min-w-0">
-            <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.18em]">
+            <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.18em] uppercase">
               Overview
             </p>
             <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight">
@@ -136,14 +105,14 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
                 placeholder="Search projects..."
-                className="h-10 rounded-lg border-border/70 bg-background pl-9 shadow-none"
+                className="border-border/70 bg-background h-10 rounded-lg pl-9 shadow-none"
               />
             </div>
 
             <ProjectSwitcher
               workspaceId={workspaceId}
               activeProjectId={null}
-              className="h-10 rounded-lg border-border/70 bg-background px-3 shadow-none"
+              className="border-border/70 bg-background h-10 rounded-lg px-3 shadow-none"
               triggerLabel="Open project switcher"
             >
               <span className="font-medium">Open project</span>
@@ -165,29 +134,29 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
         <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <main className="space-y-4">
             <section className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-border/60 bg-background px-4 py-4">
-                <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.16em]">
+              <div className="border-border/60 bg-background rounded-xl border px-4 py-4">
+                <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">
                   Projects
                 </p>
                 <p className="mt-2 text-2xl font-semibold">{projectCount}</p>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-background px-4 py-4">
-                <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.16em]">
+              <div className="border-border/60 bg-background rounded-xl border px-4 py-4">
+                <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">
                   Members
                 </p>
                 <p className="mt-2 text-2xl font-semibold">{memberCount}</p>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-background px-4 py-4">
-                <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.16em]">
+              <div className="border-border/60 bg-background rounded-xl border px-4 py-4">
+                <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">
                   Pending invites
                 </p>
                 <p className="mt-2 text-2xl font-semibold">{invitationCount}</p>
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-border/60 bg-background">
+            <section className="border-border/60 bg-background overflow-hidden rounded-xl border">
               <div className="border-border/60 flex items-center justify-between gap-3 border-b px-4 py-3">
                 <div>
                   <h2 className="text-sm font-semibold">Projects</h2>
@@ -208,7 +177,7 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
 
               {!projectsQuery.isLoading && filteredProjects.length === 0 ? (
                 <div className="px-4 py-10">
-                  <div className="rounded-xl border border-dashed border-border/80 bg-secondary/15 px-4 py-8">
+                  <div className="border-border/80 bg-secondary/15 rounded-xl border border-dashed px-4 py-8">
                     <p className="text-base font-medium">
                       {projectCount === 0
                         ? "This workspace does not have projects yet."
@@ -224,54 +193,42 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
               ) : null}
 
               {filteredProjects.length > 0 ? (
-                <div className="divide-border/60 divide-y">
+                <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
                   {filteredProjects.map((project) => (
                     <Link
                       key={project.id}
                       to="/workspaces/$workspaceId/projects/$projectId"
                       params={{ workspaceId, projectId: project.id }}
-                      className={cn(
-                        "group grid gap-3 px-4 py-3 transition-colors hover:bg-secondary/20",
-                        "md:grid-cols-[minmax(0,1fr)_10rem_7rem_1.25rem] md:items-center",
-                      )}
+                      className="group border-border/60 bg-background hover:bg-secondary/20 flex min-h-32 flex-col justify-between rounded-xl border p-4 transition-colors"
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-3">
-                          <span className="bg-secondary/45 flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/60">
-                            <FolderGit2Icon className="size-4" />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">{project.name}</p>
-                            <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                              {formatProjectSource({
-                                type: project.source.type,
-                                repositoryUrl:
-                                  project.source.type === "git"
-                                    ? project.source.repositoryUrl
-                                    : undefined,
-                                rootPath:
-                                  project.source.type === "rootPath"
-                                    ? project.rootPath ?? project.source.rootPath
-                                    : undefined,
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-muted-foreground text-xs md:text-right">
-                        {project.source.type === "git" ? "Git project" : "Local project"}
-                      </div>
-
-                      <div className="text-muted-foreground text-xs md:text-right">
-                        Updated {formatProjectUpdatedAt(project.updatedAt)}
-                      </div>
-
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="hidden rounded-full border border-border/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground md:inline-flex">
-                          {formatProjectStatus(project.status)}
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="bg-secondary/45 border-border/60 flex size-10 shrink-0 items-center justify-center rounded-lg border">
+                          <FolderGit2Icon className="size-4" />
                         </span>
-                        <ArrowUpRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                        <ArrowUpRightIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </div>
+
+                      <div className="mt-6 min-w-0">
+                        <p className="truncate text-base font-semibold">
+                          {project.name}
+                        </p>
+                        {project.description ? (
+                          <p className="text-muted-foreground mt-2 line-clamp-2 text-sm leading-6">
+                            {project.description}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground mt-2 text-sm leading-6">
+                            Open project console
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-6">
+                        <div className="text-muted-foreground border-border/70 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] uppercase">
+                          {project.source.type === "git"
+                            ? "Git-backed"
+                            : "Local"}
+                        </div>
                       </div>
                     </Link>
                   ))}
@@ -281,7 +238,7 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
           </main>
 
           <aside className="space-y-4">
-            <section className="rounded-xl border border-border/60 bg-background">
+            <section className="border-border/60 bg-background rounded-xl border">
               <div className="border-border/60 border-b px-4 py-3">
                 <h2 className="text-sm font-semibold">Workspace</h2>
               </div>
@@ -289,12 +246,16 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Type</span>
                   <span className="font-medium">
-                    {workspace ? describeWorkspaceKind(workspace.type) : "Loading"}
+                    {workspace
+                      ? describeWorkspaceKind(workspace.type)
+                      : "Loading"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Slug</span>
-                  <span className="font-medium">{workspace?.slug ?? "..."}</span>
+                  <span className="font-medium">
+                    {workspace?.slug ?? "..."}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Members</span>
@@ -306,19 +267,21 @@ export function WorkspaceHomePage({ workspaceId }: WorkspaceHomePageProps) {
               </div>
             </section>
 
-            <section className="rounded-xl border border-border/60 bg-background">
+            <section className="border-border/60 bg-background rounded-xl border">
               <div className="border-border/60 border-b px-4 py-3">
                 <h2 className="text-sm font-semibold">Project mix</h2>
               </div>
               <div className="grid gap-3 px-4 py-4">
-                <div className="rounded-lg border border-border/60 bg-secondary/20 px-3 py-3">
-                  <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.16em]">
+                <div className="border-border/60 bg-secondary/20 rounded-lg border px-3 py-3">
+                  <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">
                     Git-backed
                   </p>
-                  <p className="mt-2 text-xl font-semibold">{gitProjectCount}</p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {gitProjectCount}
+                  </p>
                 </div>
-                <div className="rounded-lg border border-border/60 bg-secondary/20 px-3 py-3">
-                  <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.16em]">
+                <div className="border-border/60 bg-secondary/20 rounded-lg border px-3 py-3">
+                  <p className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">
                     Local
                   </p>
                   <p className="mt-2 text-xl font-semibold">

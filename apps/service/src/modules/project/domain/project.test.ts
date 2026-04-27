@@ -25,7 +25,6 @@ describe("project domain", () => {
     expect(project.status).toBe("active")
     expect(project.createdAt).toBe(now)
     expect(project.settings.retention.logRetentionDays).toBe(30)
-    expect(project.settings.skills.harborSkillsEnabled).toBe(false)
   })
 
   it("creates a git-backed project without a local path", () => {
@@ -95,7 +94,9 @@ describe("project domain", () => {
       archiveProject(archiveProject(project))
     } catch (error) {
       expect(error).toBeInstanceOf(ProjectError)
-      expect((error as ProjectError).code).toBe(PROJECT_ERROR_CODES.INVALID_STATE)
+      expect((error as ProjectError).code).toBe(
+        PROJECT_ERROR_CODES.INVALID_STATE,
+      )
     }
   })
 

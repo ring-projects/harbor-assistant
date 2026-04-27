@@ -2,7 +2,10 @@
 
 import { memo } from "react"
 
-import type { ChatConversationBlock, ChatInspectorBlock } from "@/modules/tasks/view-models"
+import type {
+  ChatConversationBlock,
+  ChatInspectorBlock,
+} from "@/modules/tasks/view-models"
 import { ChatCommandGroup } from "./chat-command-group"
 import { ChatEvent } from "./chat-event"
 import { ChatFileChangeBlock } from "./chat-file-change-block"
@@ -83,7 +86,10 @@ function areChatStreamPropsEqual(
   previous: ChatStreamProps,
   next: ChatStreamProps,
 ) {
-  return previous.blocks === next.blocks && previous.onOpenInspector === next.onOpenInspector
+  return (
+    previous.blocks === next.blocks &&
+    previous.onOpenInspector === next.onOpenInspector
+  )
 }
 
 export const ChatStream = memo(ChatStreamView, areChatStreamPropsEqual)

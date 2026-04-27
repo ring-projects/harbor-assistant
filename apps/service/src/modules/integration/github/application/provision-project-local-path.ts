@@ -31,7 +31,9 @@ export async function provisionProjectLocalPathUseCase(
 
   if (project.rootPath || project.normalizedPath) {
     requireProjectLocalPath(project)
-    throw createProjectError().invalidState("project local path is already available")
+    throw createProjectError().invalidState(
+      "project local path is already available",
+    )
   }
   const localPath = path.join(
     deps.projectLocalPathRootDirectory,
@@ -46,13 +48,10 @@ export async function provisionProjectLocalPathUseCase(
     accessToken: accessToken.token,
   })
 
-  const next = attachProjectLocalPath(
-    project,
-    {
-      rootPath: localPath,
-      normalizedPath: localPath,
-    },
-  )
+  const next = attachProjectLocalPath(project, {
+    rootPath: localPath,
+    normalizedPath: localPath,
+  })
   await deps.projectRepository.save(next)
   return next
 }

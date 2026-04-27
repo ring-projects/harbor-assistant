@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify"
 
 import type { AuthorizationService } from "../../authorization"
+import { getAuthenticatedActor } from "../../auth"
 import { getProjectUseCase } from "../../project/application/get-project"
 import { requireProjectLocalPath } from "../../project/domain/project"
 import type { ProjectRepository } from "../../project/application/project-repository"
@@ -132,18 +133,21 @@ export async function registerFileSystemModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.files.read",
           resource: { kind: "project", projectId: request.params.projectId },
         })
         const rootPath = await resolveProjectRoot(request.params.projectId)
-        const listing = await listDirectoryUseCase(options.fileSystemRepository, {
-          rootPath,
-          path: request.body?.path,
-          cursor: request.body?.cursor,
-          limit: request.body?.limit,
-          includeHidden: request.body?.includeHidden,
-        })
+        const listing = await listDirectoryUseCase(
+          options.fileSystemRepository,
+          {
+            rootPath,
+            path: request.body?.path,
+            cursor: request.body?.cursor,
+            limit: request.body?.limit,
+            includeHidden: request.body?.includeHidden,
+          },
+        )
 
         return {
           ok: true,
@@ -163,7 +167,7 @@ export async function registerFileSystemModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.files.read",
           resource: { kind: "project", projectId: request.params.projectId },
         })
@@ -191,7 +195,7 @@ export async function registerFileSystemModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.files.read",
           resource: { kind: "project", projectId: request.params.projectId },
         })
@@ -219,7 +223,7 @@ export async function registerFileSystemModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.files.write",
           resource: { kind: "project", projectId: request.params.projectId },
         })
@@ -249,16 +253,19 @@ export async function registerFileSystemModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.files.write",
           resource: { kind: "project", projectId: request.params.projectId },
         })
         const rootPath = await resolveProjectRoot(request.params.projectId)
-        const directory = await createDirectoryUseCase(options.fileSystemRepository, {
-          rootPath,
-          path: request.body.path,
-          recursive: request.body.recursive,
-        })
+        const directory = await createDirectoryUseCase(
+          options.fileSystemRepository,
+          {
+            rootPath,
+            path: request.body.path,
+            recursive: request.body.recursive,
+          },
+        )
 
         return {
           ok: true,

@@ -40,7 +40,9 @@ describe("deleteProjectUseCase", () => {
       delete: vi.fn().mockResolvedValue(undefined),
     }
 
-    await expect(deleteProjectUseCase(repository, "missing")).rejects.toMatchObject({
+    await expect(
+      deleteProjectUseCase(repository, "missing"),
+    ).rejects.toMatchObject({
       code: PROJECT_ERROR_CODES.NOT_FOUND,
     } satisfies Partial<ProjectError>)
 

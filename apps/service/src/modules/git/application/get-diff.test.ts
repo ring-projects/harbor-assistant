@@ -58,17 +58,18 @@ describe("getDiffUseCase", () => {
   it("returns structured diff for a repository path", async () => {
     const repository = createGitRepositoryStub()
 
-    await expect(getDiffUseCase(repository, { path: "/tmp/example" })).resolves
-      .toMatchObject({
-        path: "/tmp/example",
-        files: [
-          {
-            path: "src/example.ts",
-            status: "modified",
-            additions: 1,
-            deletions: 1,
-          },
-        ],
-      })
+    await expect(
+      getDiffUseCase(repository, { path: "/tmp/example" }),
+    ).resolves.toMatchObject({
+      path: "/tmp/example",
+      files: [
+        {
+          path: "src/example.ts",
+          status: "modified",
+          additions: 1,
+          deletions: 1,
+        },
+      ],
+    })
   })
 })

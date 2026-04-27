@@ -6,6 +6,15 @@ export type AuthorizationActor =
       userId: string
     }
   | {
+      kind: "agent"
+      tokenId: string
+      issuedByUserId: string | null
+      scopes: AuthorizationAction[]
+      projectId: string | null
+      orchestrationId: string | null
+      taskId: string | null
+    }
+  | {
       kind: "system"
       systemId: string
     }

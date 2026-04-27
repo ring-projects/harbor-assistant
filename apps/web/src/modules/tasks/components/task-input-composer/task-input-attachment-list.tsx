@@ -28,14 +28,16 @@ export function TaskInputAttachmentList({
       {attachments.map((attachment) => (
         <div
           key={attachment.path}
-          className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/75 px-3 py-1.5 font-mono text-[11px] text-foreground/85"
+          className="border-border/70 bg-background/75 text-foreground/85 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px]"
         >
           {attachment.mediaType.startsWith("image/") ? (
-            <ImageIcon className="size-3.5 text-muted-foreground" />
+            <ImageIcon className="text-muted-foreground size-3.5" />
           ) : (
-            <FileTextIcon className="size-3.5 text-muted-foreground" />
+            <FileTextIcon className="text-muted-foreground size-3.5" />
           )}
-          <span className="max-w-56 truncate">{getAttachmentDisplayName(attachment)}</span>
+          <span className="max-w-56 truncate">
+            {getAttachmentDisplayName(attachment)}
+          </span>
           <span className="text-muted-foreground/90">
             {Math.max(1, Math.round(attachment.size / 1024))} KB
           </span>

@@ -16,7 +16,7 @@ export function ExecutorBadge({ className, value }: ExecutorBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex h-8 items-center gap-2 rounded-md bg-background/35 px-3 font-mono text-[11px] font-medium text-foreground/80",
+        "bg-background/35 text-foreground/80 inline-flex h-8 items-center gap-2 rounded-md px-3 font-mono text-[11px] font-medium",
         className,
       )}
     >

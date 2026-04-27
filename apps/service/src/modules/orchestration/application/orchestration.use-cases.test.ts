@@ -5,6 +5,7 @@ import { attachTaskRuntime } from "../../task/application/task-read-models"
 import { InMemoryTaskRepository } from "../../task/infrastructure/in-memory-task-repository"
 import { InMemoryOrchestrationRepository } from "../infrastructure/in-memory-orchestration-repository"
 import { bootstrapOrchestrationUseCase } from "./bootstrap-orchestration"
+import { runDueOrchestrationSchedulesUseCase } from "./run-due-orchestration-schedules"
 import { createOrchestration } from "../domain/orchestration"
 import { createOrchestrationTaskUseCase } from "./create-orchestration-task"
 import { createOrchestrationUseCase } from "./create-orchestration"
@@ -12,6 +13,8 @@ import { getOrchestrationUseCase } from "./get-orchestration"
 import { listOrchestrationTasksUseCase } from "./list-orchestration-tasks"
 import { listProjectOrchestrationsUseCase } from "./list-project-orchestrations"
 import type { CreateBootstrapRecordInput } from "./orchestration-bootstrap-store"
+import { resolveNextCronOccurrence } from "./orchestration-cron"
+import { upsertOrchestrationScheduleUseCase } from "./upsert-orchestration-schedule"
 
 describe("orchestration use cases", () => {
   function createProject(projectId = "project-1") {
@@ -38,9 +41,9 @@ describe("orchestration use cases", () => {
           logRetentionDays: 30,
           eventRetentionDays: 7,
         },
-        skills: {
-          harborSkillsEnabled: false,
-          harborSkillProfile: "default",
+        codex: {
+          baseUrl: null,
+          apiKey: null,
         },
       },
     }
@@ -77,7 +80,9 @@ describe("orchestration use cases", () => {
         repository,
         projectRepository,
       },
-      "project-1",
+      {
+        projectId: "project-1",
+      },
     )
 
     expect(orchestrations).toEqual([
@@ -101,6 +106,10 @@ describe("orchestration use cases", () => {
       getProjectForTask: vi.fn(async (projectId: string) => ({
         projectId,
         rootPath: "/tmp/harbor-assistant",
+        codex: {
+          baseUrl: null,
+          apiKey: null,
+        },
       })),
     }
     const runtimePort = {
@@ -133,6 +142,120 @@ describe("orchestration use cases", () => {
     expect(projectTaskPort.getProjectForTask).toHaveBeenCalledWith("project-1")
     expect(runtimePort.startTaskExecution).toHaveBeenCalledTimes(1)
     expect(task.orchestrationId).toBe("orch-1")
+  })
+
+  it("stores orchestration schedule with next trigger", async () => {
+    const repository = new InMemoryOrchestrationRepository([
+      createOrchestration({
+        id: "orch-1",
+        projectId: "project-1",
+        title: "Runtime cleanup",
+      }),
+    ])
+    const orchestration = await upsertOrchestrationScheduleUseCase(
+      {
+        repository,
+        now: () => new Date("2026-04-17T10:05:30.000Z"),
+      },
+      {
+        orchestrationId: "orch-1",
+        enabled: true,
+        cronExpression: "*/15 * * * *",
+        timezone: "UTC",
+        taskTemplate: {
+          prompt: "Run scheduled runtime cleanup",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    )
+
+    expect(orchestration.schedule).toMatchObject({
+      enabled: true,
+      cronExpression: "*/15 * * * *",
+      timezone: "UTC",
+      nextTriggerAt: new Date("2026-04-17T10:15:00.000Z"),
+    })
+  })
+
+  it("triggers due orchestration schedules and advances next trigger", async () => {
+    const repository = new InMemoryOrchestrationRepository([
+      createOrchestration({
+        id: "orch-1",
+        projectId: "project-1",
+        title: "Runtime cleanup",
+      }),
+    ])
+    const taskRepository = new InMemoryTaskRepository()
+    const projectTaskPort = {
+      getProjectForTask: vi.fn(async (projectId: string) => ({
+        projectId,
+        rootPath: "/tmp/harbor-assistant",
+        codex: {
+          baseUrl: null,
+          apiKey: null,
+        },
+      })),
+    }
+    const runtimePort = {
+      startTaskExecution: vi.fn(async () => {}),
+      resumeTaskExecution: vi.fn(async () => {}),
+      cancelTaskExecution: vi.fn(async () => {}),
+    }
+    const notificationPublisher = {
+      publish: vi.fn(async () => {}),
+    }
+    const now = new Date("2026-04-17T10:05:00.000Z")
+
+    await upsertOrchestrationScheduleUseCase(
+      {
+        repository,
+        now: () => new Date("2026-04-17T09:50:00.000Z"),
+      },
+      {
+        orchestrationId: "orch-1",
+        enabled: true,
+        cronExpression: "0 * * * *",
+        timezone: "UTC",
+        taskTemplate: {
+          prompt: "Run scheduled runtime cleanup",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    )
+
+    await runDueOrchestrationSchedulesUseCase({
+      repository,
+      taskRepository,
+      projectTaskPort,
+      runtimePort,
+      notificationPublisher,
+      logger: {
+        info: vi.fn(),
+        error: vi.fn(),
+      } as never,
+      now: () => now,
+    })
+
+    const tasks = await taskRepository.listByOrchestration({
+      orchestrationId: "orch-1",
+    })
+    const orchestration = await repository.findById("orch-1")
+
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]).toMatchObject({
+      orchestrationId: "orch-1",
+      prompt: "Run scheduled runtime cleanup",
+    })
+    expect(orchestration?.schedule).toMatchObject({
+      lastTriggeredAt: now,
+      nextTriggerAt: new Date("2026-04-17T11:00:00.000Z"),
+    })
   })
 
   it("bootstraps an orchestration and first task together", async () => {
@@ -216,6 +339,66 @@ describe("orchestration use cases", () => {
     })
   })
 
+  it("derives the orchestration title from the opening prompt when omitted", async () => {
+    const repository = new InMemoryOrchestrationRepository()
+    const taskRepository = new InMemoryTaskRepository()
+    const bootstrapStore = {
+      create: vi.fn(
+        async ({
+          orchestration,
+          task,
+          projectPath,
+          runtimeConfig,
+        }: CreateBootstrapRecordInput) => {
+          await repository.save(orchestration)
+          await taskRepository.create({
+            task,
+            projectPath,
+            runtimeConfig,
+          })
+        },
+      ),
+    }
+    const projectRepository = {
+      findById: vi.fn(async (id: string) =>
+        id === "project-1" ? createProject("project-1") : null,
+      ),
+    }
+    const runtimePort = {
+      startTaskExecution: vi.fn(async () => {}),
+      resumeTaskExecution: vi.fn(async () => {}),
+      cancelTaskExecution: vi.fn(async () => {}),
+    }
+    const notificationPublisher = {
+      publish: vi.fn(async () => {}),
+    }
+
+    const result = await bootstrapOrchestrationUseCase(
+      {
+        bootstrapStore,
+        projectRepository,
+        taskRepository,
+        runtimePort,
+        notificationPublisher,
+      },
+      {
+        projectId: "project-1",
+        initialTask: {
+          prompt:
+            "Investigate runtime drift across the worker pool and summarize the highest-risk failures.",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    )
+
+    expect(result.orchestration.title).toBe(
+      "Investigate runtime drift across the worker pool and summarize the highest-risk failures.",
+    )
+  })
+
   it("returns a failed task warning when bootstrap runtime start fails", async () => {
     const repository = new InMemoryOrchestrationRepository()
     const taskRepository = new InMemoryTaskRepository()
@@ -286,6 +469,16 @@ describe("orchestration use cases", () => {
       },
     })
     expect(notificationPublisher.publish).toHaveBeenCalledTimes(2)
+  })
+
+  it("resolves next cron occurrence in timezone-aware manner", () => {
+    const next = resolveNextCronOccurrence({
+      cronExpression: "0 9 * * mon-fri",
+      timezone: "Asia/Shanghai",
+      after: new Date("2026-04-17T01:10:00.000Z"),
+    })
+
+    expect(next.toISOString()).toBe("2026-04-20T01:00:00.000Z")
   })
 
   it("rejects creating tasks for archived orchestrations", async () => {
@@ -413,7 +606,9 @@ describe("orchestration use cases", () => {
     const repository = new InMemoryOrchestrationRepository()
     const projectRepository = {
       findById: vi.fn(async (id: string) =>
-        id === "project-1" ? createGitProjectWithoutWorkspace("project-1") : null,
+        id === "project-1"
+          ? createGitProjectWithoutWorkspace("project-1")
+          : null,
       ),
     }
 
@@ -440,7 +635,9 @@ describe("orchestration use cases", () => {
     }
     const projectRepository = {
       findById: vi.fn(async (id: string) =>
-        id === "project-1" ? createGitProjectWithoutWorkspace("project-1") : null,
+        id === "project-1"
+          ? createGitProjectWithoutWorkspace("project-1")
+          : null,
       ),
     }
     const runtimePort = {

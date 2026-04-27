@@ -23,7 +23,9 @@ import {
 } from "@/modules/tasks/contracts"
 
 const STATUS_SET = new Set<TaskStatus>(TASK_STATUS_VALUES)
-const EXECUTION_MODE_SET = new Set<TaskExecutionMode>(TASK_EXECUTION_MODE_VALUES)
+const EXECUTION_MODE_SET = new Set<TaskExecutionMode>(
+  TASK_EXECUTION_MODE_VALUES,
+)
 const EFFORT_SET = new Set<TaskEffort>(TASK_EFFORT_VALUES)
 
 export function toTaskStatus(value: unknown): TaskStatus | null {
@@ -52,7 +54,9 @@ function toTaskEffort(value: unknown): TaskEffort | null {
   return EFFORT_SET.has(value as TaskEffort) ? (value as TaskEffort) : null
 }
 
-export function normalizeTaskCandidate(candidate: unknown): TaskListItem | null {
+export function normalizeTaskCandidate(
+  candidate: unknown,
+): TaskListItem | null {
   const source = asRecord(candidate)
   if (!source) {
     return null
@@ -190,9 +194,10 @@ export function extractTaskEvents(
     taskId,
     items,
     nextSequence:
-      typeof root.nextSequence === "number" && Number.isInteger(root.nextSequence)
+      typeof root.nextSequence === "number" &&
+      Number.isInteger(root.nextSequence)
         ? root.nextSequence
-        : items.at(-1)?.sequence ?? 0,
+        : (items.at(-1)?.sequence ?? 0),
   })
 
   return parsed.success ? parsed.data : null

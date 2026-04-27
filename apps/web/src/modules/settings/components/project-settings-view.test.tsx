@@ -1,19 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ProjectSettingsView } from "./project-settings-view"
-
-class MockProjectApiClientError extends Error {
-  code: string
-  status: number
-
-  constructor(message: string, options?: { code?: string; status?: number }) {
-    super(message)
-    this.name = "ProjectApiClientError"
-    this.code = options?.code ?? "INTERNAL_ERROR"
-    this.status = options?.status ?? 500
-  }
-}
 
 const navigateMock = vi.fn()
 const installUrlRefetchMock = vi.fn(async () => ({
@@ -39,6 +27,7 @@ let installEventListener:
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigateMock,
   useLocation: () => ({
+    href: "/project-1/settings",
     pathname: "/project-1/settings",
     search: "",
     hash: "",
@@ -69,86 +58,100 @@ vi.mock("@/modules/projects/lib/github-app-install-events", () => ({
       : `${event.code ?? "ERROR"}: ${event.message ?? "failed"}`,
 }))
 
-vi.mock("@/modules/projects", () => ({
-  ProjectApiClientError: MockProjectApiClientError,
-  getProjectActionError: (error: unknown) =>
-    error instanceof Error ? error.message : "Unknown project error.",
-  useProjectQuery: () => ({
-    isLoading: false,
-    isError: false,
-    data: {
-      id: "project-1",
-      name: "Harbor Assistant",
-      source: {
-        type: "git",
-        repositoryUrl: "https://github.com/acme/harbor-assistant.git",
-        branch: "main",
+vi.mock("@/modules/projects", () => {
+  class MockProjectApiClientError extends Error {
+    code: string
+    status: number
+
+    constructor(message: string, options?: { code?: string; status?: number }) {
+      super(message)
+      this.name = "ProjectApiClientError"
+      this.code = options?.code ?? "INTERNAL_ERROR"
+      this.status = options?.status ?? 500
+    }
+  }
+
+  return {
+    ProjectApiClientError: MockProjectApiClientError,
+    getProjectActionError: (error: unknown) =>
+      error instanceof Error ? error.message : "Unknown project error.",
+    useProjectQuery: () => ({
+      isLoading: false,
+      isError: false,
+      data: {
+        id: "project-1",
+        name: "Harbor Assistant",
+        source: {
+          type: "git",
+          repositoryUrl: "https://github.com/acme/harbor-assistant.git",
+          branch: "main",
+        },
+        rootPath: null,
+        settings: {
+          retention: {
+            logRetentionDays: 30,
+            eventRetentionDays: 7,
+          },
+          codex: {
+            baseUrl: null,
+            apiKey: null,
+          },
+        },
       },
-      rootPath: null,
-      settings: {
+      refetch: projectRefetchMock,
+    }),
+    useProjectSettingsQuery: () => ({
+      isLoading: false,
+      isError: false,
+      data: {
         retention: {
           logRetentionDays: 30,
           eventRetentionDays: 7,
         },
-        skills: {
-          harborSkillsEnabled: false,
-          harborSkillProfile: "default",
+        codex: {
+          baseUrl: null,
+          apiKey: null,
         },
       },
-    },
-    refetch: projectRefetchMock,
-  }),
-  useProjectSettingsQuery: () => ({
-    isLoading: false,
-    isError: false,
-    data: {
-      retention: {
-        logRetentionDays: 30,
-        eventRetentionDays: 7,
-      },
-      skills: {
-        harborSkillsEnabled: false,
-        harborSkillProfile: "default",
-      },
-    },
-  }),
-  useProjectRepositoryBindingQuery: () => ({
-    data: null,
-    isLoading: false,
-    isError: true,
-    error: new MockProjectApiClientError("missing", {
-      code: "NOT_FOUND",
-      status: 404,
     }),
-    refetch: repositoryBindingRefetchMock,
-  }),
-  useGitHubInstallUrlQuery: (...args: unknown[]) =>
-    installUrlQueryMock(...args),
-  useGitHubInstallationsQuery: (...args: unknown[]) =>
-    useGitHubInstallationsQueryMock(...args),
-  useGitHubInstallationRepositoriesQuery: (...args: unknown[]) =>
-    useGitHubInstallationRepositoriesQueryMock(...args),
-  useBindProjectRepositoryMutation: () => ({
-    isPending: false,
-    mutateAsync: bindRepositoryMutateAsyncMock,
-  }),
-  useUpdateProjectSettingsMutation: () => ({
-    isPending: false,
-    mutateAsync: vi.fn(),
-  }),
-  useProvisionProjectWorkspaceMutation: () => ({
-    isPending: false,
-    mutateAsync: vi.fn(),
-  }),
-  useSyncProjectWorkspaceMutation: () => ({
-    isPending: false,
-    mutateAsync: vi.fn(),
-  }),
-  useDeleteProjectMutation: () => ({
-    isPending: false,
-    mutateAsync: vi.fn(),
-  }),
-}))
+    useProjectRepositoryBindingQuery: () => ({
+      data: null,
+      isLoading: false,
+      isError: true,
+      error: new MockProjectApiClientError("missing", {
+        code: "NOT_FOUND",
+        status: 404,
+      }),
+      refetch: repositoryBindingRefetchMock,
+    }),
+    useGitHubInstallUrlQuery: (...args: unknown[]) =>
+      installUrlQueryMock(...args),
+    useGitHubInstallationsQuery: (...args: unknown[]) =>
+      useGitHubInstallationsQueryMock(...args),
+    useGitHubInstallationRepositoriesQuery: (...args: unknown[]) =>
+      useGitHubInstallationRepositoriesQueryMock(...args),
+    useBindProjectRepositoryMutation: () => ({
+      isPending: false,
+      mutateAsync: bindRepositoryMutateAsyncMock,
+    }),
+    useUpdateProjectSettingsMutation: () => ({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    }),
+    useProvisionProjectWorkspaceMutation: () => ({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    }),
+    useSyncProjectWorkspaceMutation: () => ({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    }),
+    useDeleteProjectMutation: () => ({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    }),
+  }
+})
 
 describe("ProjectSettingsView", () => {
   afterEach(() => {
@@ -250,11 +253,13 @@ describe("ProjectSettingsView", () => {
 
     expect(installEventListener).not.toBeNull()
 
-    installEventListener?.({
-      status: "success",
-      returnTo: "/project-1/settings",
-      code: null,
-      message: null,
+    await act(async () => {
+      installEventListener?.({
+        status: "success",
+        returnTo: "/project-1/settings",
+        code: null,
+        message: null,
+      })
     })
 
     await waitFor(() => {

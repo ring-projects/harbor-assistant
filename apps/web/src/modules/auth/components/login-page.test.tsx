@@ -129,11 +129,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage redirectTo="/projects/project-1" errorCode={null} />)
 
-    expect(
-      screen.getByText(
-        "Continue to Harbor",
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText("Continue to Harbor")).toBeInTheDocument()
     expect(
       screen.queryByText(
         "We use cookies to improve your experience, keep you signed in, and make Harbor work as expected.",

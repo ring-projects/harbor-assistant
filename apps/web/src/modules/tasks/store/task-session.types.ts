@@ -5,10 +5,7 @@ import type {
   TaskListItem,
   TaskStatus,
 } from "@/modules/tasks/contracts"
-import type {
-  TaskInput,
-  UploadedTaskInputImage,
-} from "@/modules/tasks/lib"
+import type { TaskInput, UploadedTaskInputImage } from "@/modules/tasks/lib"
 
 export type TaskRecord = TaskDetail | TaskListItem
 
@@ -56,8 +53,14 @@ export type TasksSessionActions = {
     taskId: string,
     draftAttachments: UploadedTaskInputImage[],
   ) => void
-  setPendingPrompt: (taskId: string, pendingPrompt: PendingPromptState | null) => void
-  setQueuedPrompt: (taskId: string, queuedPrompt: QueuedPromptState | null) => void
+  setPendingPrompt: (
+    taskId: string,
+    pendingPrompt: PendingPromptState | null,
+  ) => void
+  setQueuedPrompt: (
+    taskId: string,
+    queuedPrompt: QueuedPromptState | null,
+  ) => void
   setStickToBottom: (taskId: string, stickToBottom: boolean) => void
   setSelectedInspectorBlockId: (
     taskId: string,

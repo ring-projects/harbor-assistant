@@ -21,14 +21,8 @@ export type ProjectRetentionPolicy = {
   eventRetentionDays: number | null
 }
 
-export type ProjectSkillPolicy = {
-  harborSkillsEnabled: boolean
-  harborSkillProfile: string | null
-}
-
 export type ProjectSettings = {
   retention: ProjectRetentionPolicy
-  skills: ProjectSkillPolicy
 }
 
 export type Project = {
@@ -75,7 +69,6 @@ export type CreateProjectInput = {
 
 export type UpdateProjectSettingsInput = Partial<{
   retention: Partial<ProjectRetentionPolicy>
-  skills: Partial<ProjectSkillPolicy>
 }>
 
 export type UpdateProjectProfileInput = {
@@ -95,10 +88,6 @@ const DEFAULT_SETTINGS: ProjectSettings = {
   retention: {
     logRetentionDays: 30,
     eventRetentionDays: 7,
-  },
-  skills: {
-    harborSkillsEnabled: false,
-    harborSkillProfile: "default",
   },
 }
 
@@ -167,7 +156,9 @@ function normalizeProjectSource(input: CreateProjectInput): {
 
 function assertPositiveInteger(value: number, field: string) {
   if (!Number.isInteger(value) || value <= 0) {
-    throw createProjectError().invalidInput(`${field} must be a positive integer`)
+    throw createProjectError().invalidInput(
+      `${field} must be a positive integer`,
+    )
   }
 }
 
@@ -180,7 +171,10 @@ function assertNullablePositiveInteger(value: number | null, field: string) {
 }
 
 function validateSettings(settings: ProjectSettings) {
-  assertNullablePositiveInteger(settings.retention.logRetentionDays, "logRetentionDays")
+  assertNullablePositiveInteger(
+    settings.retention.logRetentionDays,
+    "logRetentionDays",
+  )
   assertNullablePositiveInteger(
     settings.retention.eventRetentionDays,
     "eventRetentionDays",
@@ -235,10 +229,6 @@ export function updateProjectSettings(
         ...project.settings.retention,
         ...input.retention,
       },
-      skills: {
-        ...project.settings.skills,
-        ...input.skills,
-      },
     },
   }
 
@@ -277,7 +267,8 @@ export function updateProjectProfile(
   input: UpdateProjectProfileInput,
   now = new Date(),
 ): Project {
-  const nextName = typeof input.name === "string" ? input.name.trim() : project.name
+  const nextName =
+    typeof input.name === "string" ? input.name.trim() : project.name
   requireNonEmpty(nextName, "name")
 
   const nextSlug = deriveProjectSlug(nextName)

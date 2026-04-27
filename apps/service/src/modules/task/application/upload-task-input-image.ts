@@ -28,15 +28,18 @@ function decodeBase64(value: string) {
   return Buffer.from(normalized, "base64")
 }
 
-export async function uploadTaskInputFileUseCase(args: {
-  projectTaskPort: ProjectTaskPort
-  taskInputFileStore: TaskInputFileStore
-}, input: {
-  projectId: string
-  name: string
-  mediaType: string
-  dataBase64: string
-}): Promise<{
+export async function uploadTaskInputFileUseCase(
+  args: {
+    projectTaskPort: ProjectTaskPort
+    taskInputFileStore: TaskInputFileStore
+  },
+  input: {
+    projectId: string
+    name: string
+    mediaType: string
+    dataBase64: string
+  },
+): Promise<{
   path: string
   mediaType: string
   name: string
@@ -53,7 +56,9 @@ export async function uploadTaskInputFileUseCase(args: {
     throw createTaskError().invalidInput("name is required")
   }
   if (!SUPPORTED_TASK_INPUT_FILE_MEDIA_TYPES.has(mediaType)) {
-    throw createTaskError().invalidInput("unsupported task input file media type")
+    throw createTaskError().invalidInput(
+      "unsupported task input file media type",
+    )
   }
 
   const project = await args.projectTaskPort.getProjectForTask(projectId)

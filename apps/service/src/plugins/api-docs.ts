@@ -15,7 +15,10 @@ const API_TAGS = [
   { name: "auth", description: "Authentication and session endpoints." },
   { name: "agents", description: "Available task agent capabilities." },
   { name: "workspace", description: "Workspace membership and settings." },
-  { name: "projects", description: "Project management and repository binding." },
+  {
+    name: "projects",
+    description: "Project management and repository binding.",
+  },
   { name: "tasks", description: "Task execution and task assets." },
   { name: "filesystem", description: "Project file browsing and file access." },
   { name: "git", description: "Project Git status, history, and actions." },
@@ -50,6 +53,10 @@ export default fp(
               type: "apiKey",
               in: "cookie",
               name: HARBOR_SESSION_COOKIE_NAME,
+            },
+            bearerAuth: {
+              type: "http",
+              scheme: "bearer",
             },
           },
         },

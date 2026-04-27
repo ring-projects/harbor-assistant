@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify"
 
 import type { ServiceConfig } from "../../../config"
+import { PrismaAgentTokenStore } from "../infrastructure/prisma-agent-token-store"
 import { PrismaAuthSessionStore } from "../infrastructure/prisma-auth-session-store"
 import { PrismaUserIdentityRegistry } from "../../user"
 import type { GitHubIdentity } from "../providers/github"
@@ -36,6 +37,7 @@ export async function registerAuthModuleRoutes(
 ) {
   const sessionStore =
     options.sessionStore ?? new PrismaAuthSessionStore(app.prisma)
+  const agentTokenStore = new PrismaAgentTokenStore(app.prisma)
   const userIdentityRegistry =
     options.userIdentityRegistry ?? new PrismaUserIdentityRegistry(app.prisma)
   await registerGitHubAuthRoutes(app, {
@@ -48,5 +50,8 @@ export async function registerAuthModuleRoutes(
   await registerAuthSessionRoutes(app, {
     config: options.config,
     sessionStore,
+    agentTokenStore,
   })
 }
+
+export { registerAgentTokenRoutes } from "./agent-token.routes"

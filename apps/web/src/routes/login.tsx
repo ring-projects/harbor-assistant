@@ -11,8 +11,7 @@ type LoginSearch = {
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search): LoginSearch => ({
-    redirect:
-      typeof search.redirect === "string" ? search.redirect : undefined,
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
     error: typeof search.error === "string" ? search.error : undefined,
   }),
   beforeLoad: async ({ search }) => {

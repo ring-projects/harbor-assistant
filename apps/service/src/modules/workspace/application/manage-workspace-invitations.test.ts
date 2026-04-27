@@ -89,9 +89,9 @@ describe("workspace invitation use cases", () => {
       findById: vi.fn().mockResolvedValue(workspace),
     })
     const invitationRepository = createInvitationRepository({
-      findPendingByWorkspaceIdAndGithubLogin: vi.fn().mockResolvedValue(
-        existingInvitation,
-      ),
+      findPendingByWorkspaceIdAndGithubLogin: vi
+        .fn()
+        .mockResolvedValue(existingInvitation),
     })
 
     const invitation = await createWorkspaceInvitationUseCase(
@@ -150,7 +150,9 @@ describe("workspace invitation use cases", () => {
     )
 
     expect(
-      result.workspace.memberships.find((membership) => membership.userId === "user-2"),
+      result.workspace.memberships.find(
+        (membership) => membership.userId === "user-2",
+      ),
     ).toEqual(
       expect.objectContaining({
         userId: "user-2",

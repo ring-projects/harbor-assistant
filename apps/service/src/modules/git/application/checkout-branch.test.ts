@@ -74,7 +74,8 @@ describe("checkoutBranchUseCase", () => {
     const repository = createGitRepositoryStub({
       checkoutBranch: async () => ({
         stdout: "",
-        stderr: "error: pathspec 'missing-branch' did not match any file(s) known to git",
+        stderr:
+          "error: pathspec 'missing-branch' did not match any file(s) known to git",
         exitCode: 1,
       }),
     })

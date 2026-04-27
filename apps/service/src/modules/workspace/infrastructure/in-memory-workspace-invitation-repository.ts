@@ -1,9 +1,7 @@
 import type { WorkspaceInvitationRepository } from "../application/workspace-invitation-repository"
 import type { WorkspaceInvitation } from "../domain/workspace"
 
-export class InMemoryWorkspaceInvitationRepository
-  implements WorkspaceInvitationRepository
-{
+export class InMemoryWorkspaceInvitationRepository implements WorkspaceInvitationRepository {
   private readonly invitations = new Map<string, WorkspaceInvitation>()
 
   async findById(id: string): Promise<WorkspaceInvitation | null> {
@@ -32,7 +30,9 @@ export class InMemoryWorkspaceInvitationRepository
   async listByWorkspaceId(workspaceId: string): Promise<WorkspaceInvitation[]> {
     return Array.from(this.invitations.values())
       .filter((invitation) => invitation.workspaceId === workspaceId)
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
   }
 
   async listPendingByGithubLogin(
@@ -45,7 +45,9 @@ export class InMemoryWorkspaceInvitationRepository
           invitation.inviteeGithubLogin === normalizedLogin &&
           invitation.status === "pending",
       )
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
   }
 
   async save(invitation: WorkspaceInvitation): Promise<void> {

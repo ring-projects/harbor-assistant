@@ -25,7 +25,10 @@ export function formatTimeShort(value: string | null) {
   return parsed.format("HH:mm")
 }
 
-export function formatDateTime(value: string | null, formatter = "YYYY-MM-DD HH:mm") {
+export function formatDateTime(
+  value: string | null,
+  formatter = "YYYY-MM-DD HH:mm",
+) {
   const parsed = toDayjs(value)
   if (!parsed) {
     return "-"

@@ -20,7 +20,9 @@ export function createNodeDocumentContentStore(
         await writeFile(resolved.absolutePath, input.content, "utf8")
       } catch (error) {
         throw createDocumentError().conflict(
-          error instanceof Error ? error.message : "document content write failed",
+          error instanceof Error
+            ? error.message
+            : "document content write failed",
         )
       }
     },
@@ -32,7 +34,9 @@ export function createNodeDocumentContentStore(
 
       try {
         const content = await readFile(resolved.absolutePath, "utf8")
-        const format: "markdown" | "json" = resolved.absolutePath.endsWith(".json")
+        const format: "markdown" | "json" = resolved.absolutePath.endsWith(
+          ".json",
+        )
           ? "json"
           : "markdown"
 
@@ -52,7 +56,9 @@ export function createNodeDocumentContentStore(
         }
 
         throw createDocumentError().conflict(
-          error instanceof Error ? error.message : "document content read failed",
+          error instanceof Error
+            ? error.message
+            : "document content read failed",
         )
       }
     },
@@ -66,7 +72,9 @@ export function createNodeDocumentContentStore(
         await rm(resolved.absolutePath, { force: true })
       } catch (error) {
         throw createDocumentError().conflict(
-          error instanceof Error ? error.message : "document content delete failed",
+          error instanceof Error
+            ? error.message
+            : "document content delete failed",
         )
       }
     },

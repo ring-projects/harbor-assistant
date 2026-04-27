@@ -1,4 +1,5 @@
 import { createOrchestrationError } from "../errors"
+import type { OrchestrationSchedule } from "./orchestration-schedule"
 
 export type OrchestrationStatus = "active" | "archived"
 
@@ -9,23 +10,48 @@ export type Orchestration = {
   description: string | null
   status: OrchestrationStatus
   archivedAt: Date | null
+  schedule: OrchestrationSchedule | null
   createdAt: Date
   updatedAt: Date
+}
+
+export const DEFAULT_ORCHESTRATION_TITLE = "New session"
+
+export function resolveOrchestrationTitle(input: {
+  title?: string | null
+  fallbackTitle?: string | null
+}) {
+  const title = input.title?.trim()
+  if (title) {
+    return title
+  }
+
+  const fallbackTitle = input.fallbackTitle?.trim()
+  if (fallbackTitle) {
+    return fallbackTitle
+  }
+
+  return DEFAULT_ORCHESTRATION_TITLE
 }
 
 export function createOrchestration(input: {
   id: string
   projectId: string
-  title: string
+  title?: string | null
+  fallbackTitle?: string | null
   description?: string | null
   status?: OrchestrationStatus
   archivedAt?: Date | null
+  schedule?: OrchestrationSchedule | null
   createdAt?: Date
   updatedAt?: Date
 }): Orchestration {
   const id = input.id.trim()
   const projectId = input.projectId.trim()
-  const title = input.title.trim()
+  const title = resolveOrchestrationTitle({
+    title: input.title,
+    fallbackTitle: input.fallbackTitle,
+  })
   const createdAt = input.createdAt ?? new Date()
   const updatedAt = input.updatedAt ?? createdAt
 
@@ -35,9 +61,6 @@ export function createOrchestration(input: {
   if (!projectId) {
     throw createOrchestrationError().invalidInput("projectId is required")
   }
-  if (!title) {
-    throw createOrchestrationError().invalidInput("title is required")
-  }
 
   return {
     id,
@@ -46,6 +69,7 @@ export function createOrchestration(input: {
     description: input.description?.trim() || null,
     status: input.status ?? "active",
     archivedAt: input.archivedAt ?? null,
+    schedule: input.schedule ?? null,
     createdAt,
     updatedAt,
   }

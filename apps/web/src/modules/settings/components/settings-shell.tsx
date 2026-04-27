@@ -40,7 +40,7 @@ export function SettingsShell({ projectId }: SettingsShellProps) {
   }
 
   return (
-    <div className="absolute inset-0 z-20 bg-background/75 p-3 backdrop-blur-sm">
+    <div className="bg-background/75 absolute inset-0 z-20 p-3 backdrop-blur-sm">
       <div className="bg-background h-full overflow-hidden rounded-xl border shadow-2xl">
         <div className="flex h-full min-h-0 flex-col">
           <div className="bg-muted/20 border-b px-4 py-3">
@@ -71,7 +71,7 @@ export function SettingsShell({ projectId }: SettingsShellProps) {
                 <span className="sr-only">Close settings</span>
               </Button>
             </div>
-            <div className="text-muted-foreground mt-3 rounded-xl border bg-background px-3 py-2 text-xs leading-5">
+            <div className="text-muted-foreground bg-background mt-3 rounded-xl border px-3 py-2 text-xs leading-5">
               {isProjectSettings
                 ? `Current Project applies only to ${settingsProjectId}. Use this area for repository-specific overrides.`
                 : "General defines Harbor-wide defaults. Project settings can inherit these values."}
@@ -80,7 +80,10 @@ export function SettingsShell({ projectId }: SettingsShellProps) {
 
           <div className="min-h-0 flex-1 overflow-hidden">
             {isProjectSettings ? (
-              <ProjectSettingsView projectId={settingsProjectId ?? projectId} mode="modal" />
+              <ProjectSettingsView
+                projectId={settingsProjectId ?? projectId}
+                mode="modal"
+              />
             ) : (
               <GeneralSettingsView />
             )}

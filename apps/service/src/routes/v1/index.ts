@@ -1,9 +1,15 @@
+import fastifyCookie from "@fastify/cookie"
 import type { PrismaClient } from "@prisma/client"
 import type { FastifyInstance } from "fastify"
 
 import { registerAgentRoutes } from "./agent.routes"
 import type { ServiceConfig } from "../../config"
-import { parseCookieHeader } from "../../lib/http/cookies"
+import {
+  createBackgroundJobWorker,
+  enqueueProjectSandboxTemplateBootstrapJobUseCase,
+  PrismaBackgroundJobRepository,
+  runProjectSandboxTemplateBootstrapJobUseCase,
+} from "../../modules/background-job"
 import {
   createDefaultAuthorizationService,
   createRepositoryAuthorizationOrchestrationQuery,
@@ -13,8 +19,10 @@ import {
 } from "../../modules/authorization"
 import {
   HARBOR_SESSION_COOKIE_NAME,
+  PrismaAgentTokenStore,
   PrismaAuthSessionStore,
   authSessionPlugin,
+  registerAgentTokenRoutes,
   registerAuthModuleRoutes,
   requireAuthenticatedPreHandler,
 } from "../../modules/auth"
@@ -32,10 +40,15 @@ import { registerGitModuleRoutes } from "../../modules/git/routes"
 import { createInteractionSocketGateway } from "../../modules/interaction/infrastructure/socket-io-gateway"
 import { PrismaOrchestrationBootstrapStore } from "../../modules/orchestration/infrastructure/persistence/prisma-orchestration-bootstrap-store"
 import { PrismaOrchestrationRepository } from "../../modules/orchestration/infrastructure/persistence/prisma-orchestration-repository"
+import { createOrchestrationScheduler } from "../../modules/orchestration/infrastructure/orchestration-scheduler"
 import { registerOrchestrationModuleRoutes } from "../../modules/orchestration/routes"
 import { createNodeProjectPathPolicy } from "../../modules/project/infrastructure/node-project-path-policy"
 import { PrismaProjectRepository } from "../../modules/project/infrastructure/persistence/prisma-project-repository"
 import { registerProjectModuleRoutes } from "../../modules/project/routes"
+import {
+  createConfiguredSandboxServices,
+  registerSandboxModuleRoutes,
+} from "../../modules/sandbox"
 import { createCurrentTaskRuntimePort } from "../../modules/task/facade/current-task-runtime-port"
 import { createNodeTaskInputFileStore } from "../../modules/task/infrastructure/node-task-input-image-store"
 import { createInMemoryTaskNotificationBus } from "../../modules/task/infrastructure/notification/in-memory-task-notification-bus"
@@ -43,7 +56,10 @@ import { PrismaTaskRepository } from "../../modules/task/infrastructure/persiste
 import { PrismaTaskEventProjection } from "../../modules/task/infrastructure/projection/prisma-task-event-projection"
 import { createTaskExecutionLifecycle } from "../../modules/task/infrastructure/runtime/task-execution-lifecycle"
 import { registerTaskModuleRoutes } from "../../modules/task/routes"
-import { PrismaUserDirectory } from "../../modules/user"
+import {
+  PrismaUserDirectory,
+  registerUserModuleRoutes,
+} from "../../modules/user"
 import {
   PrismaWorkspaceInvitationRepository,
   PrismaWorkspaceRepository,
@@ -55,7 +71,9 @@ import { createProjectTaskPort } from "./create-project-task-port"
 
 function resolveHarborApiBaseUrl(config: ServiceConfig) {
   const normalizedHost =
-    config.host === "0.0.0.0" || config.host === "::" ? "127.0.0.1" : config.host
+    config.host === "0.0.0.0" || config.host === "::"
+      ? "127.0.0.1"
+      : config.host
   return `http://${normalizedHost}:${config.port}/v1`
 }
 
@@ -76,38 +94,61 @@ export async function registerV1Routes(
   const prisma = getRequiredPrismaClient(app)
   const projectRepository = new PrismaProjectRepository(prisma)
   const workspaceRepository = new PrismaWorkspaceRepository(prisma)
-  const workspaceInvitationRepository =
-    new PrismaWorkspaceInvitationRepository(prisma)
+  const workspaceInvitationRepository = new PrismaWorkspaceInvitationRepository(
+    prisma,
+  )
   const workspaceUserDirectory = new PrismaUserDirectory(prisma)
   const orchestrationRepository = new PrismaOrchestrationRepository(prisma)
-  const orchestrationBootstrapStore = new PrismaOrchestrationBootstrapStore(prisma)
+  const orchestrationBootstrapStore = new PrismaOrchestrationBootstrapStore(
+    prisma,
+  )
   const taskRepository = new PrismaTaskRepository(prisma)
   const taskEventProjection = new PrismaTaskEventProjection(prisma)
-  const githubInstallationRepository = new PrismaGitHubInstallationRepository(prisma)
+  const githubInstallationRepository = new PrismaGitHubInstallationRepository(
+    prisma,
+  )
   const workspaceInstallationRepository =
     new PrismaWorkspaceInstallationRepository(prisma)
   const projectRepositoryBindingRepository =
     new PrismaProjectRepositoryBindingRepository(prisma)
+  const backgroundJobRepository = new PrismaBackgroundJobRepository(prisma)
   const authSessionStore = new PrismaAuthSessionStore(prisma)
+  const agentTokenStore = new PrismaAgentTokenStore(prisma)
   const taskNotificationBus = createInMemoryTaskNotificationBus()
   const projectTaskPort = createProjectTaskPort({
     projectRepository,
+    workspaceRepository,
+  })
+  const sandboxServices = createConfiguredSandboxServices({
+    prisma,
+    sandboxRootDirectory: config.sandboxRootDirectory,
+    logger: app.log,
   })
   const authorizationService = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
     taskQuery: createRepositoryAuthorizationTaskQuery(taskRepository),
-    orchestrationQuery:
-      createRepositoryAuthorizationOrchestrationQuery(orchestrationRepository),
+    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+      orchestrationRepository,
+    ),
   })
   const taskInputFileStore = createNodeTaskInputFileStore()
   const taskRuntimePort = createCurrentTaskRuntimePort({
     prisma,
     taskRepository,
+    projectRepository,
     notificationPublisher: taskNotificationBus.publisher,
     harborApiBaseUrl: resolveHarborApiBaseUrl(config),
+    sandbox:
+      sandboxServices.provider && sandboxServices.registry
+        ? {
+            provider: sandboxServices.provider,
+            registry: sandboxServices.registry,
+          }
+        : undefined,
+    publicSkillsRootDirectory: config.publicSkillsRootDirectory,
+    agentTokenStore,
     logger: app.log,
   })
   try {
@@ -131,12 +172,39 @@ export async function registerV1Routes(
     eventProjection: taskEventProjection,
     notificationSubscriber: taskNotificationBus.subscriber,
   })
+  const orchestrationScheduler = createOrchestrationScheduler({
+    repository: orchestrationRepository,
+    taskRepository,
+    projectTaskPort,
+    runtimePort: taskRuntimePort,
+    notificationPublisher: taskNotificationBus.publisher,
+    logger: app.log,
+  })
   const projectPathPolicy = createNodeProjectPathPolicy()
   const gitPathWatcher = createNodeGitPathWatcher()
   const projectGitLifecycle = createProjectGitInteractionLifecycle({
     projectRepository,
     gitPathWatcher,
   })
+  const backgroundJobWorker =
+    sandboxServices.provider && sandboxServices.registry
+      ? createBackgroundJobWorker({
+          repository: backgroundJobRepository,
+          handlers: {
+            project_sandbox_template_bootstrap: async (job) =>
+              runProjectSandboxTemplateBootstrapJobUseCase(
+                {
+                  projectRepository,
+                  provider: sandboxServices.provider!,
+                  registry: sandboxServices.registry!,
+                  logger: app.log,
+                },
+                job,
+              ),
+          },
+          logger: app.log,
+        })
+      : null
   const gitRepository = createGitCommandRepository()
   const githubAppClient = new NodeGitHubAppClient({
     appSlug: config.githubAppSlug,
@@ -157,13 +225,46 @@ export async function registerV1Routes(
   await app.register(authSessionPlugin, {
     config,
   })
+
+  orchestrationScheduler.start()
+  app.log.info("Orchestration scheduler started")
+  backgroundJobWorker?.start()
+  if (backgroundJobWorker) {
+    app.log.info("Background job worker started")
+  }
+  app.addHook("onClose", async () => {
+    await orchestrationScheduler.stop()
+    await backgroundJobWorker?.stop()
+  })
+
   await registerAuthModuleRoutes(app, {
     config,
   })
   await app.register(async (protectedApp) => {
     protectedApp.addHook("preHandler", requireAuthenticatedPreHandler)
 
+    await registerUserModuleRoutes(protectedApp, {
+      userDirectory: workspaceUserDirectory,
+    })
+    await registerAgentTokenRoutes(protectedApp, {
+      authorization: authorizationService,
+      agentTokenStore,
+      projectQuery:
+        createRepositoryAuthorizationProjectQuery(projectRepository),
+      orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
+        orchestrationRepository,
+      ),
+      taskQuery: createRepositoryAuthorizationTaskQuery(taskRepository),
+    })
     await registerAgentRoutes(protectedApp)
+    if (sandboxServices.provider && sandboxServices.registry) {
+      await registerSandboxModuleRoutes(protectedApp, {
+        authorization: authorizationService,
+        projectRepository,
+        provider: sandboxServices.provider,
+        registry: sandboxServices.registry,
+      })
+    }
     await registerGitHubIntegrationRoutes(protectedApp, {
       config,
       githubAppSlug: config.githubAppSlug,
@@ -180,6 +281,18 @@ export async function registerV1Routes(
     await registerProjectModuleRoutes(protectedApp, {
       authorization: authorizationService,
       repository: projectRepository,
+      onProjectCreated: backgroundJobWorker
+        ? async (project) => {
+            await enqueueProjectSandboxTemplateBootstrapJobUseCase(
+              {
+                repository: backgroundJobRepository,
+              },
+              {
+                projectId: project.id,
+              },
+            )
+          }
+        : undefined,
       workspaceRepository,
       workspaceInstallationRepository,
       pathPolicy: projectPathPolicy,
@@ -233,8 +346,9 @@ export async function registerV1Routes(
     projectGitWatcher: projectGitLifecycle,
     app,
     async resolveSocketActor(socket) {
-      const cookies = parseCookieHeader(socket.request.headers.cookie)
-      const token = cookies.get(HARBOR_SESSION_COOKIE_NAME)
+      const token = fastifyCookie.parse(socket.request.headers.cookie ?? "")[
+        HARBOR_SESSION_COOKIE_NAME
+      ]
 
       if (!token) {
         return null
@@ -242,6 +356,10 @@ export async function registerV1Routes(
 
       const auth = await authSessionStore.getSessionByToken(token)
       if (!auth) {
+        return null
+      }
+
+      if (auth.kind === "agent") {
         return null
       }
 

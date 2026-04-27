@@ -66,14 +66,16 @@ export function createTaskExecutionStateStore(args: {
 
   async function getNextSequence(executionId: string) {
     const currentMaxSequence =
-      (await args.prisma.executionEvent.aggregate({
-        where: {
-          executionId,
-        },
-        _max: {
-          sequence: true,
-        },
-      }))._max.sequence ?? 0
+      (
+        await args.prisma.executionEvent.aggregate({
+          where: {
+            executionId,
+          },
+          _max: {
+            sequence: true,
+          },
+        })
+      )._max.sequence ?? 0
 
     return currentMaxSequence + 1
   }

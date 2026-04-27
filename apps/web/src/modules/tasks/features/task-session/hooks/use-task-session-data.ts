@@ -44,11 +44,15 @@ export function useTaskSessionData(args: {
     enabled: Boolean(args.taskId),
   })
 
-  const detail = useTasksSessionStore((state) => selectTaskDetail(state, args.taskId))
+  const detail = useTasksSessionStore((state) =>
+    selectTaskDetail(state, args.taskId),
+  )
   const blocksFromStore = useTasksSessionStore((state) =>
     selectConversationBlocks(state, args.taskId),
   )
-  const chatUi = useTasksSessionStore((state) => selectChatUi(state, args.taskId))
+  const chatUi = useTasksSessionStore((state) =>
+    selectChatUi(state, args.taskId),
+  )
   const selectedInspectorBlock = useTasksSessionStore((state) =>
     selectSelectedInspectorBlock(state, args.taskId),
   )
@@ -76,8 +80,10 @@ export function useTaskSessionData(args: {
     detail,
     detailQuery,
     eventsQuery,
-    isError: Boolean(args.taskId) && (detailQuery.isError || eventsQuery.isError),
-    isLoading: Boolean(args.taskId) && (detailQuery.isLoading || eventsQuery.isLoading),
+    isError:
+      Boolean(args.taskId) && (detailQuery.isError || eventsQuery.isError),
+    isLoading:
+      Boolean(args.taskId) && (detailQuery.isLoading || eventsQuery.isLoading),
     lastSequence,
     selectedInspectorBlock,
   }

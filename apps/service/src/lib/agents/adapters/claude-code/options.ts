@@ -1,12 +1,6 @@
-import type {
-  ClaudePermissionMode,
-  ClaudeQueryOptions,
-} from "./sdk.js"
+import type { ClaudePermissionMode, ClaudeQueryOptions } from "./sdk.js"
 
-import type {
-  AgentRuntimeOptions,
-  RuntimeReasoningEffort,
-} from "../../types"
+import type { AgentRuntimeOptions, RuntimeReasoningEffort } from "../../types"
 import { buildChildProcessEnv } from "../../../process-env"
 
 function mapApprovalPolicyToPermissionMode(
@@ -49,7 +43,9 @@ function buildDisallowedTools(options: AgentRuntimeOptions): string[] {
     : ["AskUserQuestion"]
 }
 
-function buildSandbox(options: AgentRuntimeOptions): ClaudeQueryOptions["sandbox"] {
+function buildSandbox(
+  options: AgentRuntimeOptions,
+): ClaudeQueryOptions["sandbox"] {
   const allowedPaths = [
     options.workingDirectory,
     ...(options.additionalDirectories ?? []),

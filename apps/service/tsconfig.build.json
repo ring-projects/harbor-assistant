@@ -7,13 +7,6 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.d.ts"
-  ],
-  "exclude": [
-    "src/**/*.test.ts",
-    "test/**/*.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "exclude": ["src/**/*.test.ts", "test/**/*.ts", "vitest.config.ts"]
 }

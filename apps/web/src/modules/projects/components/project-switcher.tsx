@@ -23,6 +23,7 @@ type ProjectSwitcherProps = {
   activeProjectId?: string | null
   initialProjects?: Project[]
   className?: string
+  triggerClassName?: string
   children?: ReactNode
   triggerLabel?: string
 }
@@ -42,13 +43,16 @@ export function ProjectSwitcher({
   activeProjectId,
   initialProjects,
   className,
+  triggerClassName,
   children,
   triggerLabel = "Switch project",
 }: ProjectSwitcherProps) {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId)
-  const setActiveWorkspaceId = useAppStore((state) => state.setActiveWorkspaceId)
+  const setActiveWorkspaceId = useAppStore(
+    (state) => state.setActiveWorkspaceId,
+  )
   const openAddProjectModal = useUiStore((state) => state.openAddProjectModal)
   const projectsQuery = useReadProjectsQuery({
     initialData: initialProjects,
@@ -63,7 +67,11 @@ export function ProjectSwitcher({
           type="button"
           variant="ghost"
           aria-label={triggerLabel}
-          className={cn("min-w-14 justify-between gap-2", className)}
+          className={cn(
+            "min-w-14 justify-between gap-2",
+            triggerClassName,
+            className,
+          )}
         >
           {children ?? <span className="font-medium">Projects</span>}
           <ChevronsUpDownIcon className="text-muted-foreground ml-auto size-4 shrink-0" />

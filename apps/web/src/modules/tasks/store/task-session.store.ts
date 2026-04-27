@@ -69,7 +69,10 @@ function mergeTaskRecord(
     ...incoming,
   }
 
-  if (TASK_STATUS_PRIORITY[existing.status] > TASK_STATUS_PRIORITY[incoming.status]) {
+  if (
+    TASK_STATUS_PRIORITY[existing.status] >
+    TASK_STATUS_PRIORITY[incoming.status]
+  ) {
     merged.status = existing.status
     merged.startedAt = existing.startedAt
     merged.finishedAt = existing.finishedAt
@@ -86,7 +89,9 @@ function sortTaskIdsByCreatedAt(
     const leftCreatedAt = tasksById[left]?.createdAt ?? ""
     const rightCreatedAt = tasksById[right]?.createdAt ?? ""
 
-    return new Date(rightCreatedAt).getTime() - new Date(leftCreatedAt).getTime()
+    return (
+      new Date(rightCreatedAt).getTime() - new Date(leftCreatedAt).getTime()
+    )
   })
 }
 
@@ -106,8 +111,8 @@ function reconcilePendingPrompt(
     return chatUi ?? createDefaultChatUiState()
   }
 
-  const matchedUserMessage = stream.items.some(
-    (event) => matchesPendingPromptEvent(chatUi.pendingPrompt, event),
+  const matchedUserMessage = stream.items.some((event) =>
+    matchesPendingPromptEvent(chatUi.pendingPrompt, event),
   )
 
   if (!matchedUserMessage) {
@@ -253,7 +258,10 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
         state.tasksById[normalizedTaskId]?.orchestrationId.trim() ?? null
       const tasksById = {
         ...state.tasksById,
-        [normalizedTaskId]: mergeTaskRecord(state.tasksById[normalizedTaskId], task),
+        [normalizedTaskId]: mergeTaskRecord(
+          state.tasksById[normalizedTaskId],
+          task,
+        ),
       }
 
       const nextTaskIds = sortTaskIdsByCreatedAt(
@@ -359,7 +367,7 @@ export const createTasksSessionStoreState: StateCreator<TasksSessionStore> = (
             ...(currentChatUi ?? createDefaultChatUiState()),
             pendingPrompt: null,
           }
-        : currentChatUi ?? createDefaultChatUiState()
+        : (currentChatUi ?? createDefaultChatUiState())
 
       return {
         eventStreamsByTaskId: {

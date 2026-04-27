@@ -25,16 +25,18 @@ export function AuthShell({
     <div className="bg-background text-foreground flex min-h-svh items-center justify-center p-6">
       <div
         className={cn(
-          "w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm",
+          "bg-card w-full max-w-md rounded-2xl border p-6 shadow-sm",
           className,
         )}
       >
         <div className="space-y-3">
           <p className="text-muted-foreground text-sm">{eyebrow}</p>
           <h1 className="text-2xl font-semibold">{title}</h1>
-          <p className="text-muted-foreground text-sm leading-6">{description}</p>
+          <p className="text-muted-foreground text-sm leading-6">
+            {description}
+          </p>
           {errorMessage ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <div className="border-destructive/30 bg-destructive/5 text-destructive rounded-lg border px-3 py-2 text-sm">
               {errorMessage}
             </div>
           ) : null}

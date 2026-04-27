@@ -93,7 +93,9 @@ describe("project lifecycle use cases", () => {
       delete: vi.fn().mockResolvedValue(undefined),
     }
 
-    await expect(archiveProjectUseCase(repository, "project-1")).rejects.toMatchObject({
+    await expect(
+      archiveProjectUseCase(repository, "project-1"),
+    ).rejects.toMatchObject({
       code: PROJECT_ERROR_CODES.INVALID_STATE,
     } satisfies Partial<ProjectError>)
   })

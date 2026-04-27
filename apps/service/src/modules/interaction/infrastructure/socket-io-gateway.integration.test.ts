@@ -2,7 +2,10 @@ import Fastify from "fastify"
 import { afterEach, describe, expect, it } from "vitest"
 
 import { AppError } from "../../../lib/errors/app-error"
-import type { AuthorizationActor, AuthorizationService } from "../../authorization"
+import type {
+  AuthorizationActor,
+  AuthorizationService,
+} from "../../authorization"
 import { createInteractionSocketGateway } from "./socket-io-gateway"
 import type { ResolveSocketActor } from "./socket-io-gateway"
 import type {
@@ -221,7 +224,9 @@ async function createLiveGatewayApp(args?: {
   projectGitWatcher?: ProjectGitInteractionLifecycle
 }) {
   const app = Fastify({ logger: false })
-  const taskListeners = new Set<(message: InteractionTaskStreamMessage) => void>()
+  const taskListeners = new Set<
+    (message: InteractionTaskStreamMessage) => void
+  >()
 
   const taskQueries: TaskInteractionQueries = args?.taskQueries ?? {
     getTaskSnapshot: async () => createTaskSnapshotMessage(),

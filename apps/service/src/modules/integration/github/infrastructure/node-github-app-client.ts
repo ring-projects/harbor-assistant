@@ -94,7 +94,9 @@ export class NodeGitHubAppClient implements GitHubAppClient {
     return url.toString()
   }
 
-  async getInstallation(installationId: string): Promise<GitHubInstallationRecord> {
+  async getInstallation(
+    installationId: string,
+  ): Promise<GitHubInstallationRecord> {
     const response = await this.fetchGitHubJson<GitHubInstallationApiResponse>(
       `https://api.github.com/app/installations/${installationId}`,
       {
@@ -104,9 +106,13 @@ export class NodeGitHubAppClient implements GitHubAppClient {
 
     return {
       id: String(response.id),
-      accountType: normalizeGitHubInstallationAccountType(response.account?.type),
+      accountType: normalizeGitHubInstallationAccountType(
+        response.account?.type,
+      ),
       accountLogin: response.account?.login?.trim() || "unknown",
-      targetType: normalizeInstallationTargetType(response.repository_selection),
+      targetType: normalizeInstallationTargetType(
+        response.repository_selection,
+      ),
       status: response.suspended_by ? "suspended" : "active",
     }
   }
@@ -115,12 +121,13 @@ export class NodeGitHubAppClient implements GitHubAppClient {
     installationId: string,
   ): Promise<GitHubInstallationRepositorySummary[]> {
     const token = await this.createInstallationAccessToken(installationId)
-    const response = await this.fetchGitHubJson<GitHubInstallationRepositoriesApiResponse>(
-      "https://api.github.com/installation/repositories",
-      {
-        authorization: `Bearer ${token.token}`,
-      },
-    )
+    const response =
+      await this.fetchGitHubJson<GitHubInstallationRepositoriesApiResponse>(
+        "https://api.github.com/installation/repositories",
+        {
+          authorization: `Bearer ${token.token}`,
+        },
+      )
 
     return (response.repositories ?? []).map((repository) => ({
       nodeId: repository.node_id ?? null,

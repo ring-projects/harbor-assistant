@@ -24,29 +24,31 @@ function ChatTodoListBlockView({ block }: ChatTodoListBlockProps) {
   const statusMeta =
     block.status === "completed"
       ? {
-        label: "Completed",
-        icon: CheckCheckIcon,
-        iconClassName: "text-success",
-        badgeClassName: "border-success/25 bg-surface-success text-success",
-        metaClassName: "text-success",
-      }
+          label: "Completed",
+          icon: CheckCheckIcon,
+          iconClassName: "text-success",
+          badgeClassName: "border-success/25 bg-surface-success text-success",
+          metaClassName: "text-success",
+        }
       : {
-        label: "Running",
-        icon: LoaderCircleIcon,
-        iconClassName: "text-info animate-spin",
-        badgeClassName: "border-info/25 bg-surface-info text-info",
-        metaClassName: "text-info",
-      }
+          label: "Running",
+          icon: LoaderCircleIcon,
+          iconClassName: "text-info animate-spin",
+          badgeClassName: "border-info/25 bg-surface-info text-info",
+          metaClassName: "text-info",
+        }
   const StatusIcon = statusMeta.icon
 
   return (
     <div className="bg-surface-subtle w-full px-3.5 py-3">
       <div className="flex items-start gap-3">
-        <StatusIcon className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)} />
+        <StatusIcon
+          className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)}
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate font-mono text-[12px] leading-5 text-foreground/88">
+            <p className="text-foreground/88 truncate font-mono text-[12px] leading-5">
               Plan
             </p>
             <span
@@ -63,8 +65,12 @@ function ChatTodoListBlockView({ block }: ChatTodoListBlockProps) {
           </div>
 
           <p className="text-muted-foreground mt-1 font-mono text-[11px] leading-5">
-            {block.startedAt ? `Started ${formatTimeShort(block.startedAt)}` : "Plan issued"}
-            {block.timestamp ? ` · Updated ${formatTimeShort(block.timestamp)}` : ""}
+            {block.startedAt
+              ? `Started ${formatTimeShort(block.startedAt)}`
+              : "Plan issued"}
+            {block.timestamp
+              ? ` · Updated ${formatTimeShort(block.timestamp)}`
+              : ""}
           </p>
 
           <div className="mt-3 space-y-2">
@@ -89,7 +95,7 @@ function ChatTodoListBlockView({ block }: ChatTodoListBlockProps) {
                   className={cn(
                     "text-[13px] leading-6",
                     item.completed
-                      ? "text-foreground/78 line-through decoration-success/70"
+                      ? "text-foreground/78 decoration-success/70 line-through"
                       : "text-foreground/88",
                   )}
                 >

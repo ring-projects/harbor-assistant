@@ -16,6 +16,8 @@ export interface GitHubInstallationRepository {
     id: string,
     installedByUserId: string,
   ): Promise<GitHubAppInstallation | null>
-  listByInstalledByUserId(installedByUserId: string): Promise<GitHubAppInstallation[]>
+  listByInstalledByUserId(
+    installedByUserId: string,
+  ): Promise<GitHubAppInstallation[]>
   save(installation: GitHubAppInstallation): Promise<void>
 }

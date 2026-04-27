@@ -1,0 +1,32 @@
+enum BackgroundJobType {
+  project_sandbox_template_bootstrap
+}
+
+enum BackgroundJobStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+model BackgroundJob {
+  id           String              @id @default(cuid())
+  type         BackgroundJobType
+  status       BackgroundJobStatus @default(pending)
+  dedupeKey    String?
+  payload      Json
+  attemptCount Int                 @default(0)
+  maxAttempts  Int                 @default(3)
+  runAfter     DateTime            @default(now())
+  lockedAt     DateTime?
+  lockedBy     String?
+  lastError    String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  completedAt  DateTime?
+
+  @@index([status, runAfter, createdAt(sort: Asc)])
+  @@index([dedupeKey, status, createdAt(sort: Desc)])
+  @@map("background_jobs")
+}

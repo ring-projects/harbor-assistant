@@ -64,7 +64,11 @@ export const githubInstallUrlQueryKey = (
   ] as const
 
 export const githubInstallationsQueryKey = (workspaceId: string | null) =>
-  [...GITHUB_INTEGRATION_QUERY_KEY, "installations", workspaceId ?? "none"] as const
+  [
+    ...GITHUB_INTEGRATION_QUERY_KEY,
+    "installations",
+    workspaceId ?? "none",
+  ] as const
 
 export const githubInstallationRepositoriesQueryKey = (
   installationId: string,

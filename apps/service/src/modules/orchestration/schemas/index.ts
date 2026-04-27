@@ -2,9 +2,12 @@ export type {
   BootstrapOrchestrationBody,
   CreateOrchestrationBody,
   CreateOrchestrationTaskBody,
+  ListProjectOrchestrationsQuery,
   ListOrchestrationTasksQuery,
   OrchestrationIdParams,
   ProjectIdParams,
+  UpdateOrchestrationBody,
+  UpsertOrchestrationScheduleBody,
 } from "./orchestration.schema"
 export {
   bootstrapOrchestrationBodySchema,
@@ -14,9 +17,14 @@ export {
   createOrchestrationTaskBodySchema,
   createOrchestrationTaskRouteSchema,
   getOrchestrationRouteSchema,
+  listProjectOrchestrationsQuerySchema,
   listOrchestrationTasksQuerySchema,
   listOrchestrationTasksRouteSchema,
   listProjectOrchestrationsRouteSchema,
   orchestrationIdParamsSchema,
   projectIdParamsSchema,
+  updateOrchestrationBodySchema,
+  updateOrchestrationRouteSchema,
+  upsertOrchestrationScheduleBodySchema,
+  upsertOrchestrationScheduleRouteSchema,
 } from "./orchestration.schema"

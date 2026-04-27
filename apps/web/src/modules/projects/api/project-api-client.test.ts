@@ -10,21 +10,21 @@ import {
   syncProjectWorkspace,
 } from "./project-api-client"
 
-const originalExecutorApiBaseUrl = process.env.VITE_EXECUTOR_API_BASE_URL
+const originalHarborApiBaseUrl = process.env.VITE_HARBOR_API_BASE_URL
 
 describe("project-api-client", () => {
   afterEach(() => {
-    if (originalExecutorApiBaseUrl === undefined) {
-      delete process.env.VITE_EXECUTOR_API_BASE_URL
+    if (originalHarborApiBaseUrl === undefined) {
+      delete process.env.VITE_HARBOR_API_BASE_URL
     } else {
-      process.env.VITE_EXECUTOR_API_BASE_URL = originalExecutorApiBaseUrl
+      process.env.VITE_HARBOR_API_BASE_URL = originalHarborApiBaseUrl
     }
 
     vi.restoreAllMocks()
   })
 
   it("sends repository binding when creating a GitHub-backed git project", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -53,9 +53,9 @@ describe("project-api-client", () => {
               logRetentionDays: null,
               eventRetentionDays: null,
             },
-            skills: {
-              harborSkillsEnabled: true,
-              harborSkillProfile: null,
+            codex: {
+              baseUrl: null,
+              apiKey: null,
             },
           },
         },
@@ -95,7 +95,7 @@ describe("project-api-client", () => {
   })
 
   it("reads GitHub installations using the integration contract", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     vi.stubGlobal(
       "fetch",
@@ -129,7 +129,7 @@ describe("project-api-client", () => {
   })
 
   it("passes returnTo when requesting the GitHub App install URL", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -154,7 +154,7 @@ describe("project-api-client", () => {
   })
 
   it("reads repository binding for a project", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     vi.stubGlobal(
       "fetch",
@@ -194,7 +194,7 @@ describe("project-api-client", () => {
   })
 
   it("binds repository access for an existing project", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -243,7 +243,7 @@ describe("project-api-client", () => {
   })
 
   it("returns the updated project and binding after provisioning a workspace", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     vi.stubGlobal(
       "fetch",
@@ -274,9 +274,9 @@ describe("project-api-client", () => {
                 logRetentionDays: null,
                 eventRetentionDays: null,
               },
-              skills: {
-                harborSkillsEnabled: true,
-                harborSkillProfile: null,
+              codex: {
+                baseUrl: null,
+                apiKey: null,
               },
             },
           },
@@ -310,7 +310,7 @@ describe("project-api-client", () => {
   })
 
   it("returns syncedAt after syncing a provisioned workspace", async () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://executor.example.com"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://executor.example.com"
 
     vi.stubGlobal(
       "fetch",

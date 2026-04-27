@@ -23,17 +23,19 @@ async function createApp(args?: {
   workspaceRepository?: InMemoryWorkspaceRepository
   gitRepository?: GitRepository
 }) {
-  const projectRepository = args?.projectRepository ?? new InMemoryProjectRepository()
+  const projectRepository =
+    args?.projectRepository ?? new InMemoryProjectRepository()
   const workspaceRepository =
     args?.workspaceRepository ?? new InMemoryWorkspaceRepository()
   const gitRepository = args?.gitRepository ?? createGitRepositoryStub()
   const app = Fastify({ logger: false })
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
-    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    taskQuery: createRepositoryAuthorizationTaskQuery(
+      new InMemoryTaskRepository(),
+    ),
     orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
       new InMemoryOrchestrationRepository(),
     ),
@@ -186,7 +188,8 @@ describe("project git routes", () => {
       gitRepository: createGitRepositoryStub({
         getRepositoryRoot: async () => ({
           stdout: "",
-          stderr: "fatal: not a git repository (or any of the parent directories): .git",
+          stderr:
+            "fatal: not a git repository (or any of the parent directories): .git",
           exitCode: 128,
         }),
       }),

@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -79,8 +78,12 @@ export function WorkspaceSwitcher({
   variant = "default",
 }: WorkspaceSwitcherProps) {
   const navigate = useNavigate()
-  const setActiveWorkspaceId = useAppStore((state) => state.setActiveWorkspaceId)
-  const clearActiveProjectId = useAppStore((state) => state.clearActiveProjectId)
+  const setActiveWorkspaceId = useAppStore(
+    (state) => state.setActiveWorkspaceId,
+  )
+  const clearActiveProjectId = useAppStore(
+    (state) => state.clearActiveProjectId,
+  )
   const workspacesQuery = useReadWorkspacesQuery()
   const createWorkspaceMutation = useCreateWorkspaceMutation()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -126,7 +129,9 @@ export function WorkspaceSwitcher({
     }
   }
 
-  const ActiveIcon = activeWorkspace ? getWorkspaceIcon(activeWorkspace.type) : UserIcon
+  const ActiveIcon = activeWorkspace
+    ? getWorkspaceIcon(activeWorkspace.type)
+    : UserIcon
   const workspaceTypeLabel =
     activeWorkspace?.type === "team" ? "Team" : "Personal"
 
@@ -145,7 +150,7 @@ export function WorkspaceSwitcher({
                 )}
               >
                 <span className="flex min-w-0 items-center gap-3 text-left">
-                  <span className="bg-secondary flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60">
+                  <span className="bg-secondary border-border/60 flex size-10 shrink-0 items-center justify-center rounded-xl border">
                     <HarborMark className="size-5" />
                   </span>
                   <span className="min-w-0">
@@ -166,7 +171,7 @@ export function WorkspaceSwitcher({
                 type="button"
                 variant="outline"
                 className={cn(
-                  "h-10 w-full min-w-0 justify-between rounded-lg border-border/70 bg-background px-3 shadow-none",
+                  "border-border/70 bg-background h-10 w-full min-w-0 justify-between rounded-lg px-3 shadow-none",
                   triggerClassName,
                 )}
               >
@@ -191,7 +196,7 @@ export function WorkspaceSwitcher({
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align={align} className="w-80 rounded-lg p-2">
-            <DropdownMenuLabel className="px-2 pb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <DropdownMenuLabel className="text-muted-foreground px-2 pb-2 text-xs tracking-[0.18em] uppercase">
               Workspaces
             </DropdownMenuLabel>
 
@@ -220,7 +225,9 @@ export function WorkspaceSwitcher({
                     </span>
                   </span>
 
-                  {isActive ? <CheckIcon className="size-4 shrink-0" /> : null}
+                  <span className="flex size-5 shrink-0 items-center justify-center self-center">
+                    {isActive ? <CheckIcon className="size-4" /> : null}
+                  </span>
                 </DropdownMenuItem>
               )
             })}
@@ -247,9 +254,6 @@ export function WorkspaceSwitcher({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create workspace</DialogTitle>
-            <DialogDescription>
-              Add a team workspace for shared projects, members, and integrations.
-            </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3">
@@ -274,7 +278,9 @@ export function WorkspaceSwitcher({
               onClick={() => void handleCreateWorkspace()}
               disabled={createWorkspaceMutation.isPending}
             >
-              {createWorkspaceMutation.isPending ? "Creating..." : "Create workspace"}
+              {createWorkspaceMutation.isPending
+                ? "Creating..."
+                : "Create workspace"}
             </Button>
           </DialogFooter>
         </DialogContent>

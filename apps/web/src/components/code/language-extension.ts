@@ -11,9 +11,7 @@ import { python } from "@codemirror/lang-python"
 import { rust } from "@codemirror/lang-rust"
 import { yaml } from "@codemirror/lang-yaml"
 
-function getLanguageSupport(
-  language: string | null,
-): LanguageSupport | null {
+function getLanguageSupport(language: string | null): LanguageSupport | null {
   if (!language) {
     return null
   }

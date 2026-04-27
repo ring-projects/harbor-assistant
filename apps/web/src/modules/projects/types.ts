@@ -65,12 +65,12 @@ export type ProjectRetentionPolicy = {
   eventRetentionDays: number | null
 }
 
-export type ProjectSkillPolicy = {
-  harborSkillsEnabled: boolean
-  harborSkillProfile: string | null
+export type ProjectCodexSettings = {
+  baseUrl: string | null
+  apiKey: string | null
 }
 
 export type ProjectSettings = {
   retention: ProjectRetentionPolicy
-  skills: ProjectSkillPolicy
+  codex: ProjectCodexSettings
 }

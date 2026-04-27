@@ -126,18 +126,16 @@ export function parseUnifiedDiff(patchText: string): GitDiffFile[] {
 
   const lines = patchText.split(/\r?\n/)
   const files: GitDiffFile[] = []
-  let currentFile:
-    | {
-        path: string
-        oldPath: string | null
-        status: GitDiffFileStatus
-        isBinary: boolean
-        patchLines: string[]
-        hunks: GitDiffHunk[]
-        additions: number
-        deletions: number
-      }
-    | null = null
+  let currentFile: {
+    path: string
+    oldPath: string | null
+    status: GitDiffFileStatus
+    isBinary: boolean
+    patchLines: string[]
+    hunks: GitDiffHunk[]
+    additions: number
+    deletions: number
+  } | null = null
   let currentHunk: GitDiffHunk | null = null
   let oldLine = 0
   let newLine = 0

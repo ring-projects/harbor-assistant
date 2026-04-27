@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { createAuthSessionCookie } from "../../../../test/helpers/auth-session"
 import { createProjectTestApp } from "../../../../test/helpers/project-test-app"
-import { createTestDatabase, type TestDatabase } from "../../../../test/helpers/test-database"
+import {
+  createTestDatabase,
+  type TestDatabase,
+} from "../../../../test/helpers/test-database"
 
 function rootPathSource(rootPath: string) {
   return {

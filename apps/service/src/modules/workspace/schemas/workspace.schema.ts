@@ -16,6 +16,13 @@ export type WorkspaceGithubLoginBody = {
   githubLogin: string
 }
 
+export type UpdateWorkspaceSettingsBody = Partial<{
+  codex: Partial<{
+    baseUrl: string | null
+    apiKey: string | null
+  }>
+}>
+
 export type AcceptWorkspaceInvitationParams = {
   invitationId: string
 }
@@ -41,6 +48,23 @@ const membershipSchema = {
   },
 } as const
 
+const workspaceSettingsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["codex"],
+  properties: {
+    codex: {
+      type: "object",
+      additionalProperties: false,
+      required: ["baseUrl", "apiKey"],
+      properties: {
+        baseUrl: { type: ["string", "null"], format: "uri" },
+        apiKey: { type: ["string", "null"], minLength: 1 },
+      },
+    },
+  },
+} as const
+
 const workspaceEntitySchema = {
   type: "object",
   additionalProperties: false,
@@ -54,6 +78,7 @@ const workspaceEntitySchema = {
     "createdAt",
     "updatedAt",
     "archivedAt",
+    "settings",
     "memberships",
   ],
   properties: {
@@ -66,6 +91,7 @@ const workspaceEntitySchema = {
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
     archivedAt: { type: ["string", "null"], format: "date-time" },
+    settings: workspaceSettingsSchema,
     memberships: {
       type: "array",
       items: membershipSchema,
@@ -140,6 +166,23 @@ export const workspaceGithubLoginBodySchema = {
   },
 } as const
 
+export const updateWorkspaceSettingsBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    codex: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        baseUrl: { type: ["string", "null"], format: "uri" },
+        apiKey: { type: ["string", "null"], minLength: 1 },
+      },
+      anyOf: [{ required: ["baseUrl"] }, { required: ["apiKey"] }],
+    },
+  },
+  required: ["codex"],
+} as const
+
 export const acceptWorkspaceInvitationParamsSchema = {
   type: "object",
   additionalProperties: false,
@@ -203,6 +246,43 @@ export const listWorkspaceMembersRouteSchema = {
           type: "array",
           items: membershipSchema,
         },
+      },
+    },
+  },
+} as const
+
+export const getWorkspaceSettingsRouteSchema = {
+  tags: ["workspace"],
+  operationId: "getWorkspaceSettings",
+  security: [{ cookieAuth: [] }],
+  params: workspaceIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "settings"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        settings: workspaceSettingsSchema,
+      },
+    },
+  },
+} as const
+
+export const updateWorkspaceSettingsRouteSchema = {
+  tags: ["workspace"],
+  operationId: "updateWorkspaceSettings",
+  security: [{ cookieAuth: [] }],
+  params: workspaceIdParamsSchema,
+  body: updateWorkspaceSettingsBodySchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "workspace"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        workspace: workspaceEntitySchema,
       },
     },
   },

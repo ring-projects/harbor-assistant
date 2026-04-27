@@ -234,6 +234,201 @@ describe("normalizeRawAgentEvent", () => {
     ])
   })
 
+  it("normalizes codex web search updates as visible lifecycle events", () => {
+    const state = createTaskRunEventState()
+
+    const startedFromUpdate = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:06.000Z"),
+        event: {
+          type: "item.updated",
+          item: {
+            type: "web_search",
+            id: "search-1",
+            query: "latest codex sdk event changes",
+          },
+        },
+      },
+      state,
+    })
+
+    const duplicateStarted = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:07.000Z"),
+        event: {
+          type: "item.started",
+          item: {
+            type: "web_search",
+            id: "search-1",
+            query: "latest codex sdk event changes",
+          },
+        },
+      },
+      state,
+    })
+
+    const completedEvents = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:08.000Z"),
+        event: {
+          type: "item.completed",
+          item: {
+            type: "web_search",
+            id: "search-1",
+            query: "latest codex sdk event changes",
+          },
+        },
+      },
+      state,
+    })
+
+    expect(startedFromUpdate).toEqual([
+      {
+        eventType: "web_search.started",
+        payload: {
+          searchId: "search-1",
+          query: "latest codex sdk event changes",
+          timestamp: "2026-03-25T00:00:06.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:06.000Z"),
+      },
+    ])
+    expect(duplicateStarted).toEqual([])
+    expect(completedEvents).toEqual([
+      {
+        eventType: "web_search.completed",
+        payload: {
+          searchId: "search-1",
+          query: "latest codex sdk event changes",
+          timestamp: "2026-03-25T00:00:08.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:08.000Z"),
+      },
+    ])
+  })
+
+  it("normalizes codex mcp tool call updates and suppresses duplicate completion", () => {
+    const state = createTaskRunEventState()
+
+    const startedFromUpdate = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:09.000Z"),
+        event: {
+          type: "item.updated",
+          item: {
+            type: "mcp_tool_call",
+            id: "call-1",
+            server: "context7",
+            tool: "query-docs",
+            arguments: {
+              libraryId: "/vercel/next.js",
+            },
+            status: "in_progress",
+          },
+        },
+      },
+      state,
+    })
+
+    const completedFromUpdate = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:10.000Z"),
+        event: {
+          type: "item.updated",
+          item: {
+            type: "mcp_tool_call",
+            id: "call-1",
+            server: "context7",
+            tool: "query-docs",
+            arguments: {
+              libraryId: "/vercel/next.js",
+            },
+            result: {
+              content: [],
+              structured_content: {
+                ok: true,
+              },
+            },
+            status: "completed",
+          },
+        },
+      },
+      state,
+    })
+
+    const duplicateCompleted = normalizeRawAgentEvent({
+      envelope: {
+        agentType: "codex",
+        createdAt: new Date("2026-03-25T00:00:11.000Z"),
+        event: {
+          type: "item.completed",
+          item: {
+            type: "mcp_tool_call",
+            id: "call-1",
+            server: "context7",
+            tool: "query-docs",
+            arguments: {
+              libraryId: "/vercel/next.js",
+            },
+            result: {
+              content: [],
+              structured_content: {
+                ok: true,
+              },
+            },
+            status: "completed",
+          },
+        },
+      },
+      state,
+    })
+
+    expect(startedFromUpdate).toEqual([
+      {
+        eventType: "mcp_tool_call.started",
+        payload: {
+          callId: "call-1",
+          server: "context7",
+          tool: "query-docs",
+          arguments: {
+            libraryId: "/vercel/next.js",
+          },
+          timestamp: "2026-03-25T00:00:09.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:09.000Z"),
+      },
+    ])
+    expect(completedFromUpdate).toEqual([
+      {
+        eventType: "mcp_tool_call.completed",
+        payload: {
+          callId: "call-1",
+          server: "context7",
+          tool: "query-docs",
+          arguments: {
+            libraryId: "/vercel/next.js",
+          },
+          result: {
+            content: [],
+            structured_content: {
+              ok: true,
+            },
+          },
+          error: undefined,
+          status: "success",
+          timestamp: "2026-03-25T00:00:10.000Z",
+        },
+        createdAt: new Date("2026-03-25T00:00:10.000Z"),
+      },
+    ])
+    expect(duplicateCompleted).toEqual([])
+  })
+
   it("normalizes claude assistant/tool events", () => {
     const events = normalizeRawAgentEvent({
       envelope: {

@@ -39,7 +39,9 @@ export async function addWorkspaceMemberUseCase(
     userId: input.actorUserId,
     errorMessage: "only workspace owners can manage members",
   })
-  const user = await deps.userDirectory.findByGithubLogin(input.githubLogin.trim())
+  const user = await deps.userDirectory.findByGithubLogin(
+    input.githubLogin.trim(),
+  )
 
   if (!user) {
     throw createWorkspaceError().notFound("workspace member user not found")

@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { executorApiFetch } from "@/lib/executor-service-url"
+import { harborApiFetch } from "@/lib/harbor-api-url"
 import { asRecord, parseJsonResponse } from "@/lib/protocol"
 import { gitDiffSchema, type GitDiff } from "@/modules/git/contracts"
 
@@ -29,7 +29,9 @@ export class GitApiClientError extends Error {
   }
 }
 
-async function parseJson(response: Response): Promise<GitEnvelopePayload | null> {
+async function parseJson(
+  response: Response,
+): Promise<GitEnvelopePayload | null> {
   return parseJsonResponse<GitEnvelopePayload>(response)
 }
 
@@ -62,7 +64,9 @@ function extractDiff(payload: unknown): GitDiff | null {
   }
 
   const root =
-    source.diff && typeof source.diff === "object" ? asRecord(source.diff) : source
+    source.diff && typeof source.diff === "object"
+      ? asRecord(source.diff)
+      : source
   if (!root) {
     return null
   }
@@ -76,7 +80,7 @@ function extractDiff(payload: unknown): GitDiff | null {
 }
 
 export async function readProjectGitDiff(projectId: string): Promise<GitDiff> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(projectId)}/git/diff`,
     {
       method: "GET",

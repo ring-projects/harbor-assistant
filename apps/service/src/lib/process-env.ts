@@ -70,15 +70,22 @@ function summarizeHandle(handle: unknown) {
       typeof typedHandle.readable === "boolean" ? typedHandle.readable : null,
     writable:
       typeof typedHandle.writable === "boolean" ? typedHandle.writable : null,
-    pending: typeof typedHandle.pending === "boolean" ? typedHandle.pending : null,
+    pending:
+      typeof typedHandle.pending === "boolean" ? typedHandle.pending : null,
     connecting:
-      typeof typedHandle.connecting === "boolean" ? typedHandle.connecting : null,
+      typeof typedHandle.connecting === "boolean"
+        ? typedHandle.connecting
+        : null,
     bytesRead:
       typeof typedHandle.bytesRead === "number" ? typedHandle.bytesRead : null,
     bytesWritten:
-      typeof typedHandle.bytesWritten === "number" ? typedHandle.bytesWritten : null,
+      typeof typedHandle.bytesWritten === "number"
+        ? typedHandle.bytesWritten
+        : null,
     localAddress:
-      typeof typedHandle.localAddress === "string" ? typedHandle.localAddress : null,
+      typeof typedHandle.localAddress === "string"
+        ? typedHandle.localAddress
+        : null,
     localPort:
       typeof typedHandle.localPort === "number" ? typedHandle.localPort : null,
     remoteAddress:
@@ -86,9 +93,13 @@ function summarizeHandle(handle: unknown) {
         ? typedHandle.remoteAddress
         : null,
     remotePort:
-      typeof typedHandle.remotePort === "number" ? typedHandle.remotePort : null,
+      typeof typedHandle.remotePort === "number"
+        ? typedHandle.remotePort
+        : null,
     idleTimeout:
-      typeof typedHandle._idleTimeout === "number" ? typedHandle._idleTimeout : null,
+      typeof typedHandle._idleTimeout === "number"
+        ? typedHandle._idleTimeout
+        : null,
     hasRef:
       typeof typedHandle.hasRef === "function"
         ? (() => {
@@ -201,9 +212,13 @@ function inspectStreamFd(
       hasStream: Boolean(stream),
       isTTY: Boolean(typedStream?.isTTY),
       readable:
-        "readable" in (typedStream ?? {}) ? Boolean(typedStream?.readable) : null,
+        "readable" in (typedStream ?? {})
+          ? Boolean(typedStream?.readable)
+          : null,
       writable:
-        "writable" in (typedStream ?? {}) ? Boolean(typedStream?.writable) : null,
+        "writable" in (typedStream ?? {})
+          ? Boolean(typedStream?.writable)
+          : null,
       destroyed:
         "destroyed" in (typedStream ?? {})
           ? Boolean(typedStream?.destroyed)
@@ -220,9 +235,13 @@ function inspectStreamFd(
       hasStream: true,
       isTTY: Boolean(typedStream?.isTTY),
       readable:
-        "readable" in (typedStream ?? {}) ? Boolean(typedStream?.readable) : null,
+        "readable" in (typedStream ?? {})
+          ? Boolean(typedStream?.readable)
+          : null,
       writable:
-        "writable" in (typedStream ?? {}) ? Boolean(typedStream?.writable) : null,
+        "writable" in (typedStream ?? {})
+          ? Boolean(typedStream?.writable)
+          : null,
       destroyed:
         "destroyed" in (typedStream ?? {})
           ? Boolean(typedStream?.destroyed)
@@ -242,9 +261,13 @@ function inspectStreamFd(
       hasStream: true,
       isTTY: Boolean(typedStream?.isTTY),
       readable:
-        "readable" in (typedStream ?? {}) ? Boolean(typedStream?.readable) : null,
+        "readable" in (typedStream ?? {})
+          ? Boolean(typedStream?.readable)
+          : null,
       writable:
-        "writable" in (typedStream ?? {}) ? Boolean(typedStream?.writable) : null,
+        "writable" in (typedStream ?? {})
+          ? Boolean(typedStream?.writable)
+          : null,
       destroyed:
         "destroyed" in (typedStream ?? {})
           ? Boolean(typedStream?.destroyed)
@@ -258,9 +281,9 @@ function inspectStreamFd(
 
 export function getChildProcessSpawnDiagnostics() {
   const relevantEnv = Object.fromEntries(
-    DIAGNOSTIC_ENV_KEYS
-      .map((key) => [key, process.env[key]])
-      .filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    DIAGNOSTIC_ENV_KEYS.map((key) => [key, process.env[key]]).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
   )
 
   return {
@@ -311,13 +334,11 @@ export function logChildProcessSpawnFailure(args: {
                     ? args.error.message
                     : String(args.error),
                 code:
-                  "code" in args.error &&
-                  typeof args.error.code === "string"
+                  "code" in args.error && typeof args.error.code === "string"
                     ? args.error.code
                     : null,
                 errno:
-                  "errno" in args.error &&
-                  typeof args.error.errno === "number"
+                  "errno" in args.error && typeof args.error.errno === "number"
                     ? args.error.errno
                     : null,
                 syscall:

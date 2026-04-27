@@ -6,7 +6,7 @@ import { gitQueryKeys } from "@/modules/git"
 
 import { TaskSocketManager } from "./task-socket-manager"
 
-const originalExecutorApiBaseUrl = process.env.VITE_EXECUTOR_API_BASE_URL
+const originalHarborApiBaseUrl = process.env.VITE_HARBOR_API_BASE_URL
 const handlers = new Map<string, (payload: unknown) => void>()
 const emit = vi.fn()
 const socket = {
@@ -22,7 +22,7 @@ vi.mock("socket.io-client", () => ({
 
 describe("TaskSocketManager", () => {
   beforeEach(() => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "http://127.0.0.1:3400"
+    process.env.VITE_HARBOR_API_BASE_URL = "http://127.0.0.1:3400"
     handlers.clear()
     emit.mockClear()
     socket.on.mockClear()
@@ -35,12 +35,12 @@ describe("TaskSocketManager", () => {
   })
 
   afterAll(() => {
-    if (originalExecutorApiBaseUrl === undefined) {
-      delete process.env.VITE_EXECUTOR_API_BASE_URL
+    if (originalHarborApiBaseUrl === undefined) {
+      delete process.env.VITE_HARBOR_API_BASE_URL
       return
     }
 
-    process.env.VITE_EXECUTOR_API_BASE_URL = originalExecutorApiBaseUrl
+    process.env.VITE_HARBOR_API_BASE_URL = originalHarborApiBaseUrl
   })
 
   it("invalidates project git queries when a project git change event arrives", async () => {
@@ -120,7 +120,9 @@ describe("TaskSocketManager", () => {
       },
     })
 
-    expect(useTasksSessionStore.getState().taskIdsByOrchestration["orch-1"]).toEqual([])
+    expect(
+      useTasksSessionStore.getState().taskIdsByOrchestration["orch-1"],
+    ).toEqual([])
     expect(useTasksSessionStore.getState().tasksById["task-1"]).toBeUndefined()
   })
 
@@ -163,12 +165,12 @@ describe("TaskSocketManager", () => {
       },
     })
 
-    expect(useTasksSessionStore.getState().taskIdsByOrchestration["orch-2"]).toEqual([
-      "task-2",
-    ])
-    expect(useTasksSessionStore.getState().taskIdsByOrchestration["project-1"]).toBe(
-      undefined,
-    )
+    expect(
+      useTasksSessionStore.getState().taskIdsByOrchestration["orch-2"],
+    ).toEqual(["task-2"])
+    expect(
+      useTasksSessionStore.getState().taskIdsByOrchestration["project-1"],
+    ).toBe(undefined)
   })
 
   it("replays task event subscriptions with the last seen sequence on reconnect", () => {

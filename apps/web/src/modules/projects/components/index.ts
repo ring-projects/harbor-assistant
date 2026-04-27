@@ -1,4 +1,5 @@
 export * from "./create-project"
 export * from "./current-project-name"
+export * from "./project-console-sidebar"
 export * from "./project-header"
 export * from "./project-switcher"

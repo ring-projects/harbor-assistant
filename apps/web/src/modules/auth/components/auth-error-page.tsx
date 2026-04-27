@@ -42,17 +42,23 @@ export function AuthErrorPage(props: AuthErrorPageProps) {
 
   return (
     <AuthShell
-      title={isAuthenticationError ? "Authentication required" : "Something went wrong"}
+      title={
+        isAuthenticationError
+          ? "Authentication required"
+          : "Something went wrong"
+      }
       description={
         isAuthenticationError
           ? "Your Harbor session is missing or expired. Sign in again with GitHub and then retry the request."
-          : message ?? "An unexpected error occurred while loading the page."
+          : (message ?? "An unexpected error occurred while loading the page.")
       }
       actions={
         <div className="flex gap-3">
           {isAuthenticationError ? (
             <Button asChild>
-              <a href={getGitHubLoginUrl(redirectTo ?? undefined)}>Sign in with GitHub</a>
+              <a href={getGitHubLoginUrl(redirectTo ?? undefined)}>
+                Sign in with GitHub
+              </a>
             </Button>
           ) : null}
           {onRetry ? (

@@ -59,7 +59,11 @@ const KEYWORD_SET = new Set([
   "yield",
 ])
 
-function pushToken(tokens: HighlightToken[], text: string, className: string | null) {
+function pushToken(
+  tokens: HighlightToken[],
+  text: string,
+  className: string | null,
+) {
   if (!text) {
     return
   }
@@ -103,16 +107,19 @@ function tokenizeMarkup(code: string) {
 
 function tokenizeCodeLike(code: string, language: string | null) {
   const tokens: HighlightToken[] = []
-  const commentPattern =
-    language === "python" ? /#.*/g : /\/\/.*|\/\*.*?\*\//g
-  const stringPattern =
-    /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g
+  const commentPattern = language === "python" ? /#.*/g : /\/\/.*|\/\*.*?\*\//g
+  const stringPattern = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g
   const numberPattern = /\b\d+(?:\.\d+)?\b/g
   const identifierPattern = /\b[A-Za-z_$][\w$]*\b/g
 
   const matches: Array<{ from: number; to: number; className: string }> = []
 
-  for (const pattern of [commentPattern, stringPattern, numberPattern, identifierPattern]) {
+  for (const pattern of [
+    commentPattern,
+    stringPattern,
+    numberPattern,
+    identifierPattern,
+  ]) {
     for (const match of code.matchAll(pattern)) {
       const text = match[0]
       const from = match.index ?? 0
@@ -172,10 +179,7 @@ function tokenize(code: string, language: string | null) {
     return [{ text: code, className: null }]
   }
 
-  if (
-    normalizedLanguage === "html" ||
-    normalizedLanguage === "markdown"
-  ) {
+  if (normalizedLanguage === "html" || normalizedLanguage === "markdown") {
     return tokenizeMarkup(code)
   }
 
@@ -186,7 +190,10 @@ export function HighlightedCodeText({
   code,
   language,
 }: HighlightedCodeTextProps) {
-  const tokens = useMemo(() => tokenize(code, language ?? null), [code, language])
+  const tokens = useMemo(
+    () => tokenize(code, language ?? null),
+    [code, language],
+  )
 
   return (
     <>

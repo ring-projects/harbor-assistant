@@ -2,7 +2,11 @@ import { createTaskError } from "../errors"
 import { isTerminalTaskStatus } from "../domain/task"
 import type { TaskEventProjection } from "./task-event-projection"
 import type { TaskRepository } from "./task-repository"
-import { toTaskDetail, type TaskDetail, type TaskEventStream } from "./task-read-models"
+import {
+  toTaskDetail,
+  type TaskDetail,
+  type TaskEventStream,
+} from "./task-read-models"
 
 export async function getTaskEventsUseCase(
   repository: Pick<TaskRepository, "findById">,

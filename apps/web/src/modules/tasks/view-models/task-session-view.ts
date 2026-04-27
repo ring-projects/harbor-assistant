@@ -80,14 +80,23 @@ export function selectConversationBlocks(
   const pendingPrompt = selectChatUi(state, taskId).pendingPrompt
   const cached = conversationBlocksCache.get(cacheKey)
 
-  if (cached && cached.stream === stream && cached.pendingPrompt === pendingPrompt) {
+  if (
+    cached &&
+    cached.stream === stream &&
+    cached.pendingPrompt === pendingPrompt
+  ) {
     return cached.result
   }
 
   const events = stream?.items ?? EMPTY_TASK_EVENTS
   const baseResult =
-    cached && cached.pendingPrompt === pendingPrompt && isStreamAppendOnly(cached.stream, stream)
-      ? appendConversationBlocks(cached.baseResult, events.slice(cached.stream?.items.length ?? 0))
+    cached &&
+    cached.pendingPrompt === pendingPrompt &&
+    isStreamAppendOnly(cached.stream, stream)
+      ? appendConversationBlocks(
+          cached.baseResult,
+          events.slice(cached.stream?.items.length ?? 0),
+        )
       : toConversationBlocks(events)
   const result = buildConversationResult(baseResult, pendingPrompt)
 

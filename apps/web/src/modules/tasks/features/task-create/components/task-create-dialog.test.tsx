@@ -26,19 +26,31 @@ vi.mock("@/components/ui/button", () => ({
 
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogTrigger: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogHeader: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   DialogTitle: ({ children }: { children: ReactNode }) => <h1>{children}</h1>,
 }))
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenu: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DropdownMenuLabel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   DropdownMenuRadioGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
@@ -66,9 +78,6 @@ vi.mock("@/modules/tasks/components", () => ({
                 ? "X-High"
                 : value}
     </div>
-  ),
-  ExecutionModeDropdown: ({ value }: { value: string }) => (
-    <div>{value === "connected" ? "Normal" : value}</div>
   ),
   TaskInputComposer: ({
     attachments,
@@ -168,7 +177,6 @@ describe("TaskCreateDialog", () => {
     expect(screen.getAllByText("Codex").length).toBeGreaterThan(0)
     expect(screen.getAllByText("gpt-5.3-codex").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Medium").length).toBeGreaterThan(0)
-    expect(screen.getAllByText("Normal").length).toBeGreaterThan(0)
 
     fireEvent.change(screen.getByLabelText("Prompt"), {
       target: { value: "Investigate runtime drift" },
@@ -180,7 +188,7 @@ describe("TaskCreateDialog", () => {
         prompt: "Investigate runtime drift",
         executor: "codex",
         model: "gpt-5.3-codex",
-        executionMode: "connected",
+        executionMode: "full-access",
         effort: "medium",
       })
     })

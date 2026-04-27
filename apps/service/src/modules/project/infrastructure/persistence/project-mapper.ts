@@ -15,10 +15,6 @@ export function toDomainProjectSettings(
       logRetentionDays: project.logRetentionDays ?? 30,
       eventRetentionDays: project.eventRetentionDays ?? 7,
     },
-    skills: {
-      harborSkillsEnabled: project.harborSkillsEnabled,
-      harborSkillProfile: project.harborSkillProfile ?? "default",
-    },
   }
 }
 

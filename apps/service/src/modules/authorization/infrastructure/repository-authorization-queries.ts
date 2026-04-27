@@ -24,8 +24,9 @@ export function createRepositoryAuthorizationWorkspaceQuery(
       }
 
       const membership =
-        workspace.memberships.find((candidate) => candidate.userId === actorUserId) ??
-        null
+        workspace.memberships.find(
+          (candidate) => candidate.userId === actorUserId,
+        ) ?? null
 
       return {
         workspaceId: workspace.id,

@@ -14,8 +14,14 @@ type UseTaskInputAttachmentsArgs = {
 }
 
 export function useTaskInputAttachments(args: UseTaskInputAttachmentsArgs) {
-  const { canUpload: canUploadArg, getAttachments, onAttachmentsChange, projectId } = args
-  const uploadTaskInputImageMutation = useUploadTaskInputImageMutation(projectId)
+  const {
+    canUpload: canUploadArg,
+    getAttachments,
+    onAttachmentsChange,
+    projectId,
+  } = args
+  const uploadTaskInputImageMutation =
+    useUploadTaskInputImageMutation(projectId)
   const canUpload = canUploadArg ?? true
 
   const uploadFiles = useCallback(
@@ -36,12 +42,19 @@ export function useTaskInputAttachments(args: UseTaskInputAttachmentsArgs) {
 
       return uploaded
     },
-    [canUpload, getAttachments, onAttachmentsChange, uploadTaskInputImageMutation],
+    [
+      canUpload,
+      getAttachments,
+      onAttachmentsChange,
+      uploadTaskInputImageMutation,
+    ],
   )
 
   const removeAttachment = useCallback(
     (path: string) => {
-      onAttachmentsChange(getAttachments().filter((attachment) => attachment.path !== path))
+      onAttachmentsChange(
+        getAttachments().filter((attachment) => attachment.path !== path),
+      )
     },
     [getAttachments, onAttachmentsChange],
   )

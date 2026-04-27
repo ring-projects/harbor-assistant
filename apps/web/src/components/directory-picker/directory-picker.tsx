@@ -42,14 +42,20 @@ function DirectoryPickerInner({
   const activeIndex = useDirectoryPickerStore((state) => state.activeIndex)
   const isSubmitting = useDirectoryPickerStore((state) => state.isSubmitting)
   const actionError = useDirectoryPickerStore((state) => state.actionError)
-  const setCurrentPath = useDirectoryPickerStore((state) => state.setCurrentPath)
+  const setCurrentPath = useDirectoryPickerStore(
+    (state) => state.setCurrentPath,
+  )
   const setRootPath = useDirectoryPickerStore((state) => state.setRootPath)
   const setSelectedPath = useDirectoryPickerStore(
     (state) => state.setSelectedPath,
   )
-  const setActiveIndex = useDirectoryPickerStore((state) => state.setActiveIndex)
+  const setActiveIndex = useDirectoryPickerStore(
+    (state) => state.setActiveIndex,
+  )
   const setSubmitting = useDirectoryPickerStore((state) => state.setSubmitting)
-  const setActionError = useDirectoryPickerStore((state) => state.setActionError)
+  const setActionError = useDirectoryPickerStore(
+    (state) => state.setActionError,
+  )
 
   const query = useDirectoryEntriesQuery({
     path: currentPath,
@@ -58,7 +64,8 @@ function DirectoryPickerInner({
   })
 
   const directoryEntries = useMemo(
-    () => (query.data?.entries ?? []).filter((entry) => entry.type === "directory"),
+    () =>
+      (query.data?.entries ?? []).filter((entry) => entry.type === "directory"),
     [query.data?.entries],
   )
   const currentResolvedPath = query.data?.path ?? currentPath
@@ -91,7 +98,13 @@ function DirectoryPickerInner({
   )
 
   async function handleConfirm() {
-    if (!selectedPath || !query.data || disabled || isSubmitting || query.isLoading) {
+    if (
+      !selectedPath ||
+      !query.data ||
+      disabled ||
+      isSubmitting ||
+      query.isLoading
+    ) {
       return
     }
 
@@ -179,7 +192,7 @@ function DirectoryPickerInner({
       <div className="flex items-center justify-between border-b px-5 py-2.5">
         <div className="min-w-0">
           {title ? (
-            <p className="mb-2 text-sm font-medium text-muted-foreground">
+            <p className="text-muted-foreground mb-2 text-sm font-medium">
               {title}
             </p>
           ) : null}
@@ -207,7 +220,9 @@ function DirectoryPickerInner({
                         </BreadcrumbLink>
                       )}
                     </BreadcrumbItem>
-                    {!isLast ? <BreadcrumbSeparator>/</BreadcrumbSeparator> : null}
+                    {!isLast ? (
+                      <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                    ) : null}
                   </Fragment>
                 )
               })}
@@ -215,7 +230,7 @@ function DirectoryPickerInner({
           </Breadcrumb>
         </div>
         {helperText ? (
-          <p className="text-sm text-muted-foreground">{helperText}</p>
+          <p className="text-muted-foreground text-sm">{helperText}</p>
         ) : null}
       </div>
 
@@ -226,7 +241,10 @@ function DirectoryPickerInner({
         onKeyDown={handleKeyDown}
         aria-label="Directory list"
       >
-        <ScrollArea className="h-full min-h-0" viewportClassName="h-full min-h-0">
+        <ScrollArea
+          className="h-full min-h-0"
+          viewportClassName="h-full min-h-0"
+        >
           <div className="py-0">
             {query.isLoading ? (
               <div className="space-y-3 px-6 py-4">
@@ -253,8 +271,10 @@ function DirectoryPickerInner({
               </div>
             ) : null}
 
-            {!query.isLoading && !query.isError && directoryEntries.length === 0 ? (
-              <p className="px-6 py-6 text-sm text-muted-foreground">
+            {!query.isLoading &&
+            !query.isError &&
+            directoryEntries.length === 0 ? (
+              <p className="text-muted-foreground px-6 py-6 text-sm">
                 No directories found in this path.
               </p>
             ) : null}
@@ -291,7 +311,7 @@ function DirectoryPickerInner({
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t px-5 py-2.5">
-        <p className="min-h-5 text-sm text-destructive">{actionError ?? ""}</p>
+        <p className="text-destructive min-h-5 text-sm">{actionError ?? ""}</p>
         <div className="flex items-center gap-3">
           {onCancel ? (
             <Button

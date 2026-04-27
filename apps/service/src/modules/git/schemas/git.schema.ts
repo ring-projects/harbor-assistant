@@ -105,7 +105,15 @@ const gitDiffFileSchema = {
     oldPath: { type: ["string", "null"] },
     status: {
       type: "string",
-      enum: ["added", "modified", "deleted", "renamed", "copied", "binary", "unknown"],
+      enum: [
+        "added",
+        "modified",
+        "deleted",
+        "renamed",
+        "copied",
+        "binary",
+        "unknown",
+      ],
     },
     isBinary: { type: "boolean" },
     isTooLarge: { type: "boolean" },
@@ -142,7 +150,7 @@ const createGitBranchBodySchema = {
 export const getProjectGitRepositoryRouteSchema = {
   tags: ["git"],
   operationId: "getProjectGitRepository",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: gitProjectParamsSchema,
   response: {
     200: {
@@ -160,7 +168,7 @@ export const getProjectGitRepositoryRouteSchema = {
 export const listProjectGitBranchesRouteSchema = {
   tags: ["git"],
   operationId: "listProjectGitBranches",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: gitProjectParamsSchema,
   response: {
     200: {
@@ -178,7 +186,7 @@ export const listProjectGitBranchesRouteSchema = {
 export const getProjectGitDiffRouteSchema = {
   tags: ["git"],
   operationId: "getProjectGitDiff",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: gitProjectParamsSchema,
   response: {
     200: {
@@ -207,7 +215,7 @@ export const getProjectGitDiffRouteSchema = {
 export const checkoutProjectGitBranchRouteSchema = {
   tags: ["git"],
   operationId: "checkoutProjectGitBranch",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: gitProjectParamsSchema,
   body: checkoutGitBranchBodySchema,
   response: {
@@ -226,7 +234,7 @@ export const checkoutProjectGitBranchRouteSchema = {
 export const createProjectGitBranchRouteSchema = {
   tags: ["git"],
   operationId: "createProjectGitBranch",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: gitProjectParamsSchema,
   body: createGitBranchBodySchema,
   response: {

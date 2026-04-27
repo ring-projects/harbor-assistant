@@ -9,6 +9,7 @@ Successfully refactored the agents infrastructure from `modules/agents` to `lib/
 ### 1. New File Structure
 
 **lib/agents core files:**
+
 - `lib/agents/types.ts` - Core type definitions
 - `lib/agents/interface.ts` - IAgent unified interface
 - `lib/agents/factory.ts` - Agent factory
@@ -17,15 +18,18 @@ Successfully refactored the agents infrastructure from `modules/agents` to `lib/
 - `lib/agents/README.md` - Documentation
 
 **Adapters:**
+
 - `lib/agents/adapters/codex.ts` - Codex adapter (implemented)
 - `lib/agents/adapters/claude-code.ts` - Claude Code adapter (placeholder)
 
 **Capability detection:**
+
 - `lib/agents/capabilities/index.ts` - Unified capability service
 - `lib/agents/capabilities/codex.ts` - Codex capability detection
 - `lib/agents/capabilities/claude-code.ts` - Claude Code capability detection
 
 **Utilities:**
+
 - `lib/agents/utils/command.ts` - Command-line utilities
 
 ### 2. Updated Files
@@ -104,6 +108,7 @@ All Chinese comments have been converted to English:
 ## Next Steps
 
 The agents infrastructure is now properly positioned as a technical layer in `lib/`, making it clear that:
+
 - It's infrastructure, not business logic
 - Business modules (in `modules/`) consume it
 - It can be independently tested and maintained

@@ -2,29 +2,29 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { getTaskSocketBaseUrl } from "./task-websocket-client"
 
-const originalExecutorApiBaseUrl = process.env.VITE_EXECUTOR_API_BASE_URL
+const originalHarborApiBaseUrl = process.env.VITE_HARBOR_API_BASE_URL
 
 describe("getTaskSocketBaseUrl", () => {
   afterEach(() => {
-    if (originalExecutorApiBaseUrl === undefined) {
-      delete process.env.VITE_EXECUTOR_API_BASE_URL
+    if (originalHarborApiBaseUrl === undefined) {
+      delete process.env.VITE_HARBOR_API_BASE_URL
       return
     }
 
-    process.env.VITE_EXECUTOR_API_BASE_URL = originalExecutorApiBaseUrl
+    process.env.VITE_HARBOR_API_BASE_URL = originalHarborApiBaseUrl
   })
 
-  it("reuses the required executor API base URL", () => {
-    process.env.VITE_EXECUTOR_API_BASE_URL = "https://executor.example.com/"
+  it("reuses the required Harbor API base URL", () => {
+    process.env.VITE_HARBOR_API_BASE_URL = "https://executor.example.com/"
 
     expect(getTaskSocketBaseUrl()).toBe("https://executor.example.com")
   })
 
-  it("throws when the executor API base URL is missing", () => {
-    delete process.env.VITE_EXECUTOR_API_BASE_URL
+  it("throws when the Harbor API base URL is missing", () => {
+    delete process.env.VITE_HARBOR_API_BASE_URL
 
     expect(() => getTaskSocketBaseUrl()).toThrow(
-      "VITE_EXECUTOR_API_BASE_URL is required to connect the web app to the executor service.",
+      "VITE_HARBOR_API_BASE_URL is required to connect the web app to the Harbor API.",
     )
   })
 })

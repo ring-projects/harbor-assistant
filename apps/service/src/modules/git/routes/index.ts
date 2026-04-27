@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify"
 
 import type { AuthorizationService } from "../../authorization"
+import { getAuthenticatedActor } from "../../auth"
 import { getProjectUseCase } from "../../project/application/get-project"
 import { requireProjectLocalPath } from "../../project/domain/project"
 import type { ProjectRepository } from "../../project/application/project-repository"
@@ -50,14 +51,17 @@ export async function registerGitModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.git.read",
           resource: { kind: "project", projectId: request.params.projectId },
         })
         const path = await resolveProjectRoot(request.params.projectId)
-        const repository = await getRepositorySummaryUseCase(options.gitRepository, {
-          path,
-        })
+        const repository = await getRepositorySummaryUseCase(
+          options.gitRepository,
+          {
+            path,
+          },
+        )
 
         return {
           ok: true,
@@ -77,7 +81,7 @@ export async function registerGitModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.git.read",
           resource: { kind: "project", projectId: request.params.projectId },
         })
@@ -104,7 +108,7 @@ export async function registerGitModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.git.read",
           resource: { kind: "project", projectId: request.params.projectId },
         })
@@ -131,7 +135,7 @@ export async function registerGitModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.git.write",
           resource: { kind: "project", projectId: request.params.projectId },
         })
@@ -159,7 +163,7 @@ export async function registerGitModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: request.auth!.userId },
+          actor: getAuthenticatedActor(request),
           action: "project.git.write",
           resource: { kind: "project", projectId: request.params.projectId },
         })

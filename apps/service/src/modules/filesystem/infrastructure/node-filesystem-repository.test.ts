@@ -1,4 +1,11 @@
-import { mkdtemp, mkdir, readlink, rm, symlink, writeFile } from "node:fs/promises"
+import {
+  mkdtemp,
+  mkdir,
+  readlink,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 
@@ -27,9 +34,15 @@ describe("createNodeFileSystemRepository", () => {
 
     await mkdir(path.join(root, "src"), { recursive: true })
     await writeFile(path.join(root, "README.md"), "hello\n", "utf8")
-    await writeFile(path.join(root, "src/index.ts"), "export const value = 1\n", "utf8")
+    await writeFile(
+      path.join(root, "src/index.ts"),
+      "export const value = 1\n",
+      "utf8",
+    )
 
-    const outsideRoot = await mkdtemp(path.join(tmpdir(), "harbor-filesystem-outside-"))
+    const outsideRoot = await mkdtemp(
+      path.join(tmpdir(), "harbor-filesystem-outside-"),
+    )
     roots.push(outsideRoot)
     await writeFile(path.join(outsideRoot, "secret.txt"), "secret\n", "utf8")
 

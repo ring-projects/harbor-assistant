@@ -1,5 +1,5 @@
-import { getExecutorApiBaseUrl } from "@/lib/executor-service-url"
+import { getHarborApiBaseUrl } from "@/lib/harbor-api-url"
 
 export function getTaskSocketBaseUrl() {
-  return getExecutorApiBaseUrl()
+  return getHarborApiBaseUrl()
 }

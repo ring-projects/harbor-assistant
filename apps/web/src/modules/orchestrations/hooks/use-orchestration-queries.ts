@@ -7,8 +7,11 @@ import {
   createOrchestration,
   readOrchestration,
   readProjectOrchestrations,
+  upsertOrchestrationSchedule,
   type BootstrapOrchestrationInput,
   type CreateOrchestrationInput,
+  type OrchestrationListSurface,
+  type UpsertOrchestrationScheduleInput,
 } from "@/modules/orchestrations/api"
 import type {
   OrchestrationDetail,
@@ -24,18 +27,25 @@ export const orchestrationQueryKeys = {
   byProject(projectId: string) {
     return [...this.all, "project", projectId] as const
   },
-  list(projectId: string) {
-    return [...this.byProject(projectId), "list"] as const
+  list(projectId: string, surface: OrchestrationListSurface = "all") {
+    return [...this.byProject(projectId), "list", surface] as const
   },
   detail(orchestrationId: string) {
     return [...this.all, "detail", orchestrationId] as const
   },
 }
 
-export function useProjectOrchestrationsQuery(projectId: string) {
+export function useProjectOrchestrationsQuery(
+  projectId: string,
+  surface: OrchestrationListSurface = "all",
+) {
   return useQuery<OrchestrationListItem[]>({
-    queryKey: orchestrationQueryKeys.list(projectId),
-    queryFn: () => readProjectOrchestrations(projectId),
+    queryKey: orchestrationQueryKeys.list(projectId, surface),
+    queryFn: () =>
+      readProjectOrchestrations(
+        projectId,
+        surface === "all" ? undefined : { surface },
+      ),
     staleTime: 5_000,
   })
 }
@@ -45,7 +55,7 @@ export function useOrchestrationDetailQuery(orchestrationId: string | null) {
     queryKey: orchestrationQueryKeys.detail(orchestrationId ?? "none"),
     queryFn: async () => {
       if (!orchestrationId) {
-        throw new Error("Orchestration ID is required.")
+        throw new Error("Session ID is required.")
       }
 
       return readOrchestration(orchestrationId)
@@ -54,29 +64,7 @@ export function useOrchestrationDetailQuery(orchestrationId: string | null) {
   })
 }
 
-function upsertOrchestration(
-  current: OrchestrationListItem[] | undefined,
-  orchestration: OrchestrationDetail,
-) {
-  if (!current?.length) {
-    return [orchestration]
-  }
-
-  const found = current.some(
-    (item) => item.id === orchestration.id,
-  )
-
-  if (!found) {
-    return [orchestration, ...current]
-  }
-
-  return current.map((item) => (item.id === orchestration.id ? orchestration : item))
-}
-
-function upsertTask(
-  current: TaskListItem[] | undefined,
-  task: TaskDetail,
-) {
+function upsertTask(current: TaskListItem[] | undefined, task: TaskDetail) {
   if (!current?.length) {
     return [task]
   }
@@ -100,10 +88,9 @@ export function useCreateOrchestrationMutation(projectId: string) {
         ...input,
       }),
     onSuccess(orchestration) {
-      queryClient.setQueryData<OrchestrationListItem[]>(
-        orchestrationQueryKeys.list(projectId),
-        (current) => upsertOrchestration(current, orchestration),
-      )
+      void queryClient.invalidateQueries({
+        queryKey: orchestrationQueryKeys.byProject(projectId),
+      })
       queryClient.setQueryData(
         orchestrationQueryKeys.detail(orchestration.id),
         orchestration,
@@ -126,10 +113,9 @@ export function useBootstrapOrchestrationMutation(projectId: string) {
         queryKey: gitQueryKeys.byProject(projectId),
       })
 
-      queryClient.setQueryData<OrchestrationListItem[]>(
-        orchestrationQueryKeys.list(projectId),
-        (current) => upsertOrchestration(current, result.orchestration),
-      )
+      void queryClient.invalidateQueries({
+        queryKey: orchestrationQueryKeys.byProject(projectId),
+      })
       queryClient.setQueryData(
         orchestrationQueryKeys.detail(result.orchestration.id),
         result.orchestration,
@@ -138,12 +124,33 @@ export function useBootstrapOrchestrationMutation(projectId: string) {
         taskQueryKeys.listByOrchestration(result.orchestration.id),
         (current) => upsertTask(current, result.task),
       )
-      queryClient.setQueryData(taskQueryKeys.detail(result.task.id), result.task)
+      queryClient.setQueryData(
+        taskQueryKeys.detail(result.task.id),
+        result.task,
+      )
       void queryClient.invalidateQueries({
         queryKey: taskQueryKeys.events(result.task.id),
       })
 
       useTasksSessionStore.getState().applyTaskUpsert(result.task)
+    },
+  })
+}
+
+export function useUpsertOrchestrationScheduleMutation(projectId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: UpsertOrchestrationScheduleInput) =>
+      upsertOrchestrationSchedule(input),
+    onSuccess(orchestration) {
+      void queryClient.invalidateQueries({
+        queryKey: orchestrationQueryKeys.byProject(projectId),
+      })
+      queryClient.setQueryData(
+        orchestrationQueryKeys.detail(orchestration.id),
+        orchestration,
+      )
     },
   })
 }

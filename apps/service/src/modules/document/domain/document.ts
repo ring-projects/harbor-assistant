@@ -86,10 +86,7 @@ export function createDocument(input: {
   }
 }
 
-export function reviseDocument(
-  document: Document,
-  now = new Date(),
-): Document {
+export function reviseDocument(document: Document, now = new Date()): Document {
   assertDocumentCanWrite(document)
 
   return {
@@ -104,7 +101,9 @@ export function publishDocument(
   now = new Date(),
 ): Document {
   if (document.status === "archived") {
-    throw createDocumentError().archived("archived document cannot be published")
+    throw createDocumentError().archived(
+      "archived document cannot be published",
+    )
   }
 
   if (document.status === "published") {
@@ -149,7 +148,9 @@ export function isDocumentPathWithinWorkspace(path: string) {
 
 function assertDocumentKind(kind: string): asserts kind is DocumentKind {
   if (!DOCUMENT_KINDS.includes(kind as DocumentKind)) {
-    throw createDocumentError().invalidKind(`unsupported document kind: ${kind}`)
+    throw createDocumentError().invalidKind(
+      `unsupported document kind: ${kind}`,
+    )
   }
 }
 

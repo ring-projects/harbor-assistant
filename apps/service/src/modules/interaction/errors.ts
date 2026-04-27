@@ -24,10 +24,16 @@ export class InteractionError extends Error {
 export function createInteractionError() {
   return {
     invalidTopic(message = "Interaction topic is invalid.") {
-      return new InteractionError(INTERACTION_ERROR_CODES.INVALID_TOPIC, message)
+      return new InteractionError(
+        INTERACTION_ERROR_CODES.INVALID_TOPIC,
+        message,
+      )
     },
     invalidCursor(message = "Interaction cursor is invalid.") {
-      return new InteractionError(INTERACTION_ERROR_CODES.INVALID_CURSOR, message)
+      return new InteractionError(
+        INTERACTION_ERROR_CODES.INVALID_CURSOR,
+        message,
+      )
     },
     subscriptionNotFound(message = "Interaction subscription was not found.") {
       return new InteractionError(
@@ -36,7 +42,10 @@ export function createInteractionError() {
       )
     },
     deliveryFailed(message = "Failed to deliver interaction message.") {
-      return new InteractionError(INTERACTION_ERROR_CODES.DELIVERY_FAILED, message)
+      return new InteractionError(
+        INTERACTION_ERROR_CODES.DELIVERY_FAILED,
+        message,
+      )
     },
     channelNotSupported(message = "Interaction channel is not supported.") {
       return new InteractionError(

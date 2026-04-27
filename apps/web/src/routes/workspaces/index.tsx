@@ -12,7 +12,9 @@ export const Route = createFileRoute("/workspaces/")({
 function WorkspacesIndexPage() {
   const navigate = useNavigate()
   const activeWorkspaceId = useAppStore((state) => state.activeWorkspaceId)
-  const setActiveWorkspaceId = useAppStore((state) => state.setActiveWorkspaceId)
+  const setActiveWorkspaceId = useAppStore(
+    (state) => state.setActiveWorkspaceId,
+  )
   const workspacesQuery = useReadWorkspacesQuery()
 
   const targetWorkspaceId = useMemo(() => {

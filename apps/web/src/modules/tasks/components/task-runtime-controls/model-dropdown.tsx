@@ -48,18 +48,18 @@ export function ModelDropdown({
           variant="outline"
           size="sm"
           className={cn(
-            "h-9 rounded-full border-border/70 bg-background/80 px-3 text-xs font-medium shadow-none",
+            "border-border/70 bg-background/80 h-9 rounded-full px-3 text-xs font-medium shadow-none",
             buttonClassName,
           )}
           disabled={disabled}
         >
           <Settings2Icon className="size-3.5" />
           <span className="max-w-52 truncate">{formatModelSummary(value)}</span>
-          <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+          <ChevronDownIcon className="text-muted-foreground size-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-80 rounded-2xl p-2">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
+        <DropdownMenuLabel className="text-muted-foreground text-xs">
           Model
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
@@ -70,12 +70,17 @@ export function ModelDropdown({
         >
           {defaultOptionLabel ? (
             <>
-              <DropdownMenuRadioItem value="">{defaultOptionLabel}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="">
+                {defaultOptionLabel}
+              </DropdownMenuRadioItem>
               {models.length > 0 ? <DropdownMenuSeparator /> : null}
             </>
           ) : null}
           {models.map((model) => (
-            <DropdownMenuRadioItem key={`${executor}:${model.id}`} value={model.id}>
+            <DropdownMenuRadioItem
+              key={`${executor}:${model.id}`}
+              value={model.id}
+            >
               {model.isDefault
                 ? `${model.displayName} (${model.id}, default)`
                 : `${model.displayName} (${model.id})`}

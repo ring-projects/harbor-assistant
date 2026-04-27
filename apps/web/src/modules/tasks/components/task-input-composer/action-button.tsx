@@ -23,10 +23,12 @@ export function ActionButton({
       type="button"
       size="icon"
       className={cn(
-        "size-10 shrink-0 rounded-lg bg-background text-foreground shadow-none transition-colors",
+        "size-10 shrink-0 rounded-full shadow-none transition-colors",
         isBreak
-          ? "hover:bg-surface-danger hover:text-destructive"
-          : "hover:bg-muted/48",
+          ? "bg-background text-foreground hover:bg-surface-danger hover:text-destructive"
+          : disabled
+            ? "bg-background text-foreground"
+            : "bg-primary text-primary-foreground hover:bg-[#302c2c] active:bg-[#201d1d]",
       )}
       disabled={disabled}
       onClick={onClick}

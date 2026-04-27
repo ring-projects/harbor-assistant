@@ -7,6 +7,15 @@ export type MembershipStatus = "active" | "removed"
 export type WorkspaceInvitationRole = "member"
 export type WorkspaceInvitationStatus = "pending" | "accepted" | "revoked"
 
+export type WorkspaceCodexSettings = {
+  baseUrl: string | null
+  apiKey: string | null
+}
+
+export type WorkspaceSettings = {
+  codex: WorkspaceCodexSettings
+}
+
 export type Membership = {
   workspaceId: string
   userId: string
@@ -26,6 +35,7 @@ export type Workspace = {
   createdAt: Date
   updatedAt: Date
   archivedAt: Date | null
+  settings: WorkspaceSettings
   memberships: Membership[]
 }
 
@@ -61,6 +71,17 @@ export type CreateWorkspaceInvitationInput = {
   now?: Date
 }
 
+export type UpdateWorkspaceSettingsInput = Partial<{
+  codex: Partial<WorkspaceCodexSettings>
+}>
+
+const DEFAULT_SETTINGS: WorkspaceSettings = {
+  codex: {
+    baseUrl: null,
+    apiKey: null,
+  },
+}
+
 export function deriveWorkspaceSlug(name: string): string {
   return name
     .trim()
@@ -73,6 +94,43 @@ function requireNonEmpty(value: string, field: string) {
   if (!value.trim()) {
     throw createWorkspaceError().invalidInput(`${field} is required`)
   }
+}
+
+function normalizeOptionalString(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function normalizeWorkspaceCodexSettings(
+  settings: WorkspaceCodexSettings,
+): WorkspaceCodexSettings {
+  return {
+    baseUrl: normalizeOptionalString(settings.baseUrl),
+    apiKey: normalizeOptionalString(settings.apiKey),
+  }
+}
+
+function assertNullableAbsoluteUrl(value: string | null, field: string) {
+  if (value === null) {
+    return
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(value)
+  } catch {
+    throw createWorkspaceError().invalidInput(
+      `${field} must be a valid absolute URL`,
+    )
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw createWorkspaceError().invalidInput(`${field} must use http or https`)
+  }
+}
+
+function validateSettings(settings: WorkspaceSettings) {
+  assertNullableAbsoluteUrl(settings.codex.baseUrl, "codex.baseUrl")
 }
 
 export function createWorkspace(input: CreateWorkspaceInput): Workspace {
@@ -96,6 +154,7 @@ export function createWorkspace(input: CreateWorkspaceInput): Workspace {
     createdAt: now,
     updatedAt: now,
     archivedAt: null,
+    settings: structuredClone(DEFAULT_SETTINGS),
     memberships: [
       {
         workspaceId: input.id.trim(),
@@ -107,6 +166,26 @@ export function createWorkspace(input: CreateWorkspaceInput): Workspace {
       },
     ],
   }
+}
+
+export function updateWorkspaceSettings(
+  workspace: Workspace,
+  input: UpdateWorkspaceSettingsInput,
+  now = new Date(),
+): Workspace {
+  const next: Workspace = {
+    ...workspace,
+    updatedAt: now,
+    settings: {
+      codex: normalizeWorkspaceCodexSettings({
+        ...workspace.settings.codex,
+        ...input.codex,
+      }),
+    },
+  }
+
+  validateSettings(next.settings)
+  return next
 }
 
 export function addWorkspaceMember(
@@ -185,7 +264,9 @@ export function removeWorkspaceMember(
   }
 
   if (membership.role === "owner") {
-    throw createWorkspaceError().invalidState("owner membership cannot be removed")
+    throw createWorkspaceError().invalidState(
+      "owner membership cannot be removed",
+    )
   }
 
   return {
@@ -243,7 +324,9 @@ export function acceptWorkspaceInvitation(
   requireNonEmpty(input.acceptedByUserId, "acceptedByUserId")
 
   if (invitation.status !== "pending") {
-    throw createWorkspaceError().invalidState("workspace invitation is not pending")
+    throw createWorkspaceError().invalidState(
+      "workspace invitation is not pending",
+    )
   }
 
   return {

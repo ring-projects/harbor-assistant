@@ -9,9 +9,18 @@ export type ProjectIdParams = {
   projectId: string
 }
 
+export type ListProjectOrchestrationsQuery = {
+  surface?: "human-loop" | "schedule"
+}
+
 export type CreateOrchestrationBody = {
   projectId: string
-  title: string
+  title?: string | null
+  description?: string | null
+}
+
+export type UpdateOrchestrationBody = {
+  title?: string | null
   description?: string | null
 }
 
@@ -25,10 +34,28 @@ export type CreateOrchestrationTaskBody = {
   effort: TaskEffort
 }
 
+export type ScheduleTaskTemplateBody = {
+  prompt?: string | null
+  items?: AgentInputItem[] | null
+  title?: string | null
+  executor: string
+  model: string
+  executionMode: string
+  effort: TaskEffort
+}
+
+export type UpsertOrchestrationScheduleBody = {
+  enabled: boolean
+  cronExpression: string
+  timezone?: string
+  concurrencyPolicy?: "skip"
+  taskTemplate: ScheduleTaskTemplateBody
+}
+
 export type BootstrapOrchestrationBody = {
   projectId: string
-  orchestration: {
-    title: string
+  orchestration?: {
+    title?: string | null
     description?: string | null
   }
   initialTask: CreateOrchestrationTaskBody
@@ -38,34 +65,6 @@ export type ListOrchestrationTasksQuery = {
   limit?: number
   includeArchived?: boolean
 }
-
-const orchestrationEntitySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "id",
-    "projectId",
-    "title",
-    "description",
-    "status",
-    "archivedAt",
-    "createdAt",
-    "updatedAt",
-  ],
-  properties: {
-    id: { type: "string", minLength: 1 },
-    projectId: { type: "string", minLength: 1 },
-    title: { type: "string", minLength: 1 },
-    description: { type: ["string", "null"] },
-    status: {
-      type: "string",
-      enum: ["active", "archived"],
-    },
-    archivedAt: { type: ["string", "null"], format: "date-time" },
-    createdAt: { type: "string", format: "date-time" },
-    updatedAt: { type: "string", format: "date-time" },
-  },
-} as const
 
 const taskInputTextItemSchema = {
   type: "object",
@@ -109,6 +108,92 @@ const taskInputItemsSchema = {
   },
 } as const
 
+const orchestrationScheduleSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  required: [
+    "orchestrationId",
+    "enabled",
+    "cronExpression",
+    "timezone",
+    "concurrencyPolicy",
+    "taskTemplate",
+    "lastTriggeredAt",
+    "nextTriggerAt",
+    "createdAt",
+    "updatedAt",
+  ],
+  properties: {
+    orchestrationId: { type: "string", minLength: 1 },
+    enabled: { type: "boolean" },
+    cronExpression: { type: "string", minLength: 1 },
+    timezone: { type: "string", minLength: 1 },
+    concurrencyPolicy: {
+      type: "string",
+      enum: ["skip"],
+    },
+    taskTemplate: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "title",
+        "prompt",
+        "items",
+        "executor",
+        "model",
+        "executionMode",
+        "effort",
+      ],
+      properties: {
+        title: { type: ["string", "null"] },
+        prompt: { type: ["string", "null"] },
+        items: {
+          type: "array",
+          items: taskInputItemsSchema.items,
+        },
+        executor: { type: "string", minLength: 1 },
+        model: { type: "string", minLength: 1 },
+        executionMode: { type: "string", minLength: 1 },
+        effort: { type: "string", enum: TASK_EFFORT_VALUES },
+      },
+    },
+    lastTriggeredAt: { type: ["string", "null"], format: "date-time" },
+    nextTriggerAt: { type: ["string", "null"], format: "date-time" },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+} as const
+
+const orchestrationEntitySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "projectId",
+    "title",
+    "description",
+    "status",
+    "archivedAt",
+    "schedule",
+    "createdAt",
+    "updatedAt",
+  ],
+  properties: {
+    id: { type: "string", minLength: 1 },
+    projectId: { type: "string", minLength: 1 },
+    title: { type: "string", minLength: 1 },
+    description: { type: ["string", "null"] },
+    status: {
+      type: "string",
+      enum: ["active", "archived"],
+    },
+    archivedAt: { type: ["string", "null"], format: "date-time" },
+    schedule: orchestrationScheduleSchema,
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+  },
+} as const
+
 const taskListItemSchema = {
   type: "object",
   additionalProperties: false,
@@ -142,10 +227,7 @@ const taskListItemSchema = {
     model: { type: ["string", "null"] },
     executionMode: { type: ["string", "null"] },
     effort: {
-      anyOf: [
-        { type: "string", enum: TASK_EFFORT_VALUES },
-        { type: "null" },
-      ],
+      anyOf: [{ type: "string", enum: TASK_EFFORT_VALUES }, { type: "null" }],
     },
     status: {
       type: "string",
@@ -196,13 +278,33 @@ export const projectIdParamsSchema = {
   },
 } as const
 
+export const listProjectOrchestrationsQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    surface: {
+      type: "string",
+      enum: ["human-loop", "schedule"],
+    },
+  },
+} as const
+
 export const createOrchestrationBodySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["projectId", "title"],
+  required: ["projectId"],
   properties: {
     projectId: { type: "string", minLength: 1 },
-    title: { type: "string", minLength: 1 },
+    title: { type: ["string", "null"] },
+    description: { type: ["string", "null"] },
+  },
+} as const
+
+export const updateOrchestrationBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    title: { type: ["string", "null"] },
     description: { type: ["string", "null"] },
   },
 } as const
@@ -223,22 +325,59 @@ export const createOrchestrationTaskBodySchema = {
   },
 } as const
 
+export const scheduleTaskTemplateBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["executor", "model", "executionMode", "effort"],
+  anyOf: [{ required: ["prompt"] }, { required: ["items"] }],
+  properties: {
+    prompt: {
+      anyOf: [{ type: "string", minLength: 1 }, { type: "null" }],
+    },
+    items: {
+      anyOf: [taskInputItemsSchema, { type: "null" }],
+    },
+    title: {
+      anyOf: [{ type: "string", minLength: 1 }, { type: "null" }],
+    },
+    executor: { type: "string", minLength: 1 },
+    model: { type: "string", minLength: 1 },
+    executionMode: { type: "string", minLength: 1 },
+    effort: { type: "string", enum: TASK_EFFORT_VALUES },
+  },
+} as const
+
 export const bootstrapOrchestrationBodySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["projectId", "orchestration", "initialTask"],
+  required: ["projectId", "initialTask"],
   properties: {
     projectId: { type: "string", minLength: 1 },
     orchestration: {
       type: "object",
       additionalProperties: false,
-      required: ["title"],
       properties: {
-        title: { type: "string", minLength: 1 },
+        title: { type: ["string", "null"] },
         description: { type: ["string", "null"] },
       },
     },
     initialTask: createOrchestrationTaskBodySchema,
+  },
+} as const
+
+export const upsertOrchestrationScheduleBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["enabled", "cronExpression", "taskTemplate"],
+  properties: {
+    enabled: { type: "boolean" },
+    cronExpression: { type: "string", minLength: 1 },
+    timezone: { type: "string", minLength: 1 },
+    concurrencyPolicy: {
+      type: "string",
+      enum: ["skip"],
+    },
+    taskTemplate: scheduleTaskTemplateBodySchema,
   },
 } as const
 
@@ -254,7 +393,7 @@ export const listOrchestrationTasksQuerySchema = {
 export const createOrchestrationRouteSchema = {
   tags: ["orchestration"],
   operationId: "createOrchestration",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   body: createOrchestrationBodySchema,
   response: {
     201: {
@@ -272,7 +411,7 @@ export const createOrchestrationRouteSchema = {
 export const bootstrapOrchestrationRouteSchema = {
   tags: ["orchestration"],
   operationId: "bootstrapOrchestration",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   body: bootstrapOrchestrationBodySchema,
   response: {
     201: {
@@ -290,10 +429,7 @@ export const bootstrapOrchestrationRouteSchema = {
           properties: {
             runtimeStarted: { type: "boolean" },
             warning: {
-              anyOf: [
-                bootstrapWarningSchema,
-                { type: "null" },
-              ],
+              anyOf: [bootstrapWarningSchema, { type: "null" }],
             },
           },
         },
@@ -305,8 +441,46 @@ export const bootstrapOrchestrationRouteSchema = {
 export const getOrchestrationRouteSchema = {
   tags: ["orchestration"],
   operationId: "getOrchestration",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: orchestrationIdParamsSchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "orchestration"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        orchestration: orchestrationEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const updateOrchestrationRouteSchema = {
+  tags: ["orchestration"],
+  operationId: "updateOrchestration",
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+  params: orchestrationIdParamsSchema,
+  body: updateOrchestrationBodySchema,
+  response: {
+    200: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "orchestration"],
+      properties: {
+        ok: { type: "boolean", const: true },
+        orchestration: orchestrationEntitySchema,
+      },
+    },
+  },
+} as const
+
+export const upsertOrchestrationScheduleRouteSchema = {
+  tags: ["orchestration"],
+  operationId: "upsertOrchestrationSchedule",
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+  params: orchestrationIdParamsSchema,
+  body: upsertOrchestrationScheduleBodySchema,
   response: {
     200: {
       type: "object",
@@ -323,8 +497,9 @@ export const getOrchestrationRouteSchema = {
 export const listProjectOrchestrationsRouteSchema = {
   tags: ["orchestration"],
   operationId: "listProjectOrchestrations",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: projectIdParamsSchema,
+  querystring: listProjectOrchestrationsQuerySchema,
   response: {
     200: {
       type: "object",
@@ -344,7 +519,7 @@ export const listProjectOrchestrationsRouteSchema = {
 export const createOrchestrationTaskRouteSchema = {
   tags: ["orchestration"],
   operationId: "createOrchestrationTask",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: orchestrationIdParamsSchema,
   body: createOrchestrationTaskBodySchema,
   response: {
@@ -363,7 +538,7 @@ export const createOrchestrationTaskRouteSchema = {
 export const listOrchestrationTasksRouteSchema = {
   tags: ["orchestration"],
   operationId: "listOrchestrationTasks",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: orchestrationIdParamsSchema,
   querystring: listOrchestrationTasksQuerySchema,
   response: {

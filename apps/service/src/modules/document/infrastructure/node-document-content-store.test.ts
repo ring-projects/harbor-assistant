@@ -68,7 +68,9 @@ describe("createNodeDocumentContentStore", () => {
 
   it("rejects symlink escape when writing content", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "harbor-document-store-"))
-    const outside = await mkdtemp(path.join(tmpdir(), "harbor-document-outside-"))
+    const outside = await mkdtemp(
+      path.join(tmpdir(), "harbor-document-outside-"),
+    )
     roots.push(root, outside)
 
     await symlink(outside, path.join(root, ".harbor"))

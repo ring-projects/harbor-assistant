@@ -1,4 +1,12 @@
-import { lstat, mkdir, readFile, readdir, realpath, stat, writeFile } from "node:fs/promises"
+import {
+  lstat,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  stat,
+  writeFile,
+} from "node:fs/promises"
 
 import type {
   FileSystemDirectoryEntry,
@@ -48,7 +56,13 @@ export function createNodeFileSystemRepository(): FileSystemRepository {
       const entries = await readdir(targetPath, { withFileTypes: true })
       return entries.map<FileSystemDirectoryEntry>((entry) => ({
         name: entry.name,
-        kind: entry.isDirectory() ? "directory" : entry.isFile() ? "file" : entry.isSymbolicLink() ? "symlink" : "other",
+        kind: entry.isDirectory()
+          ? "directory"
+          : entry.isFile()
+            ? "file"
+            : entry.isSymbolicLink()
+              ? "symlink"
+              : "other",
       }))
     },
     async readTextFile(targetPath: string) {

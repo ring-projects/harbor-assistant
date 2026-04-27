@@ -11,6 +11,7 @@ const configSchema = z.object({
   database: z.string().min(1),
   fileBrowserRootDirectory: z.string().min(1),
   projectLocalPathRootDirectory: z.string().min(1),
+  sandboxRootDirectory: z.string().min(1),
   publicSkillsRootDirectory: z.string().min(1),
   nodeEnv: z.enum(["development", "test", "production"]).default("development"),
   appBaseUrl: z.url(),
@@ -39,7 +40,7 @@ const fileConfigSchema = z.object({
       runtimeRootDirectory: z.string().min(1).optional(),
       fileBrowserRootDirectory: z.string().min(1).optional(),
       projectLocalPathRootDirectory: z.string().min(1).optional(),
-      workspaceRootDirectory: z.string().min(1).optional(),
+      sandboxRootDirectory: z.string().min(1).optional(),
       publicSkillsRootDirectory: z.string().min(1).optional(),
     })
     .optional(),
@@ -62,8 +63,14 @@ function getServiceRootDirectory() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 }
 
+function getBundledPublicSkillsDirectory(serviceRootDirectory: string) {
+  return path.join(serviceRootDirectory, "public-skills")
+}
+
 function resolveAbsolutePath(value: string, baseDirectory: string) {
-  return path.isAbsolute(value) ? path.resolve(value) : path.resolve(baseDirectory, value)
+  return path.isAbsolute(value)
+    ? path.resolve(value)
+    : path.resolve(baseDirectory, value)
 }
 
 async function pathExists(pathname: string) {
@@ -109,9 +116,7 @@ async function loadServiceFileConfig(args: {
   return validated.data
 }
 
-export async function loadServiceConfig(args?: {
-  env?: NodeJS.ProcessEnv
-}) {
+export async function loadServiceConfig(args?: { env?: NodeJS.ProcessEnv }) {
   const env = args?.env ?? process.env
   const serviceRootDirectory = getServiceRootDirectory()
   const explicitConfigPath = env.HARBOR_CONFIG_PATH?.trim()
@@ -124,20 +129,37 @@ export async function loadServiceConfig(args?: {
   })
   const configDirectory = path.dirname(configPath)
   const runtimeRootDirectory = fileConfig.paths?.runtimeRootDirectory
-    ? resolveAbsolutePath(fileConfig.paths.runtimeRootDirectory, configDirectory)
+    ? resolveAbsolutePath(
+        fileConfig.paths.runtimeRootDirectory,
+        configDirectory,
+      )
     : path.join(serviceRootDirectory, ".harbor")
   const fileBrowserRootDirectory = fileConfig.paths?.fileBrowserRootDirectory
-    ? resolveAbsolutePath(fileConfig.paths.fileBrowserRootDirectory, configDirectory)
+    ? resolveAbsolutePath(
+        fileConfig.paths.fileBrowserRootDirectory,
+        configDirectory,
+      )
     : path.resolve(serviceRootDirectory, "../..")
   const configuredProjectLocalPathRootDirectory =
-    fileConfig.paths?.projectLocalPathRootDirectory ??
-    fileConfig.paths?.workspaceRootDirectory
+    fileConfig.paths?.projectLocalPathRootDirectory
   const projectLocalPathRootDirectory = configuredProjectLocalPathRootDirectory
-    ? resolveAbsolutePath(configuredProjectLocalPathRootDirectory, configDirectory)
+    ? resolveAbsolutePath(
+        configuredProjectLocalPathRootDirectory,
+        configDirectory,
+      )
     : path.join(runtimeRootDirectory, "workspaces")
+  const sandboxRootDirectory = fileConfig.paths?.sandboxRootDirectory
+    ? resolveAbsolutePath(
+        fileConfig.paths.sandboxRootDirectory,
+        configDirectory,
+      )
+    : path.join(runtimeRootDirectory, "sandboxes")
   const publicSkillsRootDirectory = fileConfig.paths?.publicSkillsRootDirectory
-    ? resolveAbsolutePath(fileConfig.paths.publicSkillsRootDirectory, configDirectory)
-    : path.join(runtimeRootDirectory, "skills", "profiles", "default")
+    ? resolveAbsolutePath(
+        fileConfig.paths.publicSkillsRootDirectory,
+        configDirectory,
+      )
+    : getBundledPublicSkillsDirectory(serviceRootDirectory)
   const parsed = configSchema.safeParse({
     port: fileConfig.service?.port,
     host: fileConfig.service?.host,
@@ -145,6 +167,7 @@ export async function loadServiceConfig(args?: {
     database: env.DATABASE_URL,
     fileBrowserRootDirectory,
     projectLocalPathRootDirectory,
+    sandboxRootDirectory,
     publicSkillsRootDirectory,
     nodeEnv: env.NODE_ENV,
     appBaseUrl: fileConfig.urls?.appBaseUrl,

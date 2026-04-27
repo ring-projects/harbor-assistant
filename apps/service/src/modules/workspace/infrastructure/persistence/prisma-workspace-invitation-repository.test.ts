@@ -44,7 +44,9 @@ describe("PrismaWorkspaceInvitationRepository", () => {
         },
       },
     })
-    const repository = new PrismaWorkspaceInvitationRepository(testDatabase.prisma)
+    const repository = new PrismaWorkspaceInvitationRepository(
+      testDatabase.prisma,
+    )
 
     const invitation = createWorkspaceInvitation(
       createWorkspace({
@@ -103,7 +105,9 @@ describe("PrismaWorkspaceInvitationRepository", () => {
         },
       },
     })
-    const repository = new PrismaWorkspaceInvitationRepository(testDatabase.prisma)
+    const repository = new PrismaWorkspaceInvitationRepository(
+      testDatabase.prisma,
+    )
     const invitation = createWorkspaceInvitation(
       createWorkspace({
         id: "ws-1",

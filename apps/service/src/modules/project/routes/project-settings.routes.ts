@@ -9,10 +9,7 @@ import {
   updateProjectSettingsRouteSchema,
 } from "../schemas"
 import type { ProjectModuleRouteOptions } from "./shared"
-import {
-  getAuthorizationActor,
-  requireRouteAuthorization,
-} from "./shared"
+import { getAuthorizationActor, requireRouteAuthorization } from "./shared"
 
 export async function registerProjectSettingsRoutes(
   app: FastifyInstance,
@@ -66,13 +63,10 @@ export async function registerProjectSettingsRoutes(
             projectId: request.params.id,
           },
         )
-        const project = await updateProjectSettingsUseCase(
-          repository,
-          {
-            projectId: request.params.id,
-            changes: request.body,
-          },
-        )
+        const project = await updateProjectSettingsUseCase(repository, {
+          projectId: request.params.id,
+          changes: request.body,
+        })
 
         return {
           ok: true,

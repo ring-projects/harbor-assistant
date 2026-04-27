@@ -9,7 +9,7 @@
     "fileBrowserRootDirectory": "../.."
   },
   "urls": {
-    "appBaseUrl": "http://localhost:5173",
+    "appBaseUrl": "http://localhost:3400",
     "webBaseUrl": "http://localhost:5173"
   },
   "auth": {

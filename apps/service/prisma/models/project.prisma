@@ -25,8 +25,6 @@ model Project {
   lastOpenedAt         DateTime?
   logRetentionDays     Int?          @default(30)
   eventRetentionDays   Int?          @default(7)
-  harborSkillsEnabled  Boolean       @default(false)
-  harborSkillProfile   String?       @default("default")
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
   archivedAt           DateTime?

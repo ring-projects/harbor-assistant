@@ -1,12 +1,17 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
+
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { useOrchestrationDetailQuery } from "@/modules/orchestrations/hooks"
 import {
+  selectTaskEventStream,
   selectTaskDetail,
   useTasksSessionStore,
 } from "@/modules/tasks/store"
 import {
+  STATUS_META,
   formatExecutorLabel,
   getErrorMessage,
   getTaskDisplayTitle,
@@ -23,10 +28,51 @@ import { TaskSessionConversationPane } from "./task-session-conversation-pane"
 
 type TaskSessionPanelProps = {
   projectId: string
+  orchestrationId: string | null
   taskId: string | null
+  emptyStateMessage?: string
+  showComposer?: boolean
 }
 
-export function TaskSessionPanel({ projectId, taskId }: TaskSessionPanelProps) {
+function getRunningHint(executor: string | null | undefined) {
+  if (!executor) {
+    return "Agent is running..."
+  }
+
+  return `${formatExecutorLabel(executor)} is running...`
+}
+
+function parseTimeOrNull(value: string | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function formatElapsedShort(seconds: number) {
+  if (seconds < 60) {
+    return `${seconds}s`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) {
+    return `${minutes}m`
+  }
+
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h`
+}
+
+export function TaskSessionPanel({
+  projectId,
+  orchestrationId,
+  taskId,
+  emptyStateMessage = "Select a session to view activity.",
+  showComposer = true,
+}: TaskSessionPanelProps) {
+  const orchestrationQuery = useOrchestrationDetailQuery(orchestrationId)
   const detailQuery = useTaskDetailQuery(taskId)
   const eventsQuery = useTaskEventsQuery({
     taskId,
@@ -41,31 +87,117 @@ export function TaskSessionPanel({ projectId, taskId }: TaskSessionPanelProps) {
   const detail = useTasksSessionStore((state) =>
     selectTaskDetail(state, taskId),
   )
+  const lastEventAt = useTasksSessionStore(
+    (state) =>
+      selectTaskEventStream(state, taskId)?.items.at(-1)?.createdAt ?? null,
+  )
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (detail?.status !== "running") {
+      return
+    }
+
+    const timerId = window.setInterval(() => {
+      setNowMs(Date.now())
+    }, 1000)
+
+    return () => {
+      window.clearInterval(timerId)
+    }
+  }, [detail?.status])
+
+  const runningActivityMeta = useMemo(() => {
+    if (detail?.status !== "running") {
+      return null
+    }
+
+    const lastActivityMs =
+      parseTimeOrNull(lastEventAt) ?? parseTimeOrNull(detail.startedAt)
+
+    if (!lastActivityMs) {
+      return {
+        stale: false,
+        label: "Waiting for first event...",
+      }
+    }
+
+    const elapsedSeconds = Math.max(
+      0,
+      Math.floor((nowMs - lastActivityMs) / 1000),
+    )
+    const stale = elapsedSeconds >= 30
+    const scope = lastEventAt ? "Last event" : "Started"
+
+    return {
+      stale,
+      label: `${scope} ${formatElapsedShort(elapsedSeconds)} ago`,
+    }
+  }, [detail?.status, detail?.startedAt, lastEventAt, nowMs])
   const isLoading =
     Boolean(taskId) && (detailQuery.isLoading || eventsQuery.isLoading)
   const isError =
     Boolean(taskId) && (detailQuery.isError || eventsQuery.isError)
+  const orchestration = orchestrationQuery.data ?? null
+  const headerTitle = detail
+    ? getTaskDisplayTitle({
+        title: detail.title,
+        prompt: detail.prompt,
+      })
+    : (orchestration?.title ?? emptyStateMessage)
 
   return (
-    <section className="h-full min-h-0 min-w-0 overflow-hidden bg-card p-4 grid grid-rows-[auto_minmax(0,1fr)] gap-4">
+    <section className="bg-card grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden p-4">
       <div className="flex items-start justify-between">
-        {detail ? (
-          <p className="text-foreground/85 line-clamp-2 text-md font-medium">
-            {getTaskDisplayTitle({
-              title: detail.title,
-              prompt: detail.prompt,
-            })}
+        <div className="min-w-0 space-y-2">
+          <p
+            className={cn(
+              "text-md line-clamp-2 font-medium",
+              detail || orchestration
+                ? "text-foreground/85"
+                : "text-muted-foreground font-mono text-[11px]",
+            )}
+          >
+            {headerTitle}
           </p>
-        ) : (
-          <p className="text-muted-foreground font-mono text-[11px]">
-            Select a task to inspect messages and agent activity.
-          </p>
-        )}
+          {detail ? (
+            <div className="text-muted-foreground flex items-center gap-2 font-mono text-[11px]">
+              <span
+                className={cn(
+                  "rounded-full border px-2 py-0.5",
+                  STATUS_META[detail.status].badgeClassName,
+                )}
+              >
+                {STATUS_META[detail.status].label}
+              </span>
+              {detail.status === "running" ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-info inline-flex items-center gap-1.5">
+                    <span className="size-1.5 animate-pulse rounded-full bg-current" />
+                    {getRunningHint(detail.executor)}
+                  </span>
+                  {runningActivityMeta ? (
+                    <span
+                      className={cn(
+                        runningActivityMeta.stale
+                          ? "text-warning"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {runningActivityMeta.label}
+                      {runningActivityMeta.stale ? " · No recent updates" : ""}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {!taskId ? (
         <div className="text-muted-foreground bg-background/25 flex min-h-0 items-center justify-center rounded-lg font-mono text-[12px]">
-          Select a task from the left to view the chat.
+          {emptyStateMessage}
         </div>
       ) : null}
 
@@ -84,13 +216,22 @@ export function TaskSessionPanel({ projectId, taskId }: TaskSessionPanelProps) {
       ) : null}
 
       {taskId && !isLoading && !isError ? (
-        <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden">
+        <div
+          className={cn(
+            "grid min-h-0 gap-3 overflow-hidden",
+            showComposer
+              ? "grid-rows-[minmax(0,1fr)_auto]"
+              : "grid-rows-[minmax(0,1fr)]",
+          )}
+        >
           <TaskSessionConversationPane taskId={taskId} detail={detail} />
-          <TaskSessionComposerPane
-            projectId={projectId}
-            taskId={taskId}
-            detail={detail}
-          />
+          {showComposer ? (
+            <TaskSessionComposerPane
+              projectId={projectId}
+              taskId={taskId}
+              detail={detail}
+            />
+          ) : null}
         </div>
       ) : null}
     </section>

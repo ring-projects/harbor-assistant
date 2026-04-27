@@ -2,7 +2,13 @@
 
 import { memo } from "react"
 
-import { ArrowUpRightIcon, CheckCircle2Icon, CircleIcon, PlugZapIcon, XCircleIcon } from "lucide-react"
+import {
+  ArrowUpRightIcon,
+  CheckCircle2Icon,
+  CircleIcon,
+  PlugZapIcon,
+  XCircleIcon,
+} from "lucide-react"
 
 import { formatTimeShort } from "@/lib/date-time"
 import { cn } from "@/lib/utils"
@@ -11,7 +17,9 @@ import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatMcpToolCallBlockProps = {
   block: Extract<ChatConversationBlock, { type: "mcp-tool-call" }>
-  onOpen: (block: Extract<ChatConversationBlock, { type: "mcp-tool-call" }>) => void
+  onOpen: (
+    block: Extract<ChatConversationBlock, { type: "mcp-tool-call" }>,
+  ) => void
 }
 
 function previewText(value: string | null, maxLines: number) {
@@ -53,7 +61,7 @@ function ChatMcpToolCallBlockView({
   const toolLabel =
     block.server && block.tool
       ? `${block.server}.${block.tool}`
-      : block.tool ?? block.server ?? "MCP tool"
+      : (block.tool ?? block.server ?? "MCP tool")
   const preview = previewText(block.resultText ?? block.argumentsText, 4)
 
   return (
@@ -61,21 +69,26 @@ function ChatMcpToolCallBlockView({
       <button
         type="button"
         onClick={() => onOpen(block)}
-        className="hover:bg-muted/20 w-full bg-card text-left"
+        className="hover:bg-muted/20 bg-card w-full text-left"
       >
         <div className="flex items-start justify-between gap-3 px-3.5 py-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="flex min-w-0 items-center gap-2 font-mono text-[12px] leading-5 text-foreground/88">
+              <p className="text-foreground/88 flex min-w-0 items-center gap-2 font-mono text-[12px] leading-5">
                 <PlugZapIcon className="text-muted-foreground size-3.5 shrink-0" />
                 <span className="truncate">{`tool: ${toolLabel}`}</span>
               </p>
-              <span className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium",
-                block.status === "success" && "border-success/25 bg-surface-success text-success",
-                block.status === "failed" && "border-destructive/25 bg-surface-danger text-destructive",
-                block.status === "running" && "border-info/25 bg-surface-info text-info",
-              )}>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium",
+                  block.status === "success" &&
+                    "border-success/25 bg-surface-success text-success",
+                  block.status === "failed" &&
+                    "border-destructive/25 bg-surface-danger text-destructive",
+                  block.status === "running" &&
+                    "border-info/25 bg-surface-info text-info",
+                )}
+              >
                 <StatusIcon className="size-3" />
                 {statusMeta.label}
               </span>
@@ -87,7 +100,7 @@ function ChatMcpToolCallBlockView({
             </p>
 
             {preview ? (
-              <pre className="bg-muted/25 mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-md p-2.5 font-mono text-[11px] leading-5 text-foreground/78">
+              <pre className="bg-muted/25 text-foreground/78 mt-2 overflow-x-auto rounded-md p-2.5 font-mono text-[11px] leading-5 break-words whitespace-pre-wrap">
                 {preview}
               </pre>
             ) : null}

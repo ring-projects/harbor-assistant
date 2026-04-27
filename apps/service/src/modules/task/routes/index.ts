@@ -1,6 +1,10 @@
 import type { FastifyInstance } from "fastify"
 
 import type { AuthorizationService } from "../../authorization"
+import {
+  type AuthenticatedRequestContext,
+  getAuthenticatedActor,
+} from "../../auth"
 import { archiveTaskUseCase } from "../application/archive-task"
 import { cancelTaskUseCase } from "../application/cancel-task"
 import { createTaskUseCase } from "../application/create-task"
@@ -67,20 +71,14 @@ export async function registerTaskModuleRoutes(
     runtimePort,
   } = options
 
-  function getOwnerUserId(request: { auth: { userId: string } | null }) {
-    return request.auth!.userId
-  }
-
-  async function handleTaskInputFileUpload(
-    request: {
-      auth: { userId: string } | null
-      params: ProjectIdParams
-      body: UploadTaskInputImageBody
-    },
-  ) {
+  async function handleTaskInputFileUpload(request: {
+    auth: AuthenticatedRequestContext | null
+    params: ProjectIdParams
+    body: UploadTaskInputImageBody
+  }) {
     try {
       await options.authorization.requireAuthorized({
-        actor: { kind: "user", userId: getOwnerUserId(request) },
+        actor: getAuthenticatedActor(request),
         action: "project.tasks.create",
         resource: { kind: "project", projectId: request.params.projectId },
       })
@@ -137,14 +135,11 @@ export async function registerTaskModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "task.view",
           resource: { kind: "task", taskId: request.params.taskId },
         })
-        const task = await getTaskUseCase(
-          repository,
-          request.params.taskId,
-        )
+        const task = await getTaskUseCase(repository, request.params.taskId)
         return {
           ok: true,
           task,
@@ -163,7 +158,7 @@ export async function registerTaskModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "task.update",
           resource: { kind: "task", taskId: request.params.taskId },
         })
@@ -194,7 +189,7 @@ export async function registerTaskModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "task.resume",
           resource: { kind: "task", taskId: request.params.taskId },
         })
@@ -231,7 +226,7 @@ export async function registerTaskModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "task.cancel",
           resource: { kind: "task", taskId: request.params.taskId },
         })
@@ -264,7 +259,7 @@ export async function registerTaskModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "task.delete",
           resource: { kind: "task", taskId: request.params.taskId },
         })
@@ -292,7 +287,7 @@ export async function registerTaskModuleRoutes(
     async (request) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "task.delete",
           resource: { kind: "task", taskId: request.params.taskId },
         })
@@ -320,15 +315,19 @@ export async function registerTaskModuleRoutes(
     async (request, reply) => {
       try {
         await options.authorization.requireAuthorized({
-          actor: { kind: "user", userId: getOwnerUserId(request) },
+          actor: getAuthenticatedActor(request),
           action: "task.events.read",
           resource: { kind: "task", taskId: request.params.taskId },
         })
-        const scopedResult = await getTaskEventsUseCase(repository, eventProjection, {
-          taskId: request.params.taskId,
-          afterSequence: request.query.afterSequence,
-          limit: request.query.limit,
-        })
+        const scopedResult = await getTaskEventsUseCase(
+          repository,
+          eventProjection,
+          {
+            taskId: request.params.taskId,
+            afterSequence: request.query.afterSequence,
+            limit: request.query.limit,
+          },
+        )
 
         return reply.status(scopedResult.isTerminal ? 200 : 206).send({
           ok: true,

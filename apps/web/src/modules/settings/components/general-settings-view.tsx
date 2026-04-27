@@ -42,7 +42,9 @@ export function GeneralSettingsView() {
                   <AppWindowIcon className="size-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Settings center scaffolded</p>
+                  <p className="text-sm font-semibold">
+                    Settings center scaffolded
+                  </p>
                   <p className="text-muted-foreground mt-1 text-sm leading-6">
                     This section is ready to host Harbor-wide defaults such as
                     theme preferences, executor defaults, and other app-level
@@ -59,11 +61,13 @@ export function GeneralSettingsView() {
                     <SparklesIcon className="size-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">Recommended next step</p>
+                    <p className="text-sm font-semibold">
+                      Recommended next step
+                    </p>
                     <p className="text-muted-foreground mt-1 text-sm leading-6">
-                      Move executor, model, and execution mode defaults into this
-                      scope, then let project settings override only the fields a
-                      project changes.
+                      Move executor and model defaults into this scope, then let
+                      project settings override only the fields a project
+                      changes.
                     </p>
                   </div>
                 </div>

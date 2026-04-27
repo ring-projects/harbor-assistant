@@ -17,16 +17,34 @@ async function createApp() {
       id: "user-1",
       githubLogin: "octocat",
       name: "Octocat",
+      email: "octocat@example.com",
+      avatarUrl: null,
+      status: "active",
+      lastLoginAt: null,
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-01T00:00:00.000Z"),
     },
     {
       id: "user-2",
       githubLogin: "teammate",
       name: "Teammate",
+      email: "teammate@example.com",
+      avatarUrl: null,
+      status: "active",
+      lastLoginAt: null,
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-01T00:00:00.000Z"),
     },
     {
       id: "user-3",
       githubLogin: "outsider",
       name: "Outsider",
+      email: "outsider@example.com",
+      avatarUrl: null,
+      status: "active",
+      lastLoginAt: null,
+      createdAt: new Date("2026-04-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-01T00:00:00.000Z"),
     },
   ])
   app.decorateRequest("auth", null)
@@ -113,6 +131,104 @@ describe("workspace routes", () => {
         id: "ws_team",
         name: "Harbor Team",
         type: "team",
+      },
+    })
+  })
+
+  it("allows an owner to manage workspace settings", async () => {
+    const { app, repository } = await createApp()
+    await repository.save(
+      createWorkspace({
+        id: "ws-team",
+        name: "Harbor Team",
+        type: "team",
+        createdByUserId: "user-1",
+      }),
+    )
+
+    const settings = await app.inject({
+      method: "GET",
+      url: "/v1/workspaces/ws-team/settings",
+    })
+    expect(settings.statusCode).toBe(200)
+    expect(settings.json()).toMatchObject({
+      ok: true,
+      settings: {
+        codex: {
+          baseUrl: null,
+          apiKey: null,
+        },
+      },
+    })
+
+    const updated = await app.inject({
+      method: "PATCH",
+      url: "/v1/workspaces/ws-team/settings",
+      payload: {
+        codex: {
+          baseUrl: "https://gateway.example.com/v1",
+          apiKey: "token-1",
+        },
+      },
+    })
+
+    expect(updated.statusCode).toBe(200)
+    expect(updated.json()).toMatchObject({
+      ok: true,
+      workspace: {
+        id: "ws-team",
+        settings: {
+          codex: {
+            baseUrl: "https://gateway.example.com/v1",
+            apiKey: "token-1",
+          },
+        },
+      },
+    })
+  })
+
+  it("rejects workspace settings updates by a non-owner member", async () => {
+    const { app, repository } = await createApp()
+    const workspace = createWorkspace({
+      id: "ws-team",
+      name: "Harbor Team",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+    await repository.save({
+      ...workspace,
+      memberships: [
+        ...workspace.memberships,
+        {
+          workspaceId: "ws-team",
+          userId: "user-2",
+          role: "member",
+          status: "active",
+          createdAt: new Date("2026-04-10T00:00:00.000Z"),
+          updatedAt: new Date("2026-04-10T00:00:00.000Z"),
+        },
+      ],
+    })
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/v1/workspaces/ws-team/settings",
+      headers: {
+        "x-user-id": "user-2",
+        "x-user-login": "teammate",
+      },
+      payload: {
+        codex: {
+          apiKey: "token-1",
+        },
+      },
+    })
+
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: "INVALID_WORKSPACE_STATE",
       },
     })
   })

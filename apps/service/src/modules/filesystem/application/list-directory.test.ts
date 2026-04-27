@@ -10,13 +10,21 @@ function createRepositoryStub(
   return {
     resolveRealPath: async (targetPath) => targetPath,
     statPath: async (targetPath) => ({
-      kind: targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? "file" : "directory",
-      size: targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? 12 : null,
+      kind:
+        targetPath.endsWith(".ts") || targetPath.endsWith(".md")
+          ? "file"
+          : "directory",
+      size:
+        targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? 12 : null,
       mtime: new Date("2026-03-24T00:00:00.000Z"),
     }),
     lstatPath: async (targetPath) => ({
-      kind: targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? "file" : "directory",
-      size: targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? 12 : null,
+      kind:
+        targetPath.endsWith(".ts") || targetPath.endsWith(".md")
+          ? "file"
+          : "directory",
+      size:
+        targetPath.endsWith(".ts") || targetPath.endsWith(".md") ? 12 : null,
       mtime: new Date("2026-03-24T00:00:00.000Z"),
     }),
     readDirectory: async () => [

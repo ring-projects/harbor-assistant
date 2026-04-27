@@ -1,13 +1,12 @@
-import type { FastifyInstance } from "fastify"
+import type { FastifyInstance, FastifyReply } from "fastify"
 import { randomBytes } from "node:crypto"
 
 import { AppError } from "../../../../lib/errors/app-error"
 import { ERROR_CODES } from "../../../../constants/errors"
 import {
-  expireCookie,
-  parseCookieHeader,
-  serializeCookie,
-} from "../../../../lib/http/cookies"
+  type AuthenticatedRequestContext,
+  requireUserAuthenticatedRequest,
+} from "../../../auth"
 import type { GitHubAppClient } from "../application/github-app-client"
 import type { GitHubInstallationRepository } from "../application/github-installation-repository"
 import type { WorkspaceInstallationRepository } from "../application/workspace-installation-repository"
@@ -29,8 +28,10 @@ import {
   listGitHubInstallationsRouteSchema,
 } from "../schemas"
 
-function resolveCurrentUserId(request: { auth: { userId: string } | null }) {
-  return request.auth!.userId
+function resolveCurrentUserId(request: {
+  auth: AuthenticatedRequestContext | null
+}) {
+  return requireUserAuthenticatedRequest(request).userId
 }
 
 function ensureGitHubAppConfigured(githubAppSlug: string | undefined) {
@@ -129,7 +130,11 @@ async function assertWorkspaceMember(args: {
     },
   )
   if (!workspace) {
-    throw new AppError(ERROR_CODES.PERMISSION_DENIED, 403, "Workspace access denied.")
+    throw new AppError(
+      ERROR_CODES.PERMISSION_DENIED,
+      403,
+      "Workspace access denied.",
+    )
   }
 
   return workspace
@@ -175,21 +180,16 @@ function buildCallbackUrl(
 }
 
 function clearInstallStateCookie(
-  reply: {
-    header(name: string, value: string): unknown
-  },
+  reply: FastifyReply,
   config: {
     isProduction?: boolean
   },
 ) {
-  reply.header(
-    "set-cookie",
-    expireCookie(GITHUB_APP_INSTALL_STATE_COOKIE_NAME, {
-      secure: isSecureCookie(config),
-      sameSite: "Lax",
-      path: "/",
-    }),
-  )
+  reply.clearCookie(GITHUB_APP_INSTALL_STATE_COOKIE_NAME, {
+    secure: isSecureCookie(config),
+    sameSite: "lax",
+    path: "/",
+  })
 }
 
 export async function registerGitHubIntegrationRoutes(
@@ -212,22 +212,20 @@ export async function registerGitHubIntegrationRoutes(
       schema: getGitHubInstallUrlRouteSchema,
     },
     async (request, reply) => {
-    ensureGitHubAppConfigured(options.githubAppSlug)
-    const state = createGitHubAppInstallState()
-    const returnTo = normalizeReturnTo(request.query.returnTo)
-    const workspaceId = request.query.workspaceId?.trim() || null
+      ensureGitHubAppConfigured(options.githubAppSlug)
+      const state = createGitHubAppInstallState()
+      const returnTo = normalizeReturnTo(request.query.returnTo)
+      const workspaceId = request.query.workspaceId?.trim() || null
 
-    if (workspaceId) {
-      await assertWorkspaceMember({
-        workspaceRepository: options.workspaceRepository,
-        workspaceId,
-        userId: resolveCurrentUserId(request),
-      })
-    }
+      if (workspaceId) {
+        await assertWorkspaceMember({
+          workspaceRepository: options.workspaceRepository,
+          workspaceId,
+          userId: resolveCurrentUserId(request),
+        })
+      }
 
-    reply.header(
-      "set-cookie",
-      serializeCookie(
+      reply.setCookie(
         GITHUB_APP_INSTALL_STATE_COOKIE_NAME,
         encodeInstallStateCookieValue({
           userId: resolveCurrentUserId(request),
@@ -237,17 +235,16 @@ export async function registerGitHubIntegrationRoutes(
         }),
         {
           secure: isSecureCookie(options.config),
-          sameSite: "Lax",
+          sameSite: "lax",
           path: "/",
           maxAge: 10 * 60,
         },
-      ),
-    )
+      )
 
-    return {
-      ok: true,
-      installUrl: options.githubAppClient.buildInstallUrl(state),
-    }
+      return {
+        ok: true,
+        installUrl: options.githubAppClient.buildInstallUrl(state),
+      }
     },
   )
 
@@ -257,122 +254,121 @@ export async function registerGitHubIntegrationRoutes(
       schema: completeGitHubSetupRouteSchema,
     },
     async (request, reply) => {
-    ensureGitHubAppConfigured(options.githubAppSlug)
-    const currentUserId = resolveCurrentUserId(request)
-    const cookies = parseCookieHeader(request.headers.cookie)
-    const installState = decodeInstallStateCookieValue(
-      cookies.get(GITHUB_APP_INSTALL_STATE_COOKIE_NAME),
-    )
-    const installationId = request.query.installation_id?.trim()
-    const state = request.query.state?.trim()
-    const returnTo = installState?.returnTo ?? null
-    const workspaceId = installState?.workspaceId ?? null
-
-    if (
-      !installState ||
-      !state ||
-      installState.state !== state ||
-      installState.userId !== currentUserId
-    ) {
-      clearInstallStateCookie(reply, options.config)
-      return reply.redirect(
-        buildCallbackUrl(options.config, {
-          status: "error",
-          returnTo,
-          code: ERROR_CODES.PERMISSION_DENIED,
-          message: "GitHub App setup state is invalid.",
-        }),
+      ensureGitHubAppConfigured(options.githubAppSlug)
+      const currentUserId = resolveCurrentUserId(request)
+      const installState = decodeInstallStateCookieValue(
+        request.cookies[GITHUB_APP_INSTALL_STATE_COOKIE_NAME],
       )
-    }
+      const installationId = request.query.installation_id?.trim()
+      const state = request.query.state?.trim()
+      const returnTo = installState?.returnTo ?? null
+      const workspaceId = installState?.workspaceId ?? null
 
-    if (!installationId) {
-      clearInstallStateCookie(reply, options.config)
-      return reply.redirect(
-        buildCallbackUrl(options.config, {
-          status: "error",
-          returnTo,
-          code: ERROR_CODES.INVALID_REQUEST_BODY,
-          message: "installation_id is required.",
-        }),
-      )
-    }
-
-    try {
-      const existingInstallation =
-        await options.installationRepository.findById(installationId)
       if (
-        existingInstallation?.installedByUserId &&
-        existingInstallation.installedByUserId !== currentUserId
+        !installState ||
+        !state ||
+        installState.state !== state ||
+        installState.userId !== currentUserId
       ) {
-        throw new AppError(
-          ERROR_CODES.CONFLICT,
-          409,
-          "GitHub installation is already linked to another Harbor user.",
+        clearInstallStateCookie(reply, options.config)
+        return reply.redirect(
+          buildCallbackUrl(options.config, {
+            status: "error",
+            returnTo,
+            code: ERROR_CODES.PERMISSION_DENIED,
+            message: "GitHub App setup state is invalid.",
+          }),
         )
       }
 
-      const installation =
-        await options.githubAppClient.getInstallation(installationId)
-      const now = new Date()
-      await options.installationRepository.save({
-        id: installation.id,
-        accountType: installation.accountType,
-        accountLogin: installation.accountLogin,
-        targetType: installation.targetType,
-        status: installation.status,
-        installedByUserId: currentUserId,
-        createdAt: now,
-        updatedAt: now,
-        lastValidatedAt: now,
-      })
-      if (workspaceId) {
-        await assertWorkspaceMember({
-          workspaceRepository: options.workspaceRepository,
-          workspaceId,
-          userId: currentUserId,
-        })
-        await options.workspaceInstallationRepository.saveLink({
-          workspaceId,
-          installationId: installation.id,
-          linkedByUserId: currentUserId,
+      if (!installationId) {
+        clearInstallStateCookie(reply, options.config)
+        return reply.redirect(
+          buildCallbackUrl(options.config, {
+            status: "error",
+            returnTo,
+            code: ERROR_CODES.INVALID_REQUEST_BODY,
+            message: "installation_id is required.",
+          }),
+        )
+      }
+
+      try {
+        const existingInstallation =
+          await options.installationRepository.findById(installationId)
+        if (
+          existingInstallation?.installedByUserId &&
+          existingInstallation.installedByUserId !== currentUserId
+        ) {
+          throw new AppError(
+            ERROR_CODES.CONFLICT,
+            409,
+            "GitHub installation is already linked to another Harbor user.",
+          )
+        }
+
+        const installation =
+          await options.githubAppClient.getInstallation(installationId)
+        const now = new Date()
+        await options.installationRepository.save({
+          id: installation.id,
+          accountType: installation.accountType,
+          accountLogin: installation.accountLogin,
+          targetType: installation.targetType,
+          status: installation.status,
+          installedByUserId: currentUserId,
           createdAt: now,
           updatedAt: now,
+          lastValidatedAt: now,
         })
+        if (workspaceId) {
+          await assertWorkspaceMember({
+            workspaceRepository: options.workspaceRepository,
+            workspaceId,
+            userId: currentUserId,
+          })
+          await options.workspaceInstallationRepository.saveLink({
+            workspaceId,
+            installationId: installation.id,
+            linkedByUserId: currentUserId,
+            createdAt: now,
+            updatedAt: now,
+          })
+        }
+
+        clearInstallStateCookie(reply, options.config)
+        return reply.redirect(
+          buildCallbackUrl(options.config, {
+            status: "success",
+            returnTo,
+          }),
+        )
+      } catch (error) {
+        const appError =
+          error instanceof AppError
+            ? error
+            : new AppError(
+                ERROR_CODES.INTERNAL_ERROR,
+                500,
+                "Unexpected service error.",
+              )
+
+        if (appError.statusCode >= 500) {
+          request.log.error({ err: error }, appError.message)
+        } else {
+          request.log.warn({ err: error }, appError.message)
+        }
+
+        clearInstallStateCookie(reply, options.config)
+        return reply.redirect(
+          buildCallbackUrl(options.config, {
+            status: "error",
+            returnTo,
+            code: appError.code,
+            message: appError.message,
+          }),
+        )
       }
-
-      clearInstallStateCookie(reply, options.config)
-      return reply.redirect(
-        buildCallbackUrl(options.config, {
-          status: "success",
-          returnTo,
-        }),
-      )
-    } catch (error) {
-      const appError =
-        error instanceof AppError
-          ? error
-          : new AppError(
-              ERROR_CODES.INTERNAL_ERROR,
-              500,
-              "Unexpected service error.",
-            )
-
-      if (appError.statusCode >= 500) {
-        request.log.error({ err: error }, appError.message)
-      } else {
-        request.log.warn({ err: error }, appError.message)
-      }
-
-      clearInstallStateCookie(reply, options.config)
-      return reply.redirect(
-        buildCallbackUrl(options.config, {
-          status: "error",
-          returnTo,
-          code: appError.code,
-          message: appError.message,
-        }),
-      )
-    }
     },
   )
 
@@ -382,36 +378,37 @@ export async function registerGitHubIntegrationRoutes(
       schema: listGitHubInstallationsRouteSchema,
     },
     async (request) => {
-    const workspaceId = request.query.workspaceId?.trim() || null
-    let installations
+      const workspaceId = request.query.workspaceId?.trim() || null
+      let installations
 
-    if (workspaceId) {
-      await assertWorkspaceMember({
-        workspaceRepository: options.workspaceRepository,
-        workspaceId,
-        userId: resolveCurrentUserId(request),
-      })
-      const links =
-        await options.workspaceInstallationRepository.listLinksByWorkspaceId(
+      if (workspaceId) {
+        await assertWorkspaceMember({
+          workspaceRepository: options.workspaceRepository,
           workspaceId,
-        )
-      installations = (
-        await Promise.all(
-          links.map((link) =>
-            options.installationRepository.findById(link.installationId),
-          ),
-        )
-      ).filter((installation) => installation !== null)
-    } else {
-      installations = await options.installationRepository.listByInstalledByUserId(
-        resolveCurrentUserId(request),
-      )
-    }
+          userId: resolveCurrentUserId(request),
+        })
+        const links =
+          await options.workspaceInstallationRepository.listLinksByWorkspaceId(
+            workspaceId,
+          )
+        installations = (
+          await Promise.all(
+            links.map((link) =>
+              options.installationRepository.findById(link.installationId),
+            ),
+          )
+        ).filter((installation) => installation !== null)
+      } else {
+        installations =
+          await options.installationRepository.listByInstalledByUserId(
+            resolveCurrentUserId(request),
+          )
+      }
 
-    return {
-      ok: true,
-      installations,
-    }
+      return {
+        ok: true,
+        installations,
+      }
     },
   )
 
@@ -440,7 +437,9 @@ export async function registerGitHubIntegrationRoutes(
               return null
             }
 
-            return options.installationRepository.findById(request.params.installationId)
+            return options.installationRepository.findById(
+              request.params.installationId,
+            )
           })()
         : await options.installationRepository.findByIdAndInstalledByUserId(
             request.params.installationId,

@@ -46,7 +46,9 @@ export interface AuthorizationProjectQuery {
 }
 
 export interface AuthorizationTaskQuery {
-  getTaskAuthorizationContext(taskId: string): Promise<AuthorizationTaskContext | null>
+  getTaskAuthorizationContext(
+    taskId: string,
+  ): Promise<AuthorizationTaskContext | null>
 }
 
 export interface AuthorizationOrchestrationQuery {

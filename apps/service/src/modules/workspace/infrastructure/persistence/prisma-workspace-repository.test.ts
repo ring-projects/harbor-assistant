@@ -4,6 +4,7 @@ import {
   addWorkspaceMember,
   createWorkspace,
   removeWorkspaceMember,
+  updateWorkspaceSettings,
 } from "../../domain/workspace"
 import { PrismaWorkspaceRepository } from "./prisma-workspace-repository"
 import {
@@ -54,6 +55,10 @@ describe("PrismaWorkspaceRepository", () => {
     const loaded = await repository.findById("ws-1")
 
     expect(loaded).not.toBeNull()
+    expect(loaded?.settings.codex).toEqual({
+      baseUrl: null,
+      apiKey: null,
+    })
     expect(loaded?.memberships).toEqual([
       expect.objectContaining({
         userId: "user-1",
@@ -66,6 +71,40 @@ describe("PrismaWorkspaceRepository", () => {
         status: "active",
       }),
     ])
+  })
+
+  it("saves and reloads codex settings", async () => {
+    testDatabase = await createTestDatabase()
+    await testDatabase.prisma.user.create({
+      data: {
+        id: "user-1",
+        githubLogin: "owner",
+      },
+    })
+    const repository = new PrismaWorkspaceRepository(testDatabase.prisma)
+    const workspace = updateWorkspaceSettings(
+      createWorkspace({
+        id: "ws-1",
+        name: "Harbor Team",
+        type: "team",
+        createdByUserId: "user-1",
+      }),
+      {
+        codex: {
+          baseUrl: "https://gateway.example.com/v1",
+          apiKey: "token-1",
+        },
+      },
+    )
+
+    await repository.save(workspace)
+
+    const loaded = await repository.findById("ws-1")
+
+    expect(loaded?.settings.codex).toEqual({
+      baseUrl: "https://gateway.example.com/v1",
+      apiKey: "token-1",
+    })
   })
 
   it("persists member removal state", async () => {

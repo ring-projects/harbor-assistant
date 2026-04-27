@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { createDocument } from "../domain/document"
-import {
-  createDocumentUseCase,
-} from "./create-document"
+import { createDocumentUseCase } from "./create-document"
 import { getDocumentUseCase } from "./get-document"
 import { readDocumentContentUseCase } from "./read-document-content"
 import { updateDocumentContentUseCase } from "./update-document-content"
@@ -14,10 +12,7 @@ import { listTaskDocumentsUseCase } from "./list-task-documents"
 import type { DocumentRepository } from "./document-repository"
 import type { DocumentContentStore } from "./document-content-store"
 import type { ProjectDocumentPort } from "./project-document-port"
-import {
-  DOCUMENT_ERROR_CODES,
-  type DocumentError,
-} from "../errors"
+import { DOCUMENT_ERROR_CODES, type DocumentError } from "../errors"
 
 describe("document use cases", () => {
   function createRepository(
@@ -48,25 +43,41 @@ describe("document use cases", () => {
       listByProject: vi.fn(async ({ projectId, includeArchived, kind }) =>
         [...documents.values()]
           .filter((document) => document.projectId === projectId)
-          .filter((document) => includeArchived || document.status !== "archived")
+          .filter(
+            (document) => includeArchived || document.status !== "archived",
+          )
           .filter((document) => (kind ? document.kind === kind : true))
-          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()),
+          .sort(
+            (left, right) =>
+              right.createdAt.getTime() - left.createdAt.getTime(),
+          ),
       ),
       listByTask: vi.fn(async ({ taskId, includeArchived, kind }) =>
         [...documents.values()]
           .filter((document) => document.taskId === taskId)
-          .filter((document) => includeArchived || document.status !== "archived")
+          .filter(
+            (document) => includeArchived || document.status !== "archived",
+          )
           .filter((document) => (kind ? document.kind === kind : true))
-          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()),
+          .sort(
+            (left, right) =>
+              right.createdAt.getTime() - left.createdAt.getTime(),
+          ),
       ),
     }
   }
 
-  function createContentStore(seed?: Record<string, string>): DocumentContentStore {
-    const contents = new Map(Object.entries(seed ?? {
-      "/tmp/harbor-assistant:.harbor/docs/requirements/requirements-doc-1.md":
-        "# Runtime Drift\n\nCapture requirements.",
-    }))
+  function createContentStore(
+    seed?: Record<string, string>,
+  ): DocumentContentStore {
+    const contents = new Map(
+      Object.entries(
+        seed ?? {
+          "/tmp/harbor-assistant:.harbor/docs/requirements/requirements-doc-1.md":
+            "# Runtime Drift\n\nCapture requirements.",
+        },
+      ),
+    )
 
     return {
       write: vi.fn(async ({ projectRootPath, path, content }) => {
@@ -187,7 +198,9 @@ describe("document use cases", () => {
     )
     expect(content.content).toContain("Capture requirements")
 
-    await expect(getDocumentUseCase(repository, "missing")).rejects.toMatchObject({
+    await expect(
+      getDocumentUseCase(repository, "missing"),
+    ).rejects.toMatchObject({
       code: DOCUMENT_ERROR_CODES.NOT_FOUND,
     } satisfies Partial<DocumentError>)
   })

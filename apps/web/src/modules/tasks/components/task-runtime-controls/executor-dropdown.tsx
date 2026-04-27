@@ -46,16 +46,18 @@ export function ExecutorDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className="h-9 rounded-full border-border/70 bg-background/80 px-3 text-xs font-medium shadow-none"
+          className="border-border/70 bg-background/80 h-9 rounded-full px-3 text-xs font-medium shadow-none"
           disabled={disabled}
         >
           <BotIcon className="size-3.5" />
-          <span className="max-w-36 truncate">{formatExecutorLabel(value)}</span>
-          <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+          <span className="max-w-36 truncate">
+            {formatExecutorLabel(value)}
+          </span>
+          <ChevronDownIcon className="text-muted-foreground size-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 rounded-2xl p-2">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
+        <DropdownMenuLabel className="text-muted-foreground text-xs">
           Executor
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>

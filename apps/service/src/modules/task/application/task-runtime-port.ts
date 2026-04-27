@@ -1,5 +1,6 @@
 import type { AgentInput } from "../../../lib/agents"
 import type { TaskEffort } from "../domain/task-effort"
+import type { WorkspaceCodexSettings } from "../../workspace/domain/workspace"
 
 export type TaskRuntimeConfig = {
   executor: string
@@ -13,6 +14,7 @@ export interface TaskRuntimePort {
     taskId: string
     projectId: string
     projectPath: string
+    projectCodex?: WorkspaceCodexSettings
     input: AgentInput
     runtimeConfig: TaskRuntimeConfig
   }): Promise<void>
@@ -20,6 +22,7 @@ export interface TaskRuntimePort {
     taskId: string
     projectId: string
     projectPath: string
+    projectCodex?: WorkspaceCodexSettings
     input: AgentInput
     runtimeConfig: TaskRuntimeConfig
   }): Promise<void>

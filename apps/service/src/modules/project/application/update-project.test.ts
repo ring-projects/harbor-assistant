@@ -60,9 +60,9 @@ describe("updateProjectUseCase", () => {
     await repository.save(duplicate)
 
     const pathPolicy: ProjectPathPolicy = {
-      canonicalizeProjectRoot: vi.fn().mockResolvedValue(
-        "/resolved/workspace/harbor-service",
-      ),
+      canonicalizeProjectRoot: vi
+        .fn()
+        .mockResolvedValue("/resolved/workspace/harbor-service"),
     }
 
     await expect(

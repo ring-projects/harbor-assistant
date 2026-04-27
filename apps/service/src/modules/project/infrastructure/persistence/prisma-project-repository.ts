@@ -44,7 +44,9 @@ export class PrismaProjectRepository implements ProjectRepository {
   }
 
   async findByNormalizedPath(normalizedPath: string): Promise<Project | null> {
-    const project = await this.prisma.project.findUnique({ where: { normalizedPath } })
+    const project = await this.prisma.project.findUnique({
+      where: { normalizedPath },
+    })
 
     if (!project) {
       return null
@@ -104,8 +106,6 @@ export class PrismaProjectRepository implements ProjectRepository {
           lastOpenedAt: project.lastOpenedAt,
           logRetentionDays: project.settings.retention.logRetentionDays,
           eventRetentionDays: project.settings.retention.eventRetentionDays,
-          harborSkillsEnabled: project.settings.skills.harborSkillsEnabled,
-          harborSkillProfile: project.settings.skills.harborSkillProfile,
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
           archivedAt: project.archivedAt,
@@ -127,15 +127,18 @@ export class PrismaProjectRepository implements ProjectRepository {
           lastOpenedAt: project.lastOpenedAt,
           logRetentionDays: project.settings.retention.logRetentionDays,
           eventRetentionDays: project.settings.retention.eventRetentionDays,
-          harborSkillsEnabled: project.settings.skills.harborSkillsEnabled,
-          harborSkillProfile: project.settings.skills.harborSkillProfile,
           updatedAt: project.updatedAt,
           archivedAt: project.archivedAt,
         },
       })
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        const target = Array.isArray(error.meta?.target) ? error.meta?.target : []
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const target = Array.isArray(error.meta?.target)
+          ? error.meta?.target
+          : []
         if (target.includes("normalizedPath")) {
           throw createProjectError().duplicatePath()
         }

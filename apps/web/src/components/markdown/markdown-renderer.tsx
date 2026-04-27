@@ -110,7 +110,9 @@ function MarkdownRendererView({
     container.addEventListener("wheel", handleWheelCapture, { capture: true })
 
     return () => {
-      container.removeEventListener("wheel", handleWheelCapture, { capture: true })
+      container.removeEventListener("wheel", handleWheelCapture, {
+        capture: true,
+      })
     }
   }, [])
 

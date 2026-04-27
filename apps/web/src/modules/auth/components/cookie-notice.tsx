@@ -19,7 +19,7 @@ export function CookieNotice({ onDismiss }: CookieNoticeProps) {
             type="button"
             variant="outline"
             onClick={onDismiss}
-            className="h-auto rounded-[4px] border-current/15 bg-transparent px-4 py-2 text-sm font-medium leading-6 text-current shadow-none hover:bg-current/8 hover:text-current sm:shrink-0"
+            className="h-auto rounded-[4px] border-current/15 bg-transparent px-4 py-2 text-sm leading-6 font-medium text-current shadow-none hover:bg-current/8 hover:text-current sm:shrink-0"
           >
             Got it
           </Button>

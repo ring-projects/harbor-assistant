@@ -97,7 +97,7 @@ export function AppErrorPage({
     >
       <div className="bg-primary/10 absolute inset-x-[8%] top-0 h-48 rounded-full blur-3xl" />
       <div className="bg-muted absolute -bottom-24 left-[-8%] size-72 rounded-full blur-3xl" />
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border bg-card/95 shadow-2xl shadow-black/5 backdrop-blur">
+      <div className="bg-card/95 relative w-full max-w-2xl overflow-hidden rounded-[2rem] border shadow-2xl shadow-black/5 backdrop-blur">
         <div className="border-border/80 flex items-center gap-3 border-b px-6 py-4 sm:px-8">
           <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-2xl">
             <AlertTriangle className="size-5" />
@@ -139,7 +139,7 @@ export function AppErrorPage({
               <p className="text-muted-foreground text-xs font-medium tracking-[0.2em] uppercase">
                 Error details
               </p>
-              <p className="mt-3 break-words font-mono text-sm leading-6">
+              <p className="mt-3 font-mono text-sm leading-6 break-words">
                 {message}
               </p>
             </div>
@@ -162,7 +162,12 @@ export function AppErrorPage({
               Go back
             </Button>
             {onRetry ? (
-              <Button type="button" variant="outline" size="lg" onClick={onRetry}>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={onRetry}
+              >
                 <RotateCcw className="size-4" />
                 Try again
               </Button>

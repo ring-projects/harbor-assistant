@@ -6,7 +6,7 @@ export const TASK_STATUS_VALUES = [
   "completed",
   "failed",
   "cancelled",
-  "archived"
+  "archived",
 ] as const
 
 export const TASK_AGENT_EVENT_TYPE_VALUES = [

@@ -55,9 +55,11 @@ describe("createProjectGitInteractionLifecycle", () => {
       },
     })
 
-    await expect(lifecycle.subscribe("missing", vi.fn())).rejects.toMatchObject({
-      code: "PROJECT_NOT_FOUND",
-      statusCode: 404,
-    })
+    await expect(lifecycle.subscribe("missing", vi.fn())).rejects.toMatchObject(
+      {
+        code: "PROJECT_NOT_FOUND",
+        statusCode: 404,
+      },
+    )
   })
 })

@@ -9,9 +9,7 @@ export function createSimpleProjectPathPolicy(): ProjectPathPolicy {
         throw createProjectError().invalidInput("rootPath is required")
       }
 
-      return trimmed
-        .replace(/^~\//, "/resolved/")
-        .replace(/\/+/g, "/")
+      return trimmed.replace(/^~\//, "/resolved/").replace(/\/+/g, "/")
     },
   }
 }

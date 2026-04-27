@@ -222,7 +222,7 @@ export const projectCreateDirectoryBodySchema = {
 export const listProjectFilesRouteSchema = {
   tags: ["filesystem"],
   operationId: "listProjectFiles",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: projectFilesParamsSchema,
   body: projectListDirectoryBodySchema,
   response: {
@@ -235,7 +235,13 @@ export const listProjectFilesRouteSchema = {
         listing: {
           type: "object",
           additionalProperties: false,
-          required: ["path", "parentPath", "entries", "nextCursor", "truncated"],
+          required: [
+            "path",
+            "parentPath",
+            "entries",
+            "nextCursor",
+            "truncated",
+          ],
           properties: {
             path: { type: "string" },
             parentPath: { type: ["string", "null"] },
@@ -255,7 +261,7 @@ export const listProjectFilesRouteSchema = {
 export const listBootstrapRootsRouteSchema = {
   tags: ["filesystem"],
   operationId: "listBootstrapFilesystemRoots",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   response: {
     200: {
       type: "object",
@@ -275,7 +281,7 @@ export const listBootstrapRootsRouteSchema = {
 export const listBootstrapFilesRouteSchema = {
   tags: ["filesystem"],
   operationId: "listBootstrapFilesystemEntries",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   body: bootstrapListDirectoryBodySchema,
   response: {
     200: {
@@ -319,7 +325,7 @@ export const listBootstrapFilesRouteSchema = {
 export const statBootstrapPathRouteSchema = {
   tags: ["filesystem"],
   operationId: "statBootstrapFilesystemPath",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   querystring: bootstrapFilePathQuerySchema,
   response: {
     200: {
@@ -337,7 +343,7 @@ export const statBootstrapPathRouteSchema = {
 export const statProjectPathRouteSchema = {
   tags: ["filesystem"],
   operationId: "statProjectPath",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: projectFilesParamsSchema,
   querystring: projectFilePathQuerySchema,
   response: {
@@ -356,7 +362,7 @@ export const statProjectPathRouteSchema = {
 export const readProjectTextFileRouteSchema = {
   tags: ["filesystem"],
   operationId: "readProjectTextFile",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: projectFilesParamsSchema,
   querystring: projectFilePathQuerySchema,
   response: {
@@ -375,7 +381,7 @@ export const readProjectTextFileRouteSchema = {
 export const writeProjectTextFileRouteSchema = {
   tags: ["filesystem"],
   operationId: "writeProjectTextFile",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: projectFilesParamsSchema,
   body: projectWriteTextFileBodySchema,
   response: {
@@ -394,7 +400,7 @@ export const writeProjectTextFileRouteSchema = {
 export const createProjectDirectoryRouteSchema = {
   tags: ["filesystem"],
   operationId: "createProjectDirectory",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: projectFilesParamsSchema,
   body: projectCreateDirectoryBodySchema,
   response: {

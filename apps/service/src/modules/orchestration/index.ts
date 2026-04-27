@@ -5,13 +5,13 @@ export {
   isOrchestrationError,
 } from "./errors"
 export { toOrchestrationAppError } from "./orchestration-app-error"
+export type { Orchestration, OrchestrationStatus } from "./domain/orchestration"
 export type {
-  Orchestration,
-  OrchestrationStatus,
-} from "./domain/orchestration"
-export type {
-  OrchestrationReadModel,
-} from "./application/orchestration-read-models"
+  OrchestrationConcurrencyPolicy,
+  OrchestrationSchedule,
+  OrchestrationTaskTemplate,
+} from "./domain/orchestration-schedule"
+export type { OrchestrationReadModel } from "./application/orchestration-read-models"
 export type {
   CreateBootstrapRecordInput,
   OrchestrationBootstrapStore,
@@ -23,6 +23,9 @@ export { createOrchestrationTaskUseCase } from "./application/create-orchestrati
 export { getOrchestrationUseCase } from "./application/get-orchestration"
 export { listOrchestrationTasksUseCase } from "./application/list-orchestration-tasks"
 export { listProjectOrchestrationsUseCase } from "./application/list-project-orchestrations"
+export { runDueOrchestrationSchedulesUseCase } from "./application/run-due-orchestration-schedules"
+export { upsertOrchestrationScheduleUseCase } from "./application/upsert-orchestration-schedule"
+export { createOrchestrationScheduler } from "./infrastructure/orchestration-scheduler"
 export { PrismaOrchestrationBootstrapStore } from "./infrastructure/persistence/prisma-orchestration-bootstrap-store"
 export { PrismaOrchestrationRepository } from "./infrastructure/persistence/prisma-orchestration-repository"
 export { registerOrchestrationModuleRoutes } from "./routes"

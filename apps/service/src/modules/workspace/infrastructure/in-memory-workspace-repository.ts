@@ -32,7 +32,9 @@ export class InMemoryWorkspaceRepository implements WorkspaceRepository {
             membership.userId === userId && membership.status === "active",
         ),
       )
-      .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
+      .sort(
+        (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime(),
+      )
   }
 
   async listMembers(workspaceId: string): Promise<Membership[]> {

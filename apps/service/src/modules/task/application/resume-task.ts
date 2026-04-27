@@ -22,17 +22,20 @@ function requireProjectRootPath(rootPath: string | null) {
   return rootPath
 }
 
-export async function resumeTaskUseCase(args: {
-  projectTaskPort: ProjectTaskPort
-  repository: Pick<TaskRepository, "findById">
-  runtimePort: TaskRuntimePort
-}, input: {
-  taskId: string
-  prompt?: string | null
-  items?: AgentInputItem[] | null
-  model?: string | null
-  effort?: string | null
-}): Promise<TaskDetail> {
+export async function resumeTaskUseCase(
+  args: {
+    projectTaskPort: ProjectTaskPort
+    repository: Pick<TaskRepository, "findById">
+    runtimePort: TaskRuntimePort
+  },
+  input: {
+    taskId: string
+    prompt?: string | null
+    items?: AgentInputItem[] | null
+    model?: string | null
+    effort?: string | null
+  },
+): Promise<TaskDetail> {
   const taskId = input.taskId.trim()
   const agentInput = resolveAgentInput(input)
 
@@ -63,7 +66,10 @@ export async function resumeTaskUseCase(args: {
   }
 
   const hasModelOverride = Object.prototype.hasOwnProperty.call(input, "model")
-  const hasEffortOverride = Object.prototype.hasOwnProperty.call(input, "effort")
+  const hasEffortOverride = Object.prototype.hasOwnProperty.call(
+    input,
+    "effort",
+  )
 
   const runtimeConfig = {
     ...(await validateTaskRuntimeConfig({
@@ -85,6 +91,7 @@ export async function resumeTaskUseCase(args: {
       taskId: task.id,
       projectId: task.projectId,
       projectPath: projectRootPath,
+      projectCodex: project.codex,
       input: agentInput,
       runtimeConfig,
     })

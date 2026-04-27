@@ -18,10 +18,8 @@ export async function createDirectoryUseCase(
     recursive?: boolean
   },
 ): Promise<FileSystemPathInfo> {
-  const { canonicalTargetPath, requestedPath } = await resolveCreatablePathInsideRoot(
-    repository,
-    input,
-  )
+  const { canonicalTargetPath, requestedPath } =
+    await resolveCreatablePathInsideRoot(repository, input)
 
   await createDirectoryAtPath(repository, canonicalTargetPath, {
     recursive: input.recursive ?? true,

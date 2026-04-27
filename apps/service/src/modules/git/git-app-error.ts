@@ -11,13 +11,29 @@ export function toGitAppError(error: unknown): AppError {
   if (isGitError(error)) {
     switch (error.code) {
       case GIT_ERROR_CODES.INVALID_INPUT:
-        return new AppError(ERROR_CODES.INVALID_REQUEST_BODY, 400, error.message)
+        return new AppError(
+          ERROR_CODES.INVALID_REQUEST_BODY,
+          400,
+          error.message,
+        )
       case GIT_ERROR_CODES.REPOSITORY_NOT_FOUND:
-        return new AppError(GIT_ERROR_CODES.REPOSITORY_NOT_FOUND, 404, error.message)
+        return new AppError(
+          GIT_ERROR_CODES.REPOSITORY_NOT_FOUND,
+          404,
+          error.message,
+        )
       case GIT_ERROR_CODES.BRANCH_NOT_FOUND:
-        return new AppError(GIT_ERROR_CODES.BRANCH_NOT_FOUND, 404, error.message)
+        return new AppError(
+          GIT_ERROR_CODES.BRANCH_NOT_FOUND,
+          404,
+          error.message,
+        )
       case GIT_ERROR_CODES.BRANCH_ALREADY_EXISTS:
-        return new AppError(GIT_ERROR_CODES.BRANCH_ALREADY_EXISTS, 409, error.message)
+        return new AppError(
+          GIT_ERROR_CODES.BRANCH_ALREADY_EXISTS,
+          409,
+          error.message,
+        )
       case GIT_ERROR_CODES.WORKTREE_DIRTY:
         return new AppError(GIT_ERROR_CODES.WORKTREE_DIRTY, 409, error.message)
       case GIT_ERROR_CODES.NOT_AVAILABLE:
@@ -25,7 +41,11 @@ export function toGitAppError(error: unknown): AppError {
       case GIT_ERROR_CODES.CHECKOUT_FAILED:
         return new AppError(GIT_ERROR_CODES.CHECKOUT_FAILED, 409, error.message)
       case GIT_ERROR_CODES.CREATE_BRANCH_FAILED:
-        return new AppError(GIT_ERROR_CODES.CREATE_BRANCH_FAILED, 409, error.message)
+        return new AppError(
+          GIT_ERROR_CODES.CREATE_BRANCH_FAILED,
+          409,
+          error.message,
+        )
       case GIT_ERROR_CODES.READ_FAILED:
         return new AppError(GIT_ERROR_CODES.READ_FAILED, 500, error.message)
     }
@@ -35,5 +55,9 @@ export function toGitAppError(error: unknown): AppError {
     return error
   }
 
-  return new AppError(ERROR_CODES.INTERNAL_ERROR, 500, "Unexpected service error.")
+  return new AppError(
+    ERROR_CODES.INTERNAL_ERROR,
+    500,
+    "Unexpected service error.",
+  )
 }

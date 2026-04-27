@@ -6,7 +6,9 @@ import type {
 } from "./policy-types"
 
 export interface AuthorizationPolicyProvider {
-  getDerivedProjectAction(action: AuthorizationAction): AuthorizationAction | null
+  getDerivedProjectAction(
+    action: AuthorizationAction,
+  ): AuthorizationAction | null
   getWorkspaceRoleEffect(
     role: WorkspaceRoleKey,
     action: AuthorizationAction,

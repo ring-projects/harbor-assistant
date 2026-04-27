@@ -7,7 +7,10 @@ import { ERROR_CODES } from "../../../constants/errors"
 import errorHandlerPlugin from "../../../plugins/error-handler"
 import { registerAuthModuleRoutes } from "./index"
 import authSessionPlugin from "../plugin/auth-session"
-import { createTestDatabase, type TestDatabase } from "../../../../test/helpers/test-database"
+import {
+  createTestDatabase,
+  type TestDatabase,
+} from "../../../../test/helpers/test-database"
 import {
   PrismaWorkspaceInvitationRepository,
   PrismaWorkspaceRepository,
@@ -16,6 +19,7 @@ import {
   GITHUB_OAUTH_REDIRECT_COOKIE_NAME,
   HARBOR_SESSION_COOKIE_NAME,
 } from "../constants"
+import { PrismaAgentTokenStore } from "../infrastructure/prisma-agent-token-store"
 import { PrismaAuthSessionStore } from "../infrastructure/prisma-auth-session-store"
 
 function createAuthTestConfig(): ServiceConfig {
@@ -23,10 +27,11 @@ function createAuthTestConfig(): ServiceConfig {
     port: 3400,
     host: "127.0.0.1",
     serviceName: "harbor-test",
-    database: "file:test.sqlite",
+    database: "postgresql://postgres:postgres@127.0.0.1:5432/harbor_test",
     fileBrowserRootDirectory: "/tmp",
     projectLocalPathRootDirectory: "/tmp/workspaces",
-    publicSkillsRootDirectory: "/tmp/skills/profiles/default",
+    sandboxRootDirectory: "/tmp/sandboxes",
+    publicSkillsRootDirectory: "/tmp/skills",
     nodeEnv: "test",
     isProduction: false,
     appBaseUrl: "http://127.0.0.1:3400",
@@ -98,7 +103,11 @@ function getSetCookieHeaders(headers: Record<string, unknown>) {
 }
 
 function extractCookie(headers: Record<string, unknown>, name: string) {
-  return getSetCookieHeaders(headers).find((header) => header.startsWith(`${name}=`)) ?? null
+  return (
+    getSetCookieHeaders(headers).find((header) =>
+      header.startsWith(`${name}=`),
+    ) ?? null
+  )
 }
 
 function extractCookieValue(headers: Record<string, unknown>, name: string) {
@@ -143,6 +152,7 @@ describe("auth routes", () => {
       ok: true,
       authenticated: false,
       user: null,
+      actor: null,
     })
 
     await app.close()
@@ -161,13 +171,15 @@ describe("auth routes", () => {
     })
 
     expect(response.statusCode).toBe(302)
-    expect(response.headers.location).toContain("https://github.com/login/oauth/authorize")
+    expect(response.headers.location).toContain(
+      "https://github.com/login/oauth/authorize",
+    )
     expect(response.headers.location).toContain("client_id=github-client-id")
     const authorizeUrl = new URL(String(response.headers.location))
     expect(authorizeUrl.searchParams.get("scope")).toBe("read:user user:email")
-    expect(extractCookie(response.headers, "harbor_github_oauth_state")).toContain(
-      "Max-Age=600",
-    )
+    expect(
+      extractCookie(response.headers, "harbor_github_oauth_state"),
+    ).toContain("Max-Age=600")
 
     await app.close()
   })
@@ -389,7 +401,9 @@ describe("auth routes", () => {
     expect(callback.headers.location).toBe(
       `http://127.0.0.1:3000/login?error=${ERROR_CODES.AUTH_IDENTITY_CONFLICT}&redirect=%2Fprojects%2Fproject-1`,
     )
-    expect(extractCookie(callback.headers, HARBOR_SESSION_COOKIE_NAME)).toBeNull()
+    expect(
+      extractCookie(callback.headers, HARBOR_SESSION_COOKIE_NAME),
+    ).toBeNull()
 
     await app.close()
   })
@@ -419,7 +433,10 @@ describe("auth routes", () => {
       },
     })
 
-    const stateCookie = extractCookie(start.headers, "harbor_github_oauth_state")
+    const stateCookie = extractCookie(
+      start.headers,
+      "harbor_github_oauth_state",
+    )
     expect(stateCookie).not.toBeNull()
     const stateMatch = stateCookie?.match(/^harbor_github_oauth_state=([^;]+)/)
     expect(stateMatch?.[1]).toBeTruthy()
@@ -435,7 +452,10 @@ describe("auth routes", () => {
     expect(callback.statusCode).toBe(302)
     expect(callback.headers.location).toBe("http://127.0.0.1:3000/app")
 
-    const sessionCookie = extractCookie(callback.headers, HARBOR_SESSION_COOKIE_NAME)
+    const sessionCookie = extractCookie(
+      callback.headers,
+      HARBOR_SESSION_COOKIE_NAME,
+    )
     expect(sessionCookie).toContain(`${HARBOR_SESSION_COOKIE_NAME}=`)
 
     const session = await app.inject({
@@ -450,6 +470,11 @@ describe("auth routes", () => {
     expect(session.json()).toMatchObject({
       ok: true,
       authenticated: true,
+      actor: {
+        kind: "user",
+        userId: expect.any(String),
+        sessionId: expect.any(String),
+      },
       user: {
         githubLogin: "octocat-team",
         email: "octo@example.com",
@@ -495,9 +520,9 @@ describe("auth routes", () => {
     })
 
     expect(callback.statusCode).toBe(302)
-    expect(extractCookie(callback.headers, HARBOR_SESSION_COOKIE_NAME)).toContain(
-      "Domain=example.com",
-    )
+    expect(
+      extractCookie(callback.headers, HARBOR_SESSION_COOKIE_NAME),
+    ).toContain("Domain=example.com")
 
     await app.close()
   })
@@ -532,9 +557,60 @@ describe("auth routes", () => {
     })
 
     expect(response.statusCode).toBe(200)
-    expect(extractCookie(response.headers, HARBOR_SESSION_COOKIE_NAME)).toContain(
-      "Domain=example.com",
-    )
+    expect(
+      extractCookie(response.headers, HARBOR_SESSION_COOKIE_NAME),
+    ).toContain("Domain=example.com")
+
+    await app.close()
+  })
+
+  it("returns delegated agent actor details from /auth/session", async () => {
+    testDatabase = await createTestDatabase()
+    const app = await createAuthTestApp(testDatabase.prisma)
+    const user = await testDatabase.prisma.user.create({
+      data: {
+        id: "user-1",
+        githubLogin: "octocat-team",
+      },
+    })
+    const tokenStore = new PrismaAgentTokenStore(testDatabase.prisma)
+    const delegated = await tokenStore.createToken({
+      name: "task-runner",
+      issuedByUserId: user.id,
+      projectId: "project-1",
+      orchestrationId: "orch-1",
+      taskId: "task-1",
+      sourceTaskId: "task-0",
+      scopes: ["orchestration.update", "task.view"],
+      ttlSeconds: 3600,
+      now: new Date("2099-04-19T08:00:00.000Z"),
+    })
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/auth/session",
+      headers: {
+        authorization: `Bearer ${delegated.token}`,
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      ok: true,
+      authenticated: true,
+      user: null,
+      actor: {
+        kind: "agent",
+        tokenId: delegated.record.id,
+        issuedByUserId: user.id,
+        projectId: "project-1",
+        orchestrationId: "orch-1",
+        taskId: "task-1",
+        sourceTaskId: "task-0",
+        scopes: ["orchestration.update", "task.view"],
+        expiresAt: "2099-04-19T09:00:00.000Z",
+      },
+    })
 
     await app.close()
   })
@@ -579,8 +655,12 @@ describe("auth routes", () => {
     })
     expect(user).not.toBeNull()
 
-    const workspaceRepository = new PrismaWorkspaceRepository(testDatabase.prisma)
-    const personalWorkspace = await workspaceRepository.findPersonalByUserId(user!.id)
+    const workspaceRepository = new PrismaWorkspaceRepository(
+      testDatabase.prisma,
+    )
+    const personalWorkspace = await workspaceRepository.findPersonalByUserId(
+      user!.id,
+    )
 
     expect(personalWorkspace).not.toBeNull()
     expect(personalWorkspace).toMatchObject({
@@ -664,7 +744,9 @@ describe("auth routes", () => {
     })
     expect(user).not.toBeNull()
 
-    const workspaceRepository = new PrismaWorkspaceRepository(testDatabase.prisma)
+    const workspaceRepository = new PrismaWorkspaceRepository(
+      testDatabase.prisma,
+    )
     const teamWorkspace = await workspaceRepository.findById("ws-team")
     expect(
       teamWorkspace?.memberships.some(

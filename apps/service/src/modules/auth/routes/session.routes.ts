@@ -1,23 +1,19 @@
 import type { FastifyInstance } from "fastify"
 
 import type { ServiceConfig } from "../../../config"
-import { parseCookieHeader, expireCookie } from "../../../lib/http/cookies"
-import {
-  HARBOR_SESSION_COOKIE_NAME,
-} from "../constants"
+import { HARBOR_SESSION_COOKIE_NAME } from "../constants"
+import type { PrismaAgentTokenStore } from "../infrastructure/prisma-agent-token-store"
 import type { PrismaAuthSessionStore } from "../infrastructure/prisma-auth-session-store"
 import { buildSessionCookieOptions } from "../lib/session-cookie-options"
 import { requireAuthenticatedRequest } from "../plugin/auth-session"
-import {
-  getAuthSessionRouteSchema,
-  logoutRouteSchema,
-} from "../schemas"
+import { getAuthSessionRouteSchema, logoutRouteSchema } from "../schemas"
 
 export async function registerAuthSessionRoutes(
   app: FastifyInstance,
   options: {
     config: ServiceConfig
     sessionStore: PrismaAuthSessionStore
+    agentTokenStore: PrismaAgentTokenStore
   },
 ) {
   app.get(
@@ -26,10 +22,34 @@ export async function registerAuthSessionRoutes(
       schema: getAuthSessionRouteSchema,
     },
     async (request) => {
+      const auth = request.auth
+
+      const actor =
+        auth?.kind === "agent"
+          ? {
+              kind: "agent" as const,
+              tokenId: auth.tokenId,
+              issuedByUserId: auth.issuedByUserId,
+              scopes: auth.scopes,
+              projectId: auth.projectId,
+              orchestrationId: auth.orchestrationId,
+              taskId: auth.taskId,
+              sourceTaskId: auth.sourceTaskId,
+              expiresAt: auth.expiresAt,
+            }
+          : auth
+            ? {
+                kind: "user" as const,
+                userId: auth.userId,
+                sessionId: auth.sessionId,
+              }
+            : null
+
       return {
         ok: true,
-        authenticated: Boolean(request.auth),
-        user: request.auth?.user ?? null,
+        authenticated: Boolean(auth),
+        user: auth?.user ?? null,
+        actor,
       }
     },
   )
@@ -41,21 +61,19 @@ export async function registerAuthSessionRoutes(
     },
     async (request, reply) => {
       const auth = requireAuthenticatedRequest(request)
-      const cookies = parseCookieHeader(request.headers.cookie)
-      const token = cookies.get(HARBOR_SESSION_COOKIE_NAME)
+      const token = request.cookies[HARBOR_SESSION_COOKIE_NAME]
 
-      if (token) {
+      if (auth.kind === "agent") {
+        await options.agentTokenStore.revokeToken(auth.tokenId)
+      } else if (token) {
         await options.sessionStore.revokeSessionByToken(token)
       } else {
         await options.sessionStore.revokeSession(auth.sessionId)
       }
 
-      reply.header(
-        "set-cookie",
-        expireCookie(
-          HARBOR_SESSION_COOKIE_NAME,
-          buildSessionCookieOptions(options.config),
-        ),
+      reply.clearCookie(
+        HARBOR_SESSION_COOKIE_NAME,
+        buildSessionCookieOptions(options.config),
       )
 
       return {

@@ -1,16 +1,22 @@
 import type { ProjectRepository } from "../../project/application/project-repository"
 import { createProjectError } from "../../project/errors"
 import { toOrchestrationReadModel } from "./orchestration-read-models"
-import type { OrchestrationRepository } from "./orchestration-repository"
+import type {
+  OrchestrationListSurface,
+  OrchestrationRepository,
+} from "./orchestration-repository"
 
 export async function listProjectOrchestrationsUseCase(
   args: {
     repository: Pick<OrchestrationRepository, "listByProject">
     projectRepository: Pick<ProjectRepository, "findById">
   },
-  projectId: string,
+  input: {
+    projectId: string
+    surface?: OrchestrationListSurface
+  },
 ) {
-  const normalizedProjectId = projectId.trim()
+  const normalizedProjectId = input.projectId.trim()
   if (!normalizedProjectId) {
     throw createProjectError().invalidInput("projectId is required")
   }
@@ -20,7 +26,12 @@ export async function listProjectOrchestrationsUseCase(
     throw createProjectError().notFound()
   }
 
-  const orchestrations = await args.repository.listByProject(normalizedProjectId)
+  const orchestrations = await args.repository.listByProject({
+    projectId: normalizedProjectId,
+    surface: input.surface,
+  })
 
-  return orchestrations.map((orchestration) => toOrchestrationReadModel(orchestration))
+  return orchestrations.map((orchestration) =>
+    toOrchestrationReadModel(orchestration),
+  )
 }

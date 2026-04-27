@@ -48,12 +48,10 @@ describe("useAppStore", () => {
         codex: {
           model: "gpt-5",
           effort: "high",
-          executionMode: "connected",
         },
         "claude-code": {
           model: null,
           effort: null,
-          executionMode: "connected",
         },
       },
     })
@@ -79,23 +77,6 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().taskCreationDefaults.runtimes.codex).toEqual({
       model: "gpt-5",
       effort: "medium",
-      executionMode: "connected",
-    })
-  })
-
-  it("updates task creation execution mode defaults", () => {
-    useAppStore.getState().updateTaskCreationDefaults({
-      runtimes: {
-        codex: {
-          executionMode: "full-access",
-        },
-      },
-    })
-
-    expect(useAppStore.getState().taskCreationDefaults.runtimes.codex).toEqual({
-      model: null,
-      effort: null,
-      executionMode: "full-access",
     })
   })
 

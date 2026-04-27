@@ -8,7 +8,10 @@ import type {
   TaskInteractionQueries,
   TaskInteractionStream,
 } from "../application/ports"
-import type { AuthorizationActor, AuthorizationService } from "../../authorization"
+import type {
+  AuthorizationActor,
+  AuthorizationService,
+} from "../../authorization"
 import {
   interactionTopicKey,
   interactionTopicRoom,
@@ -23,10 +26,7 @@ import {
   subscribedEnvelope,
   unsubscribedEnvelope,
 } from "../domain/websocket-contract"
-import {
-  createInteractionError,
-  toInteractionMessageError,
-} from "../errors"
+import { createInteractionError, toInteractionMessageError } from "../errors"
 
 type SocketSessionLike = {
   emit(event: string, payload: unknown): void
@@ -81,7 +81,9 @@ function toActor(actor: AuthorizationActor | null): AuthorizationActor {
   return actor ?? { kind: "user", userId: "" }
 }
 
-async function resolveSocketActor(actorPromise: Promise<AuthorizationActor | null>) {
+async function resolveSocketActor(
+  actorPromise: Promise<AuthorizationActor | null>,
+) {
   return toActor(await actorPromise)
 }
 
@@ -198,9 +200,12 @@ export async function handleProjectGitSubscription(args: {
     })
     const topicKey = interactionTopicKey(topic)
     if (!args.unsubscribeByTopicKey.has(topicKey)) {
-      const unsubscribe = await args.projectGitWatcher.subscribe(topic.id, (event) => {
-        emitProjectGitChanged(args.socket, topic, event)
-      })
+      const unsubscribe = await args.projectGitWatcher.subscribe(
+        topic.id,
+        (event) => {
+          emitProjectGitChanged(args.socket, topic, event)
+        },
+      )
 
       args.unsubscribeByTopicKey.set(topicKey, () => {
         void Promise.resolve(unsubscribe())

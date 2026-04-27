@@ -17,11 +17,11 @@ export function ExecutionModeBadge({
   return (
     <span
       className={cn(
-        "inline-flex h-8 items-center gap-2 rounded-md bg-background/35 px-3 font-mono text-[11px] font-medium text-foreground/80",
+        "bg-background/35 text-foreground/80 inline-flex h-8 items-center gap-2 rounded-md px-3 font-mono text-[11px] font-medium",
         className,
       )}
     >
-      <WifiIcon className="size-3.5 text-muted-foreground" />
+      <WifiIcon className="text-muted-foreground size-3.5" />
       <span>{formatExecutionModeLabel(value ?? "connected")}</span>
     </span>
   )

@@ -94,14 +94,15 @@ describe("CodexAdapter", () => {
     let receivedInput: unknown = null
 
     const adapter = new CodexAdapter(() => ({
-      startThread: () => ({
-        runStreamed: async (input: AgentInput) => {
-          receivedInput = input
-          return {
-            events: buildStandardCodexEvents(),
-          }
-        },
-      }) as never,
+      startThread: () =>
+        ({
+          runStreamed: async (input: AgentInput) => {
+            receivedInput = input
+            return {
+              events: buildStandardCodexEvents(),
+            }
+          },
+        }) as never,
       resumeThread: () => {
         throw new Error("resumeThread should not be called in this test")
       },
@@ -142,14 +143,15 @@ describe("CodexAdapter", () => {
     let receivedInput: unknown = null
 
     const adapter = new CodexAdapter(() => ({
-      startThread: () => ({
-        runStreamed: async (input: AgentInput) => {
-          receivedInput = input
-          return {
-            events: buildStandardCodexEvents(),
-          }
-        },
-      }) as never,
+      startThread: () =>
+        ({
+          runStreamed: async (input: AgentInput) => {
+            receivedInput = input
+            return {
+              events: buildStandardCodexEvents(),
+            }
+          },
+        }) as never,
       resumeThread: () => {
         throw new Error("resumeThread should not be called in this test")
       },
@@ -181,8 +183,7 @@ describe("CodexAdapter", () => {
     expect(receivedInput).toEqual([
       {
         type: "text",
-        text:
-          "Review these references\n\nAttached local files:\n- .harbor/task-input-files/spec.md",
+        text: "Review these references\n\nAttached local files:\n- .harbor/task-input-files/spec.md",
       },
       {
         type: "local_image",
@@ -193,11 +194,12 @@ describe("CodexAdapter", () => {
 
   it("emits provider-native codex events without Harbor prompt synthesis", async () => {
     const adapter = new CodexAdapter(() => ({
-      startThread: () => ({
-        runStreamed: async () => ({
-          events: buildStandardCodexEvents(),
-        }),
-      }) as never,
+      startThread: () =>
+        ({
+          runStreamed: async () => ({
+            events: buildStandardCodexEvents(),
+          }),
+        }) as never,
       resumeThread: () => {
         throw new Error("resumeThread should not be called in this test")
       },
@@ -271,32 +273,33 @@ describe("CodexAdapter", () => {
 
   it("preserves failure events without injecting Harbor prompt events", async () => {
     const adapter = new CodexAdapter(() => ({
-      startThread: () => ({
-        runStreamed: async () => ({
-          events: (async function* () {
-            yield {
-              type: "item.started" as const,
-              item: {
-                id: "command-1",
-                type: "command_execution" as const,
-                command: "bun test",
-                aggregated_output: "",
-                status: "in_progress" as const,
-              },
-            }
-            yield {
-              type: "turn.failed" as const,
-              error: {
-                message: "Execution failed",
-              },
-            }
-            yield {
-              type: "error" as const,
-              message: "fatal error",
-            }
-          })(),
-        }),
-      }) as never,
+      startThread: () =>
+        ({
+          runStreamed: async () => ({
+            events: (async function* () {
+              yield {
+                type: "item.started" as const,
+                item: {
+                  id: "command-1",
+                  type: "command_execution" as const,
+                  command: "bun test",
+                  aggregated_output: "",
+                  status: "in_progress" as const,
+                },
+              }
+              yield {
+                type: "turn.failed" as const,
+                error: {
+                  message: "Execution failed",
+                },
+              }
+              yield {
+                type: "error" as const,
+                message: "fatal error",
+              }
+            })(),
+          }),
+        }) as never,
       resumeThread: () => {
         throw new Error("resumeThread should not be called in this test")
       },

@@ -8,13 +8,12 @@ import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatWebSearchBlockProps = {
   block: Extract<ChatConversationBlock, { type: "web-search" }>
-  onOpen: (block: Extract<ChatConversationBlock, { type: "web-search" }>) => void
+  onOpen: (
+    block: Extract<ChatConversationBlock, { type: "web-search" }>,
+  ) => void
 }
 
-function ChatWebSearchBlockView({
-  block,
-  onOpen,
-}: ChatWebSearchBlockProps) {
+function ChatWebSearchBlockView({ block, onOpen }: ChatWebSearchBlockProps) {
   return (
     <button
       type="button"

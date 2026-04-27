@@ -1,6 +1,7 @@
 export type {
   AcceptWorkspaceInvitationParams,
   CreateWorkspaceBody,
+  UpdateWorkspaceSettingsBody,
   WorkspaceGithubLoginBody,
   WorkspaceIdParams,
   WorkspaceMemberParams,
@@ -10,8 +11,10 @@ export {
   addWorkspaceMemberRouteSchema,
   createWorkspaceInvitationRouteSchema,
   createWorkspaceRouteSchema,
+  getWorkspaceSettingsRouteSchema,
   listUserWorkspacesRouteSchema,
   listWorkspaceInvitationsRouteSchema,
   listWorkspaceMembersRouteSchema,
   removeWorkspaceMemberRouteSchema,
+  updateWorkspaceSettingsRouteSchema,
 } from "./workspace.schema"

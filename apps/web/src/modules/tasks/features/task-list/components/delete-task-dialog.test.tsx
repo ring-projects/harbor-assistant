@@ -5,15 +5,25 @@ import { describe, expect, it, vi } from "vitest"
 import { DeleteTaskDialog } from "./delete-task-dialog"
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children }: { children: ReactNode }) => <button>{children}</button>,
+  Button: ({ children }: { children: ReactNode }) => (
+    <button>{children}</button>
+  ),
 }))
 
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
-  DialogFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogContent: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogDescription: ({ children }: { children: ReactNode }) => (
+    <p>{children}</p>
+  ),
+  DialogFooter: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DialogHeader: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   DialogTitle: ({ children }: { children: ReactNode }) => <h1>{children}</h1>,
 }))
 

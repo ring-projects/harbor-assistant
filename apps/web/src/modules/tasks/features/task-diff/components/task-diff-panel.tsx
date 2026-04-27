@@ -1,7 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Diff, Hunk, parseDiff, type DiffType, type ViewType } from "react-diff-view"
+import {
+  Diff,
+  Hunk,
+  parseDiff,
+  type DiffType,
+  type ViewType,
+} from "react-diff-view"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -80,7 +86,8 @@ function DiffFileContent(args: { file: GitDiffFile; viewType: ViewType }) {
   if (file.isTooLarge) {
     return (
       <div className="text-muted-foreground rounded-md border border-dashed p-4 text-xs">
-        This diff is too large to expand fully in the current version. You can still inspect file status and change counts in the file list.
+        This diff is too large to expand fully in the current version. You can
+        still inspect file status and change counts in the file list.
       </div>
     )
   }
@@ -94,7 +101,7 @@ function DiffFileContent(args: { file: GitDiffFile; viewType: ViewType }) {
   }
 
   return (
-    <div className="overflow-auto rounded-md border bg-background">
+    <div className="bg-background overflow-auto rounded-md border">
       <div className="min-w-[680px]">
         <Diff
           viewType={viewType}
@@ -103,7 +110,9 @@ function DiffFileContent(args: { file: GitDiffFile; viewType: ViewType }) {
           gutterType="default"
           className="rdv-table w-full"
         >
-          {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
+          {(hunks) =>
+            hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)
+          }
         </Diff>
       </div>
     </div>
@@ -115,13 +124,19 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
   const diffQuery = useProjectGitDiffQuery(projectId)
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
   const [viewType, setViewType] = useState<ViewType>("unified")
-  const files = useMemo(() => diffQuery.data?.files ?? [], [diffQuery.data?.files])
+  const files = useMemo(
+    () => diffQuery.data?.files ?? [],
+    [diffQuery.data?.files],
+  )
   const resolvedSelectedFilePath = useMemo(() => {
     if (files.length === 0) {
       return null
     }
 
-    if (selectedFilePath && files.some((file) => file.path === selectedFilePath)) {
+    if (
+      selectedFilePath &&
+      files.some((file) => file.path === selectedFilePath)
+    ) {
       return selectedFilePath
     }
 
@@ -133,7 +148,9 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
       return null
     }
 
-    return files.find((file) => file.path === resolvedSelectedFilePath) ?? files[0]
+    return (
+      files.find((file) => file.path === resolvedSelectedFilePath) ?? files[0]
+    )
   }, [files, resolvedSelectedFilePath])
 
   const totalAdditions = useMemo(
@@ -201,7 +218,7 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
         ) : null}
 
         {diffQuery.isError ? (
-          <div className="bg-surface-danger text-destructive rounded-md border border-destructive/25 p-3 text-xs">
+          <div className="bg-surface-danger text-destructive border-destructive/25 rounded-md border p-3 text-xs">
             {getErrorMessage(diffQuery.error)}
           </div>
         ) : null}
@@ -226,7 +243,9 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
                         )}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <p className="line-clamp-2 font-mono text-[11px]">{file.path}</p>
+                          <p className="line-clamp-2 font-mono text-[11px]">
+                            {file.path}
+                          </p>
                           <span
                             className={cn(
                               "inline-flex rounded-full border px-2 py-0.5 text-[10px]",
@@ -244,8 +263,12 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
                         ) : null}
 
                         <div className="pt-2 text-[11px]">
-                          <span className="text-success mr-2">+{file.additions}</span>
-                          <span className="text-destructive">-{file.deletions}</span>
+                          <span className="text-success mr-2">
+                            +{file.additions}
+                          </span>
+                          <span className="text-destructive">
+                            -{file.deletions}
+                          </span>
                         </div>
                       </button>
                     )
@@ -258,8 +281,11 @@ export function TaskDiffPanel({ projectId }: TaskDiffPanelProps) {
                   <div className="rounded-md border p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-mono text-xs">{selectedFile.path}</p>
-                        {selectedFile.oldPath && selectedFile.oldPath !== selectedFile.path ? (
+                        <p className="truncate font-mono text-xs">
+                          {selectedFile.path}
+                        </p>
+                        {selectedFile.oldPath &&
+                        selectedFile.oldPath !== selectedFile.path ? (
                           <p className="text-muted-foreground truncate pt-1 font-mono text-[11px]">
                             from {selectedFile.oldPath}
                           </p>

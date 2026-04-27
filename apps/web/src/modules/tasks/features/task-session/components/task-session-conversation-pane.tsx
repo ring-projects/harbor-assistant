@@ -4,10 +4,7 @@ import { ArrowDownIcon, ArrowUpIcon } from "lucide-react"
 import { memo, useCallback, useMemo } from "react"
 
 import { Button } from "@/components/ui/button"
-import {
-  selectChatUi,
-  useTasksSessionStore,
-} from "@/modules/tasks/store"
+import { selectChatUi, useTasksSessionStore } from "@/modules/tasks/store"
 import type { TaskDetail } from "@/modules/tasks/contracts"
 import {
   formatExecutorLabel,
@@ -85,7 +82,9 @@ export const TaskSessionConversationPane = memo(
 
     const openInspectorDrawer = useCallback(
       (block: InspectorBlock) => {
-        useTasksSessionStore.getState().setSelectedInspectorBlockId(taskId, block.id)
+        useTasksSessionStore
+          .getState()
+          .setSelectedInspectorBlockId(taskId, block.id)
       },
       [taskId],
     )
@@ -95,7 +94,7 @@ export const TaskSessionConversationPane = memo(
         <div
           ref={scrollerRef}
           onScroll={handleScroll}
-          className="relative min-h-0 min-w-0 overflow-y-auto native-thin-scrollbar"
+          className="native-thin-scrollbar relative min-h-0 min-w-0 overflow-hidden overflow-y-auto rounded-md"
         >
           {blocks.length === 0 ? (
             <div className="text-muted-foreground flex min-h-full items-center justify-center font-mono text-[12px]">
@@ -116,7 +115,7 @@ export const TaskSessionConversationPane = memo(
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-7 rounded-md border-dashed border-border/45 bg-background/45 px-2.5 font-mono text-[11px]"
+                    className="border-border/45 bg-background/45 h-7 rounded-md border-dashed px-2.5 font-mono text-[11px]"
                     onClick={loadEarlier}
                     aria-label={`Load ${Math.min(120, hiddenBlockCount)} earlier messages`}
                   >
@@ -138,7 +137,7 @@ export const TaskSessionConversationPane = memo(
                 type="button"
                 variant="outline"
                 size="sm"
-                className="rounded-md border-border/45 bg-background/75 font-mono text-[11px]"
+                className="border-border/45 bg-background/75 rounded-md font-mono text-[11px]"
                 onClick={jumpToLatest}
                 aria-label="Jump to latest messages"
               >
@@ -156,7 +155,9 @@ export const TaskSessionConversationPane = memo(
           open={selectedInspectorBlock !== null}
           onOpenChange={(open) => {
             if (!open) {
-              useTasksSessionStore.getState().setSelectedInspectorBlockId(taskId, null)
+              useTasksSessionStore
+                .getState()
+                .setSelectedInspectorBlockId(taskId, null)
             }
           }}
         />

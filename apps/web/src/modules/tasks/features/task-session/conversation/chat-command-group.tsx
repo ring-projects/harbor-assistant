@@ -17,43 +17,52 @@ import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatCommandGroupProps = {
   block: Extract<ChatConversationBlock, { type: "command-group" }>
-  onOpen: (block: Extract<ChatConversationBlock, { type: "command-group" }>) => void
+  onOpen: (
+    block: Extract<ChatConversationBlock, { type: "command-group" }>,
+  ) => void
 }
 
 function ChatCommandGroupView({ block }: ChatCommandGroupProps) {
-
   const statusMeta =
     block.status === "success"
       ? {
-        label: block.exitCode === null ? "Completed" : `Completed (exit ${block.exitCode})`,
-        icon: CheckCircle2Icon,
-        iconClassName: "text-success",
-        metaClassName: "text-success",
-      }
+          label:
+            block.exitCode === null
+              ? "Completed"
+              : `Completed (exit ${block.exitCode})`,
+          icon: CheckCircle2Icon,
+          iconClassName: "text-success",
+          metaClassName: "text-success",
+        }
       : block.status === "failed"
         ? {
-          label: block.exitCode === null ? "Failed" : `Failed (exit ${block.exitCode})`,
-          icon: XCircleIcon,
-          iconClassName: "text-destructive",
-          metaClassName: "text-destructive",
-        }
+            label:
+              block.exitCode === null
+                ? "Failed"
+                : `Failed (exit ${block.exitCode})`,
+            icon: XCircleIcon,
+            iconClassName: "text-destructive",
+            metaClassName: "text-destructive",
+          }
         : {
-          label: "Running",
-          icon: LoaderCircleIcon,
-          iconClassName: "text-info animate-spin",
-          metaClassName: "text-info",
-        }
+            label: "Running",
+            icon: LoaderCircleIcon,
+            iconClassName: "text-info animate-spin",
+            metaClassName: "text-info",
+          }
 
   const StatusIcon = statusMeta.icon
 
   return (
     <div className="bg-surface-subtle w-full p-2">
       <div className="flex items-start gap-3">
-        <StatusIcon className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)} />
+        <StatusIcon
+          className={cn("mt-0.5 size-4 shrink-0", statusMeta.iconClassName)}
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate font-mono text-[12px] leading-5 text-foreground/88">
+            <p className="text-foreground/88 truncate font-mono text-[12px] leading-5">
               {block.command}
             </p>
           </div>

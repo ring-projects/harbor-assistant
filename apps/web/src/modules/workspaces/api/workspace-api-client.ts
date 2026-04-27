@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { executorApiFetch } from "@/lib/executor-service-url"
+import { harborApiFetch } from "@/lib/harbor-api-url"
 import {
   asRecord,
   parseJsonResponse,
@@ -137,7 +137,9 @@ function extractWorkspace(candidate: unknown): Workspace | null {
     archivedAt: toOptionalIsoDateString(source.archivedAt, null),
     memberships: source.memberships
       .map((membership) => extractMembership(membership))
-      .filter((membership): membership is WorkspaceMembership => membership !== null),
+      .filter(
+        (membership): membership is WorkspaceMembership => membership !== null,
+      ),
   }
 }
 
@@ -207,11 +209,13 @@ function extractInvitationList(payload: unknown): WorkspaceInvitation[] | null {
 
   return source.invitations
     .map((invitation) => extractInvitation(invitation))
-    .filter((invitation): invitation is WorkspaceInvitation => invitation !== null)
+    .filter(
+      (invitation): invitation is WorkspaceInvitation => invitation !== null,
+    )
 }
 
 export async function readWorkspaces(): Promise<Workspace[]> {
-  const response = await executorApiFetch("/v1/workspaces", {
+  const response = await harborApiFetch("/v1/workspaces", {
     method: "GET",
     cache: "no-store",
     headers: {
@@ -236,7 +240,7 @@ export async function readWorkspaces(): Promise<Workspace[]> {
 export async function createWorkspace(
   input: CreateWorkspaceInput,
 ): Promise<Workspace> {
-  const response = await executorApiFetch("/v1/workspaces", {
+  const response = await harborApiFetch("/v1/workspaces", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -265,7 +269,7 @@ export async function createWorkspace(
 export async function readWorkspaceInvitations(
   workspaceId: string,
 ): Promise<WorkspaceInvitation[]> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/workspaces/${encodeURIComponent(workspaceId)}/invitations`,
     {
       method: "GET",

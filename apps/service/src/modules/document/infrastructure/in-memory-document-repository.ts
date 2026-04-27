@@ -33,9 +33,13 @@ export class InMemoryDocumentRepository implements DocumentRepository {
   }): Promise<Document[]> {
     return [...this.documents.values()]
       .filter((document) => document.projectId === input.projectId)
-      .filter((document) => input.includeArchived || document.status !== "archived")
+      .filter(
+        (document) => input.includeArchived || document.status !== "archived",
+      )
       .filter((document) => (input.kind ? document.kind === input.kind : true))
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
   }
 
   async listByTask(input: {
@@ -45,8 +49,12 @@ export class InMemoryDocumentRepository implements DocumentRepository {
   }): Promise<Document[]> {
     return [...this.documents.values()]
       .filter((document) => document.taskId === input.taskId)
-      .filter((document) => input.includeArchived || document.status !== "archived")
+      .filter(
+        (document) => input.includeArchived || document.status !== "archived",
+      )
       .filter((document) => (input.kind ? document.kind === input.kind : true))
-      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
   }
 }

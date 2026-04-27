@@ -24,7 +24,7 @@ export function createNodeGitPathWatcher(args?: {
   createFsWatcher?: CreateFsWatcher
   debounceMs?: number
   now?: () => Date
-}) : GitPathWatcher {
+}): GitPathWatcher {
   const createFsWatcher = args?.createFsWatcher ?? watch
   const debounceMs = args?.debounceMs ?? 75
   const now = args?.now ?? (() => new Date())

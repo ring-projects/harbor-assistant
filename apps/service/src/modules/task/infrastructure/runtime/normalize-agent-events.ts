@@ -43,6 +43,7 @@ export type TaskRunEventState = {
   sessionId: string | null
   terminalError: string | null
   hasTerminalErrorEvent: boolean
+  emittedCodexLifecycleKeys: Set<string>
 }
 
 function timestampPayload(createdAt: Date) {
@@ -79,7 +80,9 @@ function extractClaudeTextFromBlock(block: unknown): string {
     return source.content
   }
   if (Array.isArray(source.content)) {
-    return source.content.map((item) => extractClaudeTextFromBlock(item)).join("")
+    return source.content
+      .map((item) => extractClaudeTextFromBlock(item))
+      .join("")
   }
 
   return ""
@@ -90,6 +93,36 @@ function extractClaudeTextFromContent(content: unknown) {
     .map((block) => extractClaudeTextFromBlock(block))
     .join("")
     .trim()
+}
+
+function buildCodexLifecycleKey(input: {
+  itemType: string
+  itemId: string
+  phase: "started" | "completed"
+}) {
+  return `${input.itemType}:${input.itemId}:${input.phase}`
+}
+
+function hasEmittedCodexLifecycle(
+  state: TaskRunEventState,
+  input: {
+    itemType: string
+    itemId: string
+    phase: "started" | "completed"
+  },
+) {
+  return state.emittedCodexLifecycleKeys.has(buildCodexLifecycleKey(input))
+}
+
+function markEmittedCodexLifecycle(
+  state: TaskRunEventState,
+  input: {
+    itemType: string
+    itemId: string
+    phase: "started" | "completed"
+  },
+) {
+  state.emittedCodexLifecycleKeys.add(buildCodexLifecycleKey(input))
 }
 
 function normalizeSyntheticEvent(
@@ -161,6 +194,7 @@ function normalizeSyntheticEvent(
 
 function normalizeCodexEvent(
   envelope: RawAgentEventEnvelope,
+  state: TaskRunEventState,
 ): NormalizedTaskEvent[] {
   const payload = asRecord(envelope.event)
   const rawEventType = toStringOrNull(payload?.type) ?? "unknown"
@@ -282,7 +316,9 @@ function normalizeCodexEvent(
               exitCode:
                 typeof item.exit_code === "number" ? item.exit_code : undefined,
               status:
-                toStringOrNull(item.status) === "completed" ? "success" : "failed",
+                toStringOrNull(item.status) === "completed"
+                  ? "success"
+                  : "failed",
               ...timestampPayload(createdAt),
             },
             createdAt,
@@ -359,7 +395,9 @@ function normalizeCodexEvent(
                     completed: toBoolean(source?.completed),
                   }
                 })
-                .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
+                .filter((entry): entry is NonNullable<typeof entry> =>
+                  Boolean(entry),
+                ),
               ...timestampPayload(createdAt),
             },
             createdAt,
@@ -390,7 +428,20 @@ function normalizeCodexEvent(
           return []
         }
 
-        if (rawEventType === "item.started") {
+        if (
+          (rawEventType === "item.started" ||
+            rawEventType === "item.updated") &&
+          !hasEmittedCodexLifecycle(state, {
+            itemType: "web_search",
+            itemId: searchId,
+            phase: "started",
+          })
+        ) {
+          markEmittedCodexLifecycle(state, {
+            itemType: "web_search",
+            itemId: searchId,
+            phase: "started",
+          })
           return [
             {
               eventType: "web_search.started",
@@ -403,7 +454,19 @@ function normalizeCodexEvent(
             },
           ]
         }
-        if (rawEventType === "item.completed") {
+        if (
+          rawEventType === "item.completed" &&
+          !hasEmittedCodexLifecycle(state, {
+            itemType: "web_search",
+            itemId: searchId,
+            phase: "completed",
+          })
+        ) {
+          markEmittedCodexLifecycle(state, {
+            itemType: "web_search",
+            itemId: searchId,
+            phase: "completed",
+          })
           return [
             {
               eventType: "web_search.completed",
@@ -431,7 +494,9 @@ function normalizeCodexEvent(
             payload: {
               changeId,
               status:
-                toStringOrNull(item.status) === "completed" ? "success" : "failed",
+                toStringOrNull(item.status) === "completed"
+                  ? "success"
+                  : "failed",
               changes: changes
                 .map((change) => {
                   const source = asRecord(change)
@@ -449,7 +514,9 @@ function normalizeCodexEvent(
                     kind,
                   }
                 })
-                .filter((change): change is NonNullable<typeof change> => Boolean(change)),
+                .filter((change): change is NonNullable<typeof change> =>
+                  Boolean(change),
+                ),
               ...timestampPayload(createdAt),
             },
             createdAt,
@@ -465,7 +532,25 @@ function normalizeCodexEvent(
           return []
         }
 
-        if (rawEventType === "item.started") {
+        const status = toStringOrNull(item.status)
+        const shouldEmitStarted =
+          rawEventType === "item.started" ||
+          (rawEventType === "item.updated" &&
+            status !== "completed" &&
+            status !== "failed")
+        if (
+          shouldEmitStarted &&
+          !hasEmittedCodexLifecycle(state, {
+            itemType: "mcp_tool_call",
+            itemId: callId,
+            phase: "started",
+          })
+        ) {
+          markEmittedCodexLifecycle(state, {
+            itemType: "mcp_tool_call",
+            itemId: callId,
+            phase: "started",
+          })
           return [
             {
               eventType: "mcp_tool_call.started",
@@ -481,7 +566,23 @@ function normalizeCodexEvent(
           ]
         }
 
-        if (rawEventType === "item.completed") {
+        const shouldEmitCompleted =
+          rawEventType === "item.completed" ||
+          (rawEventType === "item.updated" &&
+            (status === "completed" || status === "failed"))
+        if (
+          shouldEmitCompleted &&
+          !hasEmittedCodexLifecycle(state, {
+            itemType: "mcp_tool_call",
+            itemId: callId,
+            phase: "completed",
+          })
+        ) {
+          markEmittedCodexLifecycle(state, {
+            itemType: "mcp_tool_call",
+            itemId: callId,
+            phase: "completed",
+          })
           const error = asRecord(item.error)
           return [
             {
@@ -585,7 +686,8 @@ function normalizeClaudeEvent(
             eventType: "command.started",
             payload: {
               commandId,
-              command: serializedInput === "{}" ? name : `${name} ${serializedInput}`,
+              command:
+                serializedInput === "{}" ? name : `${name} ${serializedInput}`,
               ...timestampPayload(createdAt),
             },
             createdAt,
@@ -687,7 +789,8 @@ function normalizeClaudeEvent(
         {
           eventType: "error",
           payload: {
-            message: toStringOrNull(payload?.error) ?? "Claude Code task failed.",
+            message:
+              toStringOrNull(payload?.error) ?? "Claude Code task failed.",
             ...timestampPayload(createdAt),
           },
           createdAt,
@@ -703,6 +806,7 @@ export function createTaskRunEventState(): TaskRunEventState {
     sessionId: null,
     terminalError: null,
     hasTerminalErrorEvent: false,
+    emittedCodexLifecycleKeys: new Set<string>(),
   }
 }
 
@@ -833,7 +937,7 @@ export function normalizeRawAgentEvent(args: {
 }): NormalizedTaskEvent[] {
   switch (args.envelope.agentType) {
     case "codex":
-      return normalizeCodexEvent(args.envelope)
+      return normalizeCodexEvent(args.envelope, args.state)
     case "claude-code":
       return normalizeClaudeEvent(args.envelope)
     default:

@@ -5,7 +5,10 @@ import type { ServiceConfig } from "../../config"
 import errorHandlerPlugin from "../../plugins/error-handler"
 import prismaPlugin from "../../plugins/prisma"
 import { createAuthSessionCookie } from "../../../test/helpers/auth-session"
-import { createTestDatabase, type TestDatabase } from "../../../test/helpers/test-database"
+import {
+  createTestDatabase,
+  type TestDatabase,
+} from "../../../test/helpers/test-database"
 import { registerV1Routes } from "."
 
 function createConfig(): ServiceConfig {
@@ -16,7 +19,8 @@ function createConfig(): ServiceConfig {
     database: "https://example.com/db",
     fileBrowserRootDirectory: "/tmp",
     projectLocalPathRootDirectory: "/tmp/harbor/workspaces",
-    publicSkillsRootDirectory: "/tmp/harbor/skills/profiles/default",
+    sandboxRootDirectory: "/tmp/harbor/sandboxes",
+    publicSkillsRootDirectory: "/tmp/harbor/skills",
     nodeEnv: "test",
     isProduction: false,
     appBaseUrl: "http://127.0.0.1:3400",
@@ -71,6 +75,55 @@ describe("registerV1Routes", () => {
     })
 
     expect(createdProject.statusCode).toBe(201)
+    await expect
+      .poll(async () => {
+        return testDatabase!.prisma.backgroundJob.findFirst({
+          where: {
+            type: "project_sandbox_template_bootstrap",
+          },
+          select: {
+            status: true,
+            dedupeKey: true,
+          },
+        })
+      })
+      .toMatchObject({
+        dedupeKey: "project-sandbox-template:project-1",
+      })
+
+    const currentUser = await app.inject({
+      method: "GET",
+      url: "/v1/me",
+      headers: {
+        cookie: session.cookie,
+      },
+    })
+
+    expect(currentUser.statusCode).toBe(200)
+    expect(currentUser.json()).toMatchObject({
+      ok: true,
+      user: {
+        id: session.user.id,
+        githubLogin: session.user.githubLogin,
+      },
+    })
+
+    const userById = await app.inject({
+      method: "GET",
+      url: `/v1/users/${session.user.id}`,
+      headers: {
+        cookie: session.cookie,
+      },
+    })
+
+    expect(userById.statusCode).toBe(200)
+    expect(userById.json()).toMatchObject({
+      ok: true,
+      user: {
+        id: session.user.id,
+        githubLogin: session.user.githubLogin,
+      },
+    })
 
     const createdOrchestration = await app.inject({
       method: "POST",
@@ -198,6 +251,18 @@ describe("registerV1Routes", () => {
         }),
       ]),
     })
+
+    await expect
+      .poll(async () => {
+        return testDatabase!.prisma.execution.count({
+          where: {
+            status: {
+              in: ["queued", "running"],
+            },
+          },
+        })
+      })
+      .toBe(0)
 
     await app.close()
   })

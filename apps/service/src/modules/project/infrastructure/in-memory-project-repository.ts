@@ -8,7 +8,10 @@ export class InMemoryProjectRepository implements ProjectRepository {
     return this.projects.get(id) ?? null
   }
 
-  async findByIdAndOwnerUserId(id: string, ownerUserId: string): Promise<Project | null> {
+  async findByIdAndOwnerUserId(
+    id: string,
+    ownerUserId: string,
+  ): Promise<Project | null> {
     const project = this.projects.get(id) ?? null
     if (
       !project ||
@@ -41,15 +44,17 @@ export class InMemoryProjectRepository implements ProjectRepository {
   }
 
   async list(): Promise<Project[]> {
-    return Array.from(this.projects.values()).sort((left, right) =>
-      right.updatedAt.getTime() - left.updatedAt.getTime(),
+    return Array.from(this.projects.values()).sort(
+      (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime(),
     )
   }
 
   async listByOwnerUserId(ownerUserId: string): Promise<Project[]> {
     return Array.from(this.projects.values())
       .filter((project) => project.ownerUserId === ownerUserId)
-      .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
+      .sort(
+        (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime(),
+      )
   }
 
   async save(project: Project): Promise<void> {

@@ -1,14 +1,14 @@
 import { useMemo } from "react"
 
-import { type TaskEffort, type TaskExecutionMode } from "@/modules/tasks/contracts"
-import { useAgentCapabilitiesQuery } from "@/modules/tasks/hooks/use-task-queries"
 import {
-  type TaskCreationExecutor,
-  useAppStore,
-} from "@/stores/app.store"
+  type TaskEffort,
+  type TaskExecutionMode,
+} from "@/modules/tasks/contracts"
+import { useAgentCapabilitiesQuery } from "@/modules/tasks/hooks/use-task-queries"
+import { type TaskCreationExecutor, useAppStore } from "@/stores/app.store"
 
 const TASK_CREATION_EXECUTORS: TaskCreationExecutor[] = ["codex", "claude-code"]
-const DEFAULT_TASK_EXECUTION_MODE: TaskExecutionMode = "connected"
+const DEFAULT_TASK_EXECUTION_MODE: TaskExecutionMode = "full-access"
 
 function isTaskCreationExecutor(value: string): value is TaskCreationExecutor {
   return TASK_CREATION_EXECUTORS.includes(value as TaskCreationExecutor)
@@ -45,7 +45,9 @@ function resolveEffortSelection(
 
 export function useTaskCreationParams() {
   const agentCapabilitiesQuery = useAgentCapabilitiesQuery()
-  const taskCreationDefaults = useAppStore((state) => state.taskCreationDefaults)
+  const taskCreationDefaults = useAppStore(
+    (state) => state.taskCreationDefaults,
+  )
   const updateTaskCreationDefaults = useAppStore(
     (state) => state.updateTaskCreationDefaults,
   )
@@ -55,7 +57,8 @@ export function useTaskCreationParams() {
 
   const executor = taskCreationDefaults.executor
   const runtimeDefaults = taskCreationDefaults.runtimes[executor]
-  const executorCapabilities = agentCapabilitiesQuery.data?.agents[executor] ?? null
+  const executorCapabilities =
+    agentCapabilitiesQuery.data?.agents[executor] ?? null
   const availableModels = useMemo(
     () => executorCapabilities?.models ?? [],
     [executorCapabilities],
@@ -126,16 +129,6 @@ export function useTaskCreationParams() {
     })
   }
 
-  function setExecutionMode(nextExecutionMode: TaskExecutionMode) {
-    updateTaskCreationDefaults({
-      runtimes: {
-        [executor]: {
-          executionMode: nextExecutionMode,
-        },
-      },
-    })
-  }
-
   function reset() {
     resetTaskCreationDefaults()
   }
@@ -144,14 +137,13 @@ export function useTaskCreationParams() {
     executor,
     model,
     effort,
-    executionMode: runtimeDefaults.executionMode ?? DEFAULT_TASK_EXECUTION_MODE,
+    executionMode: DEFAULT_TASK_EXECUTION_MODE,
     availableModels,
     availableEfforts,
     hasResolvedRuntimeConfig: Boolean(model && effort),
     setExecutor,
     setModel,
     setEffort,
-    setExecutionMode,
     reset,
   }
 }

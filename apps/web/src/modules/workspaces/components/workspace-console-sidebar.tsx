@@ -1,14 +1,13 @@
 "use client"
 
 import { Link, useLocation } from "@tanstack/react-router"
-import { FolderPlusIcon, LayoutGridIcon } from "lucide-react"
+import { LayoutGridIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { SidebarUserPanel } from "@/modules/auth/components/sidebar-user-panel"
 import { useReadProjectsQuery } from "@/modules/projects/hooks"
 import { useAppStore } from "@/stores/app.store"
-import { useUiStore } from "@/stores/ui.store"
 import { WorkspaceSwitcher } from "./workspace-switcher"
 
 type WorkspaceConsoleSidebarProps = {
@@ -35,17 +34,13 @@ export function WorkspaceConsoleSidebar({
   const activeProjectId = matchActiveProjectId(location.pathname, workspaceId)
   const setActiveProjectId = useAppStore((state) => state.setActiveProjectId)
   const projectsQuery = useReadProjectsQuery({ workspaceId })
-  const openAddProjectModal = useUiStore((state) => state.openAddProjectModal)
 
   const workspacePath = `/workspaces/${encodeURIComponent(workspaceId)}`
 
   return (
-    <aside className="border-border/60 bg-background/95 flex h-full w-[15.25rem] shrink-0 flex-col border-r backdrop-blur">
-      <div className="border-b border-border/60 px-3 py-3">
-        <WorkspaceSwitcher
-          workspaceId={workspaceId}
-          variant="sidebar-brand"
-        />
+    <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground flex h-full w-[15.25rem] shrink-0 flex-col border-r">
+      <div className="border-sidebar-border border-b px-3 py-3">
+        <WorkspaceSwitcher workspaceId={workspaceId} variant="sidebar-brand" />
       </div>
 
       <div className="px-3">
@@ -58,34 +53,24 @@ export function WorkspaceConsoleSidebar({
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               location.pathname === workspacePath ||
                 location.pathname === `${workspacePath}/`
-                ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground",
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
             )}
           >
             <LayoutGridIcon className="size-4" />
             Overview
           </Link>
-
-          <Button
-            type="button"
-            variant="ghost"
-            className="text-muted-foreground h-auto justify-start rounded-lg px-3 py-2 text-sm font-medium hover:bg-secondary/70 hover:text-foreground"
-            onClick={() => openAddProjectModal(workspaceId)}
-          >
-            <FolderPlusIcon className="size-4" />
-            Add project
-          </Button>
         </nav>
       </div>
 
-      <Separator className="my-2" />
+      <Separator className="bg-sidebar-border my-2" />
 
       <div className="flex min-h-0 flex-1 flex-col px-3 pb-3">
         <div className="mb-2 flex items-center justify-between px-1">
-          <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.16em]">
+          <p className="text-sidebar-foreground/55 text-[11px] font-semibold tracking-[0.16em] uppercase">
             Projects
           </p>
-          <span className="text-muted-foreground text-[11px]">
+          <span className="text-sidebar-foreground/55 text-[11px]">
             {projectsQuery.data?.length ?? 0}
           </span>
         </div>
@@ -104,34 +89,38 @@ export function WorkspaceConsoleSidebar({
                   className={cn(
                     "rounded-lg border border-transparent px-3 py-2 transition-colors",
                     isActive
-                      ? "border-border bg-secondary"
-                      : "hover:border-border/70 hover:bg-secondary/50",
+                      ? "border-sidebar-border bg-sidebar-accent"
+                      : "hover:border-sidebar-border/70 hover:bg-sidebar-accent/50",
                   )}
                 >
-                  <p className="truncate text-sm font-medium leading-5">{project.name}</p>
-                  <p className="text-muted-foreground mt-0.5 truncate text-[11px] leading-4">
+                  <p className="truncate text-sm leading-5 font-medium">
+                    {project.name}
+                  </p>
+                  <p className="text-sidebar-foreground/55 mt-0.5 truncate text-[11px] leading-4">
                     {project.source.type === "git"
                       ? project.source.repositoryUrl
-                      : project.rootPath ?? project.source.rootPath}
+                      : (project.rootPath ?? project.source.rootPath)}
                   </p>
                 </Link>
               )
             })}
 
             {projectsQuery.isLoading ? (
-              <div className="text-muted-foreground px-3 py-3 text-sm">
+              <div className="text-sidebar-foreground/60 px-3 py-3 text-sm">
                 Loading projects...
               </div>
             ) : null}
 
             {!projectsQuery.isLoading && !projectsQuery.data?.length ? (
-              <div className="text-muted-foreground rounded-xl border border-dashed px-3 py-4 text-sm">
+              <div className="text-sidebar-foreground/60 border-sidebar-border/80 rounded-xl border border-dashed px-3 py-4 text-sm">
                 No projects yet.
               </div>
             ) : null}
           </div>
         </div>
       </div>
+
+      <SidebarUserPanel />
     </aside>
   )
 }

@@ -7,10 +7,7 @@ import {
   publishDocument,
   reviseDocument,
 } from "./document"
-import {
-  DOCUMENT_ERROR_CODES,
-  type DocumentError,
-} from "../errors"
+import { DOCUMENT_ERROR_CODES, type DocumentError } from "../errors"
 
 describe("document domain", () => {
   it("creates a draft document with default version", () => {

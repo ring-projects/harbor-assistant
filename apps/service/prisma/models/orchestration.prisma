@@ -3,6 +3,10 @@ enum OrchestrationStatus {
   archived
 }
 
+enum OrchestrationConcurrencyPolicy {
+  skip
+}
+
 model Orchestration {
   id            String              @id @default(cuid())
   projectId     String
@@ -10,6 +14,7 @@ model Orchestration {
   description   String?
   status        OrchestrationStatus @default(active)
   archivedAt    DateTime?
+  schedule      OrchestrationSchedule?
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   project       Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -19,4 +24,27 @@ model Orchestration {
   @@index([projectId, archivedAt, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
   @@map("orchestrations")
+}
+
+model OrchestrationSchedule {
+  orchestrationId    String                         @id
+  enabled            Boolean                        @default(true)
+  cronExpression     String
+  timezone           String
+  concurrencyPolicy  OrchestrationConcurrencyPolicy @default(skip)
+  taskTitle          String?
+  taskPrompt         String?
+  taskItems          Json
+  taskExecutor       String
+  taskModel          String
+  taskExecutionMode  String
+  taskEffort         String
+  lastTriggeredAt    DateTime?
+  nextTriggerAt      DateTime?
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
+  orchestration      Orchestration                  @relation(fields: [orchestrationId], references: [id], onDelete: Cascade)
+
+  @@index([enabled, nextTriggerAt])
+  @@map("orchestration_schedules")
 }

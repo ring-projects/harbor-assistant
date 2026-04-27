@@ -1,6 +1,10 @@
 import path from "node:path"
 
-import { FS_DEFAULT_LIST_LIMIT, FS_IGNORED_DIRECTORY_NAMES, FS_MAX_LIST_LIMIT } from "../../../constants/fs"
+import {
+  FS_DEFAULT_LIST_LIMIT,
+  FS_IGNORED_DIRECTORY_NAMES,
+  FS_MAX_LIST_LIMIT,
+} from "../../../constants/fs"
 import {
   ensurePathInsideRoot,
   normalizeListCursor,
@@ -53,7 +57,11 @@ export function toListPaging(input: {
   try {
     return {
       offset: normalizeListCursor(input.cursor),
-      limit: normalizeListLimit(input.limit, FS_DEFAULT_LIST_LIMIT, FS_MAX_LIST_LIMIT),
+      limit: normalizeListLimit(
+        input.limit,
+        FS_DEFAULT_LIST_LIMIT,
+        FS_MAX_LIST_LIMIT,
+      ),
     }
   } catch {
     throw createFileSystemError().invalidCursor()
@@ -68,7 +76,9 @@ export async function resolveRootPath(
 
   let canonicalRootPath: string
   try {
-    canonicalRootPath = await repository.resolveRealPath(path.resolve(normalizedRootPath))
+    canonicalRootPath = await repository.resolveRealPath(
+      path.resolve(normalizedRootPath),
+    )
   } catch (error) {
     if (isKnownErrorCode(error, ["ENOENT"])) {
       throw createFileSystemError().pathNotFound(normalizedRootPath)
@@ -120,7 +130,9 @@ export async function resolvePathInsideRoot(
       )
     }
 
-    throw createFileSystemError().readFailed(`Failed to resolve path: ${requestedPath}`)
+    throw createFileSystemError().readFailed(
+      `Failed to resolve path: ${requestedPath}`,
+    )
   }
 
   try {
@@ -199,7 +211,9 @@ export async function resolveCreatablePathInsideRoot(
           )
         }
 
-        throw createFileSystemError().readFailed(`Failed to resolve path: ${probePath}`)
+        throw createFileSystemError().readFailed(
+          `Failed to resolve path: ${probePath}`,
+        )
       }
 
       const parentPath = path.dirname(probePath)
@@ -230,7 +244,9 @@ export async function readMetadata(
       )
     }
 
-    throw createFileSystemError().readFailed(`Failed to stat path: ${targetPath}`)
+    throw createFileSystemError().readFailed(
+      `Failed to stat path: ${targetPath}`,
+    )
   }
 }
 
@@ -277,7 +293,9 @@ export async function readTextFileContent(
       )
     }
 
-    throw createFileSystemError().readFailed(`Failed to read file: ${targetPath}`)
+    throw createFileSystemError().readFailed(
+      `Failed to read file: ${targetPath}`,
+    )
   }
 }
 
@@ -319,7 +337,9 @@ export async function writeTextFileAtPath(
       )
     }
 
-    throw createFileSystemError().writeFailed(`Failed to write file: ${targetPath}`)
+    throw createFileSystemError().writeFailed(
+      `Failed to write file: ${targetPath}`,
+    )
   }
 }
 
@@ -351,7 +371,10 @@ export function shouldSkipEntry(
     return true
   }
 
-  if (entry.kind === "directory" && FS_IGNORED_DIRECTORY_NAMES.has(entry.name)) {
+  if (
+    entry.kind === "directory" &&
+    FS_IGNORED_DIRECTORY_NAMES.has(entry.name)
+  ) {
     return true
   }
 

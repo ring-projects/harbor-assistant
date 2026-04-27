@@ -1,5 +1,5 @@
 import { ERROR_CODES } from "@/constants"
-import { executorApiFetch } from "@/lib/executor-service-url"
+import { harborApiFetch } from "@/lib/harbor-api-url"
 import { parseJsonResponse } from "@/lib/protocol"
 import { type AgentCapabilityResult } from "@/modules/tasks/contracts"
 
@@ -16,7 +16,7 @@ type AgentCapabilitiesEnvelope = {
 } & Record<string, unknown>
 
 export async function readAgentCapabilities(): Promise<AgentCapabilityResult> {
-  const response = await executorApiFetch("/v1/agents/capabilities", {
+  const response = await harborApiFetch("/v1/agents/capabilities", {
     method: "GET",
     cache: "no-store",
   })

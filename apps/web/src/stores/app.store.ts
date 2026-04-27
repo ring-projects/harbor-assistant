@@ -1,14 +1,13 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-import type { TaskEffort, TaskExecutionMode } from "@/modules/tasks/contracts"
+import type { TaskEffort } from "@/modules/tasks/contracts"
 
 export type TaskCreationExecutor = "codex" | "claude-code"
 
 export type TaskCreationRuntimeDefaults = {
   model: string | null
   effort: TaskEffort | null
-  executionMode: TaskExecutionMode
 }
 
 export type TaskCreationDefaults = {
@@ -29,12 +28,10 @@ export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
     codex: {
       model: null,
       effort: null,
-      executionMode: "connected",
     },
     "claude-code": {
       model: null,
       effort: null,
-      executionMode: "connected",
     },
   },
 }

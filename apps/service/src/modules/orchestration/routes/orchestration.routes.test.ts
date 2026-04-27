@@ -35,7 +35,7 @@ async function createApp(args?: {
     args?.workspaceRepository ?? new InMemoryWorkspaceRepository()
   const projectRepository = {
     findById: vi.fn(async (id: string) =>
-          id === "project-1"
+      id === "project-1"
         ? {
             id: "project-1",
             ownerUserId: args?.ownerUserId ?? null,
@@ -60,9 +60,9 @@ async function createApp(args?: {
                 logRetentionDays: 30,
                 eventRetentionDays: 7,
               },
-              skills: {
-                harborSkillsEnabled: false,
-                harborSkillProfile: "default",
+              codex: {
+                baseUrl: null,
+                apiKey: null,
               },
             },
           }
@@ -86,12 +86,12 @@ async function createApp(args?: {
   )
   const taskRepository = new InMemoryTaskRepository([task])
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
     taskQuery: createRepositoryAuthorizationTaskQuery(taskRepository),
-    orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(repository),
+    orchestrationQuery:
+      createRepositoryAuthorizationOrchestrationQuery(repository),
   })
   const bootstrapStore = {
     create: vi.fn(
@@ -114,6 +114,10 @@ async function createApp(args?: {
     getProjectForTask: vi.fn(async (projectId: string) => ({
       projectId,
       rootPath: "/tmp/harbor-assistant",
+      codex: {
+        baseUrl: null,
+        apiKey: null,
+      },
     })),
   }
   const runtimePort = {
@@ -174,7 +178,6 @@ describe("orchestration routes", () => {
       url: "/v1/orchestrations",
       payload: {
         projectId: "project-1",
-        title: "Refactor runtime boundaries",
       },
     })
     expect(created.statusCode).toBe(201)
@@ -182,7 +185,7 @@ describe("orchestration routes", () => {
       ok: true,
       orchestration: {
         projectId: "project-1",
-        title: "Refactor runtime boundaries",
+        title: "New session",
       },
     })
 
@@ -191,10 +194,6 @@ describe("orchestration routes", () => {
       url: "/v1/orchestrations/bootstrap",
       payload: {
         projectId: "project-1",
-        orchestration: {
-          title: "Bootstrap orchestration",
-          description: "Create initial task together",
-        },
         initialTask: {
           prompt: "Investigate runtime drift",
           executor: "codex",
@@ -209,7 +208,7 @@ describe("orchestration routes", () => {
       ok: true,
       orchestration: {
         projectId: "project-1",
-        title: "Bootstrap orchestration",
+        title: "Investigate runtime drift",
       },
       task: {
         projectId: "project-1",
@@ -233,7 +232,7 @@ describe("orchestration routes", () => {
           id: "orch-1",
         }),
         expect.objectContaining({
-          title: "Refactor runtime boundaries",
+          title: "New session",
         }),
       ]),
     )
@@ -247,6 +246,52 @@ describe("orchestration routes", () => {
       ok: true,
       orchestration: {
         id: "orch-1",
+      },
+    })
+
+    const scheduled = await app.inject({
+      method: "PUT",
+      url: "/v1/orchestrations/orch-1/schedule",
+      payload: {
+        enabled: true,
+        cronExpression: "0 * * * *",
+        timezone: "UTC",
+        taskTemplate: {
+          prompt: "Run hourly cleanup",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    })
+    expect(scheduled.statusCode).toBe(200)
+    expect(scheduled.json()).toMatchObject({
+      ok: true,
+      orchestration: {
+        id: "orch-1",
+        schedule: {
+          orchestrationId: "orch-1",
+          enabled: true,
+          cronExpression: "0 * * * *",
+          timezone: "UTC",
+        },
+      },
+    })
+
+    const detailAfterSchedule = await app.inject({
+      method: "GET",
+      url: "/v1/orchestrations/orch-1",
+    })
+    expect(detailAfterSchedule.statusCode).toBe(200)
+    expect(detailAfterSchedule.json()).toMatchObject({
+      ok: true,
+      orchestration: {
+        id: "orch-1",
+        schedule: {
+          orchestrationId: "orch-1",
+          cronExpression: "0 * * * *",
+        },
       },
     })
 
@@ -288,6 +333,169 @@ describe("orchestration routes", () => {
     await app.close()
   })
 
+  it("accepts empty orchestration title and description without requiring the frontend to set them", async () => {
+    const app = await createApp()
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/orchestrations",
+      payload: {
+        projectId: "project-1",
+        title: "",
+        description: "",
+      },
+    })
+    expect(created.statusCode).toBe(201)
+    expect(created.json()).toMatchObject({
+      ok: true,
+      orchestration: {
+        projectId: "project-1",
+        title: "New session",
+        description: null,
+      },
+    })
+
+    const bootstrapped = await app.inject({
+      method: "POST",
+      url: "/v1/orchestrations/bootstrap",
+      payload: {
+        projectId: "project-1",
+        orchestration: {
+          title: "",
+          description: "",
+        },
+        initialTask: {
+          prompt: "Investigate runtime drift",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    })
+    expect(bootstrapped.statusCode).toBe(201)
+    expect(bootstrapped.json()).toMatchObject({
+      ok: true,
+      orchestration: {
+        projectId: "project-1",
+        title: "Investigate runtime drift",
+        description: null,
+      },
+    })
+
+    await app.close()
+  })
+
+  it("accepts a nullable schedule title", async () => {
+    const app = await createApp()
+
+    const scheduled = await app.inject({
+      method: "PUT",
+      url: "/v1/orchestrations/orch-1/schedule",
+      payload: {
+        enabled: true,
+        cronExpression: "0 * * * *",
+        timezone: "UTC",
+        taskTemplate: {
+          title: null,
+          prompt: "Run hourly cleanup",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    })
+
+    expect(scheduled.statusCode).toBe(200)
+    expect(scheduled.json()).toMatchObject({
+      ok: true,
+      orchestration: {
+        id: "orch-1",
+        schedule: {
+          taskTemplate: {
+            title: null,
+          },
+        },
+      },
+    })
+
+    await app.close()
+  })
+
+  it("filters project orchestrations by surface", async () => {
+    const app = await createApp()
+
+    const humanLoopCreated = await app.inject({
+      method: "POST",
+      url: "/v1/orchestrations",
+      payload: {
+        projectId: "project-1",
+        title: "Inbox triage",
+      },
+    })
+    expect(humanLoopCreated.statusCode).toBe(201)
+
+    const scheduled = await app.inject({
+      method: "PUT",
+      url: "/v1/orchestrations/orch-1/schedule",
+      payload: {
+        enabled: true,
+        cronExpression: "0 * * * *",
+        timezone: "UTC",
+        taskTemplate: {
+          prompt: "Run hourly cleanup",
+          executor: "codex",
+          model: "gpt-5.3-codex",
+          executionMode: "safe",
+          effort: "medium",
+        },
+      },
+    })
+    expect(scheduled.statusCode).toBe(200)
+
+    const humanLoopList = await app.inject({
+      method: "GET",
+      url: "/v1/projects/project-1/orchestrations?surface=human-loop",
+    })
+    expect(humanLoopList.statusCode).toBe(200)
+    expect(humanLoopList.json()).toMatchObject({
+      ok: true,
+      orchestrations: expect.arrayContaining([
+        expect.objectContaining({
+          title: "Inbox triage",
+          schedule: null,
+        }),
+      ]),
+    })
+    expect(humanLoopList.json().orchestrations).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "orch-1",
+        }),
+      ]),
+    )
+
+    const scheduleList = await app.inject({
+      method: "GET",
+      url: "/v1/projects/project-1/orchestrations?surface=schedule",
+    })
+    expect(scheduleList.statusCode).toBe(200)
+    expect(scheduleList.json()).toMatchObject({
+      ok: true,
+      orchestrations: [
+        expect.objectContaining({
+          id: "orch-1",
+          schedule: expect.objectContaining({
+            cronExpression: "0 * * * *",
+          }),
+        }),
+      ],
+    })
+
+    await app.close()
+  })
+
   it("rejects orchestration creation when the project is not ready", async () => {
     const repository = new InMemoryOrchestrationRepository()
     const projectRepository = {
@@ -314,9 +522,9 @@ describe("orchestration routes", () => {
             logRetentionDays: 30,
             eventRetentionDays: 7,
           },
-          skills: {
-            harborSkillsEnabled: false,
-            harborSkillProfile: "default",
+          codex: {
+            baseUrl: null,
+            apiKey: null,
           },
         },
       })),
@@ -347,13 +555,13 @@ describe("orchestration routes", () => {
           workspaceQuery: createRepositoryAuthorizationWorkspaceQuery({
             findById: async () => null,
           }),
-          projectQuery: createRepositoryAuthorizationProjectQuery(projectRepository),
+          projectQuery:
+            createRepositoryAuthorizationProjectQuery(projectRepository),
           taskQuery: createRepositoryAuthorizationTaskQuery(
             new InMemoryTaskRepository(),
           ),
-          orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
-            repository,
-          ),
+          orchestrationQuery:
+            createRepositoryAuthorizationOrchestrationQuery(repository),
         })
         await registerOrchestrationModuleRoutes(instance, {
           authorization,

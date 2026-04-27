@@ -35,9 +35,7 @@ function formatAttachmentSummary(args: {
   const parts: string[] = []
 
   if (args.imageCount > 0) {
-    parts.push(
-      args.imageCount === 1 ? "1 image" : `${args.imageCount} images`,
-    )
+    parts.push(args.imageCount === 1 ? "1 image" : `${args.imageCount} images`)
   }
 
   if (args.fileCount > 0) {
@@ -90,7 +88,8 @@ export function extractTaskInputAttachments(
   }
 
   return input.flatMap((item) =>
-    (item.type === "local_image" || item.type === "local_file") && item.path.trim()
+    (item.type === "local_image" || item.type === "local_file") &&
+    item.path.trim()
       ? [
           {
             type: item.type,
@@ -132,6 +131,12 @@ export function buildTaskInput(args: {
   return items.length > 0 ? items : null
 }
 
-export function getAttachmentDisplayName(attachment: UploadedTaskInputAttachment) {
-  return attachment.name.trim() || attachment.path.split("/").at(-1) || attachment.path
+export function getAttachmentDisplayName(
+  attachment: UploadedTaskInputAttachment,
+) {
+  return (
+    attachment.name.trim() ||
+    attachment.path.split("/").at(-1) ||
+    attachment.path
+  )
 }

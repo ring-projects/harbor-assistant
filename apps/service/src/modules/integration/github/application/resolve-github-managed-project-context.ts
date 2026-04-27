@@ -42,10 +42,14 @@ export async function resolveGitHubManagedProjectContext(
 
   const binding = await deps.bindingRepository.findByProjectId(project.id)
   if (!binding) {
-    throw createProjectError().invalidState("project repository binding is not available")
+    throw createProjectError().invalidState(
+      "project repository binding is not available",
+    )
   }
 
-  const installation = await deps.installationRepository.findById(binding.installationId)
+  const installation = await deps.installationRepository.findById(
+    binding.installationId,
+  )
   if (!installation) {
     throw createProjectError().notFound()
   }

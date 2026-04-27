@@ -4,10 +4,7 @@ import { isProjectError } from "../project/errors"
 import { toProjectAppError } from "../project/project-app-error"
 import { isTaskError } from "../task/errors"
 import { toTaskAppError } from "../task/task-app-error"
-import {
-  ORCHESTRATION_ERROR_CODES,
-  isOrchestrationError,
-} from "./errors"
+import { ORCHESTRATION_ERROR_CODES, isOrchestrationError } from "./errors"
 
 export function toOrchestrationAppError(error: unknown): AppError {
   if (isOrchestrationError(error)) {
@@ -25,7 +22,11 @@ export function toOrchestrationAppError(error: unknown): AppError {
           error.message,
         )
       case ORCHESTRATION_ERROR_CODES.INVALID_INPUT:
-        return new AppError(ERROR_CODES.INVALID_REQUEST_BODY, 400, error.message)
+        return new AppError(
+          ERROR_CODES.INVALID_REQUEST_BODY,
+          400,
+          error.message,
+        )
     }
   }
 
@@ -41,5 +42,9 @@ export function toOrchestrationAppError(error: unknown): AppError {
     return error
   }
 
-  return new AppError(ERROR_CODES.INTERNAL_ERROR, 500, "Unexpected service error.")
+  return new AppError(
+    ERROR_CODES.INTERNAL_ERROR,
+    500,
+    "Unexpected service error.",
+  )
 }

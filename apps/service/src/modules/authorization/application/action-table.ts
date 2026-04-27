@@ -17,6 +17,8 @@ export const DERIVED_PROJECT_ACTIONS: Partial<
   "task.delete": "project.tasks.create",
   "orchestration.view": "project.view",
   "orchestration.create": "project.tasks.create",
+  "orchestration.update": "project.tasks.create",
+  "orchestration.schedule.update": "project.tasks.create",
   "orchestration.task.create": "project.tasks.create",
 }
 
@@ -80,6 +82,8 @@ export const WORKSPACE_ACTION_TABLE: ActionPolicyTable<WorkspaceRoleKey> = {
   "task.subscribe": {},
   "orchestration.view": {},
   "orchestration.create": {},
+  "orchestration.update": {},
+  "orchestration.schedule.update": {},
   "orchestration.task.create": {},
 }
 
@@ -191,5 +195,7 @@ export const PROJECT_ACTION_TABLE: ActionPolicyTable<ProjectRoleKey> = {
   "task.subscribe": {},
   "orchestration.view": {},
   "orchestration.create": {},
+  "orchestration.update": {},
+  "orchestration.schedule.update": {},
   "orchestration.task.create": {},
 }

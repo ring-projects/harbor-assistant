@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { executorApiFetch } from "@/lib/executor-service-url"
+import { harborApiFetch } from "@/lib/harbor-api-url"
 import { parseJsonResponse } from "@/lib/protocol"
 import {
   type TaskAgentEventStream,
@@ -188,7 +188,7 @@ export async function createTask(args: {
     body.prompt = args.input.prompt
   }
 
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/orchestrations/${encodeURIComponent(args.orchestrationId)}/tasks`,
     {
       method: "POST",
@@ -227,7 +227,7 @@ export async function readOrchestrationTasks(args: {
     searchParams.set("includeArchived", "true")
   }
 
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/orchestrations/${encodeURIComponent(args.orchestrationId)}/tasks${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
     {
       method: "GET",
@@ -245,7 +245,7 @@ export async function readOrchestrationTasks(args: {
 }
 
 export async function readTaskDetail(taskId: string): Promise<TaskDetail> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/tasks/${encodeURIComponent(taskId)}`,
     {
       method: "GET",
@@ -275,7 +275,10 @@ export async function readTaskEvents(args: {
 }): Promise<TaskAgentEventStream> {
   const searchParams = new URLSearchParams()
 
-  if (typeof args.afterSequence === "number" && Number.isFinite(args.afterSequence)) {
+  if (
+    typeof args.afterSequence === "number" &&
+    Number.isFinite(args.afterSequence)
+  ) {
     searchParams.set(
       "afterSequence",
       String(Math.max(0, Math.trunc(args.afterSequence))),
@@ -287,7 +290,7 @@ export async function readTaskEvents(args: {
   }
 
   const query = searchParams.toString()
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/tasks/${encodeURIComponent(args.taskId)}/events${query ? `?${query}` : ""}`,
     {
       method: "GET",
@@ -313,7 +316,7 @@ export async function readTaskEvents(args: {
 }
 
 export async function archiveTask(taskId: string): Promise<TaskDetail> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/tasks/${encodeURIComponent(taskId)}/archive`,
     {
       method: "POST",
@@ -329,10 +332,13 @@ export async function archiveTask(taskId: string): Promise<TaskDetail> {
 
   const task = extractSingleTask(payload)
   if (!task) {
-    throw new TaskApiClientError("Archive succeeded but task payload is invalid.", {
-      code: ERROR_CODES.TASK_ARCHIVE_FAILED,
-      status: response.status,
-    })
+    throw new TaskApiClientError(
+      "Archive succeeded but task payload is invalid.",
+      {
+        code: ERROR_CODES.TASK_ARCHIVE_FAILED,
+        status: response.status,
+      },
+    )
   }
 
   return task
@@ -354,7 +360,7 @@ export async function resumeTask(
     body.effort = input.effort ?? null
   }
 
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/tasks/${encodeURIComponent(taskId)}/resume`,
     {
       method: "POST",
@@ -370,10 +376,13 @@ export async function resumeTask(
 
   const task = extractSingleTask(payload)
   if (!task) {
-    throw new TaskApiClientError("Resume succeeded but task payload is invalid.", {
-      code: ERROR_CODES.TASK_RESUME_FAILED,
-      status: response.status,
-    })
+    throw new TaskApiClientError(
+      "Resume succeeded but task payload is invalid.",
+      {
+        code: ERROR_CODES.TASK_RESUME_FAILED,
+        status: response.status,
+      },
+    )
   }
 
   return task
@@ -383,7 +392,7 @@ export async function cancelTask(
   taskId: string,
   input: CancelTaskInput = {},
 ): Promise<TaskDetail> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/tasks/${encodeURIComponent(taskId)}/cancel`,
     {
       method: "POST",
@@ -405,10 +414,13 @@ export async function cancelTask(
 
   const task = extractSingleTask(payload)
   if (!task) {
-    throw new TaskApiClientError("Cancel succeeded but task payload is invalid.", {
-      code: ERROR_CODES.TASK_CANCEL_FAILED,
-      status: response.status,
-    })
+    throw new TaskApiClientError(
+      "Cancel succeeded but task payload is invalid.",
+      {
+        code: ERROR_CODES.TASK_CANCEL_FAILED,
+        status: response.status,
+      },
+    )
   }
 
   return task
@@ -498,7 +510,7 @@ export async function uploadTaskInputImage(
     })
   }
 
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/projects/${encodeURIComponent(projectId)}/task-input-files`,
     {
       method: "POST",
@@ -541,7 +553,7 @@ export async function uploadTaskInputImage(
 }
 
 export async function deleteTask(taskId: string): Promise<DeleteTaskResult> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/tasks/${encodeURIComponent(taskId)}`,
     {
       method: "DELETE",

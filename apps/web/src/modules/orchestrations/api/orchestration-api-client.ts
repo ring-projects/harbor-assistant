@@ -1,11 +1,11 @@
 import { z } from "zod"
 
 import { ERROR_CODES } from "@/constants"
-import { executorApiFetch } from "@/lib/executor-service-url"
+import { harborApiFetch } from "@/lib/harbor-api-url"
 import {
   asRecord,
   parseJsonResponse,
-  toIntegerOrNull,
+  toBooleanOrNull,
   toIsoDateString,
   toOptionalIsoDateString,
   toStringOrNull,
@@ -13,13 +13,15 @@ import {
 import {
   orchestrationDetailSchema,
   orchestrationListItemSchema,
+  orchestrationScheduleSchema,
   type OrchestrationDetail,
   type OrchestrationListItem,
+  type OrchestrationSchedule,
   type OrchestrationStatus,
   ORCHESTRATION_STATUS_VALUES,
 } from "@/modules/orchestrations/contracts"
 import type { TaskDetail, TaskEffort } from "@/modules/tasks/contracts"
-import { type TaskInput } from "@/modules/tasks/lib"
+import { type TaskInput, type TaskInputItem } from "@/modules/tasks/lib"
 import { extractSingleTask } from "@/modules/tasks/api/task-payload"
 
 const orchestrationApiErrorSchema = z.object({
@@ -52,14 +54,16 @@ export class OrchestrationApiClientError extends Error {
 
 export type CreateOrchestrationInput = {
   projectId: string
-  title: string
+  title?: string | null
   description?: string | null
 }
 
+export type OrchestrationListSurface = "all" | "human-loop" | "schedule"
+
 export type BootstrapOrchestrationInput = {
   projectId: string
-  orchestration: {
-    title: string
+  orchestration?: {
+    title?: string | null
     description?: string | null
   }
   initialTask: {
@@ -82,6 +86,23 @@ export type BootstrapOrchestrationResult = {
       code: string
       message: string
     } | null
+  }
+}
+
+export type UpsertOrchestrationScheduleInput = {
+  orchestrationId: string
+  enabled: boolean
+  cronExpression: string
+  timezone?: string | null
+  concurrencyPolicy?: "skip"
+  taskTemplate: {
+    title?: string | null
+    prompt?: string | null
+    items?: TaskInputItem[] | null
+    executor: string
+    model: string
+    executionMode: "safe" | "connected" | "full-access"
+    effort: TaskEffort
   }
 }
 
@@ -123,6 +144,65 @@ function toOrchestrationStatus(value: unknown): OrchestrationStatus | null {
     : null
 }
 
+function normalizeScheduleItem(item: unknown): TaskInputItem | null {
+  const source = asRecord(item)
+  if (!source) {
+    return null
+  }
+
+  const type = toStringOrNull(source.type)
+  if (type === "text") {
+    const text = toStringOrNull(source.text)
+    return text ? { type: "text", text } : null
+  }
+
+  if (type === "local_image" || type === "local_file") {
+    const path = toStringOrNull(source.path)
+    return path ? { type, path } : null
+  }
+
+  return null
+}
+
+function normalizeSchedule(candidate: unknown): OrchestrationSchedule | null {
+  const source = asRecord(candidate)
+  if (!source) {
+    return null
+  }
+
+  const taskTemplate = asRecord(source.taskTemplate)
+  if (!taskTemplate) {
+    return null
+  }
+
+  const parsed = orchestrationScheduleSchema.safeParse({
+    orchestrationId: toStringOrNull(source.orchestrationId),
+    enabled: toBooleanOrNull(source.enabled),
+    cronExpression: toStringOrNull(source.cronExpression),
+    timezone: toStringOrNull(source.timezone),
+    concurrencyPolicy: toStringOrNull(source.concurrencyPolicy),
+    taskTemplate: {
+      title: toStringOrNull(taskTemplate.title),
+      prompt: toStringOrNull(taskTemplate.prompt),
+      items: Array.isArray(taskTemplate.items)
+        ? taskTemplate.items
+            .map((item) => normalizeScheduleItem(item))
+            .filter((item): item is TaskInputItem => item !== null)
+        : [],
+      executor: toStringOrNull(taskTemplate.executor),
+      model: toStringOrNull(taskTemplate.model),
+      executionMode: toStringOrNull(taskTemplate.executionMode),
+      effort: toStringOrNull(taskTemplate.effort),
+    },
+    lastTriggeredAt: toOptionalIsoDateString(source.lastTriggeredAt),
+    nextTriggerAt: toOptionalIsoDateString(source.nextTriggerAt),
+    createdAt: toIsoDateString(source.createdAt),
+    updatedAt: toIsoDateString(source.updatedAt),
+  })
+
+  return parsed.success ? parsed.data : null
+}
+
 function normalizeOrchestrationCandidate(
   candidate: unknown,
 ): OrchestrationListItem | null {
@@ -147,6 +227,7 @@ function normalizeOrchestrationCandidate(
     description: toStringOrNull(source.description),
     status,
     archivedAt: toOptionalIsoDateString(source.archivedAt),
+    schedule: normalizeSchedule(source.schedule),
     createdAt: toIsoDateString(source.createdAt),
     updatedAt: toIsoDateString(source.updatedAt),
   })
@@ -164,11 +245,7 @@ function extractOrchestrationArray(payload: unknown): unknown[] {
     return []
   }
 
-  for (const candidate of [
-    source.orchestrations,
-    source.items,
-    source.data,
-  ]) {
+  for (const candidate of [source.orchestrations, source.items, source.data]) {
     if (Array.isArray(candidate)) {
       return candidate
     }
@@ -184,7 +261,9 @@ function extractOrchestrationList(payload: unknown): OrchestrationListItem[] {
     .filter((item): item is OrchestrationListItem => item !== null)
 }
 
-function extractSingleOrchestration(payload: unknown): OrchestrationDetail | null {
+function extractSingleOrchestration(
+  payload: unknown,
+): OrchestrationDetail | null {
   const orchestration = normalizeOrchestrationCandidate(
     extractOrchestrationArray(payload)[0],
   )
@@ -198,9 +277,19 @@ function extractSingleOrchestration(payload: unknown): OrchestrationDetail | nul
 
 export async function readProjectOrchestrations(
   projectId: string,
+  options?: {
+    surface?: Exclude<OrchestrationListSurface, "all">
+  },
 ): Promise<OrchestrationListItem[]> {
-  const response = await executorApiFetch(
-    `/v1/projects/${encodeURIComponent(projectId)}/orchestrations`,
+  const search = new URLSearchParams()
+  if (options?.surface) {
+    search.set("surface", options.surface)
+  }
+
+  const response = await harborApiFetch(
+    `/v1/projects/${encodeURIComponent(projectId)}/orchestrations${
+      search.size > 0 ? `?${search.toString()}` : ""
+    }`,
     {
       method: "GET",
       cache: "no-store",
@@ -211,7 +300,7 @@ export async function readProjectOrchestrations(
   )
 
   const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to load orchestrations.")
+  throwIfFailed(response, payload, "Failed to load sessions.")
 
   return extractOrchestrationList(payload)
 }
@@ -219,7 +308,7 @@ export async function readProjectOrchestrations(
 export async function readOrchestration(
   orchestrationId: string,
 ): Promise<OrchestrationDetail> {
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/orchestrations/${encodeURIComponent(orchestrationId)}`,
     {
       method: "GET",
@@ -231,17 +320,14 @@ export async function readOrchestration(
   )
 
   const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to load orchestration detail.")
+  throwIfFailed(response, payload, "Failed to load session details.")
 
   const orchestration = extractSingleOrchestration(payload)
   if (!orchestration) {
-    throw new OrchestrationApiClientError(
-      "Orchestration detail payload is invalid.",
-      {
-        code: ERROR_CODES.INTERNAL_ERROR,
-        status: response.status,
-      },
-    )
+    throw new OrchestrationApiClientError("Session payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
   }
 
   return orchestration
@@ -250,7 +336,7 @@ export async function readOrchestration(
 export async function createOrchestration(
   input: CreateOrchestrationInput,
 ): Promise<OrchestrationDetail> {
-  const response = await executorApiFetch("/v1/orchestrations", {
+  const response = await harborApiFetch("/v1/orchestrations", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -264,17 +350,14 @@ export async function createOrchestration(
   })
 
   const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to create orchestration.")
+  throwIfFailed(response, payload, "Failed to create session.")
 
   const orchestration = extractSingleOrchestration(payload)
   if (!orchestration) {
-    throw new OrchestrationApiClientError(
-      "Create orchestration payload is invalid.",
-      {
-        code: ERROR_CODES.INTERNAL_ERROR,
-        status: response.status,
-      },
-    )
+    throw new OrchestrationApiClientError("Session payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
   }
 
   return orchestration
@@ -283,7 +366,7 @@ export async function createOrchestration(
 export async function bootstrapOrchestration(
   input: BootstrapOrchestrationInput,
 ): Promise<BootstrapOrchestrationResult> {
-  const response = await executorApiFetch("/v1/orchestrations/bootstrap", {
+  const response = await harborApiFetch("/v1/orchestrations/bootstrap", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -291,7 +374,7 @@ export async function bootstrapOrchestration(
     },
     body: JSON.stringify({
       projectId: input.projectId,
-      orchestration: input.orchestration,
+      orchestration: input.orchestration ?? {},
       initialTask: input.initialTask.items
         ? {
             ...input.initialTask,
@@ -305,17 +388,14 @@ export async function bootstrapOrchestration(
   })
 
   const payload = await parseJson(response)
-  throwIfFailed(response, payload, "Failed to bootstrap orchestration.")
+  throwIfFailed(response, payload, "Failed to start session.")
 
   const orchestration = extractSingleOrchestration(payload)
   if (!orchestration) {
-    throw new OrchestrationApiClientError(
-      "Bootstrap orchestration payload is invalid.",
-      {
-        code: ERROR_CODES.INTERNAL_ERROR,
-        status: response.status,
-      },
-    )
+    throw new OrchestrationApiClientError("Session payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
   }
 
   const task = extractSingleTask(payload)
@@ -330,9 +410,8 @@ export async function bootstrapOrchestration(
   }
 
   const source = asRecord(payload?.bootstrap)
-  const runtimeStarted = typeof source?.runtimeStarted === "boolean"
-    ? source.runtimeStarted
-    : true
+  const runtimeStarted =
+    typeof source?.runtimeStarted === "boolean" ? source.runtimeStarted : true
   const warningSource = asRecord(source?.warning)
 
   return {
@@ -351,4 +430,53 @@ export async function bootstrapOrchestration(
           : null,
     },
   }
+}
+
+export async function upsertOrchestrationSchedule(
+  input: UpsertOrchestrationScheduleInput,
+): Promise<OrchestrationDetail> {
+  const response = await harborApiFetch(
+    `/v1/orchestrations/${encodeURIComponent(input.orchestrationId)}/schedule`,
+    {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        enabled: input.enabled,
+        cronExpression: input.cronExpression,
+        timezone: input.timezone,
+        concurrencyPolicy: input.concurrencyPolicy ?? "skip",
+        taskTemplate: {
+          ...(input.taskTemplate.title == null
+            ? {}
+            : { title: input.taskTemplate.title }),
+          ...(input.taskTemplate.prompt == null
+            ? {}
+            : { prompt: input.taskTemplate.prompt }),
+          ...(input.taskTemplate.items == null
+            ? {}
+            : { items: input.taskTemplate.items }),
+          executor: input.taskTemplate.executor,
+          model: input.taskTemplate.model,
+          executionMode: input.taskTemplate.executionMode,
+          effort: input.taskTemplate.effort,
+        },
+      }),
+    },
+  )
+
+  const payload = await parseJson(response)
+  throwIfFailed(response, payload, "Failed to update session schedule.")
+
+  const orchestration = extractSingleOrchestration(payload)
+  if (!orchestration) {
+    throw new OrchestrationApiClientError("Session payload is invalid.", {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      status: response.status,
+    })
+  }
+
+  return orchestration
 }

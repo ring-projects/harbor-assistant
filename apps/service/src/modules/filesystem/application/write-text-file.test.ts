@@ -8,7 +8,10 @@ function createRepositoryStub(
   overrides: Partial<FileSystemRepository> = {},
 ): FileSystemRepository {
   const files = new Map<string, string>()
-  const directories = new Set<string>(["/workspace/root", "/workspace/root/src"])
+  const directories = new Set<string>([
+    "/workspace/root",
+    "/workspace/root/src",
+  ])
 
   return {
     resolveRealPath: async (targetPath) => targetPath,

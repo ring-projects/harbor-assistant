@@ -11,11 +11,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
   EffortDropdown,
-  ExecutionModeDropdown,
   ExecutorDropdown,
   ModelDropdown,
   TaskInputAttachmentList,
@@ -43,8 +40,6 @@ export function OrchestrationCreateDialog({
   trigger,
 }: OrchestrationCreateDialogProps) {
   const [open, setOpen] = useState(false)
-  const [orchestrationTitle, setOrchestrationTitle] = useState("")
-  const [orchestrationDescription, setOrchestrationDescription] = useState("")
   const [initialTaskPrompt, setInitialTaskPrompt] = useState("")
   const [initialTaskAttachments, setInitialTaskAttachments] = useState<
     UploadedTaskInputImage[]
@@ -73,36 +68,29 @@ export function OrchestrationCreateDialog({
   )
 
   function reset() {
-    setOrchestrationTitle("")
-    setOrchestrationDescription("")
     setInitialTaskPrompt("")
     setInitialTaskAttachments([])
     setErrorMessage(null)
   }
 
   async function handleSubmit() {
-    if (!orchestrationTitle.trim()) {
-      setErrorMessage("Enter a title before creating the orchestration.")
-      return
-    }
-
     if (!initialTaskInput) {
-      setErrorMessage("Enter a prompt or attach an image before bootstrapping.")
+      setErrorMessage(
+        "Enter a prompt or attach an image before starting the session.",
+      )
       return
     }
 
     if (!taskCreationParams.model || !taskCreationParams.effort) {
-      setErrorMessage("Wait for runtime options to load before bootstrapping.")
+      setErrorMessage(
+        "Wait for runtime options to load before starting the session.",
+      )
       return
     }
 
     try {
       setErrorMessage(null)
       const result = await bootstrapMutation.mutateAsync({
-        orchestration: {
-          title: orchestrationTitle.trim(),
-          description: orchestrationDescription.trim() || null,
-        },
         initialTask:
           typeof initialTaskInput === "string"
             ? {
@@ -149,13 +137,13 @@ export function OrchestrationCreateDialog({
         {trigger ?? (
           <Button type="button" size="sm" className="shrink-0">
             <PlusIcon className="size-4" />
-            New Orchestration
+            New Session
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Bootstrap Orchestration</DialogTitle>
+          <DialogTitle>New Session</DialogTitle>
         </DialogHeader>
 
         <form
@@ -165,47 +153,18 @@ export function OrchestrationCreateDialog({
             void handleSubmit()
           }}
         >
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">Title</span>
-            <Input
-              value={orchestrationTitle}
-              onChange={(event) => setOrchestrationTitle(event.target.value)}
-              placeholder="Runtime cleanup"
-              disabled={bootstrapMutation.isPending}
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-medium">Description</span>
-            <Textarea
-              value={orchestrationDescription}
-              onChange={(event) => setOrchestrationDescription(event.target.value)}
-              placeholder="What this orchestration is meant to coordinate."
-              disabled={bootstrapMutation.isPending}
-              rows={3}
-            />
-          </label>
-
-          <div className="space-y-2">
-            <div>
-              <p className="text-sm font-medium">Initial Task</p>
-              <p className="text-muted-foreground text-xs">
-                Create the orchestration and its first task in one request.
-              </p>
-            </div>
-
+          <div>
             <TaskInputComposer
               canSubmit={
                 !bootstrapMutation.isPending &&
                 !isUploading &&
                 Boolean(initialTaskInput) &&
-                Boolean(orchestrationTitle.trim()) &&
                 taskCreationParams.hasResolvedRuntimeConfig
               }
               inputDisabled={bootstrapMutation.isPending}
               isSubmitting={bootstrapMutation.isPending || isUploading}
               autoFocus
-              placeholder="Describe the first task to start this orchestration..."
+              placeholder="Describe how you want to start this session..."
               value={initialTaskPrompt}
               errorMessage={composerErrorMessage}
               attachments={
@@ -240,12 +199,6 @@ export function OrchestrationCreateDialog({
                         taskCreationParams.setEffort(nextEffort)
                       }
                     }}
-                  />
-
-                  <ExecutionModeDropdown
-                    disabled={bootstrapMutation.isPending}
-                    value={taskCreationParams.executionMode}
-                    onValueChange={taskCreationParams.setExecutionMode}
                   />
                 </>
               }

@@ -3,11 +3,6 @@ import type { FastifyInstance } from "fastify"
 import type { ServiceConfig } from "../../../config"
 import { ERROR_CODES } from "../../../constants/errors"
 import { AppError } from "../../../lib/errors/app-error"
-import {
-  expireCookie,
-  parseCookieHeader,
-  serializeCookie,
-} from "../../../lib/http/cookies"
 import { PrismaUserIdentityRegistry } from "../../user"
 import {
   bootstrapWorkspaceOnLogin,
@@ -28,10 +23,7 @@ import {
   GitHubOAuthProvider,
   type GitHubIdentity,
 } from "../providers/github"
-import type {
-  GitHubAuthCallbackQuery,
-  GitHubAuthStartQuery,
-} from "../schemas"
+import type { GitHubAuthCallbackQuery, GitHubAuthStartQuery } from "../schemas"
 import {
   completeGitHubAuthRouteSchema,
   startGitHubAuthRouteSchema,
@@ -115,8 +107,12 @@ function assertGitHubIdentityAllowed(
   config: ServiceConfig,
   identity: { login: string; organizations: string[] },
 ) {
-  const allowedUsers = new Set(config.allowedGitHubUsers.map((value) => value.toLowerCase()))
-  const allowedOrgs = new Set(config.allowedGitHubOrgs.map((value) => value.toLowerCase()))
+  const allowedUsers = new Set(
+    config.allowedGitHubUsers.map((value) => value.toLowerCase()),
+  )
+  const allowedOrgs = new Set(
+    config.allowedGitHubOrgs.map((value) => value.toLowerCase()),
+  )
 
   if (allowedUsers.size === 0 && allowedOrgs.size === 0) {
     return
@@ -134,7 +130,11 @@ function assertGitHubIdentityAllowed(
     return
   }
 
-  throw new AppError(ERROR_CODES.PERMISSION_DENIED, 403, "GitHub account is not allowed.")
+  throw new AppError(
+    ERROR_CODES.PERMISSION_DENIED,
+    403,
+    "GitHub account is not allowed.",
+  )
 }
 
 export async function registerGitHubAuthRoutes(
@@ -165,8 +165,9 @@ export async function registerGitHubAuthRoutes(
   },
 ) {
   const workspaceRepository = new PrismaWorkspaceRepository(app.prisma)
-  const workspaceInvitationRepository =
-    new PrismaWorkspaceInvitationRepository(app.prisma)
+  const workspaceInvitationRepository = new PrismaWorkspaceInvitationRepository(
+    app.prisma,
+  )
   const githubProvider =
     options.githubProvider ??
     (options.githubClient
@@ -203,33 +204,35 @@ export async function registerGitHubAuthRoutes(
         options.config.appBaseUrl,
       ).toString()
       const state = createOAuthState()
-      const redirectTarget = normalizeLoginRedirectTarget(request.query.redirect)
+      const redirectTarget = normalizeLoginRedirectTarget(
+        request.query.redirect,
+      )
       const authorizeUrl = githubProvider.buildAuthorizeUrl({
         redirectUri,
         state,
         scopes: getGitHubOAuthScopes(options.config),
       })
 
-      reply.header("set-cookie", [
-        serializeCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, state, {
+      reply.setCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, state, {
+        secure: isSecureCookie(options.config),
+        sameSite: "lax",
+        path: "/",
+        maxAge: 10 * 60,
+      })
+      if (redirectTarget) {
+        reply.setCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, redirectTarget, {
           secure: isSecureCookie(options.config),
-          sameSite: "Lax",
+          sameSite: "lax",
           path: "/",
           maxAge: 10 * 60,
-        }),
-        redirectTarget
-          ? serializeCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, redirectTarget, {
-              secure: isSecureCookie(options.config),
-              sameSite: "Lax",
-              path: "/",
-              maxAge: 10 * 60,
-            })
-          : expireCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
-              secure: isSecureCookie(options.config),
-              sameSite: "Lax",
-              path: "/",
-            }),
-      ])
+        })
+      } else {
+        reply.clearCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
+          secure: isSecureCookie(options.config),
+          sameSite: "lax",
+          path: "/",
+        })
+      }
 
       return reply.redirect(authorizeUrl)
     },
@@ -241,9 +244,8 @@ export async function registerGitHubAuthRoutes(
       schema: completeGitHubAuthRouteSchema,
     },
     async (request, reply) => {
-      const cookies = parseCookieHeader(request.headers.cookie)
       const storedRedirect = normalizeLoginRedirectTarget(
-        cookies.get(GITHUB_OAUTH_REDIRECT_COOKIE_NAME),
+        request.cookies[GITHUB_OAUTH_REDIRECT_COOKIE_NAME],
       )
 
       try {
@@ -251,7 +253,7 @@ export async function registerGitHubAuthRoutes(
 
         const code = request.query.code?.trim()
         const state = request.query.state?.trim()
-        const storedState = cookies.get(GITHUB_OAUTH_STATE_COOKIE_NAME)
+        const storedState = request.cookies[GITHUB_OAUTH_STATE_COOKIE_NAME]
 
         if (!code || !state || !storedState || state !== storedState) {
           throw new AppError(
@@ -298,22 +300,21 @@ export async function registerGitHubAuthRoutes(
           ip: request.ip,
         })
 
-        reply.header("set-cookie", [
-          serializeCookie(HARBOR_SESSION_COOKIE_NAME, session.token, {
-            ...buildSessionCookieOptions(options.config),
-            maxAge: DEFAULT_SESSION_TTL_DAYS * 24 * 60 * 60,
-          }),
-          expireCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, {
-            secure: isSecureCookie(options.config),
-            sameSite: "Lax",
-            path: "/",
-          }),
-          expireCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
-            secure: isSecureCookie(options.config),
-            sameSite: "Lax",
-            path: "/",
-          }),
-        ])
+        reply.setCookie(HARBOR_SESSION_COOKIE_NAME, session.token, {
+          ...buildSessionCookieOptions(options.config),
+          sameSite: "lax",
+          maxAge: DEFAULT_SESSION_TTL_DAYS * 24 * 60 * 60,
+        })
+        reply.clearCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, {
+          secure: isSecureCookie(options.config),
+          sameSite: "lax",
+          path: "/",
+        })
+        reply.clearCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
+          secure: isSecureCookie(options.config),
+          sameSite: "lax",
+          path: "/",
+        })
 
         return reply.redirect(
           buildWebSuccessRedirectUrl(options.config, storedRedirect),
@@ -331,18 +332,16 @@ export async function registerGitHubAuthRoutes(
           if (storedRedirect) {
             url.searchParams.set("redirect", storedRedirect)
           }
-          reply.header("set-cookie", [
-            expireCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, {
-              secure: isSecureCookie(options.config),
-              sameSite: "Lax",
-              path: "/",
-            }),
-            expireCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
-              secure: isSecureCookie(options.config),
-              sameSite: "Lax",
-              path: "/",
-            }),
-          ])
+          reply.clearCookie(GITHUB_OAUTH_STATE_COOKIE_NAME, {
+            secure: isSecureCookie(options.config),
+            sameSite: "lax",
+            path: "/",
+          })
+          reply.clearCookie(GITHUB_OAUTH_REDIRECT_COOKIE_NAME, {
+            secure: isSecureCookie(options.config),
+            sameSite: "lax",
+            path: "/",
+          })
           return reply.redirect(url.toString())
         }
 

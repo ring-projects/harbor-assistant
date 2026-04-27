@@ -34,12 +34,12 @@ export function DeleteTaskDialog({
 }: DeleteTaskDialogProps) {
   return (
     <Dialog open={Boolean(pendingTaskDelete)} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Delete Task</DialogTitle>
           <DialogDescription>
             <span className="block">Delete</span>
-            <span className="text-foreground line-clamp-2 block font-medium wrap-break-words">
+            <span className="text-foreground wrap-break-words line-clamp-2 block font-medium">
               &quot;{pendingTaskDelete?.title ?? "this task"}&quot;
             </span>
             <span className="block">
@@ -49,7 +49,7 @@ export function DeleteTaskDialog({
         </DialogHeader>
 
         {errorMessage ? (
-          <div className="bg-surface-danger text-destructive rounded-md border border-destructive/25 p-2 text-xs">
+          <div className="bg-surface-danger text-destructive border-destructive/25 rounded-md border p-2 text-xs">
             {errorMessage}
           </div>
         ) : null}

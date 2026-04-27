@@ -1,9 +1,4 @@
-export {
-  GIT_ERROR_CODES,
-  GitError,
-  createGitError,
-  isGitError,
-} from "./errors"
+export { GIT_ERROR_CODES, GitError, createGitError, isGitError } from "./errors"
 export type {
   GitCommandResult,
   GitRepository,

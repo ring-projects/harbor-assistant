@@ -64,7 +64,10 @@ export async function runGitCommand(
     child.on("error", (error) => {
       settle({
         stdout,
-        stderr: [stderr, readGitCommandError(error)].filter(Boolean).join("\n").trim(),
+        stderr: [stderr, readGitCommandError(error)]
+          .filter(Boolean)
+          .join("\n")
+          .trim(),
         exitCode: null,
       })
     })

@@ -71,7 +71,9 @@ describe("PrismaProjectRepositoryBindingRepository", () => {
       lastVerifiedAt: null,
     })
 
-    await expect(bindingRepository.findByProjectId("project-1")).resolves.toMatchObject({
+    await expect(
+      bindingRepository.findByProjectId("project-1"),
+    ).resolves.toMatchObject({
       projectId: "project-1",
       installationId: "12345",
       repositoryFullName: "acme/harbor-assistant",

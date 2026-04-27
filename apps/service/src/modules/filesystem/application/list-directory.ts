@@ -27,10 +27,8 @@ export async function listDirectoryUseCase(
 ): Promise<FileSystemListResult> {
   const { offset, limit } = toListPaging(input)
   const includeHidden = input.includeHidden === true
-  const { canonicalRootPath, canonicalTargetPath } = await resolvePathInsideRoot(
-    repository,
-    input,
-  )
+  const { canonicalRootPath, canonicalTargetPath } =
+    await resolvePathInsideRoot(repository, input)
 
   const directoryStats = await readMetadata(repository, canonicalTargetPath)
   if (directoryStats.kind !== "directory") {
@@ -53,7 +51,7 @@ export async function listDirectoryUseCase(
         type: entry.kind === "directory" ? "directory" : "file",
         isHidden: entry.name.startsWith("."),
         isSymlink: lstat?.kind === "symlink",
-        size: entry.kind === "file" ? lstat?.size ?? null : null,
+        size: entry.kind === "file" ? (lstat?.size ?? null) : null,
         mtime: toOutputTime(lstat?.mtime ?? null),
       }
 
@@ -79,7 +77,8 @@ export async function listDirectoryUseCase(
 
   const pagedEntries = sortedEntries.slice(offset, offset + limit)
   const nextOffset = offset + pagedEntries.length
-  const nextCursor = nextOffset < sortedEntries.length ? String(nextOffset) : null
+  const nextCursor =
+    nextOffset < sortedEntries.length ? String(nextOffset) : null
 
   return {
     path: toOutputPath(canonicalTargetPath),

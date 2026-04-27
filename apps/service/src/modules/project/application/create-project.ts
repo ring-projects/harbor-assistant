@@ -30,7 +30,7 @@ export async function createProjectUseCase(
   repository: ProjectRepository,
   pathPolicy: ProjectPathPolicy,
   input: CreateProjectCommand,
-){
+) {
   let source: RootPathProjectSource | GitProjectSource
 
   if (input.source.type === "rootPath") {

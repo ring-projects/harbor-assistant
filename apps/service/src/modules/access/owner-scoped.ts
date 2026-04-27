@@ -63,7 +63,8 @@ export function createOwnerScopedProjectRepository(
       const projects = await repository.list()
       return projects.filter(
         (project) =>
-          project.ownerUserId === null || project.ownerUserId === requestedOwnerUserId,
+          project.ownerUserId === null ||
+          project.ownerUserId === requestedOwnerUserId,
       )
     },
     save(project) {
@@ -136,7 +137,9 @@ export function createOwnerScopedTaskRepository(args: {
     },
     async listByOrchestration(input) {
       const tasks = await args.repository.listByOrchestration(input)
-      const filtered: Awaited<ReturnType<TaskRepository["listByOrchestration"]>> = []
+      const filtered: Awaited<
+        ReturnType<TaskRepository["listByOrchestration"]>
+      > = []
 
       for (const task of tasks) {
         const project = await findOwnedProject(
@@ -189,10 +192,10 @@ export function createOwnerScopedOrchestrationRepository(args: {
 
       return project ? orchestration : null
     },
-    async listByProject(projectId) {
+    async listByProject(input) {
       const project = await findOwnedProject(
         args.projectRepository,
-        projectId,
+        input.projectId,
         args.ownerUserId,
       )
 
@@ -200,10 +203,24 @@ export function createOwnerScopedOrchestrationRepository(args: {
         return []
       }
 
-      return args.repository.listByProject(projectId)
+      return args.repository.listByProject(input)
     },
     save(orchestration) {
       return args.repository.save(orchestration)
+    },
+    async findScheduleByOrchestrationId(orchestrationId) {
+      const orchestration = await this.findById(orchestrationId)
+      if (!orchestration) {
+        return null
+      }
+
+      return args.repository.findScheduleByOrchestrationId(orchestrationId)
+    },
+    saveSchedule(schedule) {
+      return args.repository.saveSchedule(schedule)
+    },
+    listDueSchedules(input) {
+      return args.repository.listDueSchedules(input)
     },
   }
 }

@@ -9,13 +9,12 @@ import type { ChatConversationBlock } from "@/modules/tasks/view-models"
 
 type ChatFileChangeBlockProps = {
   block: Extract<ChatConversationBlock, { type: "file-change" }>
-  onOpen: (block: Extract<ChatConversationBlock, { type: "file-change" }>) => void
+  onOpen: (
+    block: Extract<ChatConversationBlock, { type: "file-change" }>,
+  ) => void
 }
 
-function ChatFileChangeBlockView({
-  block,
-  onOpen,
-}: ChatFileChangeBlockProps) {
+function ChatFileChangeBlockView({ block, onOpen }: ChatFileChangeBlockProps) {
   const previewChanges = block.changes.slice(0, 3)
 
   return (
@@ -27,7 +26,7 @@ function ChatFileChangeBlockView({
       >
         <div className="flex items-start justify-between gap-3 px-3 py-2.5">
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-2 font-mono text-[12px] leading-5 text-foreground/88">
+            <p className="text-foreground/88 flex items-center gap-2 font-mono text-[12px] leading-5">
               <FileCode2Icon className="text-muted-foreground size-3.5 shrink-0" />
               <span className="truncate">
                 {block.status === "success" ? "patch applied" : "patch failed"}
@@ -47,12 +46,14 @@ function ChatFileChangeBlockView({
                 {previewChanges.map((change) => (
                   <div
                     key={`${change.kind}-${change.path}`}
-                    className="flex items-center gap-2 rounded-md bg-background/45 px-2.5 py-2"
+                    className="bg-background/45 flex items-center gap-2 rounded-md px-2.5 py-2"
                   >
-                    <span className="inline-flex min-w-12 justify-center rounded-md bg-muted/38 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em]">
+                    <span className="bg-muted/38 inline-flex min-w-12 justify-center rounded-md px-1.5 py-0.5 font-mono text-[10px] tracking-[0.08em] uppercase">
                       {change.kind}
                     </span>
-                    <span className="truncate font-mono text-[11px]">{change.path}</span>
+                    <span className="truncate font-mono text-[11px]">
+                      {change.path}
+                    </span>
                   </div>
                 ))}
                 {block.changes.length > previewChanges.length ? (

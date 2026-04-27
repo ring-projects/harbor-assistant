@@ -27,7 +27,7 @@ pnpm run dev:all
 ## Prisma 初始化
 
 ```bash
-export DATABASE_URL=file:./dev.sqlite
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/harbor
 pnpm --dir apps/service db:generate
 pnpm --dir apps/service db:migrate:deploy
 ```
@@ -41,11 +41,7 @@ pnpm --dir apps/service db:migrate:deploy
 - `env` 负责敏感或外部注入的配置：`DATABASE_URL`、GitHub OAuth / App 凭据、`NODE_ENV`
 - `config` 负责项目级配置：host、port、路径、base URL、允许访问的 GitHub 用户和组织
 
-对于本地 SQLite datasource，service 启动时还会自动检查数据库文件和 schema：
-
-- 如果 sqlite 文件不存在，会自动执行一次 `prisma db push --skip-generate`
-- 如果 sqlite 文件存在但 schema 尚未初始化，也会自动执行一次 `prisma db push --skip-generate`
-- 如果你通过 `DATABASE_URL` 切到非 sqlite 数据源，service 不会自动迁移
+service 启动时不再对数据库执行 SQLite 风格的文件检查或自动 `db push`。在 PostgreSQL 环境里，schema 初始化和迁移需要在启动前显式完成。
 
 当前默认配置示例：
 
@@ -83,15 +79,15 @@ pnpm --dir apps/service db:migrate:deploy
 
 这样登录后的 `harbor_session` cookie 就能在两个子域之间共享。本地 `localhost` 开发通常不要设置这个字段。
 
-如果你需要清空本地 SQLite 数据库并按最新 schema 重建：
+如果你需要在本地重建 PostgreSQL schema：
 
 1. 停掉当前 service 进程。
-2. 删除 `DATABASE_URL` 指向的 sqlite 文件，以及可能存在的 `-wal` / `-shm` 文件。
-3. 重新执行迁移：
+2. 删除或重建目标数据库 / schema。
+3. 重新执行 Prisma 命令：
 
 ```bash
-export DATABASE_URL=file:./dev.sqlite
-pnpm --dir apps/service db:migrate:dev
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/harbor
+pnpm --dir apps/service db:migrate:deploy
 ```
 
 ## 高级覆盖
@@ -124,8 +120,7 @@ docker build -f apps/service/Dockerfile -t harbor-service .
 ```bash
 docker run --rm \
   -p 3400:3400 \
-  -e DATABASE_URL=file:/var/lib/harbor/harbor.sqlite \
-  -v harbor-data:/var/lib/harbor \
+  -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/harbor \
   -v /absolute/path/to/workspace:/workspace \
   harbor-service
 ```

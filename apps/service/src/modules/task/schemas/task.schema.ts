@@ -70,10 +70,7 @@ const taskEntitySchema = {
     model: { type: ["string", "null"] },
     executionMode: { type: ["string", "null"] },
     effort: {
-      anyOf: [
-        { type: "string", enum: TASK_EFFORT_VALUES },
-        { type: "null" },
-      ],
+      anyOf: [{ type: "string", enum: TASK_EFFORT_VALUES }, { type: "null" }],
     },
     status: {
       type: "string",
@@ -120,10 +117,7 @@ const taskListItemSchema = {
     model: { type: ["string", "null"] },
     executionMode: { type: ["string", "null"] },
     effort: {
-      anyOf: [
-        { type: "string", enum: TASK_EFFORT_VALUES },
-        { type: "null" },
-      ],
+      anyOf: [{ type: "string", enum: TASK_EFFORT_VALUES }, { type: "null" }],
     },
     status: {
       type: "string",
@@ -272,10 +266,7 @@ export const resumeTaskBodySchema = {
     executor: { type: "null" },
     model: { type: ["string", "null"] },
     effort: {
-      anyOf: [
-        { type: "string", enum: TASK_EFFORT_VALUES },
-        { type: "null" },
-      ],
+      anyOf: [{ type: "string", enum: TASK_EFFORT_VALUES }, { type: "null" }],
     },
   },
 } as const
@@ -311,7 +302,7 @@ export const uploadTaskInputImageBodySchema = {
 export const uploadTaskInputImageRouteSchema = {
   tags: ["tasks"],
   operationId: "uploadTaskInputFile",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: projectIdParamsSchema,
   body: uploadTaskInputImageBodySchema,
   response: {
@@ -333,7 +324,7 @@ export const uploadTaskInputImageRouteSchema = {
 export const getTaskRouteSchema = {
   tags: ["tasks"],
   operationId: "getTask",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: taskIdParamsSchema,
   response: {
     200: {
@@ -351,7 +342,7 @@ export const getTaskRouteSchema = {
 export const updateTaskTitleRouteSchema = {
   tags: ["tasks"],
   operationId: "updateTaskTitle",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: taskIdParamsSchema,
   body: updateTaskTitleBodySchema,
   response: {
@@ -370,7 +361,7 @@ export const updateTaskTitleRouteSchema = {
 export const archiveTaskRouteSchema = {
   tags: ["tasks"],
   operationId: "archiveTask",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: taskIdParamsSchema,
   response: {
     200: {
@@ -388,7 +379,7 @@ export const archiveTaskRouteSchema = {
 export const resumeTaskRouteSchema = {
   tags: ["tasks"],
   operationId: "resumeTask",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: taskIdParamsSchema,
   body: resumeTaskBodySchema,
   response: {
@@ -407,7 +398,7 @@ export const resumeTaskRouteSchema = {
 export const cancelTaskRouteSchema = {
   tags: ["tasks"],
   operationId: "cancelTask",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: taskIdParamsSchema,
   body: cancelTaskBodySchema,
   response: {
@@ -426,7 +417,7 @@ export const cancelTaskRouteSchema = {
 export const deleteTaskRouteSchema = {
   tags: ["tasks"],
   operationId: "deleteTask",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: taskIdParamsSchema,
   response: {
     200: {
@@ -446,7 +437,7 @@ export const deleteTaskRouteSchema = {
 export const getTaskEventsRouteSchema = {
   tags: ["tasks"],
   operationId: "getTaskEvents",
-  security: [{ cookieAuth: [] }],
+  security: [{ cookieAuth: [] }, { bearerAuth: [] }],
   params: taskIdParamsSchema,
   querystring: getTaskEventsQuerySchema,
   response: {

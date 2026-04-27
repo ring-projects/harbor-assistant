@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { WORKSPACE_ERROR_CODES, WorkspaceError } from "../errors"
-import { createWorkspace } from "./workspace"
+import { createWorkspace, updateWorkspaceSettings } from "./workspace"
 
 describe("createWorkspace", () => {
   it("creates a personal workspace with an owner membership", () => {
@@ -52,6 +52,46 @@ describe("createWorkspace", () => {
         name: "   ",
         type: "team",
         createdByUserId: "user-1",
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: WORKSPACE_ERROR_CODES.INVALID_INPUT,
+      } satisfies Partial<WorkspaceError>),
+    )
+  })
+
+  it("updates codex settings", () => {
+    const workspace = createWorkspace({
+      id: "ws_1",
+      name: "Harbor Core",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+
+    const updated = updateWorkspaceSettings(workspace, {
+      codex: {
+        baseUrl: "https://gateway.example.com/v1",
+        apiKey: "test-key",
+      },
+    })
+
+    expect(updated.settings.codex).toEqual({
+      baseUrl: "https://gateway.example.com/v1",
+      apiKey: "test-key",
+    })
+  })
+
+  it("rejects invalid codex base URLs", () => {
+    const workspace = createWorkspace({
+      id: "ws_1",
+      name: "Harbor Core",
+      type: "team",
+      createdByUserId: "user-1",
+    })
+
+    expect(() =>
+      updateWorkspaceSettings(workspace, {
+        codex: { baseUrl: "ftp://gateway.example.com" },
       }),
     ).toThrowError(
       expect.objectContaining({

@@ -44,6 +44,8 @@ type ProjectSettingsViewProps = {
 type SettingsDraft = {
   logRetentionDays: string
   eventRetentionDays: string
+  codexBaseUrl: string
+  codexApiKey: string
 }
 
 function toDraft(settings: ProjectSettings): SettingsDraft {
@@ -56,7 +58,14 @@ function toDraft(settings: ProjectSettings): SettingsDraft {
       settings.retention.eventRetentionDays === null
         ? ""
         : String(settings.retention.eventRetentionDays),
+    codexBaseUrl: settings.codex.baseUrl ?? "",
+    codexApiKey: settings.codex.apiKey ?? "",
   }
+}
+
+function parseNullableString(value: string) {
+  const normalized = value.trim()
+  return normalized ? normalized : null
 }
 
 function SettingsField(props: {
@@ -264,6 +273,17 @@ export function ProjectSettingsView({
     [settingsQuery.data],
   )
   const draft = draftOverride ?? baselineDraft
+  const updateDraft = (patch: Partial<SettingsDraft>) => {
+    setSaveError(null)
+    setSaveSuccessMessage(null)
+    setDraftOverride((current) =>
+      current
+        ? { ...current, ...patch }
+        : baselineDraft
+          ? { ...baselineDraft, ...patch }
+          : current,
+    )
+  }
 
   const hasChanges = useMemo(() => {
     if (!draftOverride || !baselineDraft) {
@@ -293,6 +313,10 @@ export function ProjectSettingsView({
           eventRetentionDays: parseNullablePositiveInteger(
             draft.eventRetentionDays,
           ),
+        },
+        codex: {
+          baseUrl: parseNullableString(draft.codexBaseUrl),
+          apiKey: parseNullableString(draft.codexApiKey),
         },
       })
 
@@ -494,8 +518,8 @@ export function ProjectSettingsView({
             </span>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
-            Manage repository access and project-level retention policies for
-            Harbor task data.
+            Manage repository access, retention policies, and project-level
+            Codex BYOK runtime settings.
           </p>
         </div>
 
@@ -513,8 +537,8 @@ export function ProjectSettingsView({
             <Card className="p-4">
               <p className="text-sm font-semibold">Settings Scope</p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                New tasks inherit the default executor and execution mode from
-                here unless they are explicitly overridden at creation time.
+                New tasks inherit the default executor from here unless they are
+                explicitly overridden at creation time.
               </p>
 
               <Separator className="my-4" />
@@ -541,6 +565,22 @@ export function ProjectSettingsView({
                         : "Disabled"}
                     </dd>
                   </div>
+                  <div className="grid gap-1">
+                    <dt className="text-muted-foreground text-xs">
+                      Codex Base URL
+                    </dt>
+                    <dd className="font-medium break-all">
+                      {summary.codexBaseUrl || "OpenAI default"}
+                    </dd>
+                  </div>
+                  <div className="grid gap-1">
+                    <dt className="text-muted-foreground text-xs">
+                      Codex API Key
+                    </dt>
+                    <dd className="font-medium">
+                      {summary.codexApiKey ? "Configured" : "Not set"}
+                    </dd>
+                  </div>
                 </dl>
               ) : (
                 <div className="grid gap-2">
@@ -556,6 +596,15 @@ export function ProjectSettingsView({
               <p className="text-muted-foreground mt-1 text-xs leading-5">
                 These values control how long Harbor keeps task logs and task
                 events for this project.
+              </p>
+            </Card>
+
+            <Card className="p-4">
+              <p className="text-sm font-semibold">Codex BYOK</p>
+              <p className="text-muted-foreground mt-1 text-xs leading-5">
+                Configure a project-scoped Codex `base URL` and `API key` for
+                compatible gateways. New and resumed Codex tasks will use these
+                credentials.
               </p>
             </Card>
 
@@ -881,17 +930,9 @@ export function ProjectSettingsView({
                     label="Log Retention Days"
                     description="How many days to retain aggregated stdout and stderr content. Leave empty for no limit."
                     value={draft.logRetentionDays}
-                    onChange={(value) => {
-                      setSaveError(null)
-                      setSaveSuccessMessage(null)
-                      setDraftOverride((current) =>
-                        current
-                          ? { ...current, logRetentionDays: value }
-                          : baselineDraft
-                            ? { ...baselineDraft, logRetentionDays: value }
-                            : current,
-                      )
-                    }}
+                    onChange={(value) =>
+                      updateDraft({ logRetentionDays: value })
+                    }
                     type="number"
                     placeholder="30"
                   />
@@ -899,19 +940,31 @@ export function ProjectSettingsView({
                     label="Event Retention Days"
                     description="How many days to retain agent events. Leave empty for no limit."
                     value={draft.eventRetentionDays}
-                    onChange={(value) => {
-                      setSaveError(null)
-                      setSaveSuccessMessage(null)
-                      setDraftOverride((current) =>
-                        current
-                          ? { ...current, eventRetentionDays: value }
-                          : baselineDraft
-                            ? { ...baselineDraft, eventRetentionDays: value }
-                            : current,
-                      )
-                    }}
+                    onChange={(value) =>
+                      updateDraft({ eventRetentionDays: value })
+                    }
                     type="number"
                     placeholder="7"
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <SettingsField
+                    label="Codex Base URL"
+                    description="Optional compatible gateway endpoint. Leave empty to use the default OpenAI endpoint."
+                    value={draft.codexBaseUrl}
+                    onChange={(value) => updateDraft({ codexBaseUrl: value })}
+                    placeholder="https://gateway.example.com/v1"
+                  />
+                  <SettingsField
+                    label="Codex API Key"
+                    description="Project-scoped BYOK credential passed to Codex as CODEX_API_KEY."
+                    value={draft.codexApiKey}
+                    onChange={(value) => updateDraft({ codexApiKey: value })}
+                    type="password"
+                    placeholder="sk-..."
                   />
                 </div>
               </div>

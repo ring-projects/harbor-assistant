@@ -2,11 +2,10 @@ import type { FastifyInstance } from "fastify"
 
 import { AppError } from "../../../lib/errors/app-error"
 import { ERROR_CODES } from "../../../constants/errors"
+import { requireUserAuthenticatedRequest } from "../../auth"
 import { ensureWorkspaceInstallationAccess } from "../../integration/github/application/ensure-workspace-installation-access"
 import { createGitHubBoundProjectUseCase } from "../../integration/github/application/create-github-bound-project"
-import {
-  resolveWorkspaceForUser,
-} from "../../workspace"
+import { resolveWorkspaceForUser } from "../../workspace"
 import { archiveProjectUseCase } from "../application/archive-project"
 import { createProjectUseCase } from "../application/create-project"
 import { deleteProjectUseCase } from "../application/delete-project"
@@ -66,7 +65,9 @@ export async function registerProjectCoreRoutes(
 
         return {
           ok: true,
-          projects: projects.filter((_, index) => decisions[index]?.effect === "allow"),
+          projects: projects.filter(
+            (_, index) => decisions[index]?.effect === "allow",
+          ),
         }
       } catch (error) {
         throw toProjectAppError(error)
@@ -81,13 +82,13 @@ export async function registerProjectCoreRoutes(
     },
     async (request, reply) => {
       try {
+        const auth = requireUserAuthenticatedRequest(request)
         const ownerUserId = getOwnerUserId(request)
         const actor = getAuthorizationActor(request)
         const workspace = await resolveWorkspaceForUser(workspaceRepository, {
           workspaceId: request.body.workspaceId,
           userId: ownerUserId,
-          fallbackName:
-            request.auth!.user.name?.trim() || request.auth!.user.githubLogin,
+          fallbackName: auth.user.name?.trim() || auth.user.githubLogin,
         })
         if (!workspace) {
           throw new AppError(
@@ -125,7 +126,10 @@ export async function registerProjectCoreRoutes(
 
         let project
 
-        if (request.body.source.type === "git" && request.body.repositoryBinding) {
+        if (
+          request.body.source.type === "git" &&
+          request.body.repositoryBinding
+        ) {
           if (!options.workspaceInstallationRepository) {
             throw new AppError(
               ERROR_CODES.AUTH_NOT_CONFIGURED,
@@ -181,6 +185,8 @@ export async function registerProjectCoreRoutes(
             source: request.body.source,
           })
         }
+
+        await options.onProjectCreated?.(project)
 
         return reply.status(201).send({
           ok: true,
@@ -238,14 +244,10 @@ export async function registerProjectCoreRoutes(
             projectId: request.params.id,
           },
         )
-        const project = await updateProjectUseCase(
-          repository,
-          pathPolicy,
-          {
-            projectId: request.params.id,
-            changes: request.body,
-          },
-        )
+        const project = await updateProjectUseCase(repository, pathPolicy, {
+          projectId: request.params.id,
+          changes: request.body,
+        })
 
         return {
           ok: true,
@@ -274,7 +276,10 @@ export async function registerProjectCoreRoutes(
             projectId: request.params.id,
           },
         )
-        const project = await archiveProjectUseCase(repository, request.params.id)
+        const project = await archiveProjectUseCase(
+          repository,
+          request.params.id,
+        )
 
         return {
           ok: true,
@@ -303,7 +308,10 @@ export async function registerProjectCoreRoutes(
             projectId: request.params.id,
           },
         )
-        const project = await restoreProjectUseCase(repository, request.params.id)
+        const project = await restoreProjectUseCase(
+          repository,
+          request.params.id,
+        )
 
         return {
           ok: true,

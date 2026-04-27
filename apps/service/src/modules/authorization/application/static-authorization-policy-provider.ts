@@ -12,7 +12,10 @@ import type {
 } from "./policy-types"
 
 function readPolicyEffect<RoleKey extends string>(
-  table: Record<AuthorizationAction, Partial<Record<RoleKey, AuthorizationPolicyEffect>>>,
+  table: Record<
+    AuthorizationAction,
+    Partial<Record<RoleKey, AuthorizationPolicyEffect>>
+  >,
   role: RoleKey,
   action: AuthorizationAction,
 ): AuthorizationPolicyEffect | null {

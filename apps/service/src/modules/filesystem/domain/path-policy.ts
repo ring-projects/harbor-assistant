@@ -13,7 +13,10 @@ export function resolveRequestedPath(rootPath: string, requestedPath?: string) {
 
 export function isPathInsideRoot(rootPath: string, absolutePath: string) {
   const relative = path.relative(rootPath, absolutePath)
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  )
 }
 
 export function ensurePathInsideRoot(rootPath: string, absolutePath: string) {

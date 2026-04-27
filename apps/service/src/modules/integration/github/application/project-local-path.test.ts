@@ -13,7 +13,9 @@ function createGitHubAppClientStub(
   overrides: Partial<GitHubAppClient> = {},
 ): GitHubAppClient {
   return {
-    buildInstallUrl: vi.fn(() => "https://github.com/apps/harbor/installations/new"),
+    buildInstallUrl: vi.fn(
+      () => "https://github.com/apps/harbor/installations/new",
+    ),
     getInstallation: vi.fn(),
     listInstallationRepositories: vi.fn(async () => []),
     createInstallationAccessToken: vi.fn(async () => ({

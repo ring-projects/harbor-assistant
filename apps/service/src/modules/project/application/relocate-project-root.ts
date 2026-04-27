@@ -1,13 +1,13 @@
-import {
-  type Project,
-  relocateProjectRoot,
-} from "../domain/project"
+import { type Project, relocateProjectRoot } from "../domain/project"
 import { createProjectError } from "../errors"
 import type { ProjectPathPolicy } from "./project-path-policy"
 import type { ProjectRepository } from "./project-repository"
 
 export async function relocateProjectRootUseCase(
-  repository: Pick<ProjectRepository, "findById" | "findByNormalizedPath" | "save">,
+  repository: Pick<
+    ProjectRepository,
+    "findById" | "findByNormalizedPath" | "save"
+  >,
   pathPolicy: ProjectPathPolicy,
   input: {
     projectId: string
@@ -20,7 +20,9 @@ export async function relocateProjectRootUseCase(
     throw createProjectError().notFound()
   }
 
-  const normalizedPath = await pathPolicy.canonicalizeProjectRoot(input.nextPath)
+  const normalizedPath = await pathPolicy.canonicalizeProjectRoot(
+    input.nextPath,
+  )
   const existing = await repository.findByNormalizedPath(normalizedPath)
   if (existing && existing.id !== project.id) {
     throw createProjectError().duplicatePath()

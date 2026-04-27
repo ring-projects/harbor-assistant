@@ -57,7 +57,12 @@ afterEach(() => {
 
 describe("TaskSessionConversationPane", () => {
   it("renders the running state inside the chat stream instead of a separate status bar", () => {
-    render(<TaskSessionConversationPane taskId="task-1" detail={buildTaskDetail()} />)
+    render(
+      <TaskSessionConversationPane
+        taskId="task-1"
+        detail={buildTaskDetail()}
+      />,
+    )
 
     expect(screen.getByText("Codex is working...")).toBeInTheDocument()
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
@@ -67,7 +72,12 @@ describe("TaskSessionConversationPane", () => {
   })
 
   it("wires the scroll handler to the conversation scroller", () => {
-    render(<TaskSessionConversationPane taskId="task-1" detail={buildTaskDetail()} />)
+    render(
+      <TaskSessionConversationPane
+        taskId="task-1"
+        detail={buildTaskDetail()}
+      />,
+    )
 
     fireEvent.scroll(screen.getByRole("log").parentElement as HTMLElement)
 

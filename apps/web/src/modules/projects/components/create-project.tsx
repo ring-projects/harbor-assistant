@@ -109,7 +109,9 @@ function GitHubInstallationList(props: {
               <span
                 className={cn(
                   "text-xs capitalize",
-                  selected ? "text-primary-foreground/75" : "text-muted-foreground",
+                  selected
+                    ? "text-primary-foreground/75"
+                    : "text-muted-foreground",
                 )}
               >
                 {installation.accountType}
@@ -118,7 +120,9 @@ function GitHubInstallationList(props: {
             <div
               className={cn(
                 "flex items-center justify-between gap-3 text-xs",
-                selected ? "text-primary-foreground/75" : "text-muted-foreground",
+                selected
+                  ? "text-primary-foreground/75"
+                  : "text-muted-foreground",
               )}
             >
               <span>Repository scope: {installation.targetType}</span>
@@ -157,7 +161,9 @@ function GitHubRepositoryList(props: {
               <span
                 className={cn(
                   "text-xs capitalize",
-                  selected ? "text-primary-foreground/75" : "text-muted-foreground",
+                  selected
+                    ? "text-primary-foreground/75"
+                    : "text-muted-foreground",
                 )}
               >
                 {repository.visibility ?? "unknown"}
@@ -166,7 +172,9 @@ function GitHubRepositoryList(props: {
             <div
               className={cn(
                 "flex items-center justify-between gap-3 text-xs",
-                selected ? "text-primary-foreground/75" : "text-muted-foreground",
+                selected
+                  ? "text-primary-foreground/75"
+                  : "text-muted-foreground",
               )}
             >
               <span>{repository.url}</span>
@@ -432,7 +440,9 @@ export function CreateProject(props: CreateProjectProps) {
   const inputClassName = isLandingAppearance
     ? "h-auto rounded-[6px] border-input bg-background px-5 py-5 text-base text-foreground placeholder:text-muted-foreground shadow-none focus-visible:border-ring focus-visible:ring-0"
     : undefined
-  const containerClassName = isLandingAppearance ? "grid gap-6" : "grid gap-5 p-5"
+  const containerClassName = isLandingAppearance
+    ? "grid gap-6"
+    : "grid gap-5 p-5"
   const panelClassName = isLandingAppearance
     ? "grid gap-5 rounded-[4px] border border-border bg-card p-5"
     : "grid gap-4 rounded-lg border p-4"
@@ -526,7 +536,7 @@ export function CreateProject(props: CreateProjectProps) {
             value="rootPath"
             className={cn(
               isLandingAppearance &&
-                "text-muted-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 after:hidden data-[state=active]:border-foreground/35 data-[state=active]:bg-transparent data-[state=active]:text-foreground",
+                "text-muted-foreground data-[state=active]:border-foreground/35 data-[state=active]:text-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] leading-4 font-medium after:hidden data-[state=active]:bg-transparent",
             )}
           >
             Local Path
@@ -535,7 +545,7 @@ export function CreateProject(props: CreateProjectProps) {
             value="github"
             className={cn(
               isLandingAppearance &&
-                "text-muted-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 after:hidden data-[state=active]:border-foreground/35 data-[state=active]:bg-transparent data-[state=active]:text-foreground",
+                "text-muted-foreground data-[state=active]:border-foreground/35 data-[state=active]:text-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] leading-4 font-medium after:hidden data-[state=active]:bg-transparent",
             )}
           >
             GitHub
@@ -544,7 +554,7 @@ export function CreateProject(props: CreateProjectProps) {
             value="manualGit"
             className={cn(
               isLandingAppearance &&
-                "text-muted-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] font-medium leading-4 after:hidden data-[state=active]:border-foreground/35 data-[state=active]:bg-transparent data-[state=active]:text-foreground",
+                "text-muted-foreground data-[state=active]:border-foreground/35 data-[state=active]:text-foreground h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-0 pb-3 text-[15px] leading-4 font-medium after:hidden data-[state=active]:bg-transparent",
             )}
           >
             Manual URL
@@ -559,7 +569,7 @@ export function CreateProject(props: CreateProjectProps) {
             className={cn(
               "border-border/70",
               isLandingAppearance &&
-                "rounded-[4px] border-border bg-card text-foreground",
+                "border-border bg-card text-foreground rounded-[4px]",
             )}
             title={null}
             confirmLabel={isMutating ? "Creating..." : submitLabel}
@@ -694,7 +704,7 @@ export function CreateProject(props: CreateProjectProps) {
                 <div
                   className={cn(
                     isLandingAppearance
-                      ? "text-muted-foreground rounded-[4px] border border-dashed border-border p-4 text-sm leading-6"
+                      ? "text-muted-foreground border-border rounded-[4px] border border-dashed p-4 text-sm leading-6"
                       : "text-muted-foreground rounded-lg border border-dashed p-4 text-sm",
                   )}
                 >
@@ -759,7 +769,7 @@ export function CreateProject(props: CreateProjectProps) {
                 <div
                   className={cn(
                     isLandingAppearance
-                      ? "text-muted-foreground rounded-[4px] border border-dashed border-border p-4 text-sm leading-6"
+                      ? "text-muted-foreground border-border rounded-[4px] border border-dashed p-4 text-sm leading-6"
                       : "text-muted-foreground rounded-lg border border-dashed p-4 text-sm",
                   )}
                 >
@@ -843,10 +853,7 @@ export function CreateProject(props: CreateProjectProps) {
           value="manualGit"
           className={cn("mt-0", isLandingAppearance && "pt-1")}
         >
-          <form
-            className={panelClassName}
-            onSubmit={handleManualGitSubmit}
-          >
+          <form className={panelClassName} onSubmit={handleManualGitSubmit}>
             <div className="grid gap-2">
               <label
                 className={cn(
@@ -932,8 +939,8 @@ export function CreateProject(props: CreateProjectProps) {
         <div
           className={cn(
             isLandingAppearance
-              ? "bg-surface-danger grid gap-3 rounded-[4px] border border-destructive/25 p-4"
-              : "bg-surface-danger grid gap-3 rounded-lg border border-destructive/25 p-3",
+              ? "bg-surface-danger border-destructive/25 grid gap-3 rounded-[4px] border p-4"
+              : "bg-surface-danger border-destructive/25 grid gap-3 rounded-lg border p-3",
           )}
         >
           <p

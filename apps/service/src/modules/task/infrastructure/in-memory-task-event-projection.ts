@@ -2,14 +2,20 @@ import type {
   GetTaskEventsInput,
   TaskEventProjection,
 } from "../application/task-event-projection"
-import type { TaskEventItem, TaskEventStream } from "../application/task-read-models"
+import type {
+  TaskEventItem,
+  TaskEventStream,
+} from "../application/task-read-models"
 
 export class InMemoryTaskEventProjection implements TaskEventProjection {
   private readonly eventsByTaskId = new Map<string, TaskEventItem[]>()
 
   constructor(seed?: Record<string, TaskEventItem[]>) {
     for (const [taskId, items] of Object.entries(seed ?? {})) {
-      this.eventsByTaskId.set(taskId, [...items].sort((a, b) => a.sequence - b.sequence))
+      this.eventsByTaskId.set(
+        taskId,
+        [...items].sort((a, b) => a.sequence - b.sequence),
+      )
     }
   }
 

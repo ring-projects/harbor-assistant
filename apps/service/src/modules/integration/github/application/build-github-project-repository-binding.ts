@@ -25,7 +25,8 @@ export async function buildGitHubProjectRepositoryBinding(
     ? await ensureWorkspaceInstallationAccess(
         {
           installationRepository: deps.installationRepository,
-          workspaceInstallationRepository: input.workspaceInstallationRepository,
+          workspaceInstallationRepository:
+            input.workspaceInstallationRepository,
         },
         {
           workspaceId: input.workspaceId,

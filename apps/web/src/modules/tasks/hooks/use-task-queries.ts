@@ -80,6 +80,10 @@ export function useOrchestrationTaskListQuery(args: {
 }
 
 export function useTaskDetailQuery(taskId: string | null) {
+  const status = useTasksSessionStore((state) =>
+    taskId ? (state.tasksById[taskId]?.status ?? null) : null,
+  )
+
   const query = useQuery({
     queryKey: taskQueryKeys.detail(taskId ?? "none"),
     queryFn: async () => {
@@ -90,6 +94,8 @@ export function useTaskDetailQuery(taskId: string | null) {
       return readTaskDetail(taskId)
     },
     enabled: Boolean(taskId),
+    refetchInterval:
+      status === "running" || status === "queued" ? 2_000 : false,
   })
 
   useEffect(() => {
@@ -107,6 +113,10 @@ export function useTaskEventsQuery(args: {
   taskId: string | null
   enabled: boolean
 }) {
+  const status = useTasksSessionStore((state) =>
+    args.taskId ? (state.tasksById[args.taskId]?.status ?? null) : null,
+  )
+
   const query = useQuery({
     queryKey: taskQueryKeys.events(args.taskId ?? "none"),
     queryFn: async () => {
@@ -120,6 +130,8 @@ export function useTaskEventsQuery(args: {
       })
     },
     enabled: args.enabled && Boolean(args.taskId),
+    refetchInterval:
+      status === "running" || status === "queued" ? 2_000 : false,
   })
 
   useEffect(() => {
@@ -242,7 +254,8 @@ export function useResumeTaskMutation(projectId: string) {
 
 export function useUploadTaskInputImageMutation(projectId: string) {
   return useMutation({
-    mutationFn: (input: { file: File }) => uploadTaskInputImage(projectId, input),
+    mutationFn: (input: { file: File }) =>
+      uploadTaskInputImage(projectId, input),
   })
 }
 

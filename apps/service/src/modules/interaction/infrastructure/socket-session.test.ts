@@ -198,7 +198,9 @@ afterEach(() => {
 describe("bindWebSocketSession", () => {
   it("replays task-events snapshot, forwards live task events, and cleans up on disconnect", async () => {
     const socket = createFakeSocket()
-    const taskListeners = new Set<(message: InteractionTaskStreamMessage) => void>()
+    const taskListeners = new Set<
+      (message: InteractionTaskStreamMessage) => void
+    >()
     const taskSubscribeCount = { current: 0 }
     const taskUnsubscribeCount = { current: 0 }
     const selectedTopics: InteractionTaskTopic[] = []
@@ -322,7 +324,9 @@ describe("bindWebSocketSession", () => {
 
   it("replays task snapshot and forwards task status updates", async () => {
     const socket = createFakeSocket()
-    const taskListeners = new Set<(message: InteractionTaskStreamMessage) => void>()
+    const taskListeners = new Set<
+      (message: InteractionTaskStreamMessage) => void
+    >()
     const taskSubscribeCount = { current: 0 }
     const selectedTopics: InteractionTaskTopic[] = []
     const getTaskSnapshot = vi.fn(async () =>

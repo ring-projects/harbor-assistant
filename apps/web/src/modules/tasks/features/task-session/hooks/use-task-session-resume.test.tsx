@@ -119,7 +119,9 @@ describe("useTaskSessionResume", () => {
 
     expect(mutateAsync).not.toHaveBeenCalled()
     await waitFor(() => {
-      expect(useTasksSessionStore.getState().chatUiByTaskId["task-1"]).toMatchObject({
+      expect(
+        useTasksSessionStore.getState().chatUiByTaskId["task-1"],
+      ).toMatchObject({
         draft: "",
         queuedPrompt: {
           content: "follow up",
@@ -200,7 +202,9 @@ describe("useTaskSessionResume", () => {
       })
     })
 
-    expect(useTasksSessionStore.getState().chatUiByTaskId["task-1"]).toMatchObject({
+    expect(
+      useTasksSessionStore.getState().chatUiByTaskId["task-1"],
+    ).toMatchObject({
       draft: "",
       draftAttachments: [],
       queuedPrompt: null,
@@ -266,7 +270,9 @@ describe("useTaskSessionResume", () => {
       model: "gpt-5.4",
       effort: "high",
     })
-    expect(useTasksSessionStore.getState().chatUiByTaskId["task-1"]).toMatchObject({
+    expect(
+      useTasksSessionStore.getState().chatUiByTaskId["task-1"],
+    ).toMatchObject({
       draft: "",
       draftAttachments: [],
       pendingPrompt: {

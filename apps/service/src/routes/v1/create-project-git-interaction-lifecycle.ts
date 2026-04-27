@@ -12,14 +12,20 @@ export function createProjectGitInteractionLifecycle(args: {
   return {
     async subscribe(projectId, listener) {
       try {
-        const project = await getProjectUseCase(args.projectRepository, projectId)
+        const project = await getProjectUseCase(
+          args.projectRepository,
+          projectId,
+        )
         const localPath = requireProjectLocalPath(project)
-        return await args.gitPathWatcher.subscribe(localPath.rootPath, (event) => {
-          listener({
-            projectId: project.id,
-            changedAt: event.changedAt,
-          })
-        })
+        return await args.gitPathWatcher.subscribe(
+          localPath.rootPath,
+          (event) => {
+            listener({
+              projectId: project.id,
+              changedAt: event.changedAt,
+            })
+          },
+        )
       } catch (error) {
         throw toProjectAppError(error)
       }

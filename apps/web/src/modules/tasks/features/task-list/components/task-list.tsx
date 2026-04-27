@@ -14,10 +14,7 @@ import {
   useTasksSessionStore,
 } from "@/modules/tasks/store"
 import { getErrorMessage } from "@/modules/tasks/view-models"
-import {
-  DeleteTaskDialog,
-  type PendingTaskDelete,
-} from "./delete-task-dialog"
+import { DeleteTaskDialog, type PendingTaskDelete } from "./delete-task-dialog"
 import { TaskListHeader, type TaskListTab } from "./task-list-header"
 import { TaskListItem } from "./task-list-item"
 
@@ -104,23 +101,23 @@ export function TaskList({
 
   const emptyStateMessage = useMemo(() => {
     if (!orchestrationId) {
-      return "Select an orchestration to view its tasks."
+      return "Select a session to view runs."
     }
 
     if (orchestrationTasks.length === 0) {
-      return "No tasks yet."
+      return "No runs yet."
     }
 
     switch (selectedTab) {
       case "all":
-        return "No active tasks yet."
+        return "No active runs yet."
       case "completed":
-        return "No completed tasks yet."
+        return "No completed runs yet."
       case "archived":
-        return "No archived tasks yet."
+        return "No archived runs yet."
       case "running":
       default:
-        return "No running tasks right now."
+        return "No active runs right now."
     }
   }, [orchestrationId, orchestrationTasks.length, selectedTab])
 
@@ -153,7 +150,7 @@ export function TaskList({
   }
 
   return (
-    <section className="min-h-0 bg-transparent p-3">
+    <section className="bg-background h-full min-h-0 p-3">
       <div className="flex h-full min-h-0 flex-col gap-3">
         <TaskListHeader
           projectId={projectId}
@@ -180,7 +177,7 @@ export function TaskList({
           }}
         />
 
-        <div className="native-thin-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
+        <div className="native-thin-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
           <div className="w-full max-w-full min-w-0 space-y-2 pb-3">
             {listQuery.isLoading
               ? Array.from({ length: 8 }).map((_, index) => (
@@ -189,7 +186,7 @@ export function TaskList({
               : null}
 
             {!listQuery.isLoading && listQuery.isError ? (
-              <div className="bg-surface-danger text-destructive rounded-md border border-destructive/25 p-3 text-xs">
+              <div className="bg-surface-danger text-destructive border-destructive/25 rounded-md border p-3 text-xs">
                 {getErrorMessage(listQuery.error)}
               </div>
             ) : null}

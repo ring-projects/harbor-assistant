@@ -7,14 +7,7 @@ import { ERROR_CODES } from "@/constants"
 import { AppErrorPage } from "./app-error-page"
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    to,
-    children,
-    ...props
-  }: {
-    to: string
-    children: ReactNode
-  }) => (
+  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
     <a href={to} {...props}>
       {children}
     </a>
@@ -40,10 +33,9 @@ describe("AppErrorPage", () => {
     expect(
       screen.getByText("The service returned an unexpected response."),
     ).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Back to Harbor" })).toHaveAttribute(
-      "href",
-      "/",
-    )
+    expect(
+      screen.getByRole("link", { name: "Back to Harbor" }),
+    ).toHaveAttribute("href", "/")
 
     fireEvent.click(screen.getByRole("button", { name: "Try again" }))
 

@@ -19,6 +19,7 @@ model User {
   updatedAt    DateTime       @updatedAt
   identities   AuthIdentity[]
   sessions     AuthSession[]
+  issuedAgentTokens AgentToken[] @relation("IssuedAgentTokens")
   projects     Project[]
   workspacesCreated Workspace[] @relation("WorkspaceCreatedByUser")
   workspaceMemberships WorkspaceMembership[] @relation("WorkspaceMemberships")
@@ -63,4 +64,33 @@ model AuthSession {
   @@index([userId, createdAt(sort: Desc)])
   @@index([expiresAt, revokedAt])
   @@map("auth_sessions")
+}
+
+model AgentToken {
+  id                String       @id @default(cuid())
+  name              String?
+  tokenHash         String       @unique
+  issuedByUserId    String?
+  parentTokenId     String?
+  projectId         String?
+  orchestrationId   String?
+  taskId            String?
+  sourceTaskId      String?
+  scopes            Json
+  expiresAt         DateTime
+  lastSeenAt        DateTime?
+  revokedAt         DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  issuedByUser      User?        @relation("IssuedAgentTokens", fields: [issuedByUserId], references: [id], onDelete: SetNull)
+  parentToken       AgentToken?  @relation("DelegatedAgentTokens", fields: [parentTokenId], references: [id], onDelete: SetNull)
+  delegatedTokens   AgentToken[] @relation("DelegatedAgentTokens")
+
+  @@index([issuedByUserId, createdAt(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([orchestrationId, createdAt(sort: Desc)])
+  @@index([taskId, createdAt(sort: Desc)])
+  @@index([sourceTaskId, createdAt(sort: Desc)])
+  @@index([expiresAt, revokedAt])
+  @@map("agent_tokens")
 }

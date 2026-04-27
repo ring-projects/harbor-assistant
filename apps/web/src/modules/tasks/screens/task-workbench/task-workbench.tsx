@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { OrchestrationList } from "@/modules/orchestrations"
-import { TaskList } from "@/modules/tasks/features/task-list"
+import { useOrchestrationTaskListQuery } from "@/modules/tasks/hooks/use-task-queries"
 import { TaskSessionPanel } from "@/modules/tasks/features/task-session"
 
 type TaskWorkbenchProps = {
@@ -11,31 +11,52 @@ type TaskWorkbenchProps = {
 }
 
 export function TaskWorkbench({ projectId }: TaskWorkbenchProps) {
-  const [selectedOrchestrationId, setSelectedOrchestrationId] =
-    useState<string | null>(null)
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [selectedOrchestrationId, setSelectedOrchestrationId] = useState<
+    string | null
+  >(null)
+  const taskListQuery = useOrchestrationTaskListQuery({
+    orchestrationId: selectedOrchestrationId,
+  })
+  const selectedTaskId = useMemo(() => {
+    const tasks = taskListQuery.data ?? []
+    if (tasks.length === 0) {
+      return null
+    }
 
-  useEffect(() => {
-    setSelectedTaskId(null)
-  }, [selectedOrchestrationId])
+    const activeTasks = tasks.filter((task) => task.archivedAt === null)
+    const candidates = activeTasks.length > 0 ? activeTasks : tasks
+
+    return (
+      [...candidates].sort((left, right) => {
+        const leftTimestamp =
+          Date.parse(left.finishedAt ?? left.startedAt ?? left.createdAt) || 0
+        const rightTimestamp =
+          Date.parse(right.finishedAt ?? right.startedAt ?? right.createdAt) ||
+          0
+
+        return rightTimestamp - leftTimestamp
+      })[0]?.id ?? null
+    )
+  }, [taskListQuery.data])
+  const emptyStateMessage = selectedOrchestrationId
+    ? "This session does not have runs yet."
+    : "Select a session to view activity."
 
   return (
     <div className="h-full min-h-0 w-full max-w-full overflow-hidden">
-      <div className="bg-muted/30 grid h-full min-h-0 w-full max-w-full grid-cols-1 divide-y xl:grid-cols-[300px_360px_minmax(0,1fr)] xl:divide-x xl:divide-y-0">
+      <div className="bg-background divide-border/60 grid h-full min-h-0 w-full max-w-full grid-cols-1 divide-y xl:auto-rows-[minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] xl:divide-x xl:divide-y-0">
         <OrchestrationList
           projectId={projectId}
           selectedOrchestrationId={selectedOrchestrationId}
           onSelectOrchestration={setSelectedOrchestrationId}
         />
 
-        <TaskList
+        <TaskSessionPanel
           projectId={projectId}
           orchestrationId={selectedOrchestrationId}
-          selectedTaskId={selectedTaskId}
-          onSelectTask={setSelectedTaskId}
+          taskId={selectedTaskId}
+          emptyStateMessage={emptyStateMessage}
         />
-
-        <TaskSessionPanel projectId={projectId} taskId={selectedTaskId} />
       </div>
     </div>
   )

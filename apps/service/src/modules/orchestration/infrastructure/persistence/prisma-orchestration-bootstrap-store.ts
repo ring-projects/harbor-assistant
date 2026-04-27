@@ -5,9 +5,7 @@ import type {
   OrchestrationBootstrapStore,
 } from "../../application/orchestration-bootstrap-store"
 
-export class PrismaOrchestrationBootstrapStore
-  implements OrchestrationBootstrapStore
-{
+export class PrismaOrchestrationBootstrapStore implements OrchestrationBootstrapStore {
   constructor(private readonly prisma: PrismaClient) {}
 
   async create(input: CreateBootstrapRecordInput): Promise<void> {

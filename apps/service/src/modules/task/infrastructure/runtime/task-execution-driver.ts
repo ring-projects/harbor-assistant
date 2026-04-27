@@ -5,6 +5,9 @@ import type {
   AgentType,
   IAgentRuntime,
 } from "../../../../lib/agents"
+import type { AuthorizationAction } from "../../../authorization"
+import type { PrismaAgentTokenStore } from "../../../auth"
+import type { WorkspaceCodexSettings } from "../../../workspace/domain/workspace"
 import type { TaskRuntimeConfig } from "../../application/task-runtime-port"
 import {
   applyNormalizedTaskEvents,
@@ -13,6 +16,10 @@ import {
   createTaskRunEventState,
   normalizeRawAgentEvent,
 } from "./normalize-agent-events"
+import {
+  prepareHarborAgentBridge,
+  prependHarborAgentBridgeText,
+} from "./harbor-agent-bridge"
 import { createAgentRuntimeOptions } from "./runtime-policy"
 import type { TaskExecutionHandle } from "./task-execution-handle-registry"
 import type { createTaskExecutionStateStore } from "./task-execution-state"
@@ -32,28 +39,136 @@ type TaskExecutionRecord = {
   sessionId: string | null
 }
 
+function withProjectCodexEnv(input: {
+  agentType: AgentType
+  env: Record<string, string>
+  codex?: WorkspaceCodexSettings
+}) {
+  if (input.agentType !== "codex") {
+    return input.env
+  }
+
+  const nextEnv = { ...input.env }
+  const baseUrl = input.codex?.baseUrl?.trim()
+  const apiKey = input.codex?.apiKey?.trim()
+
+  if (baseUrl) {
+    nextEnv.OPENAI_BASE_URL = baseUrl
+  }
+
+  if (apiKey) {
+    nextEnv.CODEX_API_KEY = apiKey
+  }
+
+  return nextEnv
+}
+
 export function createTaskExecutionDriver(args: {
   prisma: PrismaClient
+  agentTokenStore?: PrismaAgentTokenStore
   stateStore: ReturnType<typeof createTaskExecutionStateStore>
   executionHandleRegistry: {
     register(taskId: string, handle: TaskExecutionHandle): void
     delete(taskId: string, handle?: TaskExecutionHandle): void
   }
   harborApiBaseUrl?: string
+  publicSkillsRootDirectory?: string
   logger?: Pick<Console, "error" | "warn">
 }) {
-  function buildHarborSessionEnv(input: {
+  const runtimeAgentScopes: AuthorizationAction[] = [
+    "project.view",
+    "project.files.read",
+    "project.files.write",
+    "project.git.read",
+    "project.git.write",
+    "project.git.subscribe",
+    "project.tasks.read",
+    "project.tasks.create",
+    "task.view",
+    "task.update",
+    "task.cancel",
+    "task.resume",
+    "task.delete",
+    "task.events.read",
+    "task.subscribe",
+    "orchestration.view",
+    "orchestration.update",
+    "orchestration.schedule.update",
+    "orchestration.task.create",
+  ]
+
+  async function buildHarborRuntimeBridge(input: {
     projectId: string
     taskId: string
+    workingDirectory: string
   }) {
-    if (!args.harborApiBaseUrl) {
-      return undefined
-    }
+    try {
+      const task = await args.prisma.task.findUnique({
+        where: {
+          id: input.taskId,
+        },
+        select: {
+          orchestrationId: true,
+        },
+      })
 
-    return {
-      HARBOR_SERVICE_BASE_URL: args.harborApiBaseUrl,
-      HARBOR_PROJECT_ID: input.projectId,
-      HARBOR_TASK_ID: input.taskId,
+      const env: Record<string, string> = {
+        HARBOR_PROJECT_ID: input.projectId,
+        HARBOR_TASK_ID: input.taskId,
+      }
+
+      if (args.harborApiBaseUrl) {
+        env.HARBOR_SERVICE_BASE_URL = args.harborApiBaseUrl
+      }
+
+      if (task?.orchestrationId) {
+        env.HARBOR_ORCHESTRATION_ID = task.orchestrationId
+      }
+
+      if (args.agentTokenStore) {
+        const created = await args.agentTokenStore.createToken({
+          name: "runtime-task-token",
+          projectId: input.projectId,
+          orchestrationId: task?.orchestrationId ?? null,
+          taskId: input.taskId,
+          sourceTaskId: input.taskId,
+          scopes: runtimeAgentScopes,
+        })
+
+        env.HARBOR_TOKEN = created.token
+      }
+
+      return prepareHarborAgentBridge({
+        projectId: input.projectId,
+        taskId: input.taskId,
+        orchestrationId: task?.orchestrationId ?? null,
+        workingDirectory: input.workingDirectory,
+        baseEnv: env,
+        publicSkillsRootDirectory: args.publicSkillsRootDirectory,
+      })
+    } catch (error) {
+      args.logger?.warn?.(
+        {
+          taskId: input.taskId,
+          error,
+        },
+        "Failed to prepare Harbor runtime bridge",
+      )
+
+      const fallbackEnv: Record<string, string> = {
+        HARBOR_PROJECT_ID: input.projectId,
+        HARBOR_TASK_ID: input.taskId,
+      }
+      if (args.harborApiBaseUrl) {
+        fallbackEnv.HARBOR_SERVICE_BASE_URL = args.harborApiBaseUrl
+      }
+
+      return {
+        env: fallbackEnv,
+        preamble: "",
+        mountedSkillsDirectory: null,
+        mountedSkillNames: [],
+      }
     }
   }
 
@@ -63,6 +178,7 @@ export function createTaskExecutionDriver(args: {
     projectId: string
     input: AgentInput
     runtimeConfig: TaskRuntimeConfig
+    projectCodex?: WorkspaceCodexSettings
     agentType: AgentType
     agentRuntime: IAgentRuntime
     executionRecord: TaskExecutionRecord
@@ -74,24 +190,37 @@ export function createTaskExecutionDriver(args: {
     let nextSequence = await args.stateStore.getNextSequence(input.executionId)
 
     try {
+      const harborBridge = await buildHarborRuntimeBridge({
+        projectId: input.projectId,
+        taskId: input.taskId,
+        workingDirectory: input.executionRecord.workingDirectory,
+      })
       const runtimeOptions = createAgentRuntimeOptions({
         workingDirectory: input.executionRecord.workingDirectory,
         modelId: input.runtimeConfig.model,
         executionMode: input.runtimeConfig.executionMode,
         effort: input.runtimeConfig.effort,
-        env: buildHarborSessionEnv(input),
+        env: withProjectCodexEnv({
+          agentType: input.agentType,
+          env: harborBridge.env,
+          codex: input.projectCodex,
+        }),
       })
+      const runtimeInput = prependHarborAgentBridgeText(
+        input.input,
+        harborBridge.preamble,
+      )
       const events =
         input.startMode === "resume"
           ? input.agentRuntime.resumeSessionAndRun(
               input.executionRecord.sessionId ?? "",
               runtimeOptions,
-              input.input,
+              runtimeInput,
               input.signal,
             )
           : input.agentRuntime.startSessionAndRun(
               runtimeOptions,
-              input.input,
+              runtimeInput,
               input.signal,
             )
 
@@ -118,7 +247,10 @@ export function createTaskExecutionDriver(args: {
         state.terminalError = nextState.terminalError
         state.hasTerminalErrorEvent = nextState.hasTerminalErrorEvent
 
-        if (nextState.sessionId && nextState.sessionId !== input.executionRecord.sessionId) {
+        if (
+          nextState.sessionId &&
+          nextState.sessionId !== input.executionRecord.sessionId
+        ) {
           input.executionRecord.sessionId = nextState.sessionId
           await args.prisma.execution.update({
             where: {

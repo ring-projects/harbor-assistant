@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { getErrorMessage } from "@/modules/tasks/view-models"
+import { formatRelativeTimeShort } from "@/lib/date-time"
 import { useProjectOrchestrationsQuery } from "@/modules/orchestrations/hooks"
 import { OrchestrationCreateDialog } from "./orchestration-create-dialog"
 
@@ -18,12 +19,9 @@ export function OrchestrationList({
   selectedOrchestrationId,
   onSelectOrchestration,
 }: OrchestrationListProps) {
-  const query = useProjectOrchestrationsQuery(projectId)
+  const query = useProjectOrchestrationsQuery(projectId, "human-loop")
 
-  const orchestrations = useMemo(
-    () => query.data ?? [],
-    [query.data],
-  )
+  const orchestrations = useMemo(() => query.data ?? [], [query.data])
 
   const resolvedSelectedOrchestrationId = useMemo(() => {
     if (orchestrations.length === 0) {
@@ -32,9 +30,7 @@ export function OrchestrationList({
 
     if (
       selectedOrchestrationId &&
-      orchestrations.some(
-        (item) => item.id === selectedOrchestrationId,
-      )
+      orchestrations.some((item) => item.id === selectedOrchestrationId)
     ) {
       return selectedOrchestrationId
     }
@@ -53,25 +49,18 @@ export function OrchestrationList({
   ])
 
   return (
-    <section className="min-h-0 bg-card/70 p-3">
+    <section className="bg-background h-full min-h-0 p-3">
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-foreground text-sm font-semibold">
-              Orchestrations
-            </p>
-            <p className="text-muted-foreground text-xs">
-              Work containers under this project.
-            </p>
-          </div>
+          <p className="text-foreground text-sm font-semibold">Sessions</p>
           <OrchestrationCreateDialog
             projectId={projectId}
             onCreated={onSelectOrchestration}
           />
         </div>
 
-        <div className="native-thin-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
-          <div className="space-y-2 pb-3">
+        <div className="native-thin-scrollbar min-h-0 flex-1 overflow-y-auto">
+          <div className="space-y-1.5 pb-3">
             {query.isLoading
               ? Array.from({ length: 6 }).map((_, index) => (
                   <Skeleton key={index} className="h-24 rounded-lg" />
@@ -79,20 +68,24 @@ export function OrchestrationList({
               : null}
 
             {!query.isLoading && query.isError ? (
-              <div className="bg-surface-danger text-destructive rounded-md border border-destructive/25 p-3 text-xs">
+              <div className="bg-surface-danger text-destructive border-destructive/25 rounded-md border p-3 text-xs">
                 {getErrorMessage(query.error)}
               </div>
             ) : null}
 
-            {!query.isLoading && !query.isError && orchestrations.length === 0 ? (
+            {!query.isLoading &&
+            !query.isError &&
+            orchestrations.length === 0 ? (
               <div className="text-muted-foreground rounded-md border border-dashed p-3 text-xs">
-                No orchestrations yet.
+                No sessions yet.
               </div>
             ) : null}
 
             {!query.isLoading && !query.isError
               ? orchestrations.map((orchestration) => {
-                  const isActive = orchestration.id === resolvedSelectedOrchestrationId
+                  const isActive =
+                    orchestration.id === resolvedSelectedOrchestrationId
+                  const description = orchestration.description?.trim() ?? ""
 
                   return (
                     <button
@@ -100,24 +93,28 @@ export function OrchestrationList({
                       type="button"
                       onClick={() => onSelectOrchestration(orchestration.id)}
                       className={[
-                        "w-full rounded-lg border p-3 text-left transition-colors",
+                        "focus-visible:ring-foreground/20 w-full rounded-lg px-4 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none",
                         isActive
-                          ? "border-primary/40 bg-primary/8"
-                          : "border-border/70 hover:bg-muted/40",
+                          ? "bg-secondary"
+                          : "bg-card/78 hover:bg-accent/72",
                       ].join(" ")}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col gap-2.5">
                         <div className="min-w-0">
-                          <p className="line-clamp-1 text-sm font-semibold">
+                          <p className="line-clamp-3 text-[15px] leading-6 font-semibold tracking-[-0.02em] text-balance">
                             {orchestration.title}
                           </p>
-                          <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
-                            {orchestration.description ?? "No activity yet."}
-                          </p>
+                          {description ? (
+                            <p className="text-muted-foreground/88 mt-2 line-clamp-2 text-[13px] leading-5">
+                              {description}
+                            </p>
+                          ) : null}
                         </div>
-                        <span className="text-muted-foreground shrink-0 text-[11px] uppercase">
-                          {orchestration.status}
-                        </span>
+                        <div className="flex items-center">
+                          <span className="text-muted-foreground/72 block text-[11px] leading-none font-semibold">
+                            {formatRelativeTimeShort(orchestration.updatedAt)}
+                          </span>
+                        </div>
                       </div>
                     </button>
                   )

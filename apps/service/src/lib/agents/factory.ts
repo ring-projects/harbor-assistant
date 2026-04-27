@@ -13,7 +13,11 @@ import { getClaudeCodeCapabilities } from "./capabilities/claude-code"
 
 function createCapabilityProvider(args: {
   type: AgentType
-  inspect: () => Promise<ReturnType<IAgentCapabilityProvider["inspect"]> extends Promise<infer T> ? T : never>
+  inspect: () => Promise<
+    ReturnType<IAgentCapabilityProvider["inspect"]> extends Promise<infer T>
+      ? T
+      : never
+  >
 }): IAgentCapabilityProvider {
   return {
     type: args.type,
@@ -107,7 +111,10 @@ export class AgentFactory implements IAgentRegistry {
   }
 
   async inspectAll(): Promise<AgentCapabilityResult> {
-    const agents = {} as Record<AgentType, Awaited<ReturnType<IAgentCapabilityProvider["inspect"]>>>
+    const agents = {} as Record<
+      AgentType,
+      Awaited<ReturnType<IAgentCapabilityProvider["inspect"]>>
+    >
 
     for (const registration of this.registrations) {
       const capabilities = await registration.capability.inspect()

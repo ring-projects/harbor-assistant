@@ -174,7 +174,6 @@ export interface ProjectGitInteractionWatcher {
   ): Promise<(() => Promise<void>) | (() => void)>
 }
 
-export interface ProjectGitInteractionLifecycle
-  extends ProjectGitInteractionWatcher {
+export interface ProjectGitInteractionLifecycle extends ProjectGitInteractionWatcher {
   close?(): Promise<void>
 }

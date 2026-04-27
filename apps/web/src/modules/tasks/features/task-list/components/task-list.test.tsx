@@ -121,7 +121,7 @@ describe("TaskList", () => {
     )
 
     expect(
-      screen.getByText("Select an orchestration to view its tasks."),
+      screen.getByText("Select a session to view runs."),
     ).toBeInTheDocument()
   })
 

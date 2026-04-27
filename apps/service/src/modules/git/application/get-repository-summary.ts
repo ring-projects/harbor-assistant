@@ -2,7 +2,11 @@ import { parseStatusDirty } from "../domain/git-output"
 import { createGitError } from "../errors"
 import type { GitRepositorySummary } from "../types"
 import type { GitRepository } from "./git-repository"
-import { ensureRepository, normalizePathInput, readCurrentBranch } from "./shared"
+import {
+  ensureRepository,
+  normalizePathInput,
+  readCurrentBranch,
+} from "./shared"
 
 export async function getRepositorySummaryUseCase(
   repository: GitRepository,

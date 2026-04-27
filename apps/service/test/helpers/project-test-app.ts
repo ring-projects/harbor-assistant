@@ -41,7 +41,8 @@ export async function createProjectTestApp(
     ? new PrismaProjectRepository(prisma)
     : new InMemoryProjectRepository()
   const installationRepository =
-    options?.installationRepository ?? new PrismaGitHubInstallationRepository(prisma)
+    options?.installationRepository ??
+    new PrismaGitHubInstallationRepository(prisma)
   const workspaceInstallationRepository =
     new PrismaWorkspaceInstallationRepository(prisma)
   const repositoryBindingRepository =
@@ -49,11 +50,12 @@ export async function createProjectTestApp(
     new PrismaProjectRepositoryBindingRepository(prisma)
   const workspaceRepository = new PrismaWorkspaceRepository(prisma)
   const authorization = createDefaultAuthorizationService({
-    workspaceQuery: createRepositoryAuthorizationWorkspaceQuery(
-      workspaceRepository,
-    ),
+    workspaceQuery:
+      createRepositoryAuthorizationWorkspaceQuery(workspaceRepository),
     projectQuery: createRepositoryAuthorizationProjectQuery(repository),
-    taskQuery: createRepositoryAuthorizationTaskQuery(new InMemoryTaskRepository()),
+    taskQuery: createRepositoryAuthorizationTaskQuery(
+      new InMemoryTaskRepository(),
+    ),
     orchestrationQuery: createRepositoryAuthorizationOrchestrationQuery(
       new InMemoryOrchestrationRepository(),
     ),
@@ -69,10 +71,11 @@ export async function createProjectTestApp(
       port: 3400,
       host: "127.0.0.1",
       serviceName: "harbor-test",
-      database: "file:test.sqlite",
+      database: "postgresql://postgres:postgres@127.0.0.1:5432/harbor_test",
       fileBrowserRootDirectory: "/tmp",
       projectLocalPathRootDirectory: "/tmp/workspaces",
-      publicSkillsRootDirectory: "/tmp/skills/profiles/default",
+      sandboxRootDirectory: "/tmp/sandboxes",
+      publicSkillsRootDirectory: "/tmp/skills",
       nodeEnv: "test",
       isProduction: false,
       appBaseUrl: "http://127.0.0.1:3400",

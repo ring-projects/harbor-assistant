@@ -1,6 +1,6 @@
 "use client"
 
-import { executorApiFetch } from "@/lib/executor-service-url"
+import { harborApiFetch } from "@/lib/harbor-api-url"
 import type {
   DirectoryEntry,
   DirectoryListErrorResponse,
@@ -91,7 +91,9 @@ function toRelativePath(absolutePath: string | null, rootPath: string) {
     return undefined
   }
 
-  return normalizedAbsolutePath.slice(normalizedRootPath.length).replace(/^\/+/, "")
+  return normalizedAbsolutePath
+    .slice(normalizedRootPath.length)
+    .replace(/^\/+/, "")
 }
 
 function toAbsolutePath(rootPath: string, relativePath: string | null) {
@@ -102,7 +104,10 @@ function toAbsolutePath(rootPath: string, relativePath: string | null) {
   return `${normalizePathForCompare(rootPath)}/${relativePath.replace(/^\/+/, "")}`
 }
 
-function pickBootstrapRoot(roots: DirectoryRoot[], absolutePath: string | null) {
+function pickBootstrapRoot(
+  roots: DirectoryRoot[],
+  absolutePath: string | null,
+) {
   if (roots.length === 0) {
     throw new Error("No bootstrap filesystem roots are configured.")
   }
@@ -121,7 +126,7 @@ function pickBootstrapRoot(roots: DirectoryRoot[], absolutePath: string | null) 
 }
 
 export async function readBootstrapDirectoryRoots(): Promise<DirectoryRoot[]> {
-  const response = await executorApiFetch("/v1/bootstrap/filesystem/roots", {
+  const response = await harborApiFetch("/v1/bootstrap/filesystem/roots", {
     method: "GET",
     cache: "no-store",
     headers: {
@@ -129,13 +134,17 @@ export async function readBootstrapDirectoryRoots(): Promise<DirectoryRoot[]> {
     },
   })
 
-  const payload = (await response
-    .json()
-    .catch(() => null)) as BootstrapRootsSuccessResponse | DirectoryListErrorResponse | null
+  const payload = (await response.json().catch(() => null)) as
+    | BootstrapRootsSuccessResponse
+    | DirectoryListErrorResponse
+    | null
 
   if (!payload || !response.ok || payload.ok !== true) {
     throw new Error(
-      toErrorMessage(payload as DirectoryListErrorResponse | null, "Failed to load directories."),
+      toErrorMessage(
+        payload as DirectoryListErrorResponse | null,
+        "Failed to load directories.",
+      ),
     )
   }
 
@@ -149,7 +158,7 @@ export async function readBootstrapDirectoryEntries(input: {
 }): Promise<DirectoryListSuccessResponse> {
   const roots = await readBootstrapDirectoryRoots()
   const root = pickBootstrapRoot(roots, input.path)
-  const response = await executorApiFetch("/v1/bootstrap/filesystem/list", {
+  const response = await harborApiFetch("/v1/bootstrap/filesystem/list", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -165,13 +174,17 @@ export async function readBootstrapDirectoryEntries(input: {
     }),
   })
 
-  const payload = (await response
-    .json()
-    .catch(() => null)) as BootstrapListPayload | DirectoryListErrorResponse | null
+  const payload = (await response.json().catch(() => null)) as
+    | BootstrapListPayload
+    | DirectoryListErrorResponse
+    | null
 
   if (!payload || !response.ok || payload.ok !== true) {
     throw new Error(
-      toErrorMessage(payload as DirectoryListErrorResponse | null, "Failed to list directories."),
+      toErrorMessage(
+        payload as DirectoryListErrorResponse | null,
+        "Failed to list directories.",
+      ),
     )
   }
 
@@ -206,7 +219,7 @@ export async function statBootstrapDirectorySelection(
     searchParams.set("path", relativePath)
   }
 
-  const response = await executorApiFetch(
+  const response = await harborApiFetch(
     `/v1/bootstrap/filesystem/stat?${searchParams.toString()}`,
     {
       method: "GET",
@@ -217,13 +230,17 @@ export async function statBootstrapDirectorySelection(
     },
   )
 
-  const payload = (await response
-    .json()
-    .catch(() => null)) as BootstrapStatPayload | DirectoryListErrorResponse | null
+  const payload = (await response.json().catch(() => null)) as
+    | BootstrapStatPayload
+    | DirectoryListErrorResponse
+    | null
 
   if (!payload || !response.ok || payload.ok !== true) {
     throw new Error(
-      toErrorMessage(payload as DirectoryListErrorResponse | null, "Failed to validate directory."),
+      toErrorMessage(
+        payload as DirectoryListErrorResponse | null,
+        "Failed to validate directory.",
+      ),
     )
   }
 
